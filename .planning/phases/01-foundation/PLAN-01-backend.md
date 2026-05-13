@@ -28,6 +28,7 @@ files_modified:
   - backend/tests/test_health.py
   - backend/tests/test_db.py
   - backend/tests/test_llm_client.py
+  - backend/tests/test_chat_route.py
   - backend/tests/test_mcp_client.py
   - docker-compose.yml
 autonomous: true
@@ -236,7 +237,7 @@ POST {endpoint}/chat/completions stream=true tools=[...]
 
 <task type="auto">
   <name>Task 2: LLM-клиент (OpenAI-compat streaming) + smoke /chat SSE</name>
-  <files>backend/app/clients/__init__.py, backend/app/clients/llm.py, backend/app/routes/chat.py, backend/tests/test_llm_client.py</files>
+  <files>backend/app/clients/__init__.py, backend/app/clients/llm.py, backend/app/routes/chat.py, backend/tests/test_llm_client.py, backend/tests/test_chat_route.py</files>
   <action>
 Реализовать OpenAI-совместимый LLM-клиент со streaming и подключить минимальный /chat endpoint, который проксирует LLM поток в SSE (БЕЗ MCP, БЕЗ оркестратора, БЕЗ SQLite persistence — это Phase 2). Smoke-уровень: «POST /chat → SSE chunks из LLM пробрасываются клиенту».
 
