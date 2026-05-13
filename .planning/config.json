@@ -1,0 +1,28 @@
+{
+  "version": "1.0",
+  "mode": "yolo",
+  "granularity": "coarse",
+  "parallelization": true,
+  "commit_docs": true,
+  "model_profile": "balanced",
+  "workflow": {
+    "research": false,
+    "plan_check": true,
+    "verifier": true,
+    "nyquist_validation": false,
+    "auto_advance": true,
+    "_auto_chain_active": false
+  },
+  "models": {
+    "researcher": "claude-sonnet-4-6",
+    "synthesizer": "claude-sonnet-4-6",
+    "roadmapper": "claude-sonnet-4-6",
+    "planner": "claude-sonnet-4-6",
+    "executor": "claude-sonnet-4-6"
+  },
+  "planning": {
+    "sub_repos": [],
+    "commit_docs": true
+  },
+  "notes": "Initialized manually (skipping interactive GSD questioning). Context pre-loaded from PROJECT.md/ARCHITECTURE.md/REQUIREMENTS.md/ROADMAP.md in project root. Research not needed — already done during design phase. See .planning/STATE.md for pivot history (v0/v0b → v1 chat-first)."
+}

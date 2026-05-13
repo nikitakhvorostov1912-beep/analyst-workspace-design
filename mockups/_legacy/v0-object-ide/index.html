@@ -1,0 +1,1569 @@
+<!DOCTYPE html>
+<html lang="ru" class="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Аналитик 1С — Workspace v1 (Object-IDE + AI)</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script>
+tailwind.config = {
+  darkMode: 'class',
+  theme: {
+    extend: {
+      fontFamily: {
+        sans: ['Inter', 'system-ui', 'sans-serif'],
+        mono: ['"JetBrains Mono"', 'monospace'],
+      },
+      colors: {
+        bg: { DEFAULT: '#0b0e14', soft: '#11151c', deep: '#080a0f' },
+        surface: { DEFAULT: '#151a23', hover: '#1c2230', active: '#22293a' },
+        border: { DEFAULT: '#1f2533', strong: '#2a3142' },
+        ink: { 0: '#f1f5f9', 1: '#cbd5e1', 2: '#94a3b8', 3: '#64748b', 4: '#475569' },
+        acc: { cyan: '#22d3ee', emer: '#10b981', amber: '#f59e0b', rose: '#f43f5e', viol: '#a78bfa' },
+      }
+    }
+  }
+}
+</script>
+<style>
+  html, body { background: #0b0e14; color: #f1f5f9; font-family: Inter, sans-serif; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: #11151c; }
+  ::-webkit-scrollbar-thumb { background: #2a3142; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #3a4254; }
+  .mono { font-family: 'JetBrains Mono', monospace; font-feature-settings: "calt", "ss01"; }
+  .pulse-dot { animation: pulse 1.6s ease-in-out infinite; }
+  @keyframes pulse { 0%, 100% { opacity: 1 } 50% { opacity: 0.4 } }
+  .grid-bg {
+    background-image: linear-gradient(rgba(34, 211, 238, 0.04) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(34, 211, 238, 0.04) 1px, transparent 1px);
+    background-size: 24px 24px;
+  }
+  .glow-cyan { box-shadow: 0 0 0 1px rgba(34, 211, 238, 0.2), 0 0 18px -2px rgba(34, 211, 238, 0.15); }
+  .glow-amber { box-shadow: 0 0 0 1px rgba(245, 158, 11, 0.3), 0 0 16px -2px rgba(245, 158, 11, 0.15); }
+  .glow-rose  { box-shadow: 0 0 0 1px rgba(244, 63, 94, 0.3),  0 0 16px -2px rgba(244, 63, 94, 0.15); }
+  .screen { display: none !important; }
+  .screen.active { display: flex !important; }
+  .kbd { font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; padding: 1px 6px; background: #1c2230; border: 1px solid #2a3142; border-bottom-width: 2px; border-radius: 4px; color: #94a3b8; }
+  .spark { display: flex; align-items: flex-end; gap: 1px; height: 16px; }
+  .spark > span { width: 3px; background: #22d3ee; opacity: 0.7; border-radius: 1px; }
+  details > summary { list-style: none; cursor: pointer; }
+  details > summary::-webkit-details-marker { display: none; }
+  details[open] > summary .chev { transform: rotate(90deg); }
+  .chev { transition: transform 0.15s ease; display: inline-block; }
+  .tab-active { color: #22d3ee; border-bottom-color: #22d3ee; }
+  .palette-input::placeholder { color: #475569; }
+  .hover-row:hover { background: #1c2230; }
+  /* fade between screens */
+  .screen.active { animation: fadein 0.15s ease; }
+  @keyframes fadein { from { opacity: 0.5 } to { opacity: 1 } }
+</style>
+</head>
+<body class="h-screen overflow-hidden">
+
+<!-- ============================== TOP BAR ============================== -->
+<div class="h-12 bg-bg-soft border-b border-border flex items-center px-3 gap-2 text-sm shrink-0">
+  <!-- Logo -->
+  <div class="flex items-center gap-2 pr-3 border-r border-border">
+    <div class="w-6 h-6 rounded bg-gradient-to-br from-acc-cyan to-acc-viol flex items-center justify-center text-bg font-bold text-xs">A1</div>
+    <span class="font-semibold text-ink-0">Аналитик 1С</span>
+    <span class="text-ink-3 text-xs mono">v1</span>
+  </div>
+
+  <!-- Project switcher -->
+  <button class="flex items-center gap-2 px-3 py-1.5 rounded hover:bg-surface text-ink-1 transition">
+    <span class="w-2 h-2 rounded-full bg-acc-emer pulse-dot"></span>
+    <span class="font-medium">Русский Транзит</span>
+    <span class="text-ink-3 text-xs">УТ 11.5 + APIСигма</span>
+    <svg class="w-3 h-3 text-ink-3" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+  </button>
+
+  <!-- Channel -->
+  <button class="flex items-center gap-2 px-2.5 py-1 rounded hover:bg-surface text-ink-2 text-xs mono">
+    <span class="text-ink-3">channel</span>
+    <span class="text-ink-1">prod</span>
+    <svg class="w-3 h-3 text-ink-3" viewBox="0 0 12 12" fill="none"><path d="M3 4.5L6 7.5L9 4.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+  </button>
+
+  <!-- MCP status -->
+  <div class="flex items-center gap-1.5 px-2.5 py-1 rounded bg-acc-emer/10 text-acc-emer text-xs mono">
+    <span class="w-1.5 h-1.5 rounded-full bg-acc-emer"></span>
+    MCP :6010
+  </div>
+
+  <!-- Anonymization toggle -->
+  <button class="flex items-center gap-1.5 px-2.5 py-1 rounded hover:bg-surface text-ink-2 text-xs">
+    <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none"><path d="M5 6V4a3 3 0 016 0v2m-7 0h8a1 1 0 011 1v6a1 1 0 01-1 1H4a1 1 0 01-1-1V7a1 1 0 011-1z" stroke="currentColor" stroke-width="1.5"/></svg>
+    <span class="mono">anon: OFF</span>
+  </button>
+
+  <div class="flex-1"></div>
+
+  <!-- Cmd-K -->
+  <button onclick="togglePalette()" class="flex items-center gap-2 px-3 py-1.5 rounded bg-surface hover:bg-surface-hover text-ink-2 text-xs">
+    <svg class="w-3.5 h-3.5" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L13 13" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+    <span>Поиск или команда</span>
+    <span class="kbd">⌘K</span>
+  </button>
+
+  <!-- Settings -->
+  <button class="p-1.5 rounded hover:bg-surface text-ink-3">
+    <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="2.5" stroke="currentColor" stroke-width="1.5"/><path d="M8 1v2M8 13v2M15 8h-2M3 8H1M13 3l-1.5 1.5M4.5 11.5L3 13M13 13l-1.5-1.5M4.5 4.5L3 3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+  </button>
+</div>
+
+<!-- ============================== MAIN LAYOUT ============================== -->
+<div class="flex h-[calc(100vh-3rem-1.5rem)]">
+
+  <!-- ============================== LEFT RAIL ============================== -->
+  <div class="w-14 bg-bg-deep border-r border-border flex flex-col items-center py-3 gap-1 shrink-0">
+    <button onclick="switchScreen('discovery')" data-mode="discovery" class="mode-btn w-10 h-10 rounded-lg flex items-center justify-center text-ink-2 hover:bg-surface" title="Discovery — карта базы">
+      <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none"><path d="M3 5h14M3 10h14M3 15h14" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="6" cy="5" r="1.5" fill="currentColor"/><circle cx="11" cy="10" r="1.5" fill="currentColor"/><circle cx="8" cy="15" r="1.5" fill="currentColor"/></svg>
+    </button>
+    <button onclick="switchScreen('object')" data-mode="object" class="mode-btn w-10 h-10 rounded-lg flex items-center justify-center text-ink-2 hover:bg-surface" title="Объект — карточка">
+      <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none"><rect x="3" y="3" width="14" height="14" rx="2" stroke="currentColor" stroke-width="1.7"/><path d="M3 8h14M8 8v9" stroke="currentColor" stroke-width="1.7"/></svg>
+    </button>
+    <button onclick="switchScreen('triage')" data-mode="triage" class="mode-btn w-10 h-10 rounded-lg flex items-center justify-center text-ink-2 hover:bg-surface relative" title="Triage — bug-расследование">
+      <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none"><path d="M10 2L3 6v6c0 3.5 3 5.5 7 6 4-0.5 7-2.5 7-6V6L10 2z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 8v3M10 13v0.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      <span class="absolute -top-0.5 -right-0.5 w-4 h-4 rounded-full bg-acc-rose text-[10px] flex items-center justify-center text-white font-semibold">3</span>
+    </button>
+    <button onclick="switchScreen('investigate')" data-mode="investigate" class="mode-btn w-10 h-10 rounded-lg flex items-center justify-center text-ink-2 hover:bg-surface" title="Investigate — drill-down">
+      <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none"><path d="M3 17l3-3M9 11l3-3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="14" cy="6" r="3.5" stroke="currentColor" stroke-width="1.7"/><path d="M3 3h4M3 7h2M15 17h2M11 17h2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+    </button>
+    <button onclick="switchScreen('mapping')" data-mode="mapping" class="mode-btn w-10 h-10 rounded-lg flex items-center justify-center text-ink-2 hover:bg-surface" title="Mapping — загрузка данных">
+      <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none"><path d="M6 3v10M6 13l-3-3M6 13l3-3M14 17V7M14 7l-3 3M14 7l3 3" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+    <button onclick="switchScreen('knowledge')" data-mode="knowledge" class="mode-btn w-10 h-10 rounded-lg flex items-center justify-center text-ink-2 hover:bg-surface" title="Knowledge — заметки">
+      <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none"><path d="M4 3h9l3 3v11H4V3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M13 3v3h3M7 9h6M7 12h6M7 15h4" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+    </button>
+
+    <div class="flex-1"></div>
+
+    <!-- Bottom: bookmarks -->
+    <button class="w-10 h-10 rounded-lg flex items-center justify-center text-ink-3 hover:bg-surface" title="Закладки">
+      <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none"><path d="M5 3h10v14l-5-3-5 3V3z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+    </button>
+    <button class="w-10 h-10 rounded-lg flex items-center justify-center text-ink-3 hover:bg-surface" title="История сессий">
+      <svg class="w-5 h-5" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="7" stroke="currentColor" stroke-width="1.7"/><path d="M10 6v4l3 2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+
+  <!-- ============================== SCREEN 1: DISCOVERY ============================== -->
+  <div id="screen-discovery" class="screen active flex-1 flex overflow-hidden">
+
+    <!-- Tree -->
+    <div class="w-72 bg-bg-soft border-r border-border flex flex-col shrink-0">
+      <div class="px-3 pt-3 pb-2 border-b border-border">
+        <div class="text-[11px] uppercase tracking-wider text-ink-3 font-semibold mb-2">Метаданные</div>
+        <div class="relative">
+          <input type="text" placeholder="ОПП, контраг, регистр..." class="w-full bg-bg pl-7 pr-2 py-1.5 rounded text-xs text-ink-1 border border-border focus:border-acc-cyan/50 focus:outline-none">
+          <svg class="w-3.5 h-3.5 absolute left-2 top-2 text-ink-3" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L13 13" stroke="currentColor" stroke-width="1.5"/></svg>
+        </div>
+      </div>
+      <div class="flex-1 overflow-y-auto text-xs py-2">
+        <!-- Tree items -->
+        <details open class="px-2">
+          <summary class="flex items-center gap-1 py-1 px-1 rounded hover:bg-surface text-ink-1">
+            <svg class="chev w-3 h-3 text-ink-3" viewBox="0 0 12 12" fill="none"><path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span class="font-medium">Документы</span>
+            <span class="text-ink-3 ml-auto mono">27</span>
+          </summary>
+          <div class="ml-3 mt-0.5 border-l border-border pl-2">
+            <div class="hover-row rounded py-1 px-1 cursor-pointer text-ink-1" onclick="switchScreen('object')">
+              <span class="mono text-ink-3 mr-1">📄</span>ОперацияПоПоручительству
+              <span class="ml-1 text-acc-rose">●</span>
+            </div>
+            <div class="hover-row rounded py-1 px-1 cursor-pointer text-ink-2">
+              <span class="mono text-ink-3 mr-1">📄</span>РеализацияТоваровУслуг
+            </div>
+            <div class="hover-row rounded py-1 px-1 cursor-pointer text-ink-2">
+              <span class="mono text-ink-3 mr-1">📄</span>ПоступлениеТоваровУслуг
+            </div>
+            <div class="hover-row rounded py-1 px-1 cursor-pointer text-ink-2">
+              <span class="mono text-ink-3 mr-1">📄</span>УстановкаЦенНоменклатуры
+            </div>
+            <div class="hover-row rounded py-1 px-1 cursor-pointer text-ink-3">
+              <span class="mono text-ink-3 mr-1">📄</span>+ 23 ещё
+            </div>
+          </div>
+        </details>
+
+        <details class="px-2 mt-1">
+          <summary class="flex items-center gap-1 py-1 px-1 rounded hover:bg-surface text-ink-1">
+            <svg class="chev w-3 h-3 text-ink-3" viewBox="0 0 12 12" fill="none"><path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span class="font-medium">Справочники</span>
+            <span class="text-ink-3 ml-auto mono">265</span>
+          </summary>
+        </details>
+
+        <details class="px-2 mt-1">
+          <summary class="flex items-center gap-1 py-1 px-1 rounded hover:bg-surface text-ink-1">
+            <svg class="chev w-3 h-3 text-ink-3" viewBox="0 0 12 12" fill="none"><path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span class="font-medium">Регистры накопления</span>
+            <span class="text-ink-3 ml-auto mono">42</span>
+          </summary>
+        </details>
+
+        <details class="px-2 mt-1">
+          <summary class="flex items-center gap-1 py-1 px-1 rounded hover:bg-surface text-ink-1">
+            <svg class="chev w-3 h-3 text-ink-3" viewBox="0 0 12 12" fill="none"><path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span class="font-medium">Регистры сведений</span>
+            <span class="text-ink-3 ml-auto mono">108</span>
+          </summary>
+        </details>
+
+        <details open class="px-2 mt-1">
+          <summary class="flex items-center gap-1 py-1 px-1 rounded hover:bg-surface text-ink-1">
+            <svg class="chev w-3 h-3 text-ink-3" viewBox="0 0 12 12" fill="none"><path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+            <span class="font-medium">Расширения</span>
+            <span class="text-ink-3 ml-auto mono">5</span>
+          </summary>
+          <div class="ml-3 mt-0.5 border-l border-border pl-2">
+            <div class="hover-row rounded py-1 px-1 cursor-pointer text-acc-cyan font-medium">
+              <span class="mono mr-1">⊕</span>APIСигма <span class="text-acc-rose ml-1">●</span>
+            </div>
+            <div class="hover-row rounded py-1 px-1 cursor-pointer text-ink-2"><span class="mono text-ink-3 mr-1">⊕</span>Транзит</div>
+            <div class="hover-row rounded py-1 px-1 cursor-pointer text-ink-2"><span class="mono text-ink-3 mr-1">⊕</span>ИзменениеЦен</div>
+            <div class="hover-row rounded py-1 px-1 cursor-pointer text-ink-2"><span class="mono text-ink-3 mr-1">⊕</span>Поручительства</div>
+            <div class="hover-row rounded py-1 px-1 cursor-pointer text-ink-2"><span class="mono text-ink-3 mr-1">⊕</span>ОбменЭДО</div>
+          </div>
+        </details>
+      </div>
+
+      <!-- Bookmarks -->
+      <div class="border-t border-border p-2">
+        <div class="text-[11px] uppercase tracking-wider text-ink-3 font-semibold mb-1.5 flex items-center justify-between">
+          <span>Закладки</span>
+          <button class="text-ink-3 hover:text-ink-1">+</button>
+        </div>
+        <div class="space-y-0.5 text-xs">
+          <div class="hover-row rounded py-1 px-1.5 cursor-pointer text-ink-2 truncate">⭐ ОПП — главный документ</div>
+          <div class="hover-row rounded py-1 px-1.5 cursor-pointer text-ink-2 truncate">⭐ РегНакоп.Поручительства</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main: Discovery dashboard -->
+    <div class="flex-1 overflow-y-auto">
+      <div class="px-6 py-4">
+        <!-- Breadcrumb -->
+        <div class="flex items-center gap-2 text-xs text-ink-3 mb-3">
+          <span>Русский Транзит</span>
+          <svg class="w-3 h-3" viewBox="0 0 12 12" fill="none"><path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" stroke-width="1.5"/></svg>
+          <span class="text-acc-cyan">Карта базы</span>
+        </div>
+
+        <h1 class="text-2xl font-semibold mb-1">Карта базы: <span class="text-ink-2">УТ 11.5.18.182 + 5 расширений</span></h1>
+        <div class="text-sm text-ink-3 mb-5">Активна 14 месяцев · Обновлено: 2 минуты назад · <button class="text-acc-cyan hover:underline">обновить кэш metadata</button></div>
+
+        <!-- Summary cards -->
+        <div class="grid grid-cols-4 gap-3 mb-6">
+          <div class="bg-surface rounded-lg border border-border p-4">
+            <div class="text-xs text-ink-3 uppercase tracking-wider">Справочники</div>
+            <div class="text-3xl font-semibold mono mt-1">265</div>
+            <div class="spark mt-2"><span style="height:60%"></span><span style="height:70%"></span><span style="height:65%"></span><span style="height:80%"></span><span style="height:75%"></span><span style="height:85%"></span><span style="height:90%"></span></div>
+            <div class="text-[11px] text-ink-3 mt-1">Активны: 89 (33%)</div>
+          </div>
+          <div class="bg-surface rounded-lg border border-border p-4">
+            <div class="text-xs text-ink-3 uppercase tracking-wider">Документы</div>
+            <div class="text-3xl font-semibold mono mt-1">27</div>
+            <div class="spark mt-2"><span style="height:40%"></span><span style="height:55%"></span><span style="height:80%"></span><span style="height:95%"></span><span style="height:70%"></span><span style="height:85%"></span><span style="height:90%"></span></div>
+            <div class="text-[11px] text-ink-3 mt-1">Активны: 14 (52%)</div>
+          </div>
+          <div class="bg-surface rounded-lg border border-border p-4">
+            <div class="text-xs text-ink-3 uppercase tracking-wider">Регистры</div>
+            <div class="text-3xl font-semibold mono mt-1">150</div>
+            <div class="spark mt-2"><span style="height:50%"></span><span style="height:60%"></span><span style="height:70%"></span><span style="height:65%"></span><span style="height:80%"></span><span style="height:75%"></span><span style="height:85%"></span></div>
+            <div class="text-[11px] text-ink-3 mt-1">Движутся: 42 (28%)</div>
+          </div>
+          <div class="bg-surface rounded-lg border border-border p-4 glow-amber">
+            <div class="text-xs text-acc-amber uppercase tracking-wider">Расширения</div>
+            <div class="text-3xl font-semibold mono mt-1 text-acc-amber">5</div>
+            <div class="text-[11px] text-ink-2 mt-3">3 переопределяют типовое, 2 добавляют новые объекты</div>
+          </div>
+        </div>
+
+        <!-- Активность за 30 дней -->
+        <div class="bg-surface rounded-lg border border-border p-4 mb-5">
+          <div class="flex items-baseline justify-between mb-3">
+            <h3 class="font-semibold">Heatmap активности · последние 30 дней</h3>
+            <div class="text-xs text-ink-3">данные из <span class="mono text-acc-cyan">get_event_log</span> + <span class="mono text-acc-cyan">execute_query</span></div>
+          </div>
+          <div class="space-y-1.5">
+            <div class="flex items-center gap-3 text-xs">
+              <div class="w-48 text-ink-1 truncate">Документ.ОперацияПоПоручительству</div>
+              <div class="flex-1 h-4 bg-bg rounded overflow-hidden flex">
+                <div class="bg-acc-cyan/70" style="width: 95%"></div>
+              </div>
+              <div class="w-16 text-right mono text-ink-1">1832</div>
+              <button class="text-ink-3 hover:text-acc-cyan">→</button>
+            </div>
+            <div class="flex items-center gap-3 text-xs">
+              <div class="w-48 text-ink-1 truncate">Документ.РеализацияТоваровУслуг</div>
+              <div class="flex-1 h-4 bg-bg rounded overflow-hidden flex">
+                <div class="bg-acc-cyan/70" style="width: 80%"></div>
+              </div>
+              <div class="w-16 text-right mono text-ink-1">1450</div>
+              <button class="text-ink-3 hover:text-acc-cyan">→</button>
+            </div>
+            <div class="flex items-center gap-3 text-xs">
+              <div class="w-48 text-ink-1 truncate">Документ.ПоступлениеТоваровУслуг</div>
+              <div class="flex-1 h-4 bg-bg rounded overflow-hidden flex">
+                <div class="bg-acc-cyan/70" style="width: 64%"></div>
+              </div>
+              <div class="w-16 text-right mono text-ink-1">1100</div>
+              <button class="text-ink-3 hover:text-acc-cyan">→</button>
+            </div>
+            <div class="flex items-center gap-3 text-xs">
+              <div class="w-48 text-ink-1 truncate">Документ.УстановкаЦенНоменклатуры</div>
+              <div class="flex-1 h-4 bg-bg rounded overflow-hidden flex">
+                <div class="bg-acc-cyan/70" style="width: 22%"></div>
+              </div>
+              <div class="w-16 text-right mono text-ink-1">378</div>
+              <button class="text-ink-3 hover:text-acc-cyan">→</button>
+            </div>
+            <div class="flex items-center gap-3 text-xs">
+              <div class="w-48 text-ink-3 truncate">Документ.Доверенность</div>
+              <div class="flex-1 h-4 bg-bg rounded overflow-hidden flex">
+                <div class="bg-ink-4" style="width: 0%"></div>
+              </div>
+              <div class="w-16 text-right mono text-ink-3">0</div>
+              <span class="text-ink-3 text-[10px]">пусто</span>
+            </div>
+            <div class="text-[11px] text-ink-3 pl-1 pt-2">+ 22 типа, низкая активность · <button class="text-acc-cyan hover:underline">показать все</button></div>
+          </div>
+        </div>
+
+        <!-- Status row -->
+        <div class="grid grid-cols-2 gap-3">
+          <!-- Pitfalls -->
+          <div class="bg-surface rounded-lg border border-border p-4">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-semibold flex items-center gap-2">
+                <svg class="w-4 h-4 text-acc-amber" viewBox="0 0 16 16" fill="none"><path d="M8 2L2 13h12L8 2z" stroke="currentColor" stroke-width="1.5"/><path d="M8 7v3M8 11.5v0.5" stroke="currentColor" stroke-width="1.5"/></svg>
+                Ловушки конфигурации
+              </h3>
+              <span class="text-xs text-ink-3 mono">УТ 11.5</span>
+            </div>
+            <div class="space-y-1.5 text-xs">
+              <div class="flex items-start gap-2 p-2 rounded bg-acc-rose/10 border border-acc-rose/20">
+                <span class="mono text-acc-rose font-semibold">P-007</span>
+                <div class="flex-1">
+                  <div class="text-ink-0 font-medium">Дубликаты НомерГТД в загрузке</div>
+                  <div class="text-ink-3">Найдено: 296 коллизий в Регистр.НомераГТД</div>
+                </div>
+              </div>
+              <div class="flex items-start gap-2 p-2 rounded bg-acc-amber/10 border border-acc-amber/20">
+                <span class="mono text-acc-amber font-semibold">P-012</span>
+                <div class="flex-1">
+                  <div class="text-ink-0 font-medium">Расширение перехватывает ПередЗаписью</div>
+                  <div class="text-ink-3">APIСигма → Документ.ОПП без проверки IsNew</div>
+                </div>
+              </div>
+              <div class="flex items-start gap-2 p-2 rounded hover:bg-bg/40">
+                <span class="mono text-ink-3 font-semibold">P-018</span>
+                <div class="flex-1">
+                  <div class="text-ink-2">Контрагент Декларант не заполнен в 252 ОПП</div>
+                  <div class="text-ink-3">252 из 437 (58%)</div>
+                </div>
+              </div>
+              <button class="text-xs text-acc-cyan hover:underline mt-2">+ ещё 14 ловушек проверено</button>
+            </div>
+          </div>
+
+          <!-- Что нового -->
+          <div class="bg-surface rounded-lg border border-border p-4">
+            <div class="flex items-center justify-between mb-3">
+              <h3 class="font-semibold">Что я делал недавно</h3>
+              <span class="text-xs text-ink-3">за последнюю неделю</span>
+            </div>
+            <div class="space-y-2 text-xs">
+              <div class="flex gap-3">
+                <div class="text-ink-3 mono w-12 shrink-0">сегодня</div>
+                <div class="flex-1">
+                  <div class="text-ink-1">Triage 32 ОПП без шапки за 30.04</div>
+                  <div class="text-ink-3 text-[11px]">→ Документ.ОПП · 4 ячейки запроса · 1 incident</div>
+                </div>
+              </div>
+              <div class="flex gap-3">
+                <div class="text-ink-3 mono w-12 shrink-0">пн</div>
+                <div class="flex-1">
+                  <div class="text-ink-1">Discovery базы УСО клиента N</div>
+                  <div class="text-ink-3 text-[11px]">→ <a class="text-acc-cyan hover:underline">переключиться</a></div>
+                </div>
+              </div>
+              <div class="flex gap-3">
+                <div class="text-ink-3 mono w-12 shrink-0">пт</div>
+                <div class="flex-1">
+                  <div class="text-ink-1">Drill-down 4197 документов плохие статусы</div>
+                  <div class="text-ink-3 text-[11px]">→ notebook сохранён</div>
+                </div>
+              </div>
+              <div class="flex gap-3">
+                <div class="text-ink-3 mono w-12 shrink-0">чт</div>
+                <div class="flex-1">
+                  <div class="text-ink-1">Загрузка реестра ТД v2</div>
+                  <div class="text-ink-3 text-[11px]">→ mapping профиль сохранён</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Right Rail -->
+    <div class="w-80 bg-bg-soft border-l border-border flex flex-col shrink-0">
+      <div class="px-3 py-3 border-b border-border flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-md bg-gradient-to-br from-acc-viol to-acc-cyan flex items-center justify-center">
+            <svg class="w-4 h-4 text-bg" viewBox="0 0 16 16" fill="none"><path d="M8 2L10 6L14 7L11 10.5L11.5 14L8 12L4.5 14L5 10.5L2 7L6 6L8 2z" fill="currentColor"/></svg>
+          </div>
+          <div>
+            <div class="text-sm font-medium">AI Аналитик</div>
+            <div class="text-[10px] text-ink-3 mono">Claude Sonnet 4.6 · контекст: проект</div>
+          </div>
+        </div>
+        <button class="text-ink-3 hover:text-ink-1 text-xs">⋮</button>
+      </div>
+
+      <div class="flex-1 overflow-y-auto px-3 py-3 space-y-3 text-sm">
+        <div class="bg-surface rounded-lg p-3 text-ink-1">
+          <div class="text-[10px] uppercase tracking-wider text-acc-viol mb-1.5">AI · здравствуй</div>
+          Это база <b>Русский Транзит</b>. Замечаю:
+          <ul class="mt-2 space-y-1 text-xs text-ink-2 list-disc list-inside">
+            <li><b class="text-acc-rose">32 ОПП без шапки</b> за 30.04 — нужно расследовать?</li>
+            <li>5 расширений, <b>APIСигма</b> доминирует по ошибкам в журнале</li>
+            <li>Регистр Доверенность пуст — возможно отключен в конфиге</li>
+          </ul>
+        </div>
+        <div class="space-y-1.5">
+          <div class="text-[10px] uppercase tracking-wider text-ink-3 px-1">Действия одним кликом</div>
+          <button class="w-full text-left px-3 py-2 rounded bg-bg hover:bg-surface text-xs text-ink-1 border border-border">
+            🔍 Расследовать 32 ОПП без шапки
+          </button>
+          <button class="w-full text-left px-3 py-2 rounded bg-bg hover:bg-surface text-xs text-ink-1 border border-border">
+            📊 Drill-down: статусы документов за месяц
+          </button>
+          <button class="w-full text-left px-3 py-2 rounded bg-bg hover:bg-surface text-xs text-ink-1 border border-border">
+            🧪 Запустить полный аудит конфигурации
+          </button>
+          <button class="w-full text-left px-3 py-2 rounded bg-bg hover:bg-surface text-xs text-ink-1 border border-border">
+            📑 Сводка для встречи с клиентом
+          </button>
+        </div>
+      </div>
+
+      <div class="border-t border-border p-2.5">
+        <div class="relative">
+          <textarea placeholder="Спросить про базу или объект..." class="w-full bg-bg border border-border rounded-lg px-3 py-2 pr-10 text-sm text-ink-1 resize-none focus:border-acc-cyan/50 focus:outline-none" rows="2"></textarea>
+          <button class="absolute right-2 bottom-2 p-1.5 rounded bg-acc-cyan/20 text-acc-cyan hover:bg-acc-cyan/30">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 14 14" fill="none"><path d="M2 7L12 7M8 3L12 7L8 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div class="flex gap-1 mt-1.5 text-[10px] text-ink-3">
+          <span class="kbd">⌘↵</span><span class="ml-1">отправить</span>
+          <span class="ml-auto">контекст: 0 объектов</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================== SCREEN 2: OBJECT WORKSPACE ============================== -->
+  <div id="screen-object" class="screen flex-1 flex overflow-hidden">
+    <!-- Tree (same shrunken) -->
+    <div class="w-60 bg-bg-soft border-r border-border flex flex-col shrink-0">
+      <div class="px-3 pt-3 pb-2 border-b border-border">
+        <div class="text-[11px] uppercase tracking-wider text-ink-3 font-semibold">Метаданные</div>
+      </div>
+      <div class="flex-1 overflow-y-auto text-xs py-2 px-2">
+        <details open>
+          <summary class="flex items-center gap-1 py-1 px-1 rounded text-ink-1">
+            <svg class="chev w-3 h-3 text-ink-3" viewBox="0 0 12 12" fill="none"><path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" stroke-width="1.5"/></svg>
+            <span>Документы</span>
+            <span class="text-ink-3 ml-auto mono">27</span>
+          </summary>
+          <div class="ml-3 mt-0.5 border-l border-border pl-2">
+            <div class="rounded py-1 px-1.5 bg-acc-cyan/10 text-acc-cyan border-l-2 border-acc-cyan -ml-2.5 pl-2.5">
+              📄 ОперацияПоПоручительству
+            </div>
+            <div class="hover-row rounded py-1 px-1 cursor-pointer text-ink-2">📄 РеализацияТоваровУслуг</div>
+            <div class="hover-row rounded py-1 px-1 cursor-pointer text-ink-2">📄 ПоступлениеТоваровУслуг</div>
+          </div>
+        </details>
+      </div>
+    </div>
+
+    <!-- Main: Object card -->
+    <div class="flex-1 overflow-y-auto">
+      <div class="px-6 py-4">
+        <!-- Breadcrumb -->
+        <div class="flex items-center gap-2 text-xs text-ink-3 mb-3">
+          <button onclick="switchScreen('discovery')" class="hover:text-acc-cyan">Карта базы</button>
+          <svg class="w-3 h-3" viewBox="0 0 12 12" fill="none"><path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" stroke-width="1.5"/></svg>
+          <span>Документы</span>
+          <svg class="w-3 h-3" viewBox="0 0 12 12" fill="none"><path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" stroke-width="1.5"/></svg>
+          <span class="text-acc-cyan">ОперацияПоПоручительству</span>
+        </div>
+
+        <!-- Header -->
+        <div class="flex items-start justify-between mb-1">
+          <div>
+            <h1 class="text-2xl font-semibold flex items-center gap-3">
+              📄 ОперацияПоПоручительству
+              <span class="text-xs px-2 py-0.5 rounded bg-acc-viol/20 text-acc-viol mono">ext: APIСигма</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-acc-rose/15 text-acc-rose">⚠ 3 проблемы</span>
+            </h1>
+            <div class="text-sm text-ink-3 mt-1">«Операция по поручительству» · УникальныйИдентификатор: <span class="mono">a28a2db7-...</span></div>
+          </div>
+          <div class="flex gap-1.5">
+            <button class="px-2.5 py-1.5 text-xs rounded bg-surface hover:bg-surface-hover text-ink-1">⭐ Закладка</button>
+            <button class="px-2.5 py-1.5 text-xs rounded bg-surface hover:bg-surface-hover text-ink-1">📋 Скопировать ссылку</button>
+            <button class="px-2.5 py-1.5 text-xs rounded bg-acc-cyan/15 text-acc-cyan hover:bg-acc-cyan/25 font-medium">Открыть в 1С ↗</button>
+          </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="border-b border-border mt-4 flex gap-5 text-sm">
+          <button class="py-2 border-b-2 tab-active font-medium">📋 Реквизиты</button>
+          <button class="py-2 border-b-2 border-transparent text-ink-2 hover:text-ink-1">📑 Табличные части (2)</button>
+          <button class="py-2 border-b-2 border-transparent text-ink-2 hover:text-ink-1">🔗 Где используется (47)</button>
+          <button class="py-2 border-b-2 border-transparent text-ink-2 hover:text-ink-1">📜 Журнал <span class="text-acc-rose ml-1">●</span></button>
+          <button class="py-2 border-b-2 border-transparent text-ink-2 hover:text-ink-1">⚖ Права</button>
+          <button class="py-2 border-b-2 border-transparent text-ink-2 hover:text-ink-1">⚙ Код модулей</button>
+        </div>
+
+        <!-- Реквизиты шапки -->
+        <div class="py-4">
+          <div class="flex items-baseline justify-between mb-3">
+            <h3 class="font-semibold text-ink-1">Реквизиты шапки <span class="text-ink-3 font-normal">17</span></h3>
+            <div class="text-xs text-ink-3 mono">из <span class="text-acc-cyan">get_metadata(filter, sections=properties)</span></div>
+          </div>
+          <div class="bg-surface rounded-lg border border-border overflow-hidden">
+            <table class="w-full text-xs">
+              <thead class="bg-bg-deep text-ink-3 text-[11px] uppercase tracking-wider">
+                <tr><th class="px-3 py-2 text-left">Имя</th><th class="px-3 py-2 text-left">Тип</th><th class="px-3 py-2 text-left">Заполнено</th><th class="px-3 py-2 text-left">Использован в</th></tr>
+              </thead>
+              <tbody class="divide-y divide-border">
+                <tr class="hover-row">
+                  <td class="px-3 py-2 mono text-ink-1">Декларант</td>
+                  <td class="px-3 py-2 text-ink-2">СправочникСсылка.Контрагенты</td>
+                  <td class="px-3 py-2"><span class="mono text-ink-1">185/437</span> <span class="text-ink-3">(42%)</span></td>
+                  <td class="px-3 py-2 text-ink-3">3 отчёта, 2 регистра</td>
+                </tr>
+                <tr class="bg-acc-rose/5">
+                  <td class="px-3 py-2 mono text-acc-rose font-semibold flex items-center gap-1.5">⚠ ОсновноеТС</td>
+                  <td class="px-3 py-2 text-ink-1">СправочникСсылка.ТС</td>
+                  <td class="px-3 py-2"><span class="mono text-acc-rose font-semibold">0/32</span> <span class="text-acc-rose">за 30.04 (0%)</span></td>
+                  <td class="px-3 py-2 text-acc-rose">type-mismatch с ТЧ.Декларация</td>
+                </tr>
+                <tr class="hover-row">
+                  <td class="px-3 py-2 mono text-ink-1">СрокИспользования</td>
+                  <td class="px-3 py-2 text-ink-2">Число (10, 0)</td>
+                  <td class="px-3 py-2"><span class="mono text-ink-1">432/437</span></td>
+                  <td class="px-3 py-2 text-ink-3">1 отчёт</td>
+                </tr>
+                <tr class="bg-acc-amber/5">
+                  <td class="px-3 py-2 mono text-acc-amber flex items-center gap-1.5">⚠ CрокИспользования</td>
+                  <td class="px-3 py-2 text-ink-2">Число (10, 0)</td>
+                  <td class="px-3 py-2"><span class="mono text-ink-1">5/437</span> <span class="text-ink-3">(1%)</span></td>
+                  <td class="px-3 py-2 text-acc-amber">опечатка в имени (лат. C)</td>
+                </tr>
+                <tr class="hover-row">
+                  <td class="px-3 py-2 mono text-ink-1">Дата</td>
+                  <td class="px-3 py-2 text-ink-2">Дата</td>
+                  <td class="px-3 py-2"><span class="mono text-ink-1">437/437</span></td>
+                  <td class="px-3 py-2 text-ink-3">стандартный</td>
+                </tr>
+                <tr class="hover-row">
+                  <td class="px-3 py-2 mono text-ink-1">Номер</td>
+                  <td class="px-3 py-2 text-ink-2">Строка (11)</td>
+                  <td class="px-3 py-2"><span class="mono text-ink-1">437/437</span></td>
+                  <td class="px-3 py-2 text-ink-3">стандартный</td>
+                </tr>
+                <tr class="hover-row">
+                  <td class="px-3 py-2 mono text-ink-1">Контрагент</td>
+                  <td class="px-3 py-2 text-ink-2">СправочникСсылка.Контрагенты</td>
+                  <td class="px-3 py-2"><span class="mono text-ink-1">168/437</span> <span class="text-ink-3">(38%)</span></td>
+                  <td class="px-3 py-2 text-ink-3">5 регистров</td>
+                </tr>
+              </tbody>
+            </table>
+            <div class="px-3 py-1.5 text-[11px] text-ink-3 bg-bg-deep border-t border-border">+ 10 реквизитов · <button class="text-acc-cyan hover:underline">показать все</button></div>
+          </div>
+        </div>
+
+        <!-- Активность + Связанные -->
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-surface rounded-lg border border-border p-4">
+            <h3 class="font-semibold mb-3 text-sm">Активность · 30 дней</h3>
+            <div class="grid grid-cols-3 gap-2 mb-2">
+              <div>
+                <div class="text-2xl font-semibold mono">1832</div>
+                <div class="text-[11px] text-ink-3">создано</div>
+              </div>
+              <div>
+                <div class="text-2xl font-semibold mono text-acc-emer">1800</div>
+                <div class="text-[11px] text-ink-3">проведено</div>
+              </div>
+              <div>
+                <div class="text-2xl font-semibold mono text-acc-rose">32</div>
+                <div class="text-[11px] text-ink-3">ошибок</div>
+              </div>
+            </div>
+            <div class="spark h-8 mt-2">
+              <span style="height:30%"></span><span style="height:45%"></span><span style="height:60%"></span><span style="height:55%"></span><span style="height:70%"></span><span style="height:65%"></span><span style="height:75%"></span><span style="height:80%"></span><span style="height:60%"></span><span style="height:90%"></span><span style="height:75%"></span><span style="height:85%"></span><span style="height:100%; background: #f43f5e;"></span><span style="height:60%"></span><span style="height:50%"></span><span style="height:45%"></span><span style="height:55%"></span><span style="height:70%"></span><span style="height:80%"></span><span style="height:75%"></span><span style="height:65%"></span><span style="height:60%"></span><span style="height:70%"></span><span style="height:80%"></span><span style="height:90%"></span><span style="height:85%"></span><span style="height:75%"></span><span style="height:80%"></span><span style="height:70%"></span><span style="height:65%"></span>
+            </div>
+            <div class="flex justify-between text-[10px] text-ink-3 mt-1">
+              <span>14.04</span>
+              <span class="text-acc-rose">30.04 ⚠</span>
+              <span>13.05</span>
+            </div>
+          </div>
+
+          <div class="bg-surface rounded-lg border border-border p-4">
+            <h3 class="font-semibold mb-3 text-sm">Связанные объекты <span class="text-ink-3 font-normal">из find_references</span></h3>
+            <div class="space-y-1.5 text-xs">
+              <div class="hover-row rounded p-2 cursor-pointer flex items-center justify-between">
+                <div>
+                  <div class="text-ink-1">📊 РегНакоп.Поручительства</div>
+                  <div class="text-ink-3 text-[11px]">движения (регистратор) · 1832 записи</div>
+                </div>
+                <button class="text-acc-cyan text-xs">→</button>
+              </div>
+              <div class="hover-row rounded p-2 cursor-pointer flex items-center justify-between">
+                <div>
+                  <div class="text-ink-1">📚 РегСвед.ТарифныеСетки</div>
+                  <div class="text-ink-3 text-[11px]">используется для расчёта стоимости</div>
+                </div>
+                <button class="text-acc-cyan text-xs">→</button>
+              </div>
+              <div class="hover-row rounded p-2 cursor-pointer flex items-center justify-between">
+                <div>
+                  <div class="text-ink-1">📚 РегСвед.КурсыВалют</div>
+                  <div class="text-ink-3 text-[11px]">используется в проведении</div>
+                </div>
+                <button class="text-acc-cyan text-xs">→</button>
+              </div>
+              <div class="hover-row rounded p-2 cursor-pointer flex items-center justify-between">
+                <div>
+                  <div class="text-ink-1">📋 Отчёт.ПросроченныеТранзиты</div>
+                  <div class="text-ink-3 text-[11px]">источник данных</div>
+                </div>
+                <button class="text-acc-cyan text-xs">→</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI Right Rail (context: object) -->
+    <div class="w-80 bg-bg-soft border-l border-border flex flex-col shrink-0">
+      <div class="px-3 py-3 border-b border-border">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-md bg-gradient-to-br from-acc-viol to-acc-cyan flex items-center justify-center text-bg">
+            <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none"><path d="M8 2L10 6L14 7L11 10.5L11.5 14L8 12L4.5 14L5 10.5L2 7L6 6L8 2z" fill="currentColor"/></svg>
+          </div>
+          <div>
+            <div class="text-sm font-medium">AI Аналитик</div>
+            <div class="text-[10px] text-ink-3 mono">контекст: Документ.ОПП</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex-1 overflow-y-auto px-3 py-3 space-y-3 text-sm">
+        <div class="bg-acc-rose/10 border border-acc-rose/30 rounded-lg p-3 text-ink-1">
+          <div class="text-[10px] uppercase tracking-wider text-acc-rose mb-1.5 flex items-center gap-1">⚠ обнаружено</div>
+          У <b>32 ОПП</b> за 30.04 пустая шапка (реквизит ОсновноеТС). Скорее всего связано с APIСигма v2.5 — она передаёт <code class="mono text-acc-cyan">String(10)</code>, а шапка ждёт <code class="mono text-acc-cyan">СправочникСсылка</code>. <code class="mono">ЗаполнитьЗначенияСвойств</code> молча игнорирует type-mismatch.
+        </div>
+        <button onclick="switchScreen('triage')" class="w-full text-left px-3 py-2 rounded bg-acc-rose/20 hover:bg-acc-rose/30 text-acc-rose text-xs font-medium border border-acc-rose/30">
+          → Открыть расследование (Triage)
+        </button>
+
+        <div class="space-y-1.5 mt-3">
+          <div class="text-[10px] uppercase tracking-wider text-ink-3 px-1">Подсказки</div>
+          <button class="w-full text-left px-3 py-2 rounded bg-bg hover:bg-surface text-xs text-ink-1 border border-border">
+            🔍 Найти где код заполняет ОсновноеТС
+          </button>
+          <button class="w-full text-left px-3 py-2 rounded bg-bg hover:bg-surface text-xs text-ink-1 border border-border">
+            📊 Все ОПП по статусу за месяц
+          </button>
+          <button class="w-full text-left px-3 py-2 rounded bg-bg hover:bg-surface text-xs text-ink-1 border border-border">
+            📜 Журнал за 30.04 c фильтром
+          </button>
+        </div>
+      </div>
+
+      <div class="border-t border-border p-2.5">
+        <div class="relative">
+          <textarea placeholder="Спросить про ОПП..." class="w-full bg-bg border border-border rounded-lg px-3 py-2 pr-10 text-sm text-ink-1 resize-none" rows="2"></textarea>
+          <button class="absolute right-2 bottom-2 p-1.5 rounded bg-acc-cyan/20 text-acc-cyan">
+            <svg class="w-3.5 h-3.5" viewBox="0 0 14 14" fill="none"><path d="M2 7L12 7M8 3L12 7L8 11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </button>
+        </div>
+        <div class="text-[10px] text-ink-3 mt-1">контекст: 1 объект, 17 реквизитов</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================== SCREEN 3: TRIAGE ============================== -->
+  <div id="screen-triage" class="screen flex-1 flex overflow-hidden">
+    <!-- Left: Incidents list -->
+    <div class="w-72 bg-bg-soft border-r border-border flex flex-col shrink-0">
+      <div class="px-3 pt-3 pb-2 border-b border-border flex items-center justify-between">
+        <div>
+          <div class="text-[11px] uppercase tracking-wider text-ink-3 font-semibold">Инциденты</div>
+          <div class="text-xs text-ink-2 mt-0.5">3 активных, 12 закрытых</div>
+        </div>
+        <button class="text-xs px-2 py-1 rounded bg-acc-cyan/15 text-acc-cyan">+ Новый</button>
+      </div>
+      <div class="flex-1 overflow-y-auto p-2 space-y-1 text-xs">
+        <div class="p-2.5 rounded-lg bg-acc-rose/10 border border-acc-rose/30">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-acc-rose"></span>
+            <span class="mono text-acc-rose text-[10px] font-semibold">INC-014 · CRITICAL</span>
+          </div>
+          <div class="font-medium text-ink-0">32 ОПП без шапки 30.04</div>
+          <div class="text-ink-3 text-[11px] mt-1">APIСигма v2.5 · type-mismatch · открыт 2ч назад</div>
+        </div>
+        <div class="p-2.5 rounded-lg hover:bg-surface cursor-pointer">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-acc-amber"></span>
+            <span class="mono text-acc-amber text-[10px] font-semibold">INC-013 · HIGH</span>
+          </div>
+          <div class="text-ink-1">Отчёт ПросроченныеТранзиты пустой</div>
+          <div class="text-ink-3 text-[11px] mt-1">пустой модуль + копипаст ID · 5 дней</div>
+        </div>
+        <div class="p-2.5 rounded-lg hover:bg-surface cursor-pointer">
+          <div class="flex items-center gap-2 mb-1">
+            <span class="w-1.5 h-1.5 rounded-full bg-acc-amber"></span>
+            <span class="mono text-acc-amber text-[10px] font-semibold">INC-012 · HIGH</span>
+          </div>
+          <div class="text-ink-1">Декларант перезаписывается Перевозчиком</div>
+          <div class="text-ink-3 text-[11px] mt-1">C-9 confidence 95% · 6 дней</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main: Bug card -->
+    <div class="flex-1 overflow-y-auto">
+      <div class="px-6 py-4">
+        <!-- Breadcrumb -->
+        <div class="flex items-center gap-2 text-xs text-ink-3 mb-3">
+          <span>Triage</span>
+          <svg class="w-3 h-3" viewBox="0 0 12 12" fill="none"><path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" stroke-width="1.5"/></svg>
+          <span class="text-acc-cyan">INC-014 — 32 ОПП без шапки 30.04</span>
+        </div>
+
+        <!-- Header -->
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <div class="flex items-center gap-2 mb-1">
+              <span class="mono text-acc-rose text-xs font-semibold px-2 py-0.5 rounded bg-acc-rose/15">INC-014 · CRITICAL</span>
+              <span class="text-xs text-ink-3">открыт 2 часа назад · сейчас активен</span>
+            </div>
+            <h1 class="text-2xl font-semibold">32 ОПП за 30.04 без основной шапки</h1>
+            <div class="text-sm text-ink-3 mt-1">Симптом: документы созданы, но реквизит ОсновноеТС пустой. Причина: type-mismatch в APIСигма v2.5</div>
+          </div>
+          <div class="flex gap-1.5">
+            <button class="px-2.5 py-1.5 text-xs rounded bg-surface hover:bg-surface-hover text-ink-1">📋 Скопировать</button>
+            <button class="px-2.5 py-1.5 text-xs rounded bg-acc-cyan/15 text-acc-cyan hover:bg-acc-cyan/25 font-medium">✉ Передать разработчику</button>
+          </div>
+        </div>
+
+        <!-- Confidence bar -->
+        <div class="bg-surface rounded-lg border border-border p-3 mb-4">
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-sm font-medium">Уверенность в причине: <span class="text-acc-emer">95%</span></div>
+            <div class="text-[11px] text-ink-3">основано на 4 источниках доказательств</div>
+          </div>
+          <div class="h-2 bg-bg rounded-full overflow-hidden">
+            <div class="h-full bg-gradient-to-r from-acc-emer to-acc-cyan" style="width: 95%"></div>
+          </div>
+        </div>
+
+        <!-- Evidence pipeline -->
+        <h3 class="font-semibold mb-2 flex items-center gap-2">
+          <span>Цепочка доказательств</span>
+          <span class="text-xs text-ink-3 font-normal">симптом → код → данные → repro</span>
+        </h3>
+
+        <div class="space-y-3">
+          <!-- Step 1 -->
+          <div class="flex gap-3">
+            <div class="flex flex-col items-center">
+              <div class="w-7 h-7 rounded-full bg-acc-cyan/20 border-2 border-acc-cyan text-acc-cyan flex items-center justify-center text-xs font-semibold mono">1</div>
+              <div class="w-0.5 flex-1 bg-border mt-1"></div>
+            </div>
+            <div class="flex-1 bg-surface rounded-lg border border-border p-3 mb-3">
+              <div class="flex items-center justify-between mb-2">
+                <div class="font-medium text-sm">Симптом — 32 документа ОПП без ОсновноеТС</div>
+                <span class="text-[10px] text-ink-3 mono">execute_query · 134 мс</span>
+              </div>
+              <div class="bg-bg rounded mono text-xs p-2.5 text-ink-1 overflow-x-auto">
+<pre>ВЫБРАТЬ Ссылка, Дата, Декларант, ОсновноеТС
+ИЗ Документ.ОперацияПоПоручительству
+ГДЕ Дата МЕЖДУ &amp;Д1 И &amp;Д2 И ОсновноеТС = ЗНАЧЕНИЕ(...)
+-- Параметры: Д1=2026-04-30 00:00, Д2=2026-04-30 23:59</pre>
+              </div>
+              <div class="mt-2 text-xs text-ink-2">Результат: <b class="text-acc-rose mono">32 строки</b> · все созданы в окне 13:42:01–13:42:04</div>
+            </div>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="flex gap-3">
+            <div class="flex flex-col items-center">
+              <div class="w-7 h-7 rounded-full bg-acc-cyan/20 border-2 border-acc-cyan text-acc-cyan flex items-center justify-center text-xs font-semibold mono">2</div>
+              <div class="w-0.5 flex-1 bg-border mt-1"></div>
+            </div>
+            <div class="flex-1 bg-surface rounded-lg border border-border p-3 mb-3">
+              <div class="flex items-center justify-between mb-2">
+                <div class="font-medium text-sm">Журнал — 47 записей, 32 RolledBack</div>
+                <span class="text-[10px] text-ink-3 mono">get_event_log · фильтры применены</span>
+              </div>
+              <div class="bg-bg rounded text-xs overflow-hidden border border-border">
+                <table class="w-full mono">
+                  <thead class="bg-bg-deep text-ink-3 text-[10px]">
+                    <tr><th class="px-2 py-1 text-left">Время</th><th class="px-2 py-1 text-left">Уровень</th><th class="px-2 py-1 text-left">Транзакция</th><th class="px-2 py-1 text-left">Комментарий</th></tr>
+                  </thead>
+                  <tbody>
+                    <tr class="border-t border-border">
+                      <td class="px-2 py-1 text-ink-2">13:42:01.122</td>
+                      <td class="px-2 py-1"><span class="text-acc-rose">Error</span></td>
+                      <td class="px-2 py-1 text-acc-rose">RolledBack</td>
+                      <td class="px-2 py-1 text-ink-1">Type mismatch: ОсновноеТС expects СправочникСсылка...</td>
+                    </tr>
+                    <tr class="border-t border-border">
+                      <td class="px-2 py-1 text-ink-2">13:42:01.245</td>
+                      <td class="px-2 py-1"><span class="text-acc-rose">Error</span></td>
+                      <td class="px-2 py-1 text-acc-rose">RolledBack</td>
+                      <td class="px-2 py-1 text-ink-1">Type mismatch: ОсновноеТС expects СправочникСсылка...</td>
+                    </tr>
+                    <tr class="border-t border-border">
+                      <td class="px-2 py-1 text-ink-3">...</td>
+                      <td class="px-2 py-1 text-ink-3">×30</td>
+                      <td class="px-2 py-1 text-ink-3"></td>
+                      <td class="px-2 py-1 text-ink-3">тот же паттерн</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="flex gap-3">
+            <div class="flex flex-col items-center">
+              <div class="w-7 h-7 rounded-full bg-acc-cyan/20 border-2 border-acc-cyan text-acc-cyan flex items-center justify-center text-xs font-semibold mono">3</div>
+              <div class="w-0.5 flex-1 bg-border mt-1"></div>
+            </div>
+            <div class="flex-1 bg-surface rounded-lg border border-border p-3 mb-3">
+              <div class="flex items-center justify-between mb-2">
+                <div class="font-medium text-sm">Код — APIСигма.МодульОбъекта.СоздатьОПП()</div>
+                <div class="flex items-center gap-2">
+                  <span class="text-[10px] text-ink-3 mono">BSL · EDT MCP</span>
+                  <button class="text-[10px] text-acc-cyan hover:underline">↗ EDT</button>
+                </div>
+              </div>
+              <div class="bg-bg rounded text-xs overflow-x-auto mono">
+<pre class="px-3 py-2"><span class="text-ink-4">138</span>  <span class="text-ink-3">// Создание документа из строки выгрузки Сигмы</span>
+<span class="text-ink-4">139</span>  Документ = Документы.ОперацияПоПоручительству.СоздатьДокумент();
+<span class="text-ink-4">140</span>
+<span class="text-ink-4">141</span>  СтрокаСигма = ЭлементВыгрузки.Декларация; <span class="text-ink-3">// String(10)</span>
+<span class="bg-acc-rose/15 block"><span class="text-ink-4">142</span>  ЗаполнитьЗначенияСвойств(<span class="text-acc-cyan">Документ</span>, <span class="text-acc-amber">СтрокаСигма</span>);  <span class="text-acc-rose">⚠ type-mismatch</span></span>
+<span class="text-ink-4">143</span>  <span class="text-ink-3">// ↑ ОсновноеТС в шапке — Ссылка, СтрокаСигма — String — молча игнорируется</span>
+<span class="text-ink-4">144</span>  </pre>
+              </div>
+              <div class="mt-2 text-xs text-ink-2">
+                <b class="text-acc-rose">Root cause:</b> <code class="mono">ЗаполнитьЗначенияСвойств</code> молча игнорирует несовместимые типы — это документировано в платформе, но не очевидно при чтении кода. Кроме того, опечатка <code class="mono">CрокИспользования</code> (латинская C) — этот реквизит не существует в шапке.
+              </div>
+            </div>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="flex gap-3">
+            <div class="flex flex-col items-center">
+              <div class="w-7 h-7 rounded-full bg-acc-emer/20 border-2 border-acc-emer text-acc-emer flex items-center justify-center text-xs font-semibold mono">✓</div>
+            </div>
+            <div class="flex-1 bg-acc-emer/5 rounded-lg border border-acc-emer/30 p-3 mb-3">
+              <div class="font-medium text-sm flex items-center gap-2">
+                <span>Repro подтверждено</span>
+                <span class="text-[10px] text-ink-3 mono">execute_code (dry-run)</span>
+              </div>
+              <div class="text-xs text-ink-2 mt-1">
+                Воспроизвели на тестовой строке: документ создан, шапка пустая, проводка падает с тем же сообщением.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Handoff card -->
+        <div class="bg-gradient-to-br from-acc-cyan/10 to-acc-viol/10 rounded-lg border border-acc-cyan/30 p-4 mt-2">
+          <h3 class="font-semibold mb-3 flex items-center gap-2">
+            <svg class="w-4 h-4 text-acc-cyan" viewBox="0 0 16 16" fill="none"><path d="M2 8h12M10 4l4 4l-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            Задача разработчику (готова к отправке)
+          </h3>
+          <div class="bg-bg rounded p-3 mono text-xs space-y-2 text-ink-1">
+            <div><span class="text-ink-3">Файл:</span> <span class="text-acc-cyan">APIСигма.МодульОбъекта.bsl</span></div>
+            <div><span class="text-ink-3">Строка:</span> 142</div>
+            <div><span class="text-ink-3">Что:</span> заменить <code>ЗаполнитьЗначенияСвойств(Документ, СтрокаСигма)</code> на явное присваивание с разрешением типов</div>
+            <div><span class="text-ink-3">Также:</span> исправить опечатку <code>CрокИспользования</code> → <code>СрокИспользования</code> (стр. 157)</div>
+            <div><span class="text-ink-3">Проверка:</span> 32 ОПП за 30.04 должны быть пересозданы или вручную дозаполнены</div>
+          </div>
+          <div class="flex gap-2 mt-3">
+            <button class="px-3 py-1.5 text-xs rounded bg-acc-cyan text-bg font-medium">📋 Скопировать markdown</button>
+            <button class="px-3 py-1.5 text-xs rounded bg-surface hover:bg-surface-hover text-ink-1">📨 В Telegram (Разработчик-РТ)</button>
+            <button class="px-3 py-1.5 text-xs rounded bg-surface hover:bg-surface-hover text-ink-1">📚 Сохранить в KB</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- AI right rail (Triage context) -->
+    <div class="w-80 bg-bg-soft border-l border-border flex flex-col shrink-0">
+      <div class="px-3 py-3 border-b border-border">
+        <div class="flex items-center gap-2">
+          <div class="w-7 h-7 rounded-md bg-gradient-to-br from-acc-viol to-acc-cyan flex items-center justify-center text-bg">
+            <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none"><path d="M8 2L10 6L14 7L11 10.5L11.5 14L8 12L4.5 14L5 10.5L2 7L6 6L8 2z" fill="currentColor"/></svg>
+          </div>
+          <div>
+            <div class="text-sm font-medium">AI Triage co-pilot</div>
+            <div class="text-[10px] text-ink-3 mono">контекст: INC-014</div>
+          </div>
+        </div>
+      </div>
+      <div class="flex-1 overflow-y-auto px-3 py-3 space-y-3 text-sm">
+        <div class="bg-surface rounded-lg p-3">
+          <div class="text-[10px] uppercase tracking-wider text-acc-viol mb-1.5">AI</div>
+          Цепочка доказательств собрана. <b class="text-acc-emer">Confidence 95%</b>. Готов передавать разработчику.
+          <div class="mt-2 text-xs text-ink-3">Похожий инцидент был 2026-05-01 в проекте Русский Транзит — commit <code class="mono text-acc-cyan">a28a2db</code>. Аналогичный фикс.</div>
+        </div>
+        <div class="space-y-1.5">
+          <button class="w-full text-left px-3 py-2 rounded bg-bg hover:bg-surface text-xs border border-border">
+            🔍 Поискать похожие OPP проблемы в KB
+          </button>
+          <button class="w-full text-left px-3 py-2 rounded bg-bg hover:bg-surface text-xs border border-border">
+            🧪 Предложить тест для регрессии
+          </button>
+          <button class="w-full text-left px-3 py-2 rounded bg-bg hover:bg-surface text-xs border border-border">
+            📚 Сохранить как ловушку (P-XXX)
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================== SCREEN 4: INVESTIGATE (drill-down notebook view) ============================== -->
+  <div id="screen-investigate" class="screen flex-1 flex overflow-hidden">
+    <!-- Left: Notebooks -->
+    <div class="w-60 bg-bg-soft border-r border-border flex flex-col shrink-0">
+      <div class="px-3 pt-3 pb-2 border-b border-border flex items-center justify-between">
+        <div class="text-[11px] uppercase tracking-wider text-ink-3 font-semibold">Notebooks</div>
+        <button class="text-xs px-2 py-0.5 rounded bg-acc-cyan/15 text-acc-cyan">+</button>
+      </div>
+      <div class="flex-1 overflow-y-auto p-2 text-xs space-y-0.5">
+        <div class="p-2 rounded bg-acc-cyan/10 border-l-2 border-acc-cyan text-acc-cyan font-medium">
+          📓 Статусы документов · апрель
+          <div class="text-[10px] text-ink-3 font-normal mt-0.5">4 ячейки · обновлено сегодня</div>
+        </div>
+        <div class="p-2 rounded hover:bg-surface text-ink-2 cursor-pointer">
+          📓 Аудит поручительств 2026-05-05
+          <div class="text-[10px] text-ink-3 mt-0.5">12 ячеек</div>
+        </div>
+        <div class="p-2 rounded hover:bg-surface text-ink-2 cursor-pointer">
+          📓 Тарифные сетки · покрытие
+          <div class="text-[10px] text-ink-3 mt-0.5">6 ячеек</div>
+        </div>
+        <div class="p-2 rounded hover:bg-surface text-ink-3 cursor-pointer">
+          📓 Drill-down 4197 плохих статусов
+          <div class="text-[10px] text-ink-3 mt-0.5">сохранён</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main: Notebook -->
+    <div class="flex-1 overflow-y-auto bg-bg">
+      <div class="px-6 py-4 max-w-4xl">
+        <!-- Header -->
+        <div class="flex items-baseline justify-between mb-1">
+          <h1 class="text-xl font-semibold flex items-center gap-2">📓 Статусы документов · апрель</h1>
+          <div class="text-xs text-ink-3 mono">v3 saved 2 min ago</div>
+        </div>
+        <div class="text-xs text-ink-3 mb-5">Расследование вопроса руководства РТ: «4197 документов в плохих статусах»</div>
+
+        <!-- Cell 1: question -->
+        <div class="bg-surface rounded-lg border border-border p-3 mb-3">
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-[10px] uppercase tracking-wider text-ink-3 font-semibold flex items-center gap-2">
+              <span>Ячейка 1 · Question</span>
+            </div>
+            <div class="flex gap-1 text-[10px] text-ink-3">
+              <button class="hover:text-ink-1">⋮</button>
+            </div>
+          </div>
+          <div class="text-sm text-ink-1 mono">🧑 покажи документы РТ за апрель сгруппированно по статусу</div>
+        </div>
+
+        <!-- Cell 2: query (generated by NL→query) -->
+        <div class="bg-surface rounded-lg border border-border p-3 mb-3">
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-[10px] uppercase tracking-wider text-ink-3 font-semibold flex items-center gap-2">
+              <span>Ячейка 2 · Query</span>
+              <span class="text-acc-cyan">сгенерировано AI</span>
+            </div>
+            <div class="flex gap-1 text-[10px] text-ink-3">
+              <button class="hover:text-acc-cyan">▶ Run</button>
+              <button class="hover:text-ink-1">✏ Edit</button>
+            </div>
+          </div>
+          <div class="bg-bg rounded mono text-xs p-2.5 text-ink-1 overflow-x-auto">
+<pre>ВЫБРАТЬ
+    Статус КАК Статус,
+    КОЛИЧЕСТВО(Ссылка) КАК Количество
+ИЗ Документ.ОперацияПоПоручительству
+ГДЕ Дата МЕЖДУ &amp;Д1 И &amp;Д2
+СГРУППИРОВАТЬ ПО Статус
+УПОРЯДОЧИТЬ ПО Количество УБЫВ</pre>
+          </div>
+          <div class="text-[10px] text-ink-3 mono mt-2 flex items-center gap-3">
+            <span>Параметры: Д1=2026-04-01, Д2=2026-04-30</span>
+            <span>•</span>
+            <span class="text-acc-emer">✓ executed · 87 мс · 4197 строк</span>
+          </div>
+        </div>
+
+        <!-- Cell 3: result table + chart -->
+        <div class="bg-surface rounded-lg border border-border p-3 mb-3">
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-[10px] uppercase tracking-wider text-ink-3 font-semibold flex items-center gap-2">
+              <span>Ячейка 3 · Result</span>
+            </div>
+            <div class="flex gap-1.5 text-[10px]">
+              <button class="px-1.5 py-0.5 rounded bg-acc-cyan/15 text-acc-cyan">📊 Chart</button>
+              <button class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-ink-3">Table</button>
+              <button class="px-1.5 py-0.5 rounded hover:bg-surface-hover text-ink-3">JSON</button>
+            </div>
+          </div>
+          <div class="space-y-2">
+            <div class="hover-row rounded p-2 cursor-pointer">
+              <div class="flex items-center justify-between text-xs mb-1">
+                <span class="text-ink-1 font-medium">НеРассчитан</span>
+                <span class="mono text-ink-1">2614 · 62.3%</span>
+              </div>
+              <div class="h-3 bg-bg rounded-full overflow-hidden">
+                <div class="h-full bg-acc-amber" style="width: 62.3%"></div>
+              </div>
+              <button class="text-[10px] text-acc-cyan hover:underline mt-1">→ drill-down (новая ячейка с фильтром)</button>
+            </div>
+            <div class="hover-row rounded p-2 cursor-pointer">
+              <div class="flex items-center justify-between text-xs mb-1">
+                <span class="text-ink-1 font-medium">НеИдентифицирован</span>
+                <span class="mono text-ink-1">1297 · 30.9%</span>
+              </div>
+              <div class="h-3 bg-bg rounded-full overflow-hidden">
+                <div class="h-full bg-acc-rose" style="width: 30.9%"></div>
+              </div>
+            </div>
+            <div class="hover-row rounded p-2 cursor-pointer">
+              <div class="flex items-center justify-between text-xs mb-1">
+                <span class="text-ink-1 font-medium">ВРаботе</span>
+                <span class="mono text-ink-1">286 · 6.8%</span>
+              </div>
+              <div class="h-3 bg-bg rounded-full overflow-hidden">
+                <div class="h-full bg-acc-cyan" style="width: 6.8%"></div>
+              </div>
+            </div>
+            <div class="hover-row rounded p-2 cursor-pointer">
+              <div class="flex items-center justify-between text-xs mb-1">
+                <span class="text-ink-3">Обработан</span>
+                <span class="mono text-ink-3">0 · 0%</span>
+              </div>
+              <div class="h-3 bg-bg rounded-full overflow-hidden"><div class="h-full bg-ink-4" style="width: 0%"></div></div>
+              <div class="text-[10px] text-acc-rose mt-0.5">⚠ всегда 0 — баг в УстановитьСтатус() (см. INC-008)</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cell 4: AI explanation -->
+        <div class="bg-acc-viol/5 rounded-lg border border-acc-viol/30 p-3 mb-3">
+          <div class="flex items-center justify-between mb-2">
+            <div class="text-[10px] uppercase tracking-wider text-acc-viol font-semibold">Ячейка 4 · AI Explain (TL;DR для руководителя)</div>
+            <button class="text-[10px] text-acc-viol hover:underline">🔄 Regenerate</button>
+          </div>
+          <div class="text-sm text-ink-1 leading-relaxed">
+            Из 4197 ОПП за апрель: <b>2614 (62%)</b> ждут расчёта — для них не загружены тарифные сетки клиентов. <b>1297 (31%)</b> ждут идентификации Декларанта — почта от Сигмы не маппится на наших контрагентов. Только <b>286 (7%)</b> реально в работе. <b>0 «Обработан»</b> — это не «никто не сделал», а баг в <code class="mono text-acc-cyan">УстановитьСтатус()</code> (см. INC-008). Реальный прогресс выше нуля.
+          </div>
+          <div class="flex gap-2 mt-3">
+            <button class="text-[10px] px-2 py-1 rounded bg-bg hover:bg-surface text-ink-1 border border-border">📋 в Markdown</button>
+            <button class="text-[10px] px-2 py-1 rounded bg-bg hover:bg-surface text-ink-1 border border-border">📄 в Word для встречи</button>
+            <button class="text-[10px] px-2 py-1 rounded bg-bg hover:bg-surface text-ink-1 border border-border">📊 со скриншотом графика</button>
+          </div>
+        </div>
+
+        <!-- Add cell -->
+        <div class="border border-dashed border-border rounded-lg p-3 hover:border-acc-cyan/50 transition cursor-pointer">
+          <div class="flex items-center justify-center gap-2 text-xs text-ink-3">
+            <span>+ Добавить ячейку:</span>
+            <button class="px-2 py-1 rounded bg-surface hover:bg-surface-hover text-ink-1">NL question</button>
+            <button class="px-2 py-1 rounded bg-surface hover:bg-surface-hover text-ink-1">Query</button>
+            <button class="px-2 py-1 rounded bg-surface hover:bg-surface-hover text-ink-1">Code</button>
+            <button class="px-2 py-1 rounded bg-surface hover:bg-surface-hover text-ink-1">Chart</button>
+            <button class="px-2 py-1 rounded bg-surface hover:bg-surface-hover text-ink-1">Note</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================== SCREEN 5: MAPPING ============================== -->
+  <div id="screen-mapping" class="screen flex-1 flex overflow-hidden">
+    <div class="flex-1 overflow-y-auto">
+      <div class="px-8 py-6 max-w-5xl mx-auto">
+        <!-- Breadcrumb -->
+        <div class="flex items-center gap-2 text-xs text-ink-3 mb-3">
+          <span>Mapping</span>
+          <svg class="w-3 h-3" viewBox="0 0 12 12" fill="none"><path d="M4.5 3L7.5 6L4.5 9" stroke="currentColor" stroke-width="1.5"/></svg>
+          <span class="text-acc-cyan">Реестр ТД из Сигмы → Документ.ОПП</span>
+        </div>
+
+        <h1 class="text-2xl font-semibold mb-1">Загрузка: <span class="text-ink-2 font-normal">Реестр ТД из CSV → Документ.ОПП</span></h1>
+        <div class="text-sm text-ink-3 mb-5">3 этапа · dry-run перед apply · профиль сохранён</div>
+
+        <!-- Stepper -->
+        <div class="flex items-center mb-6">
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-full bg-acc-emer/20 border-2 border-acc-emer text-acc-emer flex items-center justify-center text-xs font-semibold mono">✓</div>
+            <span class="text-sm text-acc-emer font-medium">1. Файл</span>
+          </div>
+          <div class="flex-1 h-0.5 bg-acc-emer mx-3"></div>
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-full bg-acc-cyan/20 border-2 border-acc-cyan text-acc-cyan flex items-center justify-center text-xs font-semibold mono">2</div>
+            <span class="text-sm text-acc-cyan font-medium">2. Маппинг</span>
+          </div>
+          <div class="flex-1 h-0.5 bg-border mx-3"></div>
+          <div class="flex items-center gap-2">
+            <div class="w-7 h-7 rounded-full bg-bg border-2 border-border text-ink-3 flex items-center justify-center text-xs font-semibold mono">3</div>
+            <span class="text-sm text-ink-3">3. Dry-run & Apply</span>
+          </div>
+        </div>
+
+        <!-- File summary -->
+        <div class="bg-surface rounded-lg border border-border p-3 mb-4">
+          <div class="flex items-center gap-3">
+            <svg class="w-8 h-8 text-acc-emer" viewBox="0 0 24 24" fill="none"><path d="M5 3h10l4 4v14H5V3z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/><path d="M15 3v4h4M8 11h8M8 15h8M8 19h5" stroke="currentColor" stroke-width="1.5"/></svg>
+            <div class="flex-1">
+              <div class="font-medium text-sm">реестр_тд_апрель.csv</div>
+              <div class="text-xs text-ink-3 mono">437 строк · 105 колонок · cp1251 · разделитель: <code>;</code></div>
+            </div>
+            <div class="text-xs text-ink-2">детектировано:<br><span class="text-acc-emer mono">CSV ru</span></div>
+          </div>
+        </div>
+
+        <!-- Target -->
+        <div class="bg-surface rounded-lg border border-border p-3 mb-4">
+          <div class="text-[10px] uppercase tracking-wider text-ink-3 font-semibold mb-2">Целевой объект 1С</div>
+          <div class="flex items-center gap-3">
+            <div class="w-9 h-9 rounded-md bg-acc-cyan/10 flex items-center justify-center text-acc-cyan">📄</div>
+            <div class="flex-1">
+              <div class="font-medium text-sm">Документ.ОперацияПоПоручительству</div>
+              <div class="text-xs text-ink-3">17 реквизитов шапки · 2 ТЧ · 437 целевых документов (Update + Create)</div>
+            </div>
+            <button class="text-xs px-2.5 py-1 rounded bg-bg hover:bg-surface text-ink-1 border border-border">Сменить целевой</button>
+          </div>
+        </div>
+
+        <!-- Mapping table -->
+        <h3 class="font-semibold mb-3 text-sm flex items-center justify-between">
+          <span>Соответствие колонок → реквизитов</span>
+          <span class="text-xs text-ink-3 font-normal">сопоставлено: <span class="text-acc-emer">14</span> · конфликтов: <span class="text-acc-rose">2</span> · пропуск: <span class="text-ink-2">3</span></span>
+        </h3>
+        <div class="bg-surface rounded-lg border border-border overflow-hidden mb-4">
+          <table class="w-full text-xs">
+            <thead class="bg-bg-deep text-ink-3 text-[11px] uppercase tracking-wider">
+              <tr>
+                <th class="px-3 py-2 text-left">CSV колонка</th>
+                <th class="px-3 py-2 text-left">Пример</th>
+                <th class="px-3 py-2 text-left w-8"></th>
+                <th class="px-3 py-2 text-left">Реквизит 1С</th>
+                <th class="px-3 py-2 text-left">Тип</th>
+                <th class="px-3 py-2 text-left">Статус</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-border">
+              <tr class="hover-row">
+                <td class="px-3 py-2 mono text-ink-1">НомерТД</td>
+                <td class="px-3 py-2 text-ink-3 mono">"10502080/300426/3000123"</td>
+                <td class="px-3 py-2 text-acc-cyan">→</td>
+                <td class="px-3 py-2 mono text-ink-1">Номер</td>
+                <td class="px-3 py-2 text-ink-2">Строка(11)</td>
+                <td class="px-3 py-2"><span class="text-acc-emer">✓ AI suggested</span></td>
+              </tr>
+              <tr class="hover-row">
+                <td class="px-3 py-2 mono text-ink-1">ДатаТД</td>
+                <td class="px-3 py-2 text-ink-3 mono">"30.04.2026"</td>
+                <td class="px-3 py-2 text-acc-cyan">→</td>
+                <td class="px-3 py-2 mono text-ink-1">Дата</td>
+                <td class="px-3 py-2 text-ink-2">Дата</td>
+                <td class="px-3 py-2"><span class="text-acc-emer">✓</span></td>
+              </tr>
+              <tr class="hover-row bg-acc-rose/5">
+                <td class="px-3 py-2 mono text-acc-rose">ТипТС</td>
+                <td class="px-3 py-2 text-ink-3 mono">"FORD TRANSIT"</td>
+                <td class="px-3 py-2 text-acc-rose">⚠</td>
+                <td class="px-3 py-2 mono text-acc-rose">ОсновноеТС</td>
+                <td class="px-3 py-2 text-ink-2">СправочникСсылка.ТС</td>
+                <td class="px-3 py-2"><span class="text-acc-rose">⚠ type-mismatch (как в INC-014!)</span></td>
+              </tr>
+              <tr class="hover-row bg-acc-amber/5">
+                <td class="px-3 py-2 mono text-ink-1">ДекларантНаименование</td>
+                <td class="px-3 py-2 text-ink-3 mono">"ООО Декларант Сервис"</td>
+                <td class="px-3 py-2 text-acc-amber">⚠</td>
+                <td class="px-3 py-2 mono text-ink-1">Декларант</td>
+                <td class="px-3 py-2 text-ink-2">СправочникСсылка.Контрагенты</td>
+                <td class="px-3 py-2"><span class="text-acc-amber">⚠ поиск: 168 найдено, 269 не сопоставлено</span></td>
+              </tr>
+              <tr class="hover-row">
+                <td class="px-3 py-2 mono text-ink-1">Email</td>
+                <td class="px-3 py-2 text-ink-3 mono">"client@example.ru"</td>
+                <td class="px-3 py-2 text-acc-cyan">→</td>
+                <td class="px-3 py-2 mono text-ink-1">КонтактныйEmail</td>
+                <td class="px-3 py-2 text-ink-2">Строка(50)</td>
+                <td class="px-3 py-2"><span class="text-acc-emer">✓</span></td>
+              </tr>
+              <tr class="hover-row">
+                <td class="px-3 py-2 mono text-ink-3">Status</td>
+                <td class="px-3 py-2 text-ink-3">"in_transit"</td>
+                <td class="px-3 py-2 text-ink-3">×</td>
+                <td class="px-3 py-2 text-ink-3">— пропустить —</td>
+                <td class="px-3 py-2 text-ink-3">enum / маппинг</td>
+                <td class="px-3 py-2 text-ink-3">no target</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="px-3 py-1.5 text-[11px] text-ink-3 bg-bg-deep border-t border-border flex justify-between">
+            <span>+ 99 колонок (98 не используются, 1 — итоги)</span>
+            <button class="text-acc-cyan hover:underline">показать все</button>
+          </div>
+        </div>
+
+        <!-- Dry-run preview -->
+        <div class="bg-bg-deep rounded-lg border border-border p-4 mb-4">
+          <h3 class="font-semibold mb-3 flex items-center justify-between">
+            <span class="flex items-center gap-2">🧪 Dry-run prediction</span>
+            <span class="text-xs text-ink-3 font-normal">просчитано на 437 строк</span>
+          </h3>
+          <div class="grid grid-cols-4 gap-3">
+            <div class="bg-surface rounded p-3">
+              <div class="text-2xl font-semibold mono text-acc-emer">359</div>
+              <div class="text-xs text-ink-3">обновление документа</div>
+            </div>
+            <div class="bg-surface rounded p-3">
+              <div class="text-2xl font-semibold mono text-acc-cyan">78</div>
+              <div class="text-xs text-ink-3">новых документов</div>
+            </div>
+            <div class="bg-surface rounded p-3 glow-amber">
+              <div class="text-2xl font-semibold mono text-acc-amber">269</div>
+              <div class="text-xs text-ink-3">Декларант пустой</div>
+            </div>
+            <div class="bg-surface rounded p-3 glow-rose">
+              <div class="text-2xl font-semibold mono text-acc-rose">437</div>
+              <div class="text-xs text-ink-3">ОсновноеТС пустой ⚠</div>
+            </div>
+          </div>
+          <div class="mt-3 p-3 bg-acc-rose/10 border border-acc-rose/30 rounded text-sm">
+            <b class="text-acc-rose">⚠ Блокирующий конфликт.</b> Тот же type-mismatch что в INC-014. AI рекомендует <b>остановить загрузку</b> и сначала исправить APIСигма.МодульОбъекта.bsl:142, иначе получится ещё 437 битых документов.
+          </div>
+        </div>
+
+        <div class="flex gap-2">
+          <button class="px-4 py-2 rounded bg-surface hover:bg-surface-hover text-ink-1 text-sm">← Назад</button>
+          <div class="flex-1"></div>
+          <button class="px-4 py-2 rounded bg-acc-amber/15 text-acc-amber text-sm font-medium hover:bg-acc-amber/25">⏸ Остановить</button>
+          <button class="px-4 py-2 rounded bg-surface text-ink-3 text-sm cursor-not-allowed" disabled>Apply (заблокировано)</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================== SCREEN 6: KNOWLEDGE ============================== -->
+  <div id="screen-knowledge" class="screen flex-1 flex overflow-hidden">
+    <!-- Left filters -->
+    <div class="w-60 bg-bg-soft border-r border-border flex flex-col shrink-0">
+      <div class="px-3 pt-3 pb-2 border-b border-border">
+        <div class="text-[11px] uppercase tracking-wider text-ink-3 font-semibold">Knowledge Base</div>
+      </div>
+      <div class="flex-1 overflow-y-auto p-2 text-xs">
+        <div class="mb-3">
+          <div class="text-[10px] uppercase tracking-wider text-ink-3 font-semibold mb-1.5 px-1">Конфигурации</div>
+          <div class="space-y-0.5">
+            <div class="hover-row rounded py-1 px-2 cursor-pointer text-acc-cyan bg-acc-cyan/10">УТ 11.5 <span class="text-ink-3 ml-1">42</span></div>
+            <div class="hover-row rounded py-1 px-2 cursor-pointer text-ink-2">ERP УСО 2.5 <span class="text-ink-3 ml-1">23</span></div>
+            <div class="hover-row rounded py-1 px-2 cursor-pointer text-ink-2">КА 2.5 <span class="text-ink-3 ml-1">14</span></div>
+          </div>
+        </div>
+        <div class="mb-3">
+          <div class="text-[10px] uppercase tracking-wider text-ink-3 font-semibold mb-1.5 px-1">Темы</div>
+          <div class="space-y-0.5">
+            <div class="hover-row rounded py-1 px-2 cursor-pointer text-ink-2"># Ловушки <span class="text-ink-3 ml-1">18</span></div>
+            <div class="hover-row rounded py-1 px-2 cursor-pointer text-ink-2"># Интеграции <span class="text-ink-3 ml-1">12</span></div>
+            <div class="hover-row rounded py-1 px-2 cursor-pointer text-ink-2"># Миграции <span class="text-ink-3 ml-1">8</span></div>
+            <div class="hover-row rounded py-1 px-2 cursor-pointer text-ink-2"># UI/UX <span class="text-ink-3 ml-1">6</span></div>
+            <div class="hover-row rounded py-1 px-2 cursor-pointer text-ink-2"># Производительность <span class="text-ink-3 ml-1">11</span></div>
+          </div>
+        </div>
+        <div>
+          <div class="text-[10px] uppercase tracking-wider text-ink-3 font-semibold mb-1.5 px-1">Проекты</div>
+          <div class="space-y-0.5">
+            <div class="hover-row rounded py-1 px-2 cursor-pointer text-ink-2">Русский Транзит <span class="text-ink-3 ml-1">28</span></div>
+            <div class="hover-row rounded py-1 px-2 cursor-pointer text-ink-2">Век <span class="text-ink-3 ml-1">9</span></div>
+            <div class="hover-row rounded py-1 px-2 cursor-pointer text-ink-2">УСО · СтройГрупп <span class="text-ink-3 ml-1">17</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Main: KB grid -->
+    <div class="flex-1 overflow-y-auto">
+      <div class="px-6 py-4">
+        <div class="flex items-baseline justify-between mb-4">
+          <h1 class="text-2xl font-semibold">Knowledge Base</h1>
+          <div class="flex gap-2">
+            <div class="relative">
+              <input type="text" placeholder="полнотекстовый поиск..." class="bg-surface border border-border rounded pl-8 pr-3 py-1.5 text-sm w-64 focus:border-acc-cyan/50 focus:outline-none">
+              <svg class="w-4 h-4 absolute left-2.5 top-2 text-ink-3" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L13 13" stroke="currentColor" stroke-width="1.5"/></svg>
+            </div>
+            <button class="px-3 py-1.5 rounded bg-acc-cyan/15 text-acc-cyan text-sm font-medium">+ Новая заметка</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div class="bg-surface hover:bg-surface-hover rounded-lg border border-border p-4 cursor-pointer">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-xs px-2 py-0.5 rounded bg-acc-rose/15 text-acc-rose font-medium mono">P-007</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-bg text-ink-2"># Ловушки</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-bg text-ink-2">УТ 11.5</span>
+            </div>
+            <h3 class="font-semibold text-ink-0 mb-1">Дубликаты НомерГТД при загрузке CSV</h3>
+            <p class="text-xs text-ink-2 leading-relaxed">При импорте реестра ТД через APIСигма в Регистр.НомераГТД могут попадать дубли — Сигма не гарантирует уникальность. Решение: dedup на стороне 1С через ВЫБРАТЬ РАЗЛИЧНЫЕ ...</p>
+            <div class="text-[10px] text-ink-3 mt-3 flex justify-between">
+              <span>встречалось: РТ (3 раза), ut-migration (1)</span>
+              <span>обновлено 2 нед. назад</span>
+            </div>
+          </div>
+
+          <div class="bg-surface hover:bg-surface-hover rounded-lg border border-border p-4 cursor-pointer">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-xs px-2 py-0.5 rounded bg-acc-amber/15 text-acc-amber font-medium mono">P-012</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-bg text-ink-2"># Ловушки</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-bg text-ink-2">Расширения</span>
+            </div>
+            <h3 class="font-semibold text-ink-0 mb-1">ЗаполнитьЗначенияСвойств молча игнорит type-mismatch</h3>
+            <p class="text-xs text-ink-2 leading-relaxed">При несовместимых типах источника и приёмника платформа не выбрасывает ошибку — поле просто остаётся пустым. Особо опасно в CFE-загрузках API. Симптом: документы создаются, шапка пустая. <b>См. INC-014.</b></p>
+            <div class="text-[10px] text-ink-3 mt-3 flex justify-between">
+              <span>встречалось: РТ (2 раза)</span>
+              <span>создано сегодня</span>
+            </div>
+          </div>
+
+          <div class="bg-surface hover:bg-surface-hover rounded-lg border border-border p-4 cursor-pointer">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-xs px-2 py-0.5 rounded bg-acc-emer/15 text-acc-emer font-medium mono">REF</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-bg text-ink-2"># Миграции</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-bg text-ink-2">УТ→БП</span>
+            </div>
+            <h3 class="font-semibold text-ink-0 mb-1">Бесплатная обработка ИТС для миграции остатков</h3>
+            <p class="text-xs text-ink-2 leading-relaxed">ВыгрузкаОстатковБП.epf — типовая ИТС-обработка. Большинство франчайзи о ней не знает и платит за подобные решения 58к. <b>Корневой диагноз:</b> расхождения УТ↔БП почти всегда в политиках, не в данных.</p>
+            <div class="text-[10px] text-ink-3 mt-3 flex justify-between">
+              <span>ut-migration · 2026-04-29</span>
+              <span>2 ссылки на проекты</span>
+            </div>
+          </div>
+
+          <div class="bg-surface hover:bg-surface-hover rounded-lg border border-border p-4 cursor-pointer">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-xs px-2 py-0.5 rounded bg-acc-viol/15 text-acc-viol font-medium mono">METH</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-bg text-ink-2"># UI/UX</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-bg text-ink-2">1С 8.5</span>
+            </div>
+            <h3 class="font-semibold text-ink-0 mb-1">Чек-лист 8.5-совместимости форм CFE</h3>
+            <p class="text-xs text-ink-2 leading-relaxed">6 пунктов проверки перед merge feature/* в master: тёмная тема, мин. ширина групп ≥1280px, плотные ТЧ, двойной клик не primary, кастомные иконки, условное оформление палитра.</p>
+            <div class="text-[10px] text-ink-3 mt-3 flex justify-between">
+              <span>обновлено 4 дня назад</span>
+              <span>применено в РТ, Век</span>
+            </div>
+          </div>
+
+          <div class="bg-surface hover:bg-surface-hover rounded-lg border border-border p-4 cursor-pointer">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-xs px-2 py-0.5 rounded bg-acc-rose/15 text-acc-rose font-medium mono">P-010</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-bg text-ink-2"># Ловушки</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-bg text-ink-2">УСО 2.5</span>
+            </div>
+            <h3 class="font-semibold text-ink-0 mb-1">Синхронные диалоги в EPF блокируют ERP-сценарий</h3>
+            <p class="text-xs text-ink-2 leading-relaxed">При интеграции EPF в типовой workflow УСО — Вопрос()/Предупреждение() блокируют поток. Заменять на ПоказатьВопрос() с описанием оповещения.</p>
+            <div class="text-[10px] text-ink-3 mt-3 flex justify-between">
+              <span>УСО · проверено на живой базе</span>
+              <span>1 ссылка</span>
+            </div>
+          </div>
+
+          <div class="bg-surface hover:bg-surface-hover rounded-lg border border-border p-4 cursor-pointer">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-xs px-2 py-0.5 rounded bg-acc-viol/15 text-acc-viol font-medium mono">TPL</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-bg text-ink-2"># Методология</span>
+              <span class="text-xs px-2 py-0.5 rounded bg-bg text-ink-2">ТКВ</span>
+            </div>
+            <h3 class="font-semibold text-ink-0 mb-1">Шаблон чек-листа аудита по 1С:ТКВ</h3>
+            <p class="text-xs text-ink-2 leading-relaxed">10 этапов методологии: ДД/ТЗ, ОПЭ с критериями входа/выхода, тестирование, гарантийное сопровождение, трудозатраты в часах. Использован для аудита Век.</p>
+            <div class="text-[10px] text-ink-3 mt-3 flex justify-between">
+              <span>Век · 168-стр отчёт</span>
+              <span>применено 3 раза</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Cross-project insight -->
+        <div class="bg-gradient-to-br from-acc-viol/10 to-acc-cyan/10 rounded-lg border border-acc-viol/30 p-4 mt-5">
+          <div class="flex items-start gap-3">
+            <div class="w-8 h-8 rounded-md bg-gradient-to-br from-acc-viol to-acc-cyan flex items-center justify-center text-bg shrink-0">
+              <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none"><path d="M8 2L10 6L14 7L11 10.5L11.5 14L8 12L4.5 14L5 10.5L2 7L6 6L8 2z" fill="currentColor"/></svg>
+            </div>
+            <div class="flex-1">
+              <div class="text-[10px] uppercase tracking-wider text-acc-viol font-semibold mb-1">AI insight · cross-project</div>
+              <div class="text-sm text-ink-1">
+                Ты сейчас расследуешь <b>INC-014</b> в РТ (P-012 — ЗаполнитьЗначенияСвойств type-mismatch). Аналогичная ловушка <b>была встречена ранее</b> в проекте <b>ut-migration</b> — там тоже падал импорт через АПИ. Тот же фикс. <button class="text-acc-cyan hover:underline">→ открыть похожий кейс</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============================== BOTTOM STRIP (journal taillog) ============================== -->
+<div class="h-6 bg-bg-deep border-t border-border flex items-center px-3 text-xs text-ink-3 shrink-0 gap-3 mono">
+  <span class="text-acc-emer">●</span>
+  <span>13:42:04</span>
+  <span class="text-acc-rose">Error</span>
+  <span>Документ.ОПП-014</span>
+  <span class="text-ink-2">Type mismatch: ОсновноеТС expects СправочникСсылка...</span>
+  <span class="text-ink-3">·</span>
+  <span class="text-ink-3">журнал фильтрован: Документ.ОПП · 30.04 · Errors</span>
+  <div class="flex-1"></div>
+  <button class="hover:text-ink-1">↑ развернуть журнал</button>
+</div>
+
+<!-- ============================== CMD-K PALETTE ============================== -->
+<div id="palette" class="fixed inset-0 bg-bg-deep/80 backdrop-blur-sm z-50 hidden items-start justify-center pt-32" onclick="if(event.target===this) togglePalette()">
+  <div class="w-[640px] bg-surface rounded-xl border border-border shadow-2xl overflow-hidden">
+    <div class="p-3 border-b border-border flex items-center gap-3">
+      <svg class="w-5 h-5 text-ink-3" viewBox="0 0 16 16" fill="none"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.5"/><path d="M10.5 10.5L13 13" stroke="currentColor" stroke-width="1.5"/></svg>
+      <input type="text" placeholder="Команда / объект / запрос..." class="flex-1 bg-transparent palette-input text-ink-0 text-base outline-none" autofocus>
+      <span class="kbd">ESC</span>
+    </div>
+    <div class="max-h-96 overflow-y-auto p-2 text-sm">
+      <div class="text-[10px] uppercase tracking-wider text-ink-3 px-3 py-1 font-semibold">Объекты</div>
+      <button onclick="switchScreen('object'); togglePalette()" class="w-full px-3 py-2 rounded hover:bg-bg flex items-center gap-3 text-left">
+        <span class="mono text-ink-3">📄</span>
+        <span class="flex-1 text-ink-1">Документ.ОперацияПоПоручительству</span>
+        <span class="text-xs text-ink-3">⚠ 3</span>
+      </button>
+      <button class="w-full px-3 py-2 rounded hover:bg-bg flex items-center gap-3 text-left">
+        <span class="mono text-ink-3">📊</span>
+        <span class="flex-1 text-ink-1">РегНакоп.Поручительства</span>
+        <span class="text-xs text-ink-3">1832 движения</span>
+      </button>
+
+      <div class="text-[10px] uppercase tracking-wider text-ink-3 px-3 py-1 font-semibold mt-2">Действия</div>
+      <button onclick="switchScreen('triage'); togglePalette()" class="w-full px-3 py-2 rounded hover:bg-bg flex items-center gap-3 text-left">
+        <span class="mono text-ink-3">🩺</span>
+        <span class="flex-1 text-ink-1">Открыть Triage · INC-014</span>
+      </button>
+      <button onclick="switchScreen('investigate'); togglePalette()" class="w-full px-3 py-2 rounded hover:bg-bg flex items-center gap-3 text-left">
+        <span class="mono text-ink-3">📓</span>
+        <span class="flex-1 text-ink-1">Открыть notebook · Статусы документов · апрель</span>
+      </button>
+      <button class="w-full px-3 py-2 rounded hover:bg-bg flex items-center gap-3 text-left">
+        <span class="mono text-ink-3">+</span>
+        <span class="flex-1 text-ink-1">Новый запрос (NL)</span>
+        <span class="kbd">⌘Q</span>
+      </button>
+      <button class="w-full px-3 py-2 rounded hover:bg-bg flex items-center gap-3 text-left">
+        <span class="mono text-ink-3">📚</span>
+        <span class="flex-1 text-ink-1">Найти в Knowledge Base</span>
+        <span class="kbd">⌘K K</span>
+      </button>
+
+      <div class="text-[10px] uppercase tracking-wider text-ink-3 px-3 py-1 font-semibold mt-2">Проекты</div>
+      <button class="w-full px-3 py-2 rounded hover:bg-bg flex items-center gap-3 text-left">
+        <span class="w-2 h-2 rounded-full bg-acc-emer"></span>
+        <span class="flex-1 text-ink-1">Русский Транзит</span>
+        <span class="text-xs text-ink-3">текущий</span>
+      </button>
+      <button class="w-full px-3 py-2 rounded hover:bg-bg flex items-center gap-3 text-left">
+        <span class="w-2 h-2 rounded-full bg-ink-3"></span>
+        <span class="flex-1 text-ink-2">Век · 1С:КА аудит</span>
+        <span class="text-xs text-ink-3">2 часа назад</span>
+      </button>
+      <button class="w-full px-3 py-2 rounded hover:bg-bg flex items-center gap-3 text-left">
+        <span class="w-2 h-2 rounded-full bg-ink-3"></span>
+        <span class="flex-1 text-ink-2">УСО · СтройГрупп</span>
+        <span class="text-xs text-ink-3">вчера</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ============================== SCRIPT ============================== -->
+<script>
+function switchScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  document.getElementById('screen-' + id).classList.add('active');
+  document.querySelectorAll('.mode-btn').forEach(b => {
+    if (b.dataset.mode === id) {
+      b.classList.add('text-acc-cyan', 'bg-surface');
+      b.classList.remove('text-ink-2');
+    } else {
+      b.classList.remove('text-acc-cyan', 'bg-surface');
+      b.classList.add('text-ink-2');
+    }
+  });
+}
+
+function togglePalette() {
+  const p = document.getElementById('palette');
+  p.classList.toggle('hidden');
+  p.classList.toggle('flex');
+  if (!p.classList.contains('hidden')) {
+    setTimeout(() => p.querySelector('input').focus(), 50);
+  }
+}
+
+document.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+    e.preventDefault();
+    togglePalette();
+  }
+  if (e.key === 'Escape') {
+    const p = document.getElementById('palette');
+    if (!p.classList.contains('hidden')) togglePalette();
+  }
+  if ((e.metaKey || e.ctrlKey) && e.key === '1') { e.preventDefault(); switchScreen('discovery'); }
+  if ((e.metaKey || e.ctrlKey) && e.key === '2') { e.preventDefault(); switchScreen('object'); }
+  if ((e.metaKey || e.ctrlKey) && e.key === '3') { e.preventDefault(); switchScreen('triage'); }
+  if ((e.metaKey || e.ctrlKey) && e.key === '4') { e.preventDefault(); switchScreen('investigate'); }
+  if ((e.metaKey || e.ctrlKey) && e.key === '5') { e.preventDefault(); switchScreen('mapping'); }
+  if ((e.metaKey || e.ctrlKey) && e.key === '6') { e.preventDefault(); switchScreen('knowledge'); }
+});
+
+// Init: highlight discovery
+switchScreen('discovery');
+</script>
+
+</body>
+</html>
