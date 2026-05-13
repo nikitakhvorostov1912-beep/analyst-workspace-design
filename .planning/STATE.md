@@ -14,7 +14,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | Aspect | Value |
 |--------|-------|
 | **Current Milestone** | M1 — Foundation |
-| **Current Phase** | Phase 1 — Foundation (planning not started) |
+| **Current Phase** | Phase 1 — Foundation (planned, ready to execute) |
 | **Mode** | YOLO + coarse granularity + parallel execution |
 | **Last Update** | 2026-05-13 |
 
@@ -22,7 +22,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 
 | # | Phase | Status | Plans | Progress |
 |---|-------|--------|-------|----------|
-| 1 | Foundation | ○ Pending | 0/4 | 0% |
+| 1 | Foundation | ◆ Planned | 0/2 executed (2 planned) | 0% |
 | 2 | MVP Chat | ○ Pending | 0/5 | 0% |
 | 3 | Production Ready | ○ Pending | 0/4 | 0% |
 | 4 | Demo & Refine | ○ Pending | 0/4 | 0% |
@@ -36,7 +36,8 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 - [x] [ROADMAP.md](./ROADMAP.md) — 4 coarse phases
 - [x] [config.json](./config.json) — workflow preferences
 - [x] [intel/](./intel/) — pre-loaded technology + integration intel
-- [ ] Phase 1 plan (run `/gsd-plan-phase 1`)
+- [x] Phase 1 plan — 2 plans + summary in `.planning/phases/01-foundation/` (verified by plan-checker: PASS_WITH_NOTES)
+- [ ] Phase 1 execution (run `/gsd-execute-phase 1`)
 
 ## Pivot History (Lessons Learned)
 
@@ -54,9 +55,9 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 
 ## Next Steps
 
-1. **Now:** Git init + GitHub репозиторий + push
-2. **Next:** `/gsd-plan-phase 1` (запуск plan для Foundation)
-3. **Then:** `/gsd-execute-phase 1` (Foundation execution)
+1. ~~**Now:** Git init + GitHub репозиторий + push~~ ✓ done
+2. ~~**Next:** `/gsd-plan-phase 1` (запуск plan для Foundation)~~ ✓ done — 2 plans + summary committed
+3. **Now:** `/gsd-execute-phase 1` — параллельное выполнение PLAN-01-backend и PLAN-02-frontend (yolo)
 4. Параллельно: настройка LLM/MCP environment у разработчика
 
 ---
