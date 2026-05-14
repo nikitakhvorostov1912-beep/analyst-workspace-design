@@ -179,3 +179,23 @@ class ConfirmRequest(BaseModel):
 
     tool_call_id: str = Field(min_length=1)
     approved: bool
+
+
+# --- LogCard load-more models (Plan 03-04) ---
+
+
+class LoadMoreRequest(BaseModel):
+    """Тело POST /sessions/{sid}/messages/{mid}/cards/{cid}/load-more."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    cursor: str = Field(min_length=1)
+
+
+class LogPagePayload(BaseModel):
+    """Ответ load-more endpoint: страница записей журнала."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    entries: list[dict[str, Any]]
+    next_cursor: str | None = None

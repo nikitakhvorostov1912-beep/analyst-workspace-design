@@ -58,7 +58,23 @@ MIGRATIONS_V2 = [
     "CREATE INDEX IF NOT EXISTS idx_sessions_updated ON sessions(updated_at DESC)",
 ]
 
-CURRENT_VERSION = 2
+# Миграция v3: таблица card_states для хранения состояния LogCard (load-more)
+MIGRATIONS_V3 = [
+    """
+    CREATE TABLE IF NOT EXISTS card_states (
+        card_id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL,
+        message_id TEXT NOT NULL,
+        tool_name TEXT NOT NULL,
+        original_args TEXT NOT NULL,
+        channel_id TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+    )
+    """,
+]
+
+CURRENT_VERSION = 3
 
 
 async def apply_migrations(db: aiosqlite.Connection) -> None:
@@ -90,5 +106,15 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
             (2,),
+        )
+        await db.commit()
+
+    if current < 3:
+        # Создаём таблицу card_states для load-more (v3)
+        for stmt in MIGRATIONS_V3:
+            await db.execute(stmt)
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (3,),
         )
         await db.commit()

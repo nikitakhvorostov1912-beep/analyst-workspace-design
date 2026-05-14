@@ -1,19 +1,21 @@
 """Тесты endpoint POST /sessions/{sid}/messages/{mid}/cards/{cid}/load-more.
 
-TDD: RED → GREEN → (refactor if needed).
+TDD: RED → GREEN.
 Plan 03-04 Task 1.
 """
 
 import json
 from unittest.mock import AsyncMock, patch
 
+import aiosqlite
 import pytest
 import pytest_asyncio
-import aiosqlite
+from httpx import ASGITransport, AsyncClient
 
 from app.storage.migrations import apply_migrations
 from app.orchestrator.persistence import save_card_state, get_card_state
 from app.orchestrator.cards import build_card_from_tool_result
+from app.routes.log_cards import get_app_db
 
 
 # ---------------------------------------------------------------------------
@@ -29,6 +31,26 @@ async def fresh_db():
     await apply_migrations(conn)
     yield conn
     await conn.close()
+
+
+@pytest_asyncio.fixture
+async def client_with_db(fresh_db):
+    """AsyncClient с ASGI-транспортом и переопределённой DB dependency."""
+    from app.main import app
+
+    async def override_db():
+        yield fresh_db
+
+    app.dependency_overrides[get_app_db] = override_db
+
+    async with AsyncClient(
+        transport=ASGITransport(app=app),
+        base_url="http://test",
+    ) as ac:
+        async with app.router.lifespan_context(app):
+            yield ac, fresh_db
+
+    app.dependency_overrides.pop(get_app_db, None)
 
 
 async def _seed_session_and_message(db: aiosqlite.Connection) -> tuple[str, str]:
@@ -169,27 +191,105 @@ def test_build_card_from_tool_result_card_id_unique():
 
 
 # ---------------------------------------------------------------------------
+# Loop: card_state сохраняется после save_assistant_message
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_loop_saves_card_state_on_log_card(fresh_db):
+    """После вызова get_event_log loop сохраняет card_state в БД."""
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from app.models import ChatRequest
+    from app.orchestrator.loop import run_chat_loop
+
+    # Настраиваем БД: сессия + MCP connection
+    await fresh_db.execute(
+        "INSERT INTO sessions (id, title, channel_id) VALUES ('s-loop', 'T', 'ch-loop')"
+    )
+    await fresh_db.execute(
+        "INSERT INTO mcp_connections (id, name, endpoint, channel) VALUES ('ch-loop', 'T', 'http://localhost:6010/mcp', 'ch-loop')"
+    )
+    await fresh_db.commit()
+
+    log_tool_result = {
+        "entries": [{"time": "2026-05-14T10:00:00", "level": "Info", "event": "start"}],
+        "next_cursor": "cursor-next",
+    }
+
+    # Мокаем LLM: первый вызов → tool_call get_event_log; второй → финальный ответ
+    chunk_tool = {
+        "delta": {"tool_calls": [{"index": 0, "id": "tc-1", "function": {"name": "get_event_log", "arguments": "{}"}}]},
+        "finish_reason": "tool_calls",
+    }
+    chunk_done = {"delta": {"content": "Журнал загружен."}, "finish_reason": "stop"}
+
+    call_count = 0
+
+    async def mock_stream(*a, **kw):
+        nonlocal call_count
+        call_count += 1
+        if call_count == 1:
+            yield chunk_tool
+        else:
+            yield chunk_done
+
+    with patch("app.orchestrator.loop.LLMClient") as MockLLM, \
+         patch("app.orchestrator.loop.MCPClient") as MockMCP:
+
+        llm_inst = MagicMock()
+        llm_inst.stream_chat_completion = mock_stream
+        llm_inst.aclose = AsyncMock()
+        MockLLM.return_value = llm_inst
+
+        mcp_inst = AsyncMock()
+        mcp_inst.initialize = AsyncMock()
+        mcp_inst.list_tools = AsyncMock(return_value=[])
+        mcp_inst.call_tool = AsyncMock(return_value=log_tool_result)
+        mcp_inst.aclose = AsyncMock()
+        MockMCP.return_value = mcp_inst
+
+        request = ChatRequest(message="Покажи журнал", session_id="s-loop", channel_id="ch-loop")
+
+        events = []
+        async for ev in run_chat_loop(
+            db=fresh_db,
+            request=request,
+            api_key="test-key",
+            llm_endpoint="http://localhost/v1",
+            llm_model="test-model",
+        ):
+            events.append(ev)
+
+    # Проверяем что в БД есть card_state с card_id
+    rows = await fresh_db.execute_fetchall("SELECT * FROM card_states WHERE session_id = 's-loop'")
+    assert rows, "card_state должен быть сохранён для LogCard"
+    assert rows[0]["tool_name"] == "get_event_log"
+
+
+# ---------------------------------------------------------------------------
 # Route: POST /sessions/{sid}/messages/{mid}/cards/{cid}/load-more
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_post_load_more_returns_next_page(client, fresh_db):
+async def test_post_load_more_returns_next_page(client_with_db):
     """POST load-more возвращает 200 + {entries, next_cursor}."""
-    # Настраиваем БД с session + message + card_state
+    client, db = client_with_db
+
     sid = "s-001"
     mid = "m-001"
     cid = "c-001"
-    await fresh_db.execute(
+    await db.execute(
         "INSERT INTO sessions (id, title, channel_id) VALUES (?, 'T', ?)",
         (sid, "ch-1"),
     )
-    await fresh_db.execute(
+    await db.execute(
         "INSERT INTO messages (id, session_id, role, content) VALUES (?, ?, 'assistant', 'ok')",
         (mid, sid),
     )
     await save_card_state(
-        fresh_db,
+        db,
         card_id=cid,
         session_id=sid,
         message_id=mid,
@@ -197,24 +297,22 @@ async def test_post_load_more_returns_next_page(client, fresh_db):
         original_args={"level": "Error"},
         channel_id="ch-1",
     )
-    await fresh_db.execute(
+    await db.execute(
         "INSERT INTO mcp_connections (id, name, endpoint, channel) VALUES (?, 'T', ?, ?)",
         ("ch-1", "http://localhost:6010/mcp", "ch-1"),
     )
-    await fresh_db.commit()
+    await db.commit()
 
     mock_result = {
         "entries": [{"time": "2026-05-14T11:00:00", "level": "Info", "event": "e2"}],
         "next_cursor": "next_page_cursor",
     }
 
-    with patch("app.routes.log_cards.get_app_db", return_value=fresh_db), \
-         patch("app.routes.log_cards.MCPClient") as MockMCPClient:
+    with patch("app.routes.log_cards.MCPClient") as MockMCPClient:
         mock_instance = AsyncMock()
         mock_instance.initialize = AsyncMock()
         mock_instance.call_tool = AsyncMock(return_value=mock_result)
-        mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
-        mock_instance.__aexit__ = AsyncMock(return_value=None)
+        mock_instance.aclose = AsyncMock()
         MockMCPClient.return_value = mock_instance
 
         response = await client.post(
@@ -222,7 +320,7 @@ async def test_post_load_more_returns_next_page(client, fresh_db):
             json={"cursor": "original_cursor"},
         )
 
-    assert response.status_code == 200
+    assert response.status_code == 200, response.text
     data = response.json()
     assert "entries" in data
     assert len(data["entries"]) == 1
@@ -230,31 +328,33 @@ async def test_post_load_more_returns_next_page(client, fresh_db):
 
 
 @pytest.mark.asyncio
-async def test_post_load_more_unknown_card_returns_404(client, fresh_db):
+async def test_post_load_more_unknown_card_returns_404(client_with_db):
     """load-more на несуществующий card_id → 404."""
-    with patch("app.routes.log_cards.get_app_db", return_value=fresh_db):
-        response = await client.post(
-            "/sessions/s-999/messages/m-999/cards/c-missing/load-more",
-            json={"cursor": "x"},
-        )
+    client, db = client_with_db
+    response = await client.post(
+        "/sessions/s-999/messages/m-999/cards/c-missing/load-more",
+        json={"cursor": "x"},
+    )
     assert response.status_code == 404
 
 
 @pytest.mark.asyncio
-async def test_post_load_more_unknown_channel_returns_502(client, fresh_db):
+async def test_post_load_more_unknown_channel_returns_502(client_with_db):
     """card_state существует, channel не найден → 502."""
+    client, db = client_with_db
+
     sid = "s-002"
     mid = "m-002"
     cid = "c-002"
-    await fresh_db.execute(
+    await db.execute(
         "INSERT INTO sessions (id, title, channel_id) VALUES (?, 'T', 'nonexistent-ch')", (sid,)
     )
-    await fresh_db.execute(
+    await db.execute(
         "INSERT INTO messages (id, session_id, role, content) VALUES (?, ?, 'assistant', 'ok')",
         (mid, sid),
     )
     await save_card_state(
-        fresh_db,
+        db,
         card_id=cid,
         session_id=sid,
         message_id=mid,
@@ -262,33 +362,35 @@ async def test_post_load_more_unknown_channel_returns_502(client, fresh_db):
         original_args={},
         channel_id="nonexistent-ch",
     )
-    await fresh_db.commit()
+    await db.commit()
 
-    with patch("app.routes.log_cards.get_app_db", return_value=fresh_db):
-        response = await client.post(
-            f"/sessions/{sid}/messages/{mid}/cards/{cid}/load-more",
-            json={"cursor": "x"},
-        )
+    response = await client.post(
+        f"/sessions/{sid}/messages/{mid}/cards/{cid}/load-more",
+        json={"cursor": "x"},
+    )
     assert response.status_code == 502
-    assert "недоступен" in response.json()["detail"].lower() or "channel" in response.json()["detail"].lower()
+    detail = response.json()["detail"].lower()
+    assert "недоступен" in detail or "channel" in detail
 
 
 @pytest.mark.asyncio
-async def test_post_load_more_mcp_call_fails_returns_502(client, fresh_db):
+async def test_post_load_more_mcp_call_fails_returns_502(client_with_db):
     """MCPClient.call_tool бросает исключение → 502."""
     import httpx
+    client, db = client_with_db
+
     sid = "s-003"
     mid = "m-003"
     cid = "c-003"
-    await fresh_db.execute(
+    await db.execute(
         "INSERT INTO sessions (id, title, channel_id) VALUES (?, 'T', 'ch-3')", (sid,)
     )
-    await fresh_db.execute(
+    await db.execute(
         "INSERT INTO messages (id, session_id, role, content) VALUES (?, ?, 'assistant', 'ok')",
         (mid, sid),
     )
     await save_card_state(
-        fresh_db,
+        db,
         card_id=cid,
         session_id=sid,
         message_id=mid,
@@ -296,19 +398,17 @@ async def test_post_load_more_mcp_call_fails_returns_502(client, fresh_db):
         original_args={},
         channel_id="ch-3",
     )
-    await fresh_db.execute(
+    await db.execute(
         "INSERT INTO mcp_connections (id, name, endpoint, channel) VALUES (?, 'T', ?, ?)",
         ("ch-3", "http://localhost:6010/mcp", "ch-3"),
     )
-    await fresh_db.commit()
+    await db.commit()
 
-    with patch("app.routes.log_cards.get_app_db", return_value=fresh_db), \
-         patch("app.routes.log_cards.MCPClient") as MockMCPClient:
+    with patch("app.routes.log_cards.MCPClient") as MockMCPClient:
         mock_instance = AsyncMock()
         mock_instance.initialize = AsyncMock()
         mock_instance.call_tool = AsyncMock(side_effect=httpx.ConnectError("Timeout"))
-        mock_instance.__aenter__ = AsyncMock(return_value=mock_instance)
-        mock_instance.__aexit__ = AsyncMock(return_value=None)
+        mock_instance.aclose = AsyncMock()
         MockMCPClient.return_value = mock_instance
 
         response = await client.post(
@@ -319,31 +419,33 @@ async def test_post_load_more_mcp_call_fails_returns_502(client, fresh_db):
 
 
 @pytest.mark.asyncio
-async def test_post_load_more_validates_cursor_strict(client, fresh_db):
+async def test_post_load_more_validates_cursor_strict(client_with_db):
     """POST body с cursor=123 (int) → 422 Pydantic strict."""
-    with patch("app.routes.log_cards.get_app_db", return_value=fresh_db):
-        response = await client.post(
-            "/sessions/s/messages/m/cards/c/load-more",
-            json={"cursor": 123},
-        )
+    client, db = client_with_db
+    response = await client.post(
+        "/sessions/s/messages/m/cards/c/load-more",
+        json={"cursor": 123},
+    )
     assert response.status_code == 422
 
 
 @pytest.mark.asyncio
-async def test_post_load_more_sid_mismatch_returns_404(client, fresh_db):
+async def test_post_load_more_sid_mismatch_returns_404(client_with_db):
     """card_state.session_id != sid в URL → 404 (ownership check)."""
+    client, db = client_with_db
+
     sid_real = "s-real"
     mid = "m-004"
     cid = "c-004"
-    await fresh_db.execute(
+    await db.execute(
         "INSERT INTO sessions (id, title, channel_id) VALUES (?, 'T', 'ch-1')", (sid_real,)
     )
-    await fresh_db.execute(
+    await db.execute(
         "INSERT INTO messages (id, session_id, role, content) VALUES (?, ?, 'assistant', 'ok')",
         (mid, sid_real),
     )
     await save_card_state(
-        fresh_db,
+        db,
         card_id=cid,
         session_id=sid_real,
         message_id=mid,
@@ -351,12 +453,11 @@ async def test_post_load_more_sid_mismatch_returns_404(client, fresh_db):
         original_args={},
         channel_id="ch-1",
     )
-    await fresh_db.commit()
+    await db.commit()
 
     # Пытаемся запросить другой sid
-    with patch("app.routes.log_cards.get_app_db", return_value=fresh_db):
-        response = await client.post(
-            f"/sessions/s-attacker/messages/{mid}/cards/{cid}/load-more",
-            json={"cursor": "x"},
-        )
+    response = await client.post(
+        f"/sessions/s-attacker/messages/{mid}/cards/{cid}/load-more",
+        json={"cursor": "x"},
+    )
     assert response.status_code == 404

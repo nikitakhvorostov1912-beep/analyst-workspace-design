@@ -30,6 +30,7 @@ from app.orchestrator.persistence import (
     ensure_session,
     lookup_mcp_endpoint,
     save_assistant_message,
+    save_card_state,
     save_user_message,
     touch_session,
     update_session_title,
@@ -446,6 +447,32 @@ async def run_chat_loop(
             total_duration_ms,
         )
         await touch_session(db, session_id)
+
+        # Сохраняем card_state для LogCard (load-more endpoint, Plan 03-04)
+        # Выполняется ПОСЛЕ save_assistant_message чтобы иметь реальный message_id
+        for card in accumulated_cards:
+            if card.get("type") == "log":
+                card_id = card.get("payload", {}).get("card_id")
+                if card_id:
+                    # Находим соответствующий tool_call для args
+                    tool_args: dict = {}
+                    for tc in accumulated_tool_calls:
+                        if tc.get("name") == "get_event_log":
+                            tool_args = tc.get("args", {})
+                            break
+                    try:
+                        await save_card_state(
+                            db,
+                            card_id=card_id,
+                            session_id=session_id,
+                            message_id=message_id,
+                            tool_name="get_event_log",
+                            original_args=tool_args,
+                            channel_id=request.channel_id,
+                        )
+                    except Exception:
+                        logger.warning("Не удалось сохранить card_state для card %s", card_id)
+
     except Exception:
         logger.exception("Ошибка сохранения assistant message")
         message_id = "unknown"

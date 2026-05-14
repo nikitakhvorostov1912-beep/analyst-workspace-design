@@ -310,3 +310,61 @@ async def count_session_messages(
         (session_id,),
     )
     return int(rows[0][0]) if rows else 0
+
+
+# --- Card state (Plan 03-04) ---
+
+
+async def save_card_state(
+    db: aiosqlite.Connection,
+    *,
+    card_id: str,
+    session_id: str,
+    message_id: str,
+    tool_name: str,
+    original_args: dict,
+    channel_id: str,
+) -> None:
+    """Сохраняет состояние карточки для last-more endpoint.
+
+    Args:
+        card_id: UUID4 карточки (из payload)
+        session_id: ID сессии
+        message_id: ID сообщения
+        tool_name: имя MCP-инструмента (например 'get_event_log')
+        original_args: исходные аргументы вызова инструмента
+        channel_id: ID MCP-подключения
+    """
+    await db.execute(
+        """
+        INSERT OR REPLACE INTO card_states
+            (card_id, session_id, message_id, tool_name, original_args, channel_id)
+        VALUES (?, ?, ?, ?, ?, ?)
+        """,
+        (card_id, session_id, message_id, tool_name, json.dumps(original_args, ensure_ascii=False), channel_id),
+    )
+    await db.commit()
+
+
+async def get_card_state(
+    db: aiosqlite.Connection,
+    card_id: str,
+) -> dict | None:
+    """Возвращает состояние карточки по card_id или None если не найдено."""
+    rows = await db.execute_fetchall(
+        "SELECT card_id, session_id, message_id, tool_name, original_args, channel_id, created_at "
+        "FROM card_states WHERE card_id = ?",
+        (card_id,),
+    )
+    if not rows:
+        return None
+    row = rows[0]
+    return {
+        "card_id": row[0],
+        "session_id": row[1],
+        "message_id": row[2],
+        "tool_name": row[3],
+        "original_args": row[4],
+        "channel_id": row[5],
+        "created_at": row[6],
+    }

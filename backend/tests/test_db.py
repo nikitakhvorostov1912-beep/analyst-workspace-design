@@ -4,12 +4,12 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_migrations_create_all_tables(db: aiosqlite.Connection):
-    """apply_migrations создаёт все 5 таблиц (4 + schema_version)."""
+    """apply_migrations создаёт все таблицы (включая card_states из v3)."""
     rows = await db.execute_fetchall(
         "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
     )
     table_names = {row[0] for row in rows}
-    expected = {"sessions", "messages", "mcp_connections", "llm_settings", "schema_version"}
+    expected = {"sessions", "messages", "mcp_connections", "llm_settings", "schema_version", "card_states"}
     assert expected == table_names, f"Таблицы: {table_names}"
 
 
@@ -21,12 +21,12 @@ async def test_migrations_are_idempotent(db: aiosqlite.Connection):
     # Второй вызов поверх уже существующей схемы
     await apply_migrations(db)
 
-    # Таблицы всё ещё на месте
+    # Таблицы всё ещё на месте (6 таблиц включая card_states v3)
     rows = await db.execute_fetchall(
         "SELECT COUNT(*) FROM sqlite_master WHERE type='table'"
     )
     count = rows[0][0]
-    assert count == 5
+    assert count == 6
 
 
 @pytest.mark.asyncio

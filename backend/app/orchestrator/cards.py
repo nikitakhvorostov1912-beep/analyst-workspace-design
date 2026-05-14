@@ -3,6 +3,7 @@
 import json
 import logging
 from typing import Any, Literal
+from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict
 
@@ -50,6 +51,7 @@ class LogCardPayload(BaseModel):
 
     entries: list[LogEntry]
     next_cursor: str | None = None
+    card_id: str | None = None  # UUID4 для load-more endpoint (Plan 03-04)
 
 
 def _infer_type_from_value(value: object) -> str:
@@ -172,6 +174,7 @@ def _build_log_card(args: dict, result: dict) -> dict | None:
     payload = LogCardPayload(
         entries=entries,
         next_cursor=data.get("next_cursor"),
+        card_id=str(uuid4()),  # UUID4 для load-more endpoint
     )
     return {"type": "log", "payload": payload.model_dump()}
 
