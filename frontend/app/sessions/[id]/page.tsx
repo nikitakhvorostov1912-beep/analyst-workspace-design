@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { Thread } from "@/components/chat/Thread";
 import { ChatInput } from "@/components/chat/Input";
+import { ConfirmExecuteDialog } from "@/components/chat/ConfirmExecuteDialog";
 import { ConnectionStatusBanner } from "@/components/chat/ConnectionStatusBanner";
 import { useChatStream } from "@/components/chat/useChatStream";
 import { useSessionsStore } from "@/lib/sessions-store";
@@ -123,7 +124,7 @@ export default function SessionPage() {
     }
   }
 
-  const { messages, isStreaming, error, streamingStage, currentToolName, send } = useChatStream({
+  const { messages, isStreaming, error, streamingStage, currentToolName, pendingConfirm, resolveConfirm, send } = useChatStream({
     sessionId: id,
     channelId,
     initialMessages,
@@ -175,6 +176,11 @@ export default function SessionPage() {
 
   return (
     <>
+      <ConfirmExecuteDialog
+        open={!!pendingConfirm}
+        payload={pendingConfirm}
+        onResolve={resolveConfirm}
+      />
       <ConnectionStatusBanner
         visible={bannerVisible}
         channelName={bannerChannelName}

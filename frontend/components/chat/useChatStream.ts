@@ -1,9 +1,9 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { fetchChat } from "@/lib/api";
+import { fetchChat, postChatConfirm } from "@/lib/api";
 import { publishToast } from "@/lib/toast";
-import type { CardEnvelope, ChatMessage, ErrorCode, ToolCallRecord } from "@/lib/types";
+import type { CardEnvelope, ChatMessage, ConfirmRequiredPayload, ErrorCode, ToolCallRecord } from "@/lib/types";
 import type { StreamingStage } from "./StreamingIndicator";
 
 export type UseChatStreamOptions = {
@@ -22,6 +22,10 @@ export type UseChatStreamReturn = {
   error: string | null;
   streamingStage: StreamingStage | null;
   currentToolName: string | null;
+  /** Pending confirm payload — если backend ожидает подтверждения (SEC-01) */
+  pendingConfirm: ConfirmRequiredPayload | null;
+  /** Отвечает на pending confirm — POST /chat/confirm */
+  resolveConfirm: (approved: boolean) => Promise<void>;
   send: (text: string) => Promise<void>;
 };
 
@@ -54,6 +58,7 @@ export function useChatStream({
   const [error, setError] = useState<string | null>(null);
   const [streamingStage, setStreamingStage] = useState<StreamingStage | null>(null);
   const [currentToolName, setCurrentToolName] = useState<string | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<ConfirmRequiredPayload | null>(null);
 
   const send = useCallback(
     async (text: string): Promise<void> => {
@@ -146,6 +151,10 @@ export function useChatStream({
                 { ...last, cards: [...existingCards, card] },
               ];
             });
+          } else if (event.event === "confirm_required") {
+            // SEC-01: backend ждёт подтверждения опасного execute_code
+            setPendingConfirm(event.data);
+            // Цикл продолжается — SSE-стрим живёт, backend ждёт POST /chat/confirm
           } else if (event.event === "done") {
             const { message_id, total_duration_ms } = event.data;
             setMessages((prev) => {
@@ -218,5 +227,19 @@ export function useChatStream({
     [isStreaming, sessionId, channelId, onBannerShow, onBannerHide],
   );
 
-  return { messages, isStreaming, error, streamingStage, currentToolName, send };
+  const resolveConfirm = useCallback(
+    async (approved: boolean): Promise<void> => {
+      if (!pendingConfirm) return;
+      const { tool_call_id } = pendingConfirm;
+      try {
+        await postChatConfirm({ tool_call_id, approved });
+      } finally {
+        // Очищаем pending независимо от результата
+        setPendingConfirm(null);
+      }
+    },
+    [pendingConfirm],
+  );
+
+  return { messages, isStreaming, error, streamingStage, currentToolName, pendingConfirm, resolveConfirm, send };
 }

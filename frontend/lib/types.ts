@@ -78,7 +78,15 @@ export type LogCardPayload = {
   next_cursor: string | null;
 };
 
-// SSE event discriminated union — совпадает с backend IR (Plan 02-01)
+/** Payload события confirm_required (SEC-01 Plan 3.2) */
+export type ConfirmRequiredPayload = {
+  tool_call_id: string;
+  name: string;
+  args: Record<string, unknown>;
+  reason: string;
+};
+
+// SSE event discriminated union — совпадает с backend IR (Plan 02-01, 03-02)
 export type SSEEvent =
   | { event: "status"; data: { stage: "thinking" | "calling_tool" | "formatting" } }
   | { event: "delta"; data: { content: string } }
@@ -86,7 +94,8 @@ export type SSEEvent =
   | { event: "tool_result"; data: { id: string; ok: boolean; result: unknown; error: string | null; duration_ms: number } }
   | { event: "card"; data: { type: "table"; payload: TableCardPayload } | { type: "object"; payload: ObjectCardPayload } | { type: "log"; payload: LogCardPayload } }
   | { event: "done"; data: { message_id: string; total_duration_ms: number } }
-  | { event: "error"; data: { message: string; code: ErrorCode; retry_after_s?: number | null } };
+  | { event: "error"; data: { message: string; code: ErrorCode; retry_after_s?: number | null } }
+  | { event: "confirm_required"; data: ConfirmRequiredPayload };
 
 // LLM config — только в localStorage, никогда на backend
 export type LLMConfig = {

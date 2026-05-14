@@ -3,9 +3,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useChatStream } from "../useChatStream";
 import type { SSEEvent } from "@/lib/types";
 
-// Мокаем fetchChat из api.ts
+// Мокаем fetchChat и postChatConfirm из api.ts
 vi.mock("@/lib/api", () => ({
   fetchChat: vi.fn(),
+  postChatConfirm: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Мокаем getLLMConfig
@@ -24,7 +25,7 @@ vi.mock("@/lib/toast", () => ({
   subscribeToast: vi.fn(() => () => {}),
 }));
 
-import { fetchChat } from "@/lib/api";
+import { fetchChat, postChatConfirm } from "@/lib/api";
 import { publishToast } from "@/lib/toast";
 
 async function* makeStream(events: SSEEvent[]): AsyncIterable<SSEEvent> {
@@ -334,11 +335,7 @@ describe("useChatStream", () => {
     expect(result.current.pendingConfirm?.reason).toBe("keyword: Удалить");
   });
 
-  it("resolveConfirm sends POST to /chat/confirm with approved=true", async () => {
-    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce(
-      new Response(null, { status: 204 }),
-    );
-
+  it("resolveConfirm calls postChatConfirm with approved=true", async () => {
     const confirmPayload = {
       tool_call_id: "call-abc",
       name: "execute_code",
@@ -354,6 +351,7 @@ describe("useChatStream", () => {
     }
 
     vi.mocked(fetchChat).mockReturnValue(makeConfirmStream());
+    vi.mocked(postChatConfirm).mockResolvedValueOnce(undefined);
 
     const { result } = renderHook(() =>
       useChatStream({ sessionId: "s1", channelId: "ch1" }),
@@ -367,22 +365,13 @@ describe("useChatStream", () => {
       await result.current.resolveConfirm(true);
     });
 
-    expect(fetchSpy).toHaveBeenCalledWith(
-      expect.stringContaining("/chat/confirm"),
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ tool_call_id: "call-abc", approved: true }),
-      }),
-    );
-
-    fetchSpy.mockRestore();
+    expect(postChatConfirm).toHaveBeenCalledWith({
+      tool_call_id: "call-abc",
+      approved: true,
+    });
   });
 
   it("resolveConfirm clears pendingConfirm after call", async () => {
-    vi.spyOn(global, "fetch").mockResolvedValueOnce(
-      new Response(null, { status: 204 }),
-    );
-
     const confirmPayload = {
       tool_call_id: "call-xyz",
       name: "execute_code",
@@ -398,6 +387,7 @@ describe("useChatStream", () => {
     }
 
     vi.mocked(fetchChat).mockReturnValue(makeConfirmStream());
+    vi.mocked(postChatConfirm).mockResolvedValueOnce(undefined);
 
     const { result } = renderHook(() =>
       useChatStream({ sessionId: "s1", channelId: "ch1" }),
@@ -414,7 +404,5 @@ describe("useChatStream", () => {
     });
 
     expect(result.current.pendingConfirm).toBeNull();
-
-    vi.restoreAllMocks();
   });
 });

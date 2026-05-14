@@ -264,6 +264,28 @@ export async function deleteSession(id: string): Promise<void> {
 }
 
 /**
+ * Подтверждает или отклоняет выполнение опасного execute_code (SEC-01).
+ * 204 при успехе, 404 если tool_call_id истёк.
+ */
+export async function postChatConfirm(body: {
+  tool_call_id: string;
+  approved: boolean;
+}): Promise<void> {
+  const response = await fetch(`${BACKEND}/chat/confirm`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (response.status === 204) return;
+  if (response.status === 404) {
+    throw new Error("tool_call_id не найден или истёк");
+  }
+  if (!response.ok) {
+    throw new Error(`Ошибка подтверждения: ${response.status}`);
+  }
+}
+
+/**
  * Переименовывает сессию.
  */
 export async function patchSessionTitle(

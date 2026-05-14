@@ -121,6 +121,7 @@ export default function HomePage() {
   }
 
   // Основной layout — AppShell с пустым Thread (нет активной сессии)
+  // На главной нет активной сессии и чата — ConfirmExecuteDialog не нужен
   return (
     <>
       <AppShell
