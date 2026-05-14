@@ -52,6 +52,17 @@ class LogCardPayload(BaseModel):
     next_cursor: str | None = None
 
 
+def _infer_type_from_value(value: object) -> str:
+    """Выводит тип колонки из значения первой строки."""
+    if isinstance(value, bool):
+        return "Boolean"
+    if isinstance(value, (int, float)):
+        return "Number"
+    if value is None:
+        return "Null"
+    return "String"
+
+
 def _extract_mcp_content(result: dict) -> dict | None:
     """Распаковывает MCP-формат {content:[{type:text,text:...}]} в dict."""
     content = result.get("content")
@@ -81,12 +92,18 @@ def _build_table_card(args: dict, result: dict) -> dict | None:
         return None
 
     # columns может быть list[str] или list[{name, type}]
+    # Если тип не указан — выводим из первой строки
+    first_row = rows[0] if rows else []
     columns = []
-    for col in columns_raw:
+    for idx, col in enumerate(columns_raw):
         if isinstance(col, dict):
-            columns.append(ColumnSchema(name=col.get("name", ""), type=col.get("type", "String")))
+            col_type = col.get("type") or col.get("dataType", "")
+            if not col_type and idx < len(first_row):
+                col_type = _infer_type_from_value(first_row[idx])
+            columns.append(ColumnSchema(name=col.get("name", ""), type=col_type or "String"))
         elif isinstance(col, str):
-            columns.append(ColumnSchema(name=col, type="String"))
+            inferred = _infer_type_from_value(first_row[idx]) if idx < len(first_row) else "String"
+            columns.append(ColumnSchema(name=col, type=inferred))
         else:
             columns.append(ColumnSchema(name=str(col), type="String"))
 
@@ -134,14 +151,17 @@ def _build_log_card(args: dict, result: dict) -> dict | None:
     if not isinstance(entries_raw, list):
         return None
 
+    _VALID_LEVELS = {"Info", "Warning", "Error", "Critical"}
     entries = []
     for entry in entries_raw:
         if not isinstance(entry, dict):
             continue
+        raw_level = entry.get("level", "Info")
+        safe_level = raw_level if raw_level in _VALID_LEVELS else "Info"
         try:
             entries.append(LogEntry(
                 time=str(entry.get("time", "")),
-                level=entry.get("level", "Info"),
+                level=safe_level,
                 user=entry.get("user"),
                 event=str(entry.get("event", "")),
                 comment=entry.get("comment"),
@@ -156,11 +176,51 @@ def _build_log_card(args: dict, result: dict) -> dict | None:
     return {"type": "log", "payload": payload.model_dump()}
 
 
+def _parse_mcp_text_content(result: dict) -> dict | None:
+    """Псевдоним _extract_mcp_content для совместимости с планом."""
+    return _extract_mcp_content(result)
+
+
+def _build_references_card(args: dict, result: dict) -> dict | None:
+    """Строит TableCard из результата find_references_to_object."""
+    data = result if "rows" in result or "columns" in result else _extract_mcp_content(result)
+    if data is None:
+        # Если rows нет, пробуем сформировать из списка ссылок
+        data = result
+
+    rows = data.get("rows")
+    if isinstance(rows, list):
+        # Есть явные rows — стандартный путь через _build_table_card
+        return _build_table_card(args, data)
+
+    # Fallback: result может содержать references как list[dict]
+    refs = data.get("references", data.get("items", []))
+    if not isinstance(refs, list):
+        return None
+
+    columns = [
+        {"name": "Объект", "type": "String"},
+        {"name": "Путь", "type": "String"},
+        {"name": "Представление", "type": "String"},
+    ]
+    built_rows = []
+    for ref in refs:
+        if isinstance(ref, dict):
+            built_rows.append([
+                str(ref.get("object", "")),
+                str(ref.get("path", "")),
+                str(ref.get("presentation", "")),
+            ])
+    constructed = {"columns": columns, "rows": built_rows}
+    return _build_table_card(args, constructed)
+
+
 # Tools для которых строим карточки
 _CARD_BUILDERS = {
     "execute_query": _build_table_card,
     "get_object_by_link": _build_object_card,
     "get_event_log": _build_log_card,
+    "find_references_to_object": _build_references_card,
 }
 
 

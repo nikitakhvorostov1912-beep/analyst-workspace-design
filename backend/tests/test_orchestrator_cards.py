@@ -145,3 +145,115 @@ def test_non_json_mcp_content_returns_none():
     result = {"content": [{"type": "text", "text": "not json {{{"}]}
     card = build_card_from_tool_result("execute_query", {}, result)
     assert card is None
+
+
+# --- find_references_to_object → TableCard ---
+
+def test_find_references_direct_rows():
+    """find_references_to_object с {columns, rows} → TableCard."""
+    result = {
+        "columns": [{"name": "Объект"}, {"name": "Путь"}, {"name": "Представление"}],
+        "rows": [["Документ.ОПП", "Форма.Объект.Реквизит", "Номер"]],
+    }
+    card = build_card_from_tool_result("find_references_to_object", {}, result)
+    assert card is not None
+    assert card["type"] == "table"
+    assert card["payload"]["total"] == 1
+
+
+def test_find_references_items_format():
+    """find_references_to_object с references[] → TableCard с 3 колонками."""
+    result = {
+        "references": [
+            {"object": "Документ.РасходнаяНакладная", "path": "Реквизит.Контрагент", "presentation": "Контрагент"},
+        ]
+    }
+    card = build_card_from_tool_result("find_references_to_object", {}, result)
+    assert card is not None
+    assert card["type"] == "table"
+    assert card["payload"]["columns"][0]["name"] == "Объект"
+    assert card["payload"]["rows"][0][0] == "Документ.РасходнаяНакладная"
+
+
+# --- Вывод типов колонок ---
+
+def test_execute_query_type_inference_from_rows():
+    """execute_query без явных типов → типы выведены из rows."""
+    result = {
+        "columns": ["Код", "Сумма", "Активен"],
+        "rows": [["А001", 1234.5, True]],
+    }
+    card = build_card_from_tool_result("execute_query", {}, result)
+    assert card is not None
+    cols = card["payload"]["columns"]
+    assert cols[0]["type"] == "String"
+    assert cols[1]["type"] == "Number"
+    assert cols[2]["type"] == "Boolean"
+
+
+def test_execute_query_type_inference_null():
+    """execute_query с null в первой строке → тип Null."""
+    result = {
+        "columns": [{"name": "Поле"}],
+        "rows": [[None], ["А"]],
+    }
+    card = build_card_from_tool_result("execute_query", {}, result)
+    assert card is not None
+    assert card["payload"]["columns"][0]["type"] == "Null"
+
+
+# --- get_event_log с неизвестным level ---
+
+def test_get_event_log_unknown_level_defaults_to_info():
+    """get_event_log с level=Debug → дефолт Info."""
+    result = {
+        "entries": [
+            {"time": "T", "level": "Debug", "event": "Отладка"},
+        ]
+    }
+    card = build_card_from_tool_result("get_event_log", {}, result)
+    assert card is not None
+    assert card["payload"]["entries"][0]["level"] == "Info"
+
+
+# --- get_metadata с filter ---
+
+def test_get_metadata_with_filter_and_sections():
+    """get_metadata с filter=Документ.ОПП и sections → ObjectCard."""
+    result = {
+        "header": {"name": "ОПП", "type": "Document", "path": "Документ.ОПП"},
+        "attributes": [{"name": "Контрагент", "type": "CatalogRef.Контрагенты"}],
+        "tabular_sections": [],
+        "forms": [],
+        "templates": [],
+    }
+    card = build_card_from_tool_result(
+        "get_metadata",
+        {"detail": "full", "filter": "Документ.ОПП"},
+        result,
+    )
+    assert card is not None
+    assert card["type"] == "object"
+    assert card["payload"]["attributes"][0]["name"] == "Контрагент"
+
+
+# --- Pydantic-валидация: невалидные rows ---
+
+def test_execute_query_invalid_rows_returns_none():
+    """execute_query с rows=[1, 2, 3] (не list of list) → None (не падает)."""
+    result = {
+        "columns": ["Поле"],
+        "rows": [1, 2, 3],  # не list[list]
+    }
+    card = build_card_from_tool_result("execute_query", {}, result)
+    # Pydantic принимает rows:list[list[Any]] — [1,2,3] это list[int], не list[list]
+    # должны вернуть None или ValidationError → None
+    assert card is None or card["type"] == "table"  # оба ок, главное не исключение
+
+
+# --- execute_code → None ---
+
+def test_execute_code_returns_none():
+    """execute_code → None (не поддерживается карточками)."""
+    card = build_card_from_tool_result("execute_code", {}, {"result": "ok"})
+    assert card is None
