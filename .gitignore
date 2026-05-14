@@ -114,6 +114,10 @@ logs/
 coverage/
 .nyc_output/
 
+# Playwright
+playwright-report/
+test-results/
+
 # Misc temp
 *.tmp
 *.bak
