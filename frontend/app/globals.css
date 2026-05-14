@@ -1,0 +1,42 @@
+@import "tailwindcss";
+
+:root {
+  --bg: #0a0a0a;
+  --bg-elevated: #141414;
+  --fg: #ededed;
+  --fg-muted: #8a8a8a;
+  --border: #262626;
+  --accent: #f97316;
+}
+
+* {
+  border-color: var(--border);
+  box-sizing: border-box;
+}
+
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-plex-sans), system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling for dark theme */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--fg-muted);
+}
