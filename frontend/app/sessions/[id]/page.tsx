@@ -1,17 +1,16 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { Thread } from "@/components/chat/Thread";
 import { ChatInput } from "@/components/chat/Input";
+import { ConnectionStatusBanner } from "@/components/chat/ConnectionStatusBanner";
 import { useChatStream } from "@/components/chat/useChatStream";
 import { useSessionsStore } from "@/lib/sessions-store";
-import {
-  fetchSessionDetail,
-  fetchSessionMessages,
-} from "@/lib/api";
-import { getActiveChannelId, setActiveChannelId } from "@/lib/storage";
+import { fetchSessionDetail, fetchSessionMessages, pingConnection } from "@/lib/api";
+import { getActiveChannelId, setActiveChannelId, getMCPConnections } from "@/lib/storage";
+import { publishToast } from "@/lib/toast";
 import type { ChatMessage, SessionDetail } from "@/lib/types";
 
 function messageRowToChat(row: {
@@ -45,18 +44,21 @@ export default function SessionPage() {
   const [ready, setReady] = useState(false);
   const [activeChannelId, setLocalActiveChannelId] = useState<string | null>(null);
 
+  // Banner state — STATE-02
+  const [bannerVisible, setBannerVisible] = useState(false);
+  const [bannerChannelName, setBannerChannelName] = useState<string | undefined>(undefined);
+  const [bannerRetrying, setBannerRetrying] = useState(false);
+
   const store = useSessionsStore();
 
   // Активный channelId — из сессии или из localStorage
   const channelId = detail?.channel_id ?? getActiveChannelId() ?? "default";
 
   useEffect(() => {
-    // Инициализируем activeChannelId из localStorage
     setLocalActiveChannelId(getActiveChannelId());
 
     async function load() {
       try {
-        // Загружаем данные сессии параллельно
         const [sessionDetail, messages] = await Promise.all([
           fetchSessionDetail(id),
           fetchSessionMessages(id),
@@ -64,7 +66,6 @@ export default function SessionPage() {
         ]);
 
         if (sessionDetail === null) {
-          // 404 — редирект на главную
           router.replace("/");
           return;
         }
@@ -83,22 +84,51 @@ export default function SessionPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  /**
-   * При переключении канала в /sessions/[id]:
-   * Сохраняем новый activeChannelId и редиректим на /
-   * (CONTEXT.md: «Текущий чат при switch — обнуляется»)
-   */
   function handleChannelChange(newId: string) {
     setActiveChannelId(newId);
     setLocalActiveChannelId(newId);
-    // Redirect на главную — текущая сессия привязана к старому каналу
     router.push("/");
   }
 
-  const { messages, isStreaming, error, send } = useChatStream({
+  const handleBannerShow = useCallback((chId: string) => {
+    // Ищем имя канала для отображения в баннере
+    const connections = getMCPConnections();
+    const conn = connections.find((c) => c.id === chId || c.channel === chId);
+    setBannerChannelName(conn?.name);
+    setBannerVisible(true);
+  }, []);
+
+  const handleBannerHide = useCallback(() => {
+    setBannerVisible(false);
+  }, []);
+
+  async function handleRetry() {
+    if (bannerRetrying) return;
+    setBannerRetrying(true);
+    try {
+      const connections = getMCPConnections();
+      const conn = connections.find(
+        (c) => c.id === channelId || c.channel === channelId,
+      );
+      if (!conn) {
+        publishToast({ type: "error", message: "Подключение не найдено" });
+        return;
+      }
+      await pingConnection(conn.id);
+      setBannerVisible(false);
+    } catch {
+      publishToast({ type: "error", message: "База всё ещё недоступна" });
+    } finally {
+      setBannerRetrying(false);
+    }
+  }
+
+  const { messages, isStreaming, error, streamingStage, currentToolName, send } = useChatStream({
     sessionId: id,
     channelId,
     initialMessages,
+    onBannerShow: handleBannerShow,
+    onBannerHide: handleBannerHide,
   });
 
   async function handleCreateNew() {
@@ -107,14 +137,12 @@ export default function SessionPage() {
       const newSession = await store.createNew(ch);
       router.push(`/sessions/${newSession.id}`);
     } catch {
-      // Fallback — просто обновляем список
       await store.refresh();
     }
   }
 
   async function handleDelete(sessionId: string) {
     await store.remove(sessionId);
-    // Если удалили текущую — идём на главную
     if (sessionId === id) {
       router.push("/");
     }
@@ -142,27 +170,43 @@ export default function SessionPage() {
     );
   }
 
+  const inputDisabled = isStreaming || bannerVisible;
+  const inputDisabledReason = bannerVisible ? "banner" : isStreaming ? "streaming" : null;
+
   return (
-    <AppShell
-      grouped={store.grouped}
-      activeId={id}
-      onCreateNew={handleCreateNew}
-      onDeleteSession={handleDelete}
-      headerProps={{
-        activeChannelId: activeChannelId ?? detail?.channel_id ?? null,
-        onChannelChange: handleChannelChange,
-      }}
-      bottom={
-        <ChatInput
-          onSubmit={send}
-          disabled={isStreaming}
+    <>
+      <ConnectionStatusBanner
+        visible={bannerVisible}
+        channelName={bannerChannelName}
+        onRetry={handleRetry}
+        retrying={bannerRetrying}
+      />
+      <AppShell
+        grouped={store.grouped}
+        activeId={id}
+        onCreateNew={handleCreateNew}
+        onDeleteSession={handleDelete}
+        headerProps={{
+          activeChannelId: activeChannelId ?? detail?.channel_id ?? null,
+          onChannelChange: handleChannelChange,
+        }}
+        bottom={
+          <ChatInput
+            onSubmit={send}
+            disabled={inputDisabled}
+            disabledReason={inputDisabledReason}
+          />
+        }
+      >
+        <Thread
+          messages={messages}
+          streamingStage={streamingStage}
+          currentToolName={currentToolName}
         />
-      }
-    >
-      <Thread messages={messages} />
-      {error && (
-        <div className="px-4 pb-2 text-xs text-red-400">{error}</div>
-      )}
-    </AppShell>
+        {error && (
+          <div className="px-4 pb-2 text-xs text-red-400">{error}</div>
+        )}
+      </AppShell>
+    </>
   );
 }

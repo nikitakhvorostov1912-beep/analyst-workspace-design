@@ -1,4 +1,28 @@
-// Зеркало Pydantic моделей backend (Plan 02-01, 02-03)
+// Зеркало Pydantic моделей backend (Plan 02-01, 02-03, 03-01)
+
+/**
+ * Легитимные коды ошибок SSE — зеркало backend ErrorCode Literal.
+ * Plan 3.2 добавляет user_declined/dangerous_keyword_blocked — они уже здесь.
+ */
+export type ErrorCode =
+  | "llm_rate_limit"
+  | "llm_invalid_key"
+  | "llm_network_error"
+  | "llm_server_error"
+  | "mcp_disconnected"
+  | "mcp_connect_error"
+  | "tool_loop_limit"
+  | "unknown_channel"
+  | "init_error"
+  | "internal_error"
+  | "user_declined"
+  | "dangerous_keyword_blocked"
+  // Frontend-only коды (не от backend)
+  | "no_api_key"
+  | "network_error"
+  | "sse_parse"
+  | "sse_json"
+  | string;
 
 export type ChatRequest = {
   message: string;
@@ -62,7 +86,7 @@ export type SSEEvent =
   | { event: "tool_result"; data: { id: string; ok: boolean; result: unknown; error: string | null; duration_ms: number } }
   | { event: "card"; data: { type: "table"; payload: TableCardPayload } | { type: "object"; payload: ObjectCardPayload } | { type: "log"; payload: LogCardPayload } }
   | { event: "done"; data: { message_id: string; total_duration_ms: number } }
-  | { event: "error"; data: { message: string; code: string } };
+  | { event: "error"; data: { message: string; code: ErrorCode; retry_after_s?: number | null } };
 
 // LLM config — только в localStorage, никогда на backend
 export type LLMConfig = {
@@ -109,6 +133,8 @@ export type ChatMessage = {
   cards?: CardEnvelope[];
   tool_calls?: ToolCallRecord[];
   duration_ms?: number;
+  /** Inline error — если LLM/MCP вернул ошибку во время стриминга */
+  error?: { message: string; code: ErrorCode } | null;
 };
 
 // --- Sessions types (Plan 02-03) ---

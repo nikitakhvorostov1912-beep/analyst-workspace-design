@@ -2,35 +2,58 @@
 
 import { useCallback, useState } from "react";
 import { fetchChat } from "@/lib/api";
-import type { CardEnvelope, ChatMessage, ToolCallRecord } from "@/lib/types";
+import { publishToast } from "@/lib/toast";
+import type { CardEnvelope, ChatMessage, ErrorCode, ToolCallRecord } from "@/lib/types";
+import type { StreamingStage } from "./StreamingIndicator";
 
 export type UseChatStreamOptions = {
   sessionId: string;
   channelId: string;
   initialMessages?: ChatMessage[];
+  /** Вызывается при event:error c MCP-кодом — показать ConnectionStatusBanner */
+  onBannerShow?: (channelId: string) => void;
+  /** Вызывается при event:done после bannerVisible */
+  onBannerHide?: () => void;
 };
 
 export type UseChatStreamReturn = {
   messages: ChatMessage[];
   isStreaming: boolean;
   error: string | null;
+  streamingStage: StreamingStage | null;
+  currentToolName: string | null;
   send: (text: string) => Promise<void>;
 };
+
+/** Коды ошибок, которые маршрутизируются в ConnectionStatusBanner */
+const MCP_ERROR_CODES = new Set<ErrorCode>(["mcp_disconnected", "mcp_connect_error"]);
+
+/** Коды ошибок, которые маршрутизируются в Toaster */
+const LLM_ERROR_CODES = new Set<ErrorCode>([
+  "llm_rate_limit",
+  "llm_invalid_key",
+  "llm_network_error",
+  "llm_server_error",
+]);
 
 /**
  * Hook управления SSE-стримом чата.
  *
  * Принимает initialMessages (из history) и добавляет новые по мере стриминга.
- * Обрабатывает все 7 SSE-событий: status/delta/tool_call/tool_result/card/done/error.
+ * Обрабатывает все 7 SSE-событий + маршрутизацию ошибок (Plan 03-01).
  */
 export function useChatStream({
   sessionId,
   channelId,
   initialMessages = [],
+  onBannerShow,
+  onBannerHide,
 }: UseChatStreamOptions): UseChatStreamReturn {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [streamingStage, setStreamingStage] = useState<StreamingStage | null>(null);
+  const [currentToolName, setCurrentToolName] = useState<string | null>(null);
 
   const send = useCallback(
     async (text: string): Promise<void> => {
@@ -61,6 +84,8 @@ export function useChatStream({
 
       setMessages((prev) => [...prev, userMsg, placeholderAssistant]);
       setIsStreaming(true);
+      setStreamingStage(null);
+      setCurrentToolName(null);
 
       try {
         const stream = fetchChat({
@@ -70,7 +95,9 @@ export function useChatStream({
         });
 
         for await (const event of stream) {
-          if (event.event === "delta") {
+          if (event.event === "status") {
+            setStreamingStage(event.data.stage);
+          } else if (event.event === "delta") {
             const content = event.data.content;
             setMessages((prev) => {
               const last = prev[prev.length - 1];
@@ -81,6 +108,7 @@ export function useChatStream({
               ];
             });
           } else if (event.event === "tool_call") {
+            setCurrentToolName(event.data.name);
             const tc: ToolCallRecord = {
               id: event.data.id,
               name: event.data.name,
@@ -128,23 +156,67 @@ export function useChatStream({
                 { ...last, id: message_id, duration_ms: total_duration_ms },
               ];
             });
+            setStreamingStage(null);
+            setCurrentToolName(null);
             setIsStreaming(false);
+            onBannerHide?.();
           } else if (event.event === "error") {
-            setError(event.data.message);
-            setIsStreaming(false);
-            break;
+            const { code, message } = event.data;
+            const retryAfterS = event.data.retry_after_s;
+
+            if (MCP_ERROR_CODES.has(code)) {
+              // MCP ошибка → ConnectionStatusBanner
+              onBannerShow?.(channelId);
+              setIsStreaming(false);
+              setStreamingStage(null);
+              break;
+            } else if (LLM_ERROR_CODES.has(code)) {
+              // LLM ошибка → Toaster + inline error на placeholder
+              publishToast({
+                type: code === "llm_rate_limit" ? "warning" : "error",
+                message,
+                countdownSeconds:
+                  retryAfterS != null ? retryAfterS : undefined,
+              });
+              // Записываем inline error в assistant placeholder
+              setMessages((prev) => {
+                const last = prev[prev.length - 1];
+                if (!last || last.role !== "assistant") return prev;
+                return [
+                  ...prev.slice(0, -1),
+                  { ...last, error: { message, code } },
+                ];
+              });
+              setIsStreaming(false);
+              setStreamingStage(null);
+              break;
+            } else {
+              // Прочие ошибки → inline в setError + inline на placeholder
+              setError(message);
+              setMessages((prev) => {
+                const last = prev[prev.length - 1];
+                if (!last || last.role !== "assistant") return prev;
+                return [
+                  ...prev.slice(0, -1),
+                  { ...last, error: { message, code } },
+                ];
+              });
+              setIsStreaming(false);
+              setStreamingStage(null);
+              break;
+            }
           }
-          // status events — пропускаем (нет UI для них в Phase 2)
         }
       } catch (err) {
         const msg = err instanceof Error ? err.message : "Неизвестная ошибка";
         setError(msg);
       } finally {
         setIsStreaming(false);
+        setStreamingStage(null);
       }
     },
-    [isStreaming, sessionId, channelId],
+    [isStreaming, sessionId, channelId, onBannerShow, onBannerHide],
   );
 
-  return { messages, isStreaming, error, send };
+  return { messages, isStreaming, error, streamingStage, currentToolName, send };
 }

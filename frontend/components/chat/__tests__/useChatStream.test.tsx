@@ -18,7 +18,14 @@ vi.mock("@/lib/storage", () => ({
   }),
 }));
 
+// Мокаем publishToast
+vi.mock("@/lib/toast", () => ({
+  publishToast: vi.fn(),
+  subscribeToast: vi.fn(() => () => {}),
+}));
+
 import { fetchChat } from "@/lib/api";
+import { publishToast } from "@/lib/toast";
 
 async function* makeStream(events: SSEEvent[]): AsyncIterable<SSEEvent> {
   for (const e of events) {
@@ -179,5 +186,116 @@ describe("useChatStream", () => {
     await waitFor(() => {
       expect(result.current.isStreaming).toBe(false);
     });
+  });
+
+  // --- Новые тесты Plan 03-01 ---
+
+  it("error llm_rate_limit calls publishToast with countdown", async () => {
+    const events: SSEEvent[] = [
+      {
+        event: "error",
+        data: { message: "Превышен лимит", code: "llm_rate_limit", retry_after_s: 30 },
+      },
+    ];
+    vi.mocked(fetchChat).mockReturnValue(makeStream(events));
+
+    const { result } = renderHook(() =>
+      useChatStream({ sessionId: "s1", channelId: "ch1" }),
+    );
+
+    await act(async () => {
+      await result.current.send("вопрос");
+    });
+
+    expect(vi.mocked(publishToast)).toHaveBeenCalledWith(
+      expect.objectContaining({ countdownSeconds: 30, type: "warning" }),
+    );
+  });
+
+  it("error mcp_disconnected calls onBannerShow callback", async () => {
+    const events: SSEEvent[] = [
+      {
+        event: "error",
+        data: { message: "MCP недоступен", code: "mcp_disconnected" },
+      },
+    ];
+    vi.mocked(fetchChat).mockReturnValue(makeStream(events));
+
+    const onBannerShow = vi.fn();
+    const { result } = renderHook(() =>
+      useChatStream({ sessionId: "s1", channelId: "ch1", onBannerShow }),
+    );
+
+    await act(async () => {
+      await result.current.send("вопрос");
+    });
+
+    expect(onBannerShow).toHaveBeenCalledWith("ch1");
+  });
+
+  it("error llm_invalid_key calls publishToast without countdown", async () => {
+    const events: SSEEvent[] = [
+      {
+        event: "error",
+        data: { message: "Неверный ключ", code: "llm_invalid_key" },
+      },
+    ];
+    vi.mocked(fetchChat).mockReturnValue(makeStream(events));
+
+    const { result } = renderHook(() =>
+      useChatStream({ sessionId: "s1", channelId: "ch1" }),
+    );
+
+    await act(async () => {
+      await result.current.send("вопрос");
+    });
+
+    expect(vi.mocked(publishToast)).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "error" }),
+    );
+    const call = vi.mocked(publishToast).mock.calls[0]?.[0];
+    expect(call?.countdownSeconds).toBeUndefined();
+  });
+
+  it("error llm_rate_limit sets inline error on assistant placeholder", async () => {
+    const events: SSEEvent[] = [
+      {
+        event: "error",
+        data: { message: "Rate limit hit", code: "llm_rate_limit", retry_after_s: null },
+      },
+    ];
+    vi.mocked(fetchChat).mockReturnValue(makeStream(events));
+
+    const { result } = renderHook(() =>
+      useChatStream({ sessionId: "s1", channelId: "ch1" }),
+    );
+
+    await act(async () => {
+      await result.current.send("вопрос");
+    });
+
+    const assistant = result.current.messages.find((m) => m.role === "assistant");
+    expect(assistant?.error?.message).toBe("Rate limit hit");
+    expect(assistant?.error?.code).toBe("llm_rate_limit");
+  });
+
+  it("status events update streamingStage", async () => {
+    const events: SSEEvent[] = [
+      { event: "status", data: { stage: "thinking" } },
+      { event: "status", data: { stage: "formatting" } },
+      { event: "done", data: { message_id: "m1", total_duration_ms: 10 } },
+    ];
+    vi.mocked(fetchChat).mockReturnValue(makeStream(events));
+
+    const { result } = renderHook(() =>
+      useChatStream({ sessionId: "s1", channelId: "ch1" }),
+    );
+
+    await act(async () => {
+      await result.current.send("вопрос");
+    });
+
+    // После done streamingStage должен быть null
+    expect(result.current.streamingStage).toBeNull();
   });
 });
