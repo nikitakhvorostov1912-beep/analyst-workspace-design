@@ -25,12 +25,15 @@ from app.orchestrator.events import (
     format_sse,
 )
 from app.orchestrator.persistence import (
+    count_session_messages,
     ensure_session,
     lookup_mcp_endpoint,
     save_assistant_message,
     save_user_message,
     touch_session,
+    update_session_title,
 )
+from app.orchestrator.title import generate_title
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +131,10 @@ async def run_chat_loop(
         session_id = await ensure_session(
             db, request.session_id, request.channel_id, request.message[:60]
         )
+
+        # Считаем сообщения ДО сохранения нового — чтобы знать первое ли это
+        msg_count_before = await count_session_messages(db, session_id)
+
         await save_user_message(db, session_id, request.message)
 
         mcp_endpoint = await lookup_mcp_endpoint(db, request.channel_id)
@@ -135,6 +142,20 @@ async def run_chat_loop(
         logger.exception("Ошибка инициализации loop")
         yield format_sse("error", ErrorEvent(message="Внутренняя ошибка", code="init_error"))
         return
+
+    # --- Auto-title background task для первого сообщения ---
+    if msg_count_before == 0:
+        # Первое user-сообщение в сессии — запускаем auto-title в фоне
+        async def _run_auto_title() -> None:
+            try:
+                llm = LLMClient(endpoint=llm_endpoint, model=llm_model)
+                new_title = await generate_title(request.message, llm, api_key)
+                await update_session_title(db, session_id, new_title)
+                await llm.aclose()
+            except Exception:
+                logger.warning("Auto-title background task failed for session %s", session_id)
+
+        asyncio.create_task(_run_auto_title())
 
     if mcp_endpoint is None:
         yield format_sse("error", ErrorEvent(

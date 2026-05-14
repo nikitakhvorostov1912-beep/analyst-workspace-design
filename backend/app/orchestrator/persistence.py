@@ -3,6 +3,7 @@
 import json
 import logging
 import uuid
+from datetime import datetime, timedelta
 
 import aiosqlite
 
@@ -115,3 +116,197 @@ async def lookup_mcp_endpoint(
     if rows:
         return rows[0][0]
     return None
+
+
+# --- Sessions CRUD (Plan 2.3) ---
+
+
+def _parse_updated_at(value: str) -> datetime:
+    """Парсит ISO-строку или SQLite TIMESTAMP в datetime."""
+    # SQLite хранит как 'YYYY-MM-DD HH:MM:SS' или ISO
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%S.%f"):
+        try:
+            return datetime.strptime(value, fmt)
+        except ValueError:
+            continue
+    # Fallback — текущее время
+    logger.warning("Не удалось распарсить дату: %s", value)
+    return datetime.now()
+
+
+async def list_sessions_grouped(
+    db: aiosqlite.Connection,
+    channel_id: str | None = None,
+) -> dict:
+    """Возвращает сессии сгруппированные по дате (today/yesterday/this_week/earlier).
+
+    Группировка выполняется в Python с datetime.now() (локальное время сервера).
+    """
+    rows = await db.execute_fetchall(
+        """
+        SELECT s.id, s.title, s.channel_id, s.updated_at,
+               (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id) AS message_count
+        FROM sessions s
+        WHERE (? IS NULL OR s.channel_id = ?)
+        ORDER BY s.updated_at DESC
+        """,
+        (channel_id, channel_id),
+    )
+
+    now = datetime.now()
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    yesterday_start = today_start - timedelta(days=1)
+    week_start = today_start - timedelta(days=7)
+
+    result: dict = {"today": [], "yesterday": [], "this_week": [], "earlier": []}
+
+    for row in rows:
+        session_id, title, ch_id, updated_at_raw, message_count = row
+        updated_at = _parse_updated_at(str(updated_at_raw))
+
+        item = {
+            "id": session_id,
+            "title": title,
+            "channel_id": ch_id,
+            "updated_at": updated_at,
+            "message_count": int(message_count),
+        }
+
+        if updated_at >= today_start:
+            result["today"].append(item)
+        elif updated_at >= yesterday_start:
+            result["yesterday"].append(item)
+        elif updated_at >= week_start:
+            result["this_week"].append(item)
+        else:
+            result["earlier"].append(item)
+
+    return result
+
+
+async def get_session(
+    db: aiosqlite.Connection,
+    session_id: str,
+) -> dict | None:
+    """Возвращает данные сессии или None если не найдена."""
+    rows = await db.execute_fetchall(
+        "SELECT id, title, channel_id, created_at, updated_at FROM sessions WHERE id = ?",
+        (session_id,),
+    )
+    if not rows:
+        return None
+    row = rows[0]
+    return {
+        "id": row[0],
+        "title": row[1],
+        "channel_id": row[2],
+        "created_at": _parse_updated_at(str(row[3])),
+        "updated_at": _parse_updated_at(str(row[4])),
+    }
+
+
+async def get_session_messages(
+    db: aiosqlite.Connection,
+    session_id: str,
+) -> list[dict]:
+    """Возвращает все сообщения сессии в хронологическом порядке (ASC).
+
+    tool_calls и cards десериализуются из JSON.
+    Cap 500 сообщений на сессию.
+    """
+    rows = await db.execute_fetchall(
+        """
+        SELECT id, role, content, tool_calls, cards, duration_ms, created_at
+        FROM messages
+        WHERE session_id = ?
+        ORDER BY created_at ASC
+        LIMIT 500
+        """,
+        (session_id,),
+    )
+
+    result = []
+    for row in rows:
+        msg_id, role, content, tool_calls_raw, cards_raw, duration_ms, created_at_raw = row
+
+        tool_calls = None
+        if tool_calls_raw:
+            try:
+                tool_calls = json.loads(tool_calls_raw)
+            except (json.JSONDecodeError, TypeError):
+                tool_calls = None
+
+        cards = None
+        if cards_raw:
+            try:
+                cards = json.loads(cards_raw)
+            except (json.JSONDecodeError, TypeError):
+                cards = None
+
+        result.append({
+            "id": msg_id,
+            "role": role,
+            "content": content,
+            "tool_calls": tool_calls,
+            "cards": cards,
+            "duration_ms": duration_ms,
+            "created_at": _parse_updated_at(str(created_at_raw)),
+        })
+
+    return result
+
+
+async def delete_session(
+    db: aiosqlite.Connection,
+    session_id: str,
+) -> bool:
+    """Удаляет сессию (CASCADE удалит messages автоматически).
+
+    Returns:
+        True если сессия существовала и удалена, False если не найдена.
+    """
+    rows = await db.execute_fetchall(
+        "SELECT id FROM sessions WHERE id = ?", (session_id,)
+    )
+    if not rows:
+        return False
+
+    await db.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+    await db.commit()
+    return True
+
+
+async def update_session_title(
+    db: aiosqlite.Connection,
+    session_id: str,
+    title: str,
+) -> bool:
+    """Обновляет title сессии.
+
+    Returns:
+        True если сессия найдена и обновлена.
+    """
+    rows = await db.execute_fetchall(
+        "SELECT id FROM sessions WHERE id = ?", (session_id,)
+    )
+    if not rows:
+        return False
+
+    await db.execute(
+        "UPDATE sessions SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+        (title, session_id),
+    )
+    await db.commit()
+    return True
+
+
+async def count_session_messages(
+    db: aiosqlite.Connection,
+    session_id: str,
+) -> int:
+    """Считает количество сообщений в сессии."""
+    rows = await db.execute_fetchall(
+        "SELECT COUNT(*) FROM messages WHERE session_id = ?",
+        (session_id,),
+    )
+    return int(rows[0][0]) if rows else 0
