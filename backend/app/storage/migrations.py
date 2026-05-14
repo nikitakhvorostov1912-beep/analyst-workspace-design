@@ -52,7 +52,13 @@ DDL_STATEMENTS = [
     """,
 ]
 
-CURRENT_VERSION = 1
+# Новые DDL для schema_version=2: индексы для быстрого поиска истории
+MIGRATIONS_V2 = [
+    "CREATE INDEX IF NOT EXISTS idx_messages_session_created ON messages(session_id, created_at)",
+    "CREATE INDEX IF NOT EXISTS idx_sessions_updated ON sessions(updated_at DESC)",
+]
+
+CURRENT_VERSION = 2
 
 
 async def apply_migrations(db: aiosqlite.Connection) -> None:
@@ -67,12 +73,22 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
     if current >= CURRENT_VERSION:
         return
 
-    # Применяем оставшиеся DDL
-    for stmt in DDL_STATEMENTS[1:]:
-        await db.execute(stmt)
+    if current < 1:
+        # Применяем базовые таблицы (v1)
+        for stmt in DDL_STATEMENTS[1:]:
+            await db.execute(stmt)
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (1,),
+        )
+        await db.commit()
 
-    await db.execute(
-        "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
-        (CURRENT_VERSION,),
-    )
-    await db.commit()
+    if current < 2:
+        # Применяем индексы v2
+        for stmt in MIGRATIONS_V2:
+            await db.execute(stmt)
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (2,),
+        )
+        await db.commit()

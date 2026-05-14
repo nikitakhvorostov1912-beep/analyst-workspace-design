@@ -1,6 +1,6 @@
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ChatRequest(BaseModel):
@@ -8,7 +8,7 @@ class ChatRequest(BaseModel):
 
     message: str
     session_id: str | None = None
-    channel_id: str | None = None
+    channel_id: str = Field(min_length=1)
     # api key пробрасывается через header X-LLM-API-Key, в теле НЕ передаётся
 
 

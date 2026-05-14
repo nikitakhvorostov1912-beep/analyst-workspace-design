@@ -166,6 +166,10 @@ class MCPClient:
         """Закрывает внутренний httpx.AsyncClient."""
         await self._http.aclose()
 
+    async def aclose(self) -> None:
+        """Alias для close() — симметрично с LLMClient."""
+        await self.close()
+
     async def __aenter__(self) -> "MCPClient":
         return self
 
