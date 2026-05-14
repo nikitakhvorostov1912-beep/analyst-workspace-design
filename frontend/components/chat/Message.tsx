@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { AssistantMessage } from "./AssistantMessage";
 import type { ChatMessage } from "@/lib/types";
 
 interface MessageProps {
@@ -6,30 +7,22 @@ interface MessageProps {
 }
 
 export function Message({ message }: MessageProps) {
-  const isUser = message.role === "user";
+  // tool messages не рендерятся в Thread — только в Trace panel (Plan 2.5)
+  if (message.role === "tool") return null;
 
+  if (message.role === "assistant") {
+    return <AssistantMessage message={message} />;
+  }
+
+  // user message — bubble справа
   return (
-    <div
-      className={cn(
-        "flex w-full",
-        isUser ? "justify-end" : "justify-start",
-      )}
-    >
+    <div className={cn("flex w-full justify-end")}>
       <div
         className={cn(
           "max-w-3xl rounded-lg p-4 text-sm leading-relaxed",
-          isUser
-            ? "bg-[var(--bg-elevated)] text-[var(--fg)] border border-[var(--border)]"
-            : "text-[var(--fg)]",
+          "bg-[var(--bg-elevated)] text-[var(--fg)] border border-[var(--border)]",
         )}
       >
-        {/* Роль */}
-        {!isUser && (
-          <div className="text-xs text-[var(--fg-muted)] mb-1 font-medium">
-            Ассистент
-          </div>
-        )}
-        {/* Контент рендерится как plain text (T-01-11: защита от XSS) */}
         <p className="whitespace-pre-wrap break-words">{message.content}</p>
       </div>
     </div>

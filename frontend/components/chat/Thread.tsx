@@ -7,10 +7,13 @@ interface ThreadProps {
 }
 
 export function Thread({ messages }: ThreadProps) {
+  // tool-сообщения не рендерятся в Thread — только в Trace panel (Plan 2.5)
+  const visibleMessages = messages.filter((m) => m.role !== "tool");
+
   return (
     <ScrollArea className="h-full">
       <div className="flex flex-col gap-4 p-4 max-w-4xl mx-auto">
-        {messages.map((msg) => (
+        {visibleMessages.map((msg) => (
           <Message key={msg.id} message={msg} />
         ))}
       </div>
