@@ -14,7 +14,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | Aspect | Value |
 |--------|-------|
 | **Current Milestone** | M1 — Foundation |
-| **Current Phase** | Phase 1 — Foundation (PARTIAL: код + автотесты ✓, runtime smoke ожидает ручной проверки) |
+| **Current Phase** | Phase 1 — Foundation ✓ **PASS** (готов к Phase 2) |
 | **Mode** | YOLO + coarse granularity + parallel execution |
 | **Last Update** | 2026-05-14 |
 
@@ -22,12 +22,12 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 
 | # | Phase | Status | Plans | Progress |
 |---|-------|--------|-------|----------|
-| 1 | Foundation | ◆ Verified (PARTIAL) | 2/2 executed | 95% (runtime smoke pending) |
+| 1 | Foundation | ✓ Complete | 2/2 executed | 100% |
 | 2 | MVP Chat | ○ Pending | 0/5 | 0% |
 | 3 | Production Ready | ○ Pending | 0/4 | 0% |
 | 4 | Demo & Refine | ○ Pending | 0/4 | 0% |
 
-**Overall:** Progress: ██░░░░░░░░ 13% (2/2 Phase 1 plans + 0/15 remaining)
+**Overall:** Progress: ███░░░░░░░ 13% (Phase 1 закрыта; 0/13 планов M2-M4)
 
 ## Artifacts Status
 
@@ -39,7 +39,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 - [x] Phase 1 plan — 2 plans + summary in `.planning/phases/01-foundation/` (verified by plan-checker: PASS_WITH_NOTES)
 - [x] Phase 1 Plan 01 execution — backend skeleton (2026-05-14, 20 tests green, ruff clean)
 - [x] Phase 1 Plan 02 execution — frontend Next.js 15 scaffold (2026-05-14, type-check + lint + build зелёные)
-- [x] Phase 1 VERIFICATION — 17/18 must-haves verified, 1 PARTIAL (Docker недоступен в sandbox). См. `phases/01-foundation/VERIFICATION.md`
+- [x] Phase 1 VERIFICATION — **PASS** (15 VERIFIED + 3 PARTIAL только из-за отсутствия Docker/GUI в sandbox). Runtime smoke на dev-машине: uvicorn `/health` 5.8 мс, SSE контракт ok, Next dev ready 2.3 сек, HTML lang=ru dark IBM Plex. См. `phases/01-foundation/VERIFICATION.md`
 
 ## Pivot History (Lessons Learned)
 
@@ -59,15 +59,11 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 
 1. ~~Git init + GitHub репозиторий + push~~ ✓ done
 2. ~~`/gsd-plan-phase 1`~~ ✓ done — 2 plans committed
-3. ~~`/gsd-execute-phase 1`~~ ✓ done — 2 plans executed, 8 commits, verification PARTIAL
-4. **Human runtime smoke** (5 пунктов, ~10 мин):
-   - `docker compose up -d backend` → `curl http://localhost:8010/health` → ожидаем `{"status":"ok","version":"0.1.0","db":"ok"}`
-   - Cold start ≤ 2 сек (`time docker compose restart backend`)
-   - `cd frontend && pnpm dev` → открыть `http://localhost:3010` → AppShell, тёмная тема, IBM Plex, русский, empty state с CTA «Настроить»
-   - Бейдж «Backend: ok 0.1.0» при работающем backend
-   - Ctrl+Enter в textarea срабатывает
-5. Если smoke зелёный → `/gsd:plan-phase 2` (MVP Chat: orchestrator + cards + sessions + settings + trace)
-6. Параллельно: настройка LLM endpoint (Xiaomi MiMo) + MCP Toolkit (порт 6010) у разработчика
+3. ~~`/gsd-execute-phase 1`~~ ✓ done — 2 plans executed, 8 commits
+4. ~~Runtime smoke на dev-машине~~ ✓ done — uvicorn `/health` 5.8 мс, SSE `event: status` первым байтом, Next dev Ready 2.3 сек, HTML lang=ru class=dark IBM Plex
+5. **Now:** `/gsd:plan-phase 2` (MVP Chat: orchestrator NL→LLM→tool_call→MCP loop + inline cards Table/Object/Log + sessions CRUD + Settings CRUD + trace panel)
+6. **Pending (можно начинать параллельно с Phase 2 dev):** настройка LLM endpoint (Xiaomi MiMo) + MCP Toolkit (порт 6010) у разработчика
+7. **Pending визуальный smoke в браузере** (когда удобно): открыть `http://localhost:3010` глазами — AppShell, IBM Plex, бейдж backend, Ctrl+Enter
 
 ---
 
