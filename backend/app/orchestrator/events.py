@@ -75,6 +75,17 @@ class ErrorEvent(BaseModel):
     retry_after_s: int | None = None
 
 
+class ConfirmRequiredEvent(BaseModel):
+    """SSE-событие confirm_required — запрос подтверждения опасного execute_code (SEC-01)."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    tool_call_id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    args: dict[str, Any]
+    reason: str = Field(min_length=1)
+
+
 def format_sse(event_name: str, data: BaseModel | dict) -> str:
     """Сериализует SSE-событие в wire-формат.
 

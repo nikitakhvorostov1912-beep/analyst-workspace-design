@@ -7,7 +7,9 @@ from httpx import ASGITransport, AsyncClient
 # Используем in-memory SQLite для тестов — устанавливаем ДО импорта app
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"
 os.environ["APP_VERSION"] = "0.1.0"
-os.environ["CORS_ORIGINS"] = "http://localhost:3010"
+# SEC-04: CORS configurable через BACKEND_ALLOWED_ORIGINS (план 3.2)
+# В тестах разрешаем localhost для ASGI transport (не реальный CORS)
+os.environ["BACKEND_ALLOWED_ORIGINS"] = "http://localhost:3010"
 
 
 @pytest.fixture(autouse=True)

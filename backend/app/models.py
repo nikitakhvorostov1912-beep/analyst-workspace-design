@@ -5,7 +5,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class ChatRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", strict=True)
 
     message: str
     session_id: str | None = None
@@ -50,7 +50,7 @@ class MCPConnection(BaseModel):
 
 
 class MCPConnectionCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", strict=True)
 
     name: str = Field(min_length=1, max_length=200)
     endpoint: str = Field(min_length=1)
@@ -68,7 +68,7 @@ class MCPConnectionCreate(BaseModel):
 
 
 class MCPConnectionUpdate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", strict=True)
 
     name: str | None = Field(default=None, min_length=1, max_length=200)
     endpoint: str | None = None
@@ -113,7 +113,7 @@ class MCPPingWithTimestampResponse(BaseModel):
 
 
 class SessionCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", strict=True)
 
     title: str | None = None
     channel_id: str = Field(min_length=1)
@@ -167,6 +167,15 @@ class SessionMessages(BaseModel):
 
 
 class SessionPatch(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", strict=True)
 
     title: str = Field(min_length=1, max_length=200)
+
+
+class ConfirmRequest(BaseModel):
+    """Тело POST /chat/confirm (SEC-01)."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    tool_call_id: str = Field(min_length=1)
+    approved: bool

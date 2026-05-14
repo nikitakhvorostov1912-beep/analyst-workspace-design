@@ -25,6 +25,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     logging.getLogger().setLevel(settings.log_level)
     logger.info("Запуск 1С Аналитик backend v%s", settings.app_version)
+    # SEC-04: предупреждение если production без CORS origins
+    if settings.environment == "prod" and not settings.cors_origins_list:
+        logger.warning(
+            "CORS origins пустые в production. "
+            "Установите BACKEND_ALLOWED_ORIGINS=https://your-frontend.example.com"
+        )
     await init_db(app)
     yield
     await close_db(app)

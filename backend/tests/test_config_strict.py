@@ -1,6 +1,5 @@
 """Тесты config.py — CORS origins + BACKEND_ALLOWED_ORIGINS."""
 
-import os
 
 import pytest
 
@@ -18,7 +17,6 @@ def reset_settings(monkeypatch):
 def test_settings_cors_origins_empty_by_default(monkeypatch):
     """Settings() без BACKEND_ALLOWED_ORIGINS → cors_origins == '' и cors_origins_list == []."""
     monkeypatch.delenv("BACKEND_ALLOWED_ORIGINS", raising=False)
-    monkeypatch.delenv("CORS_ORIGINS", raising=False)
 
     from app.config import get_settings
 

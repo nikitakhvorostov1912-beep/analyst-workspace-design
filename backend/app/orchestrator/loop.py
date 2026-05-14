@@ -16,6 +16,7 @@ from app.models import ChatRequest
 from app.orchestrator.cards import build_card_from_tool_result
 from app.orchestrator.events import (
     CardEvent,
+    ConfirmRequiredEvent,
     DeltaEvent,
     DoneEvent,
     ErrorEvent,
@@ -32,6 +33,12 @@ from app.orchestrator.persistence import (
     save_user_message,
     touch_session,
     update_session_title,
+)
+from app.orchestrator.safety import (
+    CONFIRMATION_TIMEOUT_S,
+    register_pending_confirmation,
+    scan_for_dangerous,
+    wait_for_confirmation,
 )
 from app.orchestrator.title import generate_title
 
@@ -335,6 +342,32 @@ async def run_chat_loop(
                 yield format_sse("tool_call", ToolCallEvent(
                     id=tool_id, name=tool_name, args=tool_args
                 ))
+
+                # SEC-01: проверяем dangerous keywords для execute_code
+                if tool_name == "execute_code":
+                    danger_reason = scan_for_dangerous(tool_args)
+                    if danger_reason:
+                        register_pending_confirmation(tool_id)
+                        yield format_sse("confirm_required", ConfirmRequiredEvent(
+                            tool_call_id=tool_id,
+                            name=tool_name,
+                            args=tool_args,
+                            reason=danger_reason,
+                        ))
+                        approved = await wait_for_confirmation(tool_id, CONFIRMATION_TIMEOUT_S)
+                        if approved is None:
+                            yield format_sse("error", ErrorEvent(
+                                message=f"Подтверждение не получено за {int(CONFIRMATION_TIMEOUT_S)} секунд",
+                                code="dangerous_keyword_blocked",
+                            ))
+                            return
+                        if approved is False:
+                            yield format_sse("error", ErrorEvent(
+                                message="Пользователь отменил выполнение",
+                                code="user_declined",
+                            ))
+                            return
+                        # approved is True — продолжаем как обычно
 
                 start_ts = time.monotonic()
                 try:

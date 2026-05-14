@@ -69,7 +69,10 @@ def make_request(message: str = "тест", channel_id: str = "test-ch") -> Chat
 
 @pytest.mark.asyncio
 async def test_loop_emits_confirm_required_on_dangerous_execute_code(mem_db, monkeypatch):
-    """LLM выдаёт execute_code с dangerous keyword → confirm_required эмитится; declined → error user_declined; MCP НЕ вызывается."""
+    """LLM выдаёт execute_code с dangerous keyword → confirm_required эмитится.
+
+    При declined → error user_declined; MCP call_tool НЕ вызывается.
+    """
     import app.orchestrator.loop as loop_module
     import app.orchestrator.safety as safety_mod
 
