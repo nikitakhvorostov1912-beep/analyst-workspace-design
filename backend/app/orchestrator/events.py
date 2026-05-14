@@ -5,6 +5,23 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+# Все легитимные коды ошибок SSE.
+# Plan 3.2 добавляет user_declined/dangerous_keyword_blocked — они уже здесь.
+ErrorCode = Literal[
+    "llm_rate_limit",
+    "llm_invalid_key",
+    "llm_network_error",
+    "llm_server_error",
+    "mcp_disconnected",
+    "mcp_connect_error",
+    "tool_loop_limit",
+    "unknown_channel",
+    "init_error",
+    "internal_error",
+    "user_declined",
+    "dangerous_keyword_blocked",
+]
+
 
 class StatusEvent(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -54,7 +71,8 @@ class ErrorEvent(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     message: str
-    code: str
+    code: ErrorCode
+    retry_after_s: int | None = None
 
 
 def format_sse(event_name: str, data: BaseModel | dict) -> str:

@@ -3,10 +3,46 @@
 import json
 import logging
 from collections.abc import AsyncIterator
+from datetime import UTC
+from email.utils import parsedate_to_datetime
 
 import httpx
 
 logger = logging.getLogger(__name__)
+
+
+class LLMRateLimitError(httpx.HTTPStatusError):
+    """429 Too Many Requests от LLM-провайдера.
+
+    Дополнительный атрибут retry_after_s: число секунд из заголовка Retry-After
+    (int) или None если заголовок отсутствует или не парсится.
+    """
+
+    retry_after_s: int | None = None
+
+
+def _parse_retry_after(header_value: str | None) -> int | None:
+    """Парсит значение заголовка Retry-After в секунды.
+
+    Поддерживает: целое число секунд и HTTP-date формат.
+    Возвращает None если header_value пустой или не парсится.
+    Clamp: 0..300 сек (T-03-04).
+    """
+    if not header_value:
+        return None
+    try:
+        seconds = int(header_value)
+        return max(0, min(seconds, 300))
+    except ValueError:
+        pass
+    try:
+        from datetime import datetime
+        dt = parsedate_to_datetime(header_value)
+        now = datetime.now(tz=UTC)
+        delta = int((dt - now).total_seconds())
+        return max(0, min(delta, 300))
+    except Exception:
+        return None
 
 
 class LLMClient:
@@ -53,6 +89,17 @@ class LLMClient:
             json=payload,
             headers=headers,
         ) as response:
+            if response.status_code == 429:
+                retry_after_s = _parse_retry_after(
+                    response.headers.get("retry-after") or response.headers.get("Retry-After")
+                )
+                exc = LLMRateLimitError(
+                    "HTTP 429 Too Many Requests",
+                    request=response.request,
+                    response=response,
+                )
+                exc.retry_after_s = retry_after_s
+                raise exc
             response.raise_for_status()
             async for line in response.aiter_lines():
                 if not line.startswith("data: "):

@@ -18,6 +18,14 @@ class MCPError(Exception):
         self.mcp_message = message
 
 
+class MCPDisconnectedError(Exception):
+    """MCP-сервер недоступен после исчерпания попыток.
+
+    Поднимается из _call_tool_with_retry когда ConnectError/Timeout не устраняется.
+    Ловится в run_chat_loop и маппируется в event:error code=mcp_disconnected.
+    """
+
+
 @dataclass
 class MCPSession:
     """Результат MCP initialize."""

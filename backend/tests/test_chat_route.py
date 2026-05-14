@@ -3,6 +3,7 @@
 import json
 
 import aiosqlite
+import httpx
 import pytest
 from httpx import AsyncClient
 
@@ -146,3 +147,48 @@ async def test_chat_unknown_channel_returns_error(client: AsyncClient, monkeypat
     error_events = [e for e in events if e["event"] == "error"]
     assert error_events
     assert error_events[0]["data"]["code"] == "unknown_channel"
+
+
+@pytest.mark.asyncio
+async def test_chat_llm_429_returns_rate_limit_with_retry_after_s(client: AsyncClient, monkeypatch):
+    """POST /chat с LLM 429 → event:error code=llm_rate_limit retry_after_s=45 (end-to-end)."""
+    import app.orchestrator.loop as loop_module
+    from app.clients.llm import LLMRateLimitError
+
+    # Создаём канал через API чтобы использовать БД приложения
+    create_resp = await client.post(
+        "/connections",
+        json={"name": "Тест 429", "endpoint": "http://fake-mcp/mcp"},
+    )
+    assert create_resp.status_code == 201
+    channel_id = create_resp.json()["id"]
+
+    request_obj = httpx.Request("POST", "http://fake/chat/completions")
+    response_obj = httpx.Response(429, headers={"retry-after": "45"}, request=request_obj)
+    rate_limit_exc = LLMRateLimitError("rate limited", request=request_obj, response=response_obj)
+    rate_limit_exc.retry_after_s = 45
+
+    class Stub429LLM:
+        def __init__(self, *_a, **_kw) -> None:
+            pass
+
+        def stream_chat_completion(self, *_a, **_kw):
+            raise rate_limit_exc
+
+        async def aclose(self) -> None:
+            pass
+
+    monkeypatch.setattr(loop_module, "LLMClient", Stub429LLM)
+    monkeypatch.setattr(loop_module, "MCPClient", lambda *a, **kw: FakeMCPClient())
+
+    response = await client.post(
+        "/chat",
+        json={"message": "test", "channel_id": channel_id},
+        headers={"X-LLM-API-Key": "test-key"},
+    )
+    assert response.status_code == 200
+    events = _parse_sse_events(response.text)
+    error_events = [e for e in events if e["event"] == "error"]
+    assert error_events
+    assert error_events[0]["data"]["code"] == "llm_rate_limit"
+    assert error_events[0]["data"]["retry_after_s"] == 45

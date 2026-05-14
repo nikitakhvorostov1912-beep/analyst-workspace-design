@@ -10,8 +10,8 @@ from typing import Any
 import aiosqlite
 import httpx
 
-from app.clients.llm import LLMClient
-from app.clients.mcp import MCPClient, MCPError
+from app.clients.llm import LLMClient, LLMRateLimitError
+from app.clients.mcp import MCPClient, MCPDisconnectedError, MCPError
 from app.models import ChatRequest
 from app.orchestrator.cards import build_card_from_tool_result
 from app.orchestrator.events import (
@@ -71,6 +71,17 @@ def _cap_content(content: str) -> str:
     return content[:TOOL_CONTENT_CAP] + "...truncated"
 
 
+def _safe_error_message(exc: Exception) -> str:
+    """Возвращает безопасное сообщение об ошибке: только первая строка, ≤200 символов.
+
+    Исключает Python traceback из сообщения — T-03-01.
+    """
+    raw = str(exc)
+    # Берём только первую строку — отрезаем traceback
+    first_line = raw.splitlines()[0] if raw else "Неизвестная ошибка"
+    return first_line[:200]
+
+
 async def _call_tool_with_retry(
     mcp: MCPClient,
     name: str,
@@ -80,6 +91,9 @@ async def _call_tool_with_retry(
 
     Returns:
         (ok, result, error_message)
+
+    Raises:
+        MCPDisconnectedError: если ConnectError/Timeout не устраняется после retry.
     """
     last_exc: Exception | None = None
     for attempt in range(2):
@@ -93,19 +107,26 @@ async def _call_tool_with_retry(
             status = e.response.status_code
             if status < 500:
                 # 4xx — 0 retry
-                return False, None, f"HTTP {status}: {e}"
+                return False, None, f"HTTP {status}: {_safe_error_message(e)}"
             last_exc = e
             if attempt == 0:
                 await asyncio.sleep(RETRY_DELAY_S)
+        except (httpx.ConnectError, httpx.ConnectTimeout, httpx.ReadTimeout) as e:
+            # Сетевая ошибка — 1 retry; после 2 попыток → MCPDisconnectedError
+            last_exc = e
+            if attempt == 0:
+                await asyncio.sleep(RETRY_DELAY_S)
+            else:
+                raise MCPDisconnectedError("MCP недоступен") from e
         except httpx.RequestError as e:
-            # Сетевая ошибка — 1 retry
+            # Прочие сетевые ошибки — 1 retry
             last_exc = e
             if attempt == 0:
                 await asyncio.sleep(RETRY_DELAY_S)
         except Exception as e:
-            return False, None, f"Ошибка вызова инструмента: {e}"
+            return False, None, f"Ошибка вызова инструмента: {_safe_error_message(e)}"
 
-    error_msg = f"Ошибка после повтора: {last_exc}"
+    error_msg = f"Ошибка после повтора: {_safe_error_message(last_exc) if last_exc else 'неизвестно'}"
     return False, None, error_msg
 
 
@@ -165,14 +186,18 @@ async def run_chat_loop(
         return
 
     # --- Получаем список инструментов ---
+    mcp = MCPClient(mcp_endpoint)
     try:
-        mcp = MCPClient(mcp_endpoint)
         await mcp.initialize()
         mcp_tools = await mcp.list_tools()
         openai_tools = _mcp_tools_to_openai(mcp_tools)
     except Exception:
         logger.exception("Ошибка инициализации MCP")
-        yield format_sse("error", ErrorEvent(message="Ошибка подключения к 1С MCP", code="mcp_connect_error"))
+        yield format_sse("error", ErrorEvent(
+            message="Не удалось подключиться к 1С MCP",
+            code="mcp_disconnected",
+        ))
+        await mcp.aclose()
         return
 
     messages: list[dict] = [
@@ -232,23 +257,34 @@ async def run_chat_loop(
                             finish_reason = fr
                 finally:
                     await llm.aclose()
+            except LLMRateLimitError as exc:
+                logger.warning("LLM rate limit (429): retry_after_s=%s", exc.retry_after_s)
+                yield format_sse("error", ErrorEvent(
+                    message="Превышен лимит запросов к LLM. Попробуйте позже.",
+                    code="llm_rate_limit",
+                    retry_after_s=exc.retry_after_s,
+                ))
+                return
             except httpx.HTTPStatusError as exc:
                 status = exc.response.status_code
-                if status < 500:
+                if status in (401, 403):
+                    logger.warning("LLM auth error (%s)", status)
                     yield format_sse("error", ErrorEvent(
-                        message=f"Ошибка LLM (HTTP {status})", code="llm_4xx"
+                        message="Неверный API-ключ или нет доступа к LLM.",
+                        code="llm_invalid_key",
                     ))
                     return
-                # 5xx — пробуем ещё раз (простой retry через continue)
-                logger.warning("LLM 5xx: %s", exc)
+                logger.warning("LLM HTTP error %s: %s", status, _safe_error_message(exc))
                 yield format_sse("error", ErrorEvent(
-                    message="Ошибка сервера LLM", code="llm_5xx"
+                    message=f"Ошибка LLM-сервера (HTTP {status}).",
+                    code="llm_server_error",
                 ))
                 return
             except httpx.RequestError as exc:
-                logger.warning("LLM network error: %s", exc)
+                logger.warning("LLM network error: %s", _safe_error_message(exc))
                 yield format_sse("error", ErrorEvent(
-                    message="Сетевая ошибка при обращении к LLM", code="llm_network_error"
+                    message="Сетевая ошибка при обращении к LLM.",
+                    code="llm_network_error",
                 ))
                 return
 
@@ -301,7 +337,15 @@ async def run_chat_loop(
                 ))
 
                 start_ts = time.monotonic()
-                ok, tool_result, tool_error = await _call_tool_with_retry(mcp, tool_name, tool_args)
+                try:
+                    ok, tool_result, tool_error = await _call_tool_with_retry(mcp, tool_name, tool_args)
+                except MCPDisconnectedError:
+                    logger.warning("MCP disconnected during tool call: %s", tool_name)
+                    yield format_sse("error", ErrorEvent(
+                        message="Соединение с 1С MCP потеряно.",
+                        code="mcp_disconnected",
+                    ))
+                    return
                 duration_ms = int((time.monotonic() - start_ts) * 1000)
 
                 yield format_sse("tool_result", ToolResultEvent(
@@ -347,10 +391,10 @@ async def run_chat_loop(
             ))
             return
 
-    except Exception:
+    except Exception as exc:
         logger.exception("Непредвиденная ошибка в tool-calling loop")
         yield format_sse("error", ErrorEvent(
-            message="Внутренняя ошибка обработки запроса",
+            message=_safe_error_message(exc) or "Внутренняя ошибка обработки запроса",
             code="internal_error",
         ))
         return
