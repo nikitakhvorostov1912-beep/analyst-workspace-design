@@ -39,10 +39,10 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 |---|-------|--------|-------|----------|
 | 1 | Foundation | ✓ Complete | 2/2 executed | 100% |
 | 2 | MVP Chat | ✓ Complete | 5/5 executed | 100% |
-| 3 | Production Ready | ◆ In Progress | 1/4 executed | 25% |
+| 3 | Production Ready | ◆ In Progress | 2/4 executed | 50% |
 | 4 | Demo & Refine | ○ Pending | 0/4 | 0% |
 
-**Overall:** Progress: █████░░░░░ 24% (Phase 1+2 закрыты; Phase 3 1/4 планов выполнен)
+**Overall:** Progress: ██████░░░░ 31% (Phase 1+2 закрыты; Phase 3 2/4 планов выполнен)
 
 ## Artifacts Status
 
@@ -62,6 +62,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 - [x] Phase 2 Plan 04 execution — Channel Selector dropdown + connections CRUD + ping-статус + Header/AppShell wire-up (2026-05-14, backend 122 tests, frontend 37 vitest, type-check+lint+build green). 3 tasks, 3 commits (`6363f9d`, `eb8d400`, `044f161`). SUMMARY: `phases/02-mvp-chat/02-04-SUMMARY.md`
 - [x] Phase 2 Plan 05 execution — Trace Panel: JsonTree + formatDuration + ToolTrace + AssistantMessage wire-up (2026-05-14, frontend 56 vitest, type-check+lint+build green). 2 tasks, 2 commits (`3873b9e`, `e753427`). SUMMARY: `phases/02-mvp-chat/02-05-SUMMARY.md`
 - [x] Phase 2 VERIFICATION — **PASS** (14 VERIFIED + 1 PARTIAL только из-за отсутствия реальной 1С в sandbox). Ruff BLOCKER из initial verify закрыт коммитом `fix(02): ruff cleanup` → "All checks passed". Runtime smoke: uvicorn /health 5.8 мс, POST /connections + /sessions CRUD ok, group_by_date 4 группы, DELETE каскад, frontend 4 routes (включая dynamic /sessions/[id]). 122 pytest + 56 vitest, type-check+lint+build green. См. `phases/02-mvp-chat/VERIFICATION.md`. **Phase 2 COMPLETE.**
+- [x] Phase 3 Plan 02 execution — SEC-01..04 security hardening: dangerous keywords confirm dialog (asyncio.Event), CSP production-only, Pydantic strict=True, CORS fail-secure. 161 backend + 88 frontend тестов, ruff clean. 6 commits (`6695b1d`, `a9b9b32`, `6b6eb24`, `2efd975`, `69c97c5`, `4e16c83`). SUMMARY: `phases/03-production-ready/03-02-SUMMARY.md`
 
 ## Pivot History (Lessons Learned)
 
@@ -91,7 +92,8 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 10. ~~Phase 2 VERIFICATION + ruff fix + runtime smoke~~ ✓ done — **PASS**: 122 pytest + 56 vitest, ruff clean, type-check+lint+build green, 8 runtime endpoints проверены
 11. ~~`/gsd:plan-phase 3`~~ ✓ done — 4 планов, план готов к execute
 12. ~~Phase 3 Plan 01: Error UX (STATE-02, STATE-03)~~ ✓ done — Toaster + ConnectionStatusBanner + StreamingIndicator + error routing, 136 backend + 76 frontend тестов, f956ab5 + 534ecda. SUMMARY: `phases/03-production-ready/03-01-SUMMARY.md`
-13. **Now:** Phase 3 Plan 02 (confirm-required + dangerous keywords)
+13. ~~Phase 3 Plan 02: Security Hardening (SEC-01..04)~~ ✓ done — confirm dialog + CSP + Pydantic strict + CORS fail-secure. 161+88 тестов. `phases/03-production-ready/03-02-SUMMARY.md`
+14. **Now:** Phase 3 Plan 03 (Tests + CI: coverage ≥80%, Playwright E2E, GitHub Actions)
 12. **Pending:** настройка реального LLM endpoint (Xiaomi MiMo) + MCP Toolkit (порт 6010) у разработчика — для финального smoke 3 acceptance prompts с живой 1С
 13. **Pending визуальный smoke в браузере** (когда удобно): открыть `http://localhost:3010` глазами — AppShell, IBM Plex, ChannelSelector dropdown, Sidebar groups
 

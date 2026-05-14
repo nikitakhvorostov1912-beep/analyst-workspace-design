@@ -49,10 +49,10 @@
 
 ### Security (Phase 3)
 
-- [ ] **SEC-01**: Confirm dialog перед `execute_code` с dangerous keywords (Удалить, Записать, etc)
-- [ ] **SEC-02**: CSP headers (script-src, connect-src)
-- [ ] **SEC-03**: Pydantic strict validation на всех endpoints
-- [ ] **SEC-04**: CORS lockdown — только configurable list origins
+- [x] **SEC-01**: Confirm dialog перед `execute_code` с dangerous keywords (Удалить, Записать, etc)
+- [x] **SEC-02**: CSP headers (script-src, connect-src)
+- [x] **SEC-03**: Pydantic strict validation на всех endpoints
+- [x] **SEC-04**: CORS lockdown — только configurable list origins
 
 ### DevX (Phase 3)
 
