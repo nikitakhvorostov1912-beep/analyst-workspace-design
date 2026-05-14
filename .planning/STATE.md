@@ -28,7 +28,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | Aspect | Value |
 |--------|-------|
 | **Current Milestone** | M1 — Foundation |
-| **Current Phase** | Phase 3 — Production Ready (3/4 планов выполнено) |
+| **Current Phase** | Phase 3 — Production Ready ✓ **PASS** — готов к Phase 4 |
 | **Previous Phase** | Phase 2 — MVP Chat ✓ PASS |
 | **Mode** | YOLO + coarse granularity + parallel execution |
 | **Last Update** | 2026-05-14 (Phase 3 Plan 04 завершён: TRACE-03, DEVX-04/05, CARD-03 load-more закрыты) |
@@ -39,10 +39,10 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 |---|-------|--------|-------|----------|
 | 1 | Foundation | ✓ Complete | 2/2 executed | 100% |
 | 2 | MVP Chat | ✓ Complete | 5/5 executed | 100% |
-| 3 | Production Ready | ◆ In Progress | 4/4 executed | 100% |
+| 3 | Production Ready | ✓ Complete | 4/4 executed | 100% |
 | 4 | Demo & Refine | ○ Pending | 0/4 | 0% |
 
-**Overall:** Progress: ████████░░ 85% (Phase 1+2 закрыты; Phase 3 3/4 планов выполнено)
+**Overall:** Progress: █████████░ 92% (Phase 1+2+3 закрыты; Phase 4 — финальный)
 
 ## Artifacts Status
 
@@ -64,6 +64,8 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 - [x] Phase 2 VERIFICATION — **PASS** (14 VERIFIED + 1 PARTIAL только из-за отсутствия реальной 1С в sandbox). Ruff BLOCKER из initial verify закрыт коммитом `fix(02): ruff cleanup` → "All checks passed". Runtime smoke: uvicorn /health 5.8 мс, POST /connections + /sessions CRUD ok, group_by_date 4 группы, DELETE каскад, frontend 4 routes (включая dynamic /sessions/[id]). 122 pytest + 56 vitest, type-check+lint+build green. См. `phases/02-mvp-chat/VERIFICATION.md`. **Phase 2 COMPLETE.**
 - [x] Phase 3 Plan 02 execution — SEC-01..04 security hardening: dangerous keywords confirm dialog (asyncio.Event), CSP production-only, Pydantic strict=True, CORS fail-secure. 161 backend + 88 frontend тестов, ruff clean. 6 commits (`6695b1d`, `a9b9b32`, `6b6eb24`, `2efd975`, `69c97c5`, `4e16c83`). SUMMARY: `phases/03-production-ready/03-02-SUMMARY.md`
 - [x] Phase 3 Plan 03 execution — DEVX-01/02/03: coverage gates 92.8% (gate ≥80%), 9 Playwright E2E тестов с route() mock, GitHub Actions 3-job CI. 200 backend + 88 frontend тестов, playwright 9 тестов. 3 commits (`7c16e0d`, `938ad79`, `5daab40`). SUMMARY: `phases/03-production-ready/03-03-SUMMARY.md`
+- [x] Phase 3 Plan 04 execution — TRACE-03 Copy as curl, DEVX-04/05 (README+USER.md+API.md+CURL.md+ARCHITECTURE), CARD-03 LogCard cursor-fetch backend (migration v3, card_states table). 215 backend + 97 frontend тестов. 6 commits. SUMMARY: `phases/03-production-ready/03-04-SUMMARY.md`
+- [x] Phase 3 VERIFICATION — **PASS** (13/13 VERIFIED). Initial 2 gaps закрыты: ruff clean, pytest 215/215 coverage 92.74%, frontend Dockerfile + docker-compose frontend service. Bonus: устранена регрессия test_migration_schema_version (v2→v3 после 03-04). См. `phases/03-production-ready/VERIFICATION.md`. **Phase 3 COMPLETE.**
 
 ## Pivot History (Lessons Learned)
 
