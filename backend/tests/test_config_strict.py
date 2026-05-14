@@ -1,0 +1,43 @@
+"""Тесты config.py — CORS origins + BACKEND_ALLOWED_ORIGINS."""
+
+import os
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def reset_settings(monkeypatch):
+    """Сбрасываем lru_cache get_settings() перед/после теста и чистим env."""
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    yield
+    get_settings.cache_clear()
+
+
+def test_settings_cors_origins_empty_by_default(monkeypatch):
+    """Settings() без BACKEND_ALLOWED_ORIGINS → cors_origins == '' и cors_origins_list == []."""
+    monkeypatch.delenv("BACKEND_ALLOWED_ORIGINS", raising=False)
+    monkeypatch.delenv("CORS_ORIGINS", raising=False)
+
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    settings = get_settings()
+
+    assert settings.cors_origins == ""
+    assert settings.cors_origins_list == []
+
+
+def test_settings_cors_origins_from_env(monkeypatch):
+    """BACKEND_ALLOWED_ORIGINS='https://a,https://b' → cors_origins_list == ['https://a', 'https://b']."""
+    monkeypatch.setenv("BACKEND_ALLOWED_ORIGINS", "https://a,https://b")
+
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    settings = get_settings()
+
+    assert "https://a" in settings.cors_origins_list
+    assert "https://b" in settings.cors_origins_list
+    assert len(settings.cors_origins_list) == 2

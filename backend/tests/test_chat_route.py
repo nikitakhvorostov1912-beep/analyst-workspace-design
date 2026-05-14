@@ -149,6 +149,65 @@ async def test_chat_unknown_channel_returns_error(client: AsyncClient, monkeypat
     assert error_events[0]["data"]["code"] == "unknown_channel"
 
 
+# ===== Plan 3.2 SEC-03 strict + SEC-04 log audit =====
+
+
+@pytest.mark.asyncio
+async def test_chat_request_strict_rejects_extra_field(client: AsyncClient):
+    """POST /chat с extra field → 422 (extra='forbid')."""
+    response = await client.post(
+        "/chat",
+        json={"message": "x", "channel_id": "c", "extra": "y"},
+        headers={"X-LLM-API-Key": "test-key"},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_chat_request_strict_rejects_wrong_type(client: AsyncClient):
+    """POST /chat с message=123 (int вместо str) → 422 (strict=True)."""
+    response = await client.post(
+        "/chat",
+        json={"message": 123, "channel_id": "c"},
+        headers={"X-LLM-API-Key": "test-key"},
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_chat_route_does_not_log_api_key_in_caplog(
+    client: AsyncClient, monkeypatch, caplog
+):
+    """POST /chat с X-LLM-API-Key: secret-XYZ → 'secret-XYZ' НЕ в логах."""
+    import logging
+
+    import app.orchestrator.loop as loop_module
+
+    class StubLLM:
+        def __init__(self, *a, **kw):
+            pass
+
+        def stream_chat_completion(self, *a, **kw):
+            from .fixtures.mcp_responses import make_stop_chunk, stub_llm_stream
+
+            return stub_llm_stream(make_stop_chunk())
+
+        async def aclose(self):
+            pass
+
+    monkeypatch.setattr(loop_module, "LLMClient", StubLLM)
+    monkeypatch.setattr(loop_module, "MCPClient", lambda *a, **kw: FakeMCPClient())
+
+    with caplog.at_level(logging.DEBUG):
+        await client.post(
+            "/chat",
+            json={"message": "hi", "channel_id": "test-ch"},
+            headers={"X-LLM-API-Key": "secret-XYZ-unique"},
+        )
+
+    assert "secret-XYZ-unique" not in caplog.text, "API ключ НЕ должен попадать в логи"
+
+
 @pytest.mark.asyncio
 async def test_chat_llm_429_returns_rate_limit_with_retry_after_s(client: AsyncClient, monkeypatch):
     """POST /chat с LLM 429 → event:error code=llm_rate_limit retry_after_s=45 (end-to-end)."""
