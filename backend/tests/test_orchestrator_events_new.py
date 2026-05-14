@@ -2,13 +2,10 @@
 
 import json
 
-import pytest
-
 from app.orchestrator.events import ErrorEvent
 
 
 def _parse_sse(raw: str) -> tuple[str, dict]:
-    from app.orchestrator.events import format_sse
     lines = raw.strip().split("\n")
     event_name = ""
     data_str = ""

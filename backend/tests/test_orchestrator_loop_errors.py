@@ -8,7 +8,7 @@ import pytest
 
 from app.models import ChatRequest
 
-from .fixtures.mcp_responses import FakeMCPClient, make_stop_chunk, make_text_chunk, stub_llm_stream
+from .fixtures.mcp_responses import FakeMCPClient, make_text_chunk, stub_llm_stream
 
 
 @pytest.fixture
@@ -282,7 +282,6 @@ async def test_loop_maps_mcp_initialize_failure_to_mcp_disconnected(mem_db, monk
 async def test_loop_maps_mcp_call_tool_disconnected_to_mcp_disconnected(mem_db, monkeypatch):
     """MCP.call_tool бросает ConnectError → code mcp_disconnected (не mcp_connect_error)."""
     import app.orchestrator.loop as loop_module
-    from app.clients.mcp import MCPDisconnectedError
 
     class DisconnectingMCPClient:
         def __init__(self, *a, **kw): pass

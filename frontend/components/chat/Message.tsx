@@ -1,17 +1,26 @@
 import { cn } from "@/lib/utils";
 import { AssistantMessage } from "./AssistantMessage";
+import type { StreamingStage } from "./StreamingIndicator";
 import type { ChatMessage } from "@/lib/types";
 
 interface MessageProps {
   message: ChatMessage;
+  streamingStage?: StreamingStage | null;
+  currentToolName?: string | null;
 }
 
-export function Message({ message }: MessageProps) {
+export function Message({ message, streamingStage, currentToolName }: MessageProps) {
   // tool messages не рендерятся в Thread — только в Trace panel (Plan 2.5)
   if (message.role === "tool") return null;
 
   if (message.role === "assistant") {
-    return <AssistantMessage message={message} />;
+    return (
+      <AssistantMessage
+        message={message}
+        streamingStage={streamingStage}
+        currentToolName={currentToolName}
+      />
+    );
   }
 
   // user message — bubble справа
