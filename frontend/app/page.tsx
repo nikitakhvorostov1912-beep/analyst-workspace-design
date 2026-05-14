@@ -1,24 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/shell/AppShell";
 import { Thread } from "@/components/chat/Thread";
-import { ChatInput } from "@/components/chat/Input";
 import { Button } from "@/components/ui/button";
 import { fetchHealth } from "@/lib/api";
-import { getMCPConnections, getLLMConfig } from "@/lib/storage";
-import type { ChatMessage, HealthResponse } from "@/lib/types";
-
-const DUMMY_MESSAGES: ChatMessage[] = [
-  {
-    id: "welcome-1",
-    role: "assistant",
-    content:
-      "Готов отвечать на вопросы про вашу базу 1С. Выберите подключение или настройте новое.",
-    created_at: new Date().toISOString(),
-  },
-];
+import { useSessionsStore } from "@/lib/sessions-store";
+import { getMCPConnections, getLLMConfig, getActiveChannelId } from "@/lib/storage";
+import type { HealthResponse } from "@/lib/types";
 
 type BackendStatus = "loading" | "ok" | "unavailable";
 
@@ -57,8 +48,10 @@ function BackendIndicator() {
 }
 
 export default function HomePage() {
+  const router = useRouter();
   const [ready, setReady] = useState(false);
   const [hasConfig, setHasConfig] = useState(false);
+  const store = useSessionsStore();
 
   useEffect(() => {
     const conns = getMCPConnections();
@@ -66,6 +59,13 @@ export default function HomePage() {
     setHasConfig(conns.length > 0 && !!llm);
     setReady(true);
   }, []);
+
+  useEffect(() => {
+    if (!ready || !hasConfig) return;
+    // Загружаем список сессий
+    void store.refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready, hasConfig]);
 
   // Skeleton пока не загрузились данные из localStorage
   if (!ready) {
@@ -98,11 +98,38 @@ export default function HomePage() {
     );
   }
 
-  // Основной layout — AppShell с dummy thread
+  async function handleCreateNew() {
+    const ch = getActiveChannelId() ?? "default";
+    try {
+      const newSession = await store.createNew(ch);
+      router.push(`/sessions/${newSession.id}`);
+    } catch {
+      // Если создание не удалось — остаёмся на главной
+    }
+  }
+
+  async function handleDelete(sessionId: string) {
+    await store.remove(sessionId);
+  }
+
+  // Основной layout — AppShell с пустым Thread (нет активной сессии)
   return (
     <>
-      <AppShell bottom={<ChatInput />}>
-        <Thread messages={DUMMY_MESSAGES} />
+      <AppShell
+        grouped={store.grouped}
+        activeId={null}
+        onCreateNew={handleCreateNew}
+        onDeleteSession={handleDelete}
+      >
+        <div className="h-full flex flex-col items-center justify-center gap-4 text-center px-6">
+          <p className="text-[var(--fg-muted)] text-sm">
+            Выберите сессию из истории или начните новый чат
+          </p>
+          <Button onClick={handleCreateNew} variant="secondary">
+            + Новый чат
+          </Button>
+        </div>
+        <Thread messages={[]} />
       </AppShell>
       <BackendIndicator />
     </>
