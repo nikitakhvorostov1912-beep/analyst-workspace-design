@@ -131,7 +131,7 @@ async def run_chat_loop(
         await save_user_message(db, session_id, request.message)
 
         mcp_endpoint = await lookup_mcp_endpoint(db, request.channel_id)
-    except Exception as exc:
+    except Exception:
         logger.exception("Ошибка инициализации loop")
         yield format_sse("error", ErrorEvent(message="Внутренняя ошибка", code="init_error"))
         return
@@ -149,7 +149,7 @@ async def run_chat_loop(
         await mcp.initialize()
         mcp_tools = await mcp.list_tools()
         openai_tools = _mcp_tools_to_openai(mcp_tools)
-    except Exception as exc:
+    except Exception:
         logger.exception("Ошибка инициализации MCP")
         yield format_sse("error", ErrorEvent(message="Ошибка подключения к 1С MCP", code="mcp_connect_error"))
         return
@@ -164,7 +164,7 @@ async def run_chat_loop(
     accumulated_cards: list[dict] = []
 
     try:
-        for iteration in range(MAX_TOOL_ITERATIONS):
+        for _iteration in range(MAX_TOOL_ITERATIONS):
             yield format_sse("status", StatusEvent(stage="thinking"))
 
             # Накапливаем tool_calls из streaming chunks
@@ -326,7 +326,7 @@ async def run_chat_loop(
             ))
             return
 
-    except Exception as exc:
+    except Exception:
         logger.exception("Непредвиденная ошибка в tool-calling loop")
         yield format_sse("error", ErrorEvent(
             message="Внутренняя ошибка обработки запроса",

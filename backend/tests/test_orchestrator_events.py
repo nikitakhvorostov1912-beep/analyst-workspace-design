@@ -4,7 +4,7 @@ import json
 
 import aiosqlite
 import pytest
-from pydantic import ValidationError
+from pydantic import ValidationError  # noqa: F401 (used in test bodies)
 
 from app.orchestrator.events import (
     CardEvent,
@@ -16,7 +16,6 @@ from app.orchestrator.events import (
     ToolResultEvent,
     format_sse,
 )
-
 
 # --- format_sse ---
 

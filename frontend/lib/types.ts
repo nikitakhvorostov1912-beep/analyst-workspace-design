@@ -1,9 +1,9 @@
-// Зеркало Pydantic моделей backend (Plan 01-01)
+// Зеркало Pydantic моделей backend (Plan 02-01)
 
 export type ChatRequest = {
   message: string;
   session_id?: string | null;
-  channel_id?: string | null;
+  channel_id: string; // required в Phase 2
 };
 
 export type HealthResponse = {
@@ -19,14 +19,49 @@ export type MCPPingResponse = {
   duration_ms: number;
 };
 
-// SSE event discriminated union — совпадает с backend IR-6
+// Card payload schemas — зеркало backend orchestrator/cards.py
+
+export type ColumnSchema = {
+  name: string;
+  type: string;
+};
+
+export type TableCardPayload = {
+  columns: ColumnSchema[];
+  rows: unknown[][];
+  total: number;
+  meta: { query?: string | null; duration_ms?: number | null };
+};
+
+export type ObjectCardPayload = {
+  header: { name: string; type: string; path: string };
+  attributes: Array<{ name: string; type: string; value?: unknown }>;
+  tabular_sections: Array<{ name: string; columns: string[]; rows_preview?: unknown[][] }>;
+  forms: Array<{ name: string; type: string }>;
+  templates: Array<{ name: string; type: string }>;
+};
+
+export type LogEntry = {
+  time: string;
+  level: "Info" | "Warning" | "Error" | "Critical";
+  user?: string | null;
+  event: string;
+  comment?: string | null;
+};
+
+export type LogCardPayload = {
+  entries: LogEntry[];
+  next_cursor: string | null;
+};
+
+// SSE event discriminated union — совпадает с backend IR (Plan 02-01)
 export type SSEEvent =
-  | { event: "status"; data: { stage: "thinking" | "calling_tool" | "responding" } }
+  | { event: "status"; data: { stage: "thinking" | "calling_tool" | "formatting" } }
   | { event: "delta"; data: { content: string } }
-  | { event: "tool_call"; data: { name: string; args: Record<string, unknown>; call_id: string } }
-  | { event: "tool_result"; data: { call_id: string; result: unknown; duration_ms: number } }
-  | { event: "card"; data: { type: "table" | "object" | "log"; payload: unknown } }
-  | { event: "done"; data: Record<string, never> }
+  | { event: "tool_call"; data: { id: string; name: string; args: Record<string, unknown> } }
+  | { event: "tool_result"; data: { id: string; ok: boolean; result: unknown; error: string | null; duration_ms: number } }
+  | { event: "card"; data: { type: "table"; payload: TableCardPayload } | { type: "object"; payload: ObjectCardPayload } | { type: "log"; payload: LogCardPayload } }
+  | { event: "done"; data: { message_id: string; total_duration_ms: number } }
   | { event: "error"; data: { message: string; code: string } };
 
 // LLM config — только в localStorage, никогда на backend
@@ -46,7 +81,7 @@ export type MCPConnection = {
   anon_enabled: boolean;
 };
 
-// Сообщение чата (Phase 1: только для dummy данных)
+// Сообщение чата
 export type ChatMessage = {
   id: string;
   role: "user" | "assistant" | "tool";

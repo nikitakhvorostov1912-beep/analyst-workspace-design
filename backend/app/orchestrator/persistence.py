@@ -3,7 +3,6 @@
 import json
 import logging
 import uuid
-from datetime import UTC, datetime
 
 import aiosqlite
 

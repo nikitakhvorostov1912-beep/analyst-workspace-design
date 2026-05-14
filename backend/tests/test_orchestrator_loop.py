@@ -7,7 +7,7 @@ import httpx
 import pytest
 
 from app.models import ChatRequest
-from app.orchestrator.events import format_sse
+
 from .fixtures.mcp_responses import (
     FakeMCPClient,
     make_stop_chunk,
@@ -21,7 +21,6 @@ from .fixtures.mcp_responses import (
 @pytest.fixture
 async def mem_db():
     """In-memory SQLite с миграциями."""
-    import aiosqlite
 
     from app.storage.migrations import apply_migrations
 
@@ -382,12 +381,23 @@ async def test_loop_tool_args_accumulate_across_chunks(mem_db, monkeypatch):
     import app.orchestrator.loop as loop_module
 
     async def _stream_with_partial_args():
-        # Первый chunk — id и начало имени
-        yield {"delta": {"tool_calls": [{"index": 0, "id": "tc1", "function": {"name": "execute_query", "arguments": '{"q'}}]}, "finish_reason": None}
+        # Первый chunk — id и начало arguments
+        yield {
+            "delta": {"tool_calls": [
+                {"index": 0, "id": "tc1", "function": {"name": "execute_query", "arguments": '{"q'}},
+            ]},
+            "finish_reason": None,
+        }
         # Второй chunk — продолжение arguments
-        yield {"delta": {"tool_calls": [{"index": 0, "function": {"arguments": 'uery":'}}]}, "finish_reason": None}
+        yield {
+            "delta": {"tool_calls": [{"index": 0, "function": {"arguments": 'uery":"'}}]},
+            "finish_reason": None,
+        }
         # Третий chunk — конец arguments
-        yield {"delta": {"tool_calls": [{"index": 0, "function": {"arguments": '"SELECT 1"}'}}]}, "finish_reason": "tool_calls"}
+        yield {
+            "delta": {"tool_calls": [{"index": 0, "function": {"arguments": 'SELECT 1"}'}}]},
+            "finish_reason": "tool_calls",
+        }
 
     captured_args = []
 

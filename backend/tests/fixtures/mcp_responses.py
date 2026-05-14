@@ -67,11 +67,12 @@ class FakeMCPClient:
     ) -> None:
         self.endpoint = endpoint
         self.tool_map = tool_map or {}
+        _empty_schema = {"type": "object", "properties": {}}
         self._tools = tools or [
-            {"name": "execute_query", "description": "Запрос к 1С", "inputSchema": {"type": "object", "properties": {}}},
-            {"name": "get_metadata", "description": "Метаданные", "inputSchema": {"type": "object", "properties": {}}},
-            {"name": "get_event_log", "description": "Журнал", "inputSchema": {"type": "object", "properties": {}}},
-            {"name": "get_object_by_link", "description": "Объект по ссылке", "inputSchema": {"type": "object", "properties": {}}},
+            {"name": "execute_query", "description": "Запрос к 1С", "inputSchema": _empty_schema},
+            {"name": "get_metadata", "description": "Метаданные", "inputSchema": _empty_schema},
+            {"name": "get_event_log", "description": "Журнал", "inputSchema": _empty_schema},
+            {"name": "get_object_by_link", "description": "Объект по ссылке", "inputSchema": _empty_schema},
         ]
         self._call_count: dict[str, int] = {}
 

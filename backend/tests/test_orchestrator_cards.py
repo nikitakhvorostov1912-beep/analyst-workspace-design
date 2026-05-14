@@ -1,9 +1,6 @@
 """Тесты card-детектора (cards.py)."""
 
-import pytest
-
 from app.orchestrator.cards import build_card_from_tool_result
-
 
 # --- execute_query → TableCard ---
 
@@ -47,7 +44,13 @@ def test_get_event_log_direct_format():
     """get_event_log с {entries} → LogCard."""
     result = {
         "entries": [
-            {"time": "2026-05-13T10:00:00", "level": "Error", "user": "admin", "event": "_$Data$_.Update", "comment": "test"},
+            {
+                "time": "2026-05-13T10:00:00",
+                "level": "Error",
+                "user": "admin",
+                "event": "_$Data$_.Update",
+                "comment": "test",
+            },
         ]
     }
     card = build_card_from_tool_result("get_event_log", {}, result)
@@ -82,7 +85,11 @@ def test_get_event_log_next_cursor():
 def test_get_object_by_link():
     """get_object_by_link → ObjectCard."""
     result = {
-        "header": {"name": "Контрагент001", "type": "Справочник.Контрагенты", "path": "Catalogs.Counterparties"},
+        "header": {
+            "name": "Контрагент001",
+            "type": "Справочник.Контрагенты",
+            "path": "Catalogs.Counterparties",
+        },
         "attributes": [{"name": "ИНН", "type": "String", "value": "7701234567"}],
         "tabular_sections": [],
         "forms": [],

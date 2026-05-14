@@ -109,11 +109,6 @@ async def test_touch_session_updates_updated_at(mem_db):
 
     sid = await ensure_session(mem_db, None, "ch1", "x")
 
-    rows_before = await mem_db.execute_fetchall(
-        "SELECT updated_at FROM sessions WHERE id = ?", (sid,)
-    )
-    before = rows_before[0][0]
-
     # Небольшая пауза чтобы CURRENT_TIMESTAMP сменился
     await asyncio.sleep(0.01)
     await touch_session(mem_db, sid)

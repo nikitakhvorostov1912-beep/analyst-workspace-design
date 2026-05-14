@@ -10,7 +10,7 @@ import aiosqlite
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.orchestrator.persistence import ensure_session, touch_session
+from app.orchestrator.persistence import ensure_session
 from app.storage.db import get_db
 
 logger = logging.getLogger(__name__)
