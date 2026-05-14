@@ -3,13 +3,13 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-05-14T09:01:18.390Z"
+last_updated: "2026-05-14T09:18:03.733Z"
 progress:
   total_phases: 4
   completed_phases: 1
   total_plans: 7
-  completed_plans: 6
-  percent: 86
+  completed_plans: 7
+  percent: 100
 ---
 
 # Project State
@@ -38,7 +38,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | # | Phase | Status | Plans | Progress |
 |---|-------|--------|-------|----------|
 | 1 | Foundation | ✓ Complete | 2/2 executed | 100% |
-| 2 | MVP Chat | ◆ In Progress | 2/5 executed | 40% |
+| 2 | MVP Chat | ◆ In Progress | 3/5 executed | 60% |
 | 3 | Production Ready | ○ Pending | 0/4 | 0% |
 | 4 | Demo & Refine | ○ Pending | 0/4 | 0% |
 
@@ -58,6 +58,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 - [x] Phase 2 plan — 5 PLAN-файлов (02-01..02-05) + PHASE-summary + CONTEXT (2026-05-14, opus + sonnet checker). plan-checker verdict: **PASS_WITH_NOTES** (0 blockers, 4 warnings). 15 задач, 3 wave, 15/15 REQ покрытие. См. `phases/02-mvp-chat/PLAN-CHECK.md`
 - [x] Phase 2 Plan 01 execution — orchestrator loop + SSE v2 + persistence + 3 e2e (2026-05-14, 71 tests green, ruff clean, pnpm type-check clean). 4 tasks, 3 commits (`0aacf74`, `afe1fe2`, `cfacb1b`). SUMMARY: `phases/02-mvp-chat/02-01-SUMMARY.md`
 - [x] Phase 2 Plan 02 execution — cards UI (TableCard/ObjectCard/LogCard) + AssistantMessage + Markdown + CSV + backend finalization (2026-05-14, backend 79 tests, frontend 16 vitest, type-check+lint+build green). 3 tasks, 3 commits (`95b3fc1`, `1f657c0`, `fdf4df9`). SUMMARY: `phases/02-mvp-chat/02-02-SUMMARY.md`
+- [x] Phase 2 Plan 03 execution — sessions CRUD + group_by_date + auto-title + SessionList + useChatStream + /sessions/[id] route (2026-05-14, backend 111 tests, frontend 32 vitest, type-check+lint+build green). 3 tasks, 3 commits (`b4a179a`, `9989db3`, `ae32e6e`). SUMMARY: `phases/02-mvp-chat/02-03-SUMMARY.md`
 
 ## Pivot History (Lessons Learned)
 
