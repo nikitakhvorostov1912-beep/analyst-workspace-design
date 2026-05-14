@@ -28,8 +28,8 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | Aspect | Value |
 |--------|-------|
 | **Current Milestone** | M1 — Foundation |
-| **Current Phase** | Phase 2 — MVP Chat ✓ **PASS** — готов к Phase 3 |
-| **Previous Phase** | Phase 1 — Foundation ✓ PASS |
+| **Current Phase** | Phase 3 — Production Ready (planned, готов к execute) |
+| **Previous Phase** | Phase 2 — MVP Chat ✓ PASS |
 | **Mode** | YOLO + coarse granularity + parallel execution |
 | **Last Update** | 2026-05-14 (Phase 2 verified PASS + ruff fix) |
 
@@ -39,7 +39,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 |---|-------|--------|-------|----------|
 | 1 | Foundation | ✓ Complete | 2/2 executed | 100% |
 | 2 | MVP Chat | ✓ Complete | 5/5 executed | 100% |
-| 3 | Production Ready | ○ Pending | 0/4 | 0% |
+| 3 | Production Ready | ◆ Planned | 0/4 executed | 0% |
 | 4 | Demo & Refine | ○ Pending | 0/4 | 0% |
 
 **Overall:** Progress: ████░░░░░░ 17% (Phase 1 закрыта; 1/13 планов M2-M4)
