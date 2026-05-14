@@ -1,3 +1,17 @@
+---
+gsd_state_version: 1.0
+milestone: v1.0
+milestone_name: milestone
+status: unknown
+last_updated: "2026-05-14T09:01:18.390Z"
+progress:
+  total_phases: 4
+  completed_phases: 1
+  total_plans: 7
+  completed_plans: 6
+  percent: 86
+---
+
 # Project State
 
 ## Project Reference
@@ -17,14 +31,14 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | **Current Phase** | Phase 2 — MVP Chat (planned, готов к execute) |
 | **Previous Phase** | Phase 1 — Foundation ✓ PASS |
 | **Mode** | YOLO + coarse granularity + parallel execution |
-| **Last Update** | 2026-05-14 |
+| **Last Update** | 2026-05-14 (Plan 02-02 complete) |
 
 ## Phase Progress
 
 | # | Phase | Status | Plans | Progress |
 |---|-------|--------|-------|----------|
 | 1 | Foundation | ✓ Complete | 2/2 executed | 100% |
-| 2 | MVP Chat | ◆ In Progress | 1/5 executed | 20% |
+| 2 | MVP Chat | ◆ In Progress | 2/5 executed | 40% |
 | 3 | Production Ready | ○ Pending | 0/4 | 0% |
 | 4 | Demo & Refine | ○ Pending | 0/4 | 0% |
 
@@ -43,6 +57,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 - [x] Phase 1 VERIFICATION — **PASS** (15 VERIFIED + 3 PARTIAL только из-за отсутствия Docker/GUI в sandbox). Runtime smoke на dev-машине: uvicorn `/health` 5.8 мс, SSE контракт ok, Next dev ready 2.3 сек, HTML lang=ru dark IBM Plex. См. `phases/01-foundation/VERIFICATION.md`
 - [x] Phase 2 plan — 5 PLAN-файлов (02-01..02-05) + PHASE-summary + CONTEXT (2026-05-14, opus + sonnet checker). plan-checker verdict: **PASS_WITH_NOTES** (0 blockers, 4 warnings). 15 задач, 3 wave, 15/15 REQ покрытие. См. `phases/02-mvp-chat/PLAN-CHECK.md`
 - [x] Phase 2 Plan 01 execution — orchestrator loop + SSE v2 + persistence + 3 e2e (2026-05-14, 71 tests green, ruff clean, pnpm type-check clean). 4 tasks, 3 commits (`0aacf74`, `afe1fe2`, `cfacb1b`). SUMMARY: `phases/02-mvp-chat/02-01-SUMMARY.md`
+- [x] Phase 2 Plan 02 execution — cards UI (TableCard/ObjectCard/LogCard) + AssistantMessage + Markdown + CSV + backend finalization (2026-05-14, backend 79 tests, frontend 16 vitest, type-check+lint+build green). 3 tasks, 3 commits (`95b3fc1`, `1f657c0`, `fdf4df9`). SUMMARY: `phases/02-mvp-chat/02-02-SUMMARY.md`
 
 ## Pivot History (Lessons Learned)
 
@@ -66,11 +81,13 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 4. ~~Runtime smoke на dev-машине~~ ✓ done — uvicorn `/health` 5.8 мс, SSE `event: status` первым байтом, Next dev Ready 2.3 сек, HTML lang=ru class=dark IBM Plex
 5. ~~`/gsd:plan-phase 2`~~ ✓ done — 5 планов, PLAN-CHECK = PASS_WITH_NOTES
 6. ~~`/gsd:execute-phase 2` Wave 1~~ ✓ done — Plan 02-01 выполнен (71 tests green)
-7. **Now:** Wave 2 — 02-02 cards, 02-03 sessions, 02-04 channel selector
+7. ~~Wave 2 — 02-02 cards~~ ✓ done — cards UI полностью, 79+16 тестов, build зелёный
+8. **Now:** Wave 2 — 02-03 sessions, 02-04 channel selector
 7. **Pending (можно начинать параллельно с Phase 2 dev):** настройка LLM endpoint (Xiaomi MiMo) + MCP Toolkit (порт 6010) у разработчика
 8. **Pending визуальный smoke в браузере** (когда удобно): открыть `http://localhost:3010` глазами — AppShell, IBM Plex, бейдж backend, Ctrl+Enter
 
 ## Warnings from plan-checker (для execute-phase)
+
 - W-1/W-2: Wave 2 запускать не чисто параллельно — сначала 02-02 T1+T2 (types.ts + Card компоненты), затем 02-03 T2 (Thread.tsx с card rendering); 02-04 T3 — после 02-03 T3
 - W-3: 02-01 (18 файлов, тяжёлый T-02-01-3 центральный loop) — запускать на свежем context window
 - W-4 (разрешено): CARD-03 LogCard cursor-fetch делаем рабочим (соответствует REQ CARD-03 в REQUIREMENTS), не disabled placeholder
