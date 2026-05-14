@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-05-14T09:18:03.733Z"
+last_updated: "2026-05-14T09:37:02.078Z"
 progress:
   total_phases: 4
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 7
-  completed_plans: 7
+  completed_plans: 8
   percent: 100
 ---
 
@@ -38,7 +38,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | # | Phase | Status | Plans | Progress |
 |---|-------|--------|-------|----------|
 | 1 | Foundation | ✓ Complete | 2/2 executed | 100% |
-| 2 | MVP Chat | ◆ In Progress | 3/5 executed | 60% |
+| 2 | MVP Chat | ◆ In Progress | 4/5 executed | 80% |
 | 3 | Production Ready | ○ Pending | 0/4 | 0% |
 | 4 | Demo & Refine | ○ Pending | 0/4 | 0% |
 
@@ -59,6 +59,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 - [x] Phase 2 Plan 01 execution — orchestrator loop + SSE v2 + persistence + 3 e2e (2026-05-14, 71 tests green, ruff clean, pnpm type-check clean). 4 tasks, 3 commits (`0aacf74`, `afe1fe2`, `cfacb1b`). SUMMARY: `phases/02-mvp-chat/02-01-SUMMARY.md`
 - [x] Phase 2 Plan 02 execution — cards UI (TableCard/ObjectCard/LogCard) + AssistantMessage + Markdown + CSV + backend finalization (2026-05-14, backend 79 tests, frontend 16 vitest, type-check+lint+build green). 3 tasks, 3 commits (`95b3fc1`, `1f657c0`, `fdf4df9`). SUMMARY: `phases/02-mvp-chat/02-02-SUMMARY.md`
 - [x] Phase 2 Plan 03 execution — sessions CRUD + group_by_date + auto-title + SessionList + useChatStream + /sessions/[id] route (2026-05-14, backend 111 tests, frontend 32 vitest, type-check+lint+build green). 3 tasks, 3 commits (`b4a179a`, `9989db3`, `ae32e6e`). SUMMARY: `phases/02-mvp-chat/02-03-SUMMARY.md`
+- [x] Phase 2 Plan 04 execution — Channel Selector dropdown + connections CRUD + ping-статус + Header/AppShell wire-up (2026-05-14, backend 122 tests, frontend 37 vitest, type-check+lint+build green). 3 tasks, 3 commits (`6363f9d`, `eb8d400`, `044f161`). SUMMARY: `phases/02-mvp-chat/02-04-SUMMARY.md`
 
 ## Pivot History (Lessons Learned)
 
@@ -83,7 +84,8 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 5. ~~`/gsd:plan-phase 2`~~ ✓ done — 5 планов, PLAN-CHECK = PASS_WITH_NOTES
 6. ~~`/gsd:execute-phase 2` Wave 1~~ ✓ done — Plan 02-01 выполнен (71 tests green)
 7. ~~Wave 2 — 02-02 cards~~ ✓ done — cards UI полностью, 79+16 тестов, build зелёный
-8. **Now:** Wave 2 — 02-03 sessions, 02-04 channel selector
+8. ~~Wave 2 — 02-03 sessions, 02-04 channel selector~~ ✓ done — sessions + channel selector выполнены, 122 backend + 37 frontend тестов, build зелёный
+9. **Now:** Wave 3 — 02-05 trace panel
 7. **Pending (можно начинать параллельно с Phase 2 dev):** настройка LLM endpoint (Xiaomi MiMo) + MCP Toolkit (порт 6010) у разработчика
 8. **Pending визуальный smoke в браузере** (когда удобно): открыть `http://localhost:3010` глазами — AppShell, IBM Plex, бейдж backend, Ctrl+Enter
 
