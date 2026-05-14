@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-05-14T12:09:08.288Z"
+last_updated: "2026-05-14T13:27:25.549Z"
 progress:
   total_phases: 4
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 11
-  completed_plans: 11
+  completed_plans: 13
   percent: 100
 ---
 
@@ -28,10 +28,10 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | Aspect | Value |
 |--------|-------|
 | **Current Milestone** | M1 — Foundation |
-| **Current Phase** | Phase 3 — Production Ready (planned, готов к execute) |
+| **Current Phase** | Phase 3 — Production Ready (3/4 планов выполнено) |
 | **Previous Phase** | Phase 2 — MVP Chat ✓ PASS |
 | **Mode** | YOLO + coarse granularity + parallel execution |
-| **Last Update** | 2026-05-14 (Phase 2 verified PASS + ruff fix) |
+| **Last Update** | 2026-05-14 (Phase 3 Plan 03 завершён: DEVX-01/02/03 закрыты) |
 
 ## Phase Progress
 
@@ -39,10 +39,10 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 |---|-------|--------|-------|----------|
 | 1 | Foundation | ✓ Complete | 2/2 executed | 100% |
 | 2 | MVP Chat | ✓ Complete | 5/5 executed | 100% |
-| 3 | Production Ready | ◆ In Progress | 2/4 executed | 50% |
+| 3 | Production Ready | ◆ In Progress | 3/4 executed | 75% |
 | 4 | Demo & Refine | ○ Pending | 0/4 | 0% |
 
-**Overall:** Progress: ██████░░░░ 31% (Phase 1+2 закрыты; Phase 3 2/4 планов выполнен)
+**Overall:** Progress: ███████░░░ 75% (Phase 1+2 закрыты; Phase 3 3/4 планов выполнено)
 
 ## Artifacts Status
 
@@ -63,6 +63,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 - [x] Phase 2 Plan 05 execution — Trace Panel: JsonTree + formatDuration + ToolTrace + AssistantMessage wire-up (2026-05-14, frontend 56 vitest, type-check+lint+build green). 2 tasks, 2 commits (`3873b9e`, `e753427`). SUMMARY: `phases/02-mvp-chat/02-05-SUMMARY.md`
 - [x] Phase 2 VERIFICATION — **PASS** (14 VERIFIED + 1 PARTIAL только из-за отсутствия реальной 1С в sandbox). Ruff BLOCKER из initial verify закрыт коммитом `fix(02): ruff cleanup` → "All checks passed". Runtime smoke: uvicorn /health 5.8 мс, POST /connections + /sessions CRUD ok, group_by_date 4 группы, DELETE каскад, frontend 4 routes (включая dynamic /sessions/[id]). 122 pytest + 56 vitest, type-check+lint+build green. См. `phases/02-mvp-chat/VERIFICATION.md`. **Phase 2 COMPLETE.**
 - [x] Phase 3 Plan 02 execution — SEC-01..04 security hardening: dangerous keywords confirm dialog (asyncio.Event), CSP production-only, Pydantic strict=True, CORS fail-secure. 161 backend + 88 frontend тестов, ruff clean. 6 commits (`6695b1d`, `a9b9b32`, `6b6eb24`, `2efd975`, `69c97c5`, `4e16c83`). SUMMARY: `phases/03-production-ready/03-02-SUMMARY.md`
+- [x] Phase 3 Plan 03 execution — DEVX-01/02/03: coverage gates 92.8% (gate ≥80%), 9 Playwright E2E тестов с route() mock, GitHub Actions 3-job CI. 200 backend + 88 frontend тестов, playwright 9 тестов. 3 commits (`7c16e0d`, `938ad79`, `5daab40`). SUMMARY: `phases/03-production-ready/03-03-SUMMARY.md`
 
 ## Pivot History (Lessons Learned)
 
@@ -93,8 +94,9 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 11. ~~`/gsd:plan-phase 3`~~ ✓ done — 4 планов, план готов к execute
 12. ~~Phase 3 Plan 01: Error UX (STATE-02, STATE-03)~~ ✓ done — Toaster + ConnectionStatusBanner + StreamingIndicator + error routing, 136 backend + 76 frontend тестов, f956ab5 + 534ecda. SUMMARY: `phases/03-production-ready/03-01-SUMMARY.md`
 13. ~~Phase 3 Plan 02: Security Hardening (SEC-01..04)~~ ✓ done — confirm dialog + CSP + Pydantic strict + CORS fail-secure. 161+88 тестов. `phases/03-production-ready/03-02-SUMMARY.md`
-14. **Now:** Phase 3 Plan 03 (Tests + CI: coverage ≥80%, Playwright E2E, GitHub Actions)
-12. **Pending:** настройка реального LLM endpoint (Xiaomi MiMo) + MCP Toolkit (порт 6010) у разработчика — для финального smoke 3 acceptance prompts с живой 1С
+14. ~~Phase 3 Plan 03: Tests + CI~~ ✓ done — coverage 92.8%, 9 Playwright E2E, GitHub Actions CI. `phases/03-production-ready/03-03-SUMMARY.md`
+15. **Now:** Phase 3 Plan 04 (API docs / OpenAPI export)
+16. **Pending:** настройка реального LLM endpoint (Xiaomi MiMo) + MCP Toolkit (порт 6010) у разработчика — для финального smoke 3 acceptance prompts с живой 1С
 13. **Pending визуальный smoke в браузере** (когда удобно): открыть `http://localhost:3010` глазами — AppShell, IBM Plex, ChannelSelector dropdown, Sidebar groups
 
 ## Warnings from plan-checker (для execute-phase)
