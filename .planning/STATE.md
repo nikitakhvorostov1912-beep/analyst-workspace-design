@@ -31,7 +31,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | **Current Phase** | Phase 3 — Production Ready (3/4 планов выполнено) |
 | **Previous Phase** | Phase 2 — MVP Chat ✓ PASS |
 | **Mode** | YOLO + coarse granularity + parallel execution |
-| **Last Update** | 2026-05-14 (Phase 3 Plan 03 завершён: DEVX-01/02/03 закрыты) |
+| **Last Update** | 2026-05-14 (Phase 3 Plan 04 завершён: TRACE-03, DEVX-04/05, CARD-03 load-more закрыты) |
 
 ## Phase Progress
 
@@ -39,10 +39,10 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 |---|-------|--------|-------|----------|
 | 1 | Foundation | ✓ Complete | 2/2 executed | 100% |
 | 2 | MVP Chat | ✓ Complete | 5/5 executed | 100% |
-| 3 | Production Ready | ◆ In Progress | 3/4 executed | 75% |
+| 3 | Production Ready | ◆ In Progress | 4/4 executed | 100% |
 | 4 | Demo & Refine | ○ Pending | 0/4 | 0% |
 
-**Overall:** Progress: ███████░░░ 75% (Phase 1+2 закрыты; Phase 3 3/4 планов выполнено)
+**Overall:** Progress: ████████░░ 85% (Phase 1+2 закрыты; Phase 3 3/4 планов выполнено)
 
 ## Artifacts Status
 
@@ -95,7 +95,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 12. ~~Phase 3 Plan 01: Error UX (STATE-02, STATE-03)~~ ✓ done — Toaster + ConnectionStatusBanner + StreamingIndicator + error routing, 136 backend + 76 frontend тестов, f956ab5 + 534ecda. SUMMARY: `phases/03-production-ready/03-01-SUMMARY.md`
 13. ~~Phase 3 Plan 02: Security Hardening (SEC-01..04)~~ ✓ done — confirm dialog + CSP + Pydantic strict + CORS fail-secure. 161+88 тестов. `phases/03-production-ready/03-02-SUMMARY.md`
 14. ~~Phase 3 Plan 03: Tests + CI~~ ✓ done — coverage 92.8%, 9 Playwright E2E, GitHub Actions CI. `phases/03-production-ready/03-03-SUMMARY.md`
-15. **Now:** Phase 3 Plan 04 (API docs / OpenAPI export)
+15. ~~Phase 3 Plan 04: Docs + TRACE-03 + LogCard cursor-fetch~~ ✓ done — curl-builder + load-more endpoint + docs. `d07d4d0`. SUMMARY: `phases/03-production-ready/03-04-SUMMARY.md`
 16. **Pending:** настройка реального LLM endpoint (Xiaomi MiMo) + MCP Toolkit (порт 6010) у разработчика — для финального smoke 3 acceptance prompts с живой 1С
 13. **Pending визуальный smoke в браузере** (когда удобно): открыть `http://localhost:3010` глазами — AppShell, IBM Plex, ChannelSelector dropdown, Sidebar groups
 
