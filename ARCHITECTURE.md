@@ -1,5 +1,9 @@
 # ARCHITECTURE — 1С Аналитик
 
+*Актуально: Phase 3 (Production Ready). Предыдущие фазы: see `.planning/phases/`.*
+
+---
+
 ## High-level topology
 
 ```
@@ -7,266 +11,265 @@
 │ Browser (localhost:3010)                                        │
 │                                                                 │
 │  Next.js 15 App Router                                          │
-│   ├─ app/layout.tsx       — AppShell (header + sidebar + main) │
-│   ├─ app/page.tsx         — main chat                          │
-│   ├─ app/settings/        — LLM + MCP connections              │
+│   ├─ app/layout.tsx              AppShell (header + sidebar)   │
+│   ├─ app/page.tsx                главный чат                   │
+│   ├─ app/sessions/[id]/page.tsx  история сессии                │
 │   └─ components/                                                │
-│      ├─ ChatThread        — messages stream                    │
-│      ├─ ChatInput         — textarea + @-mentions + commands   │
-│      ├─ Card{Table,Object,Log,Metric,References,Code}          │
-│      ├─ ToolTrace         — collapsible "▸ N tool calls"       │
-│      ├─ ChannelSelector   — multi-tenant dropdown              │
-│      └─ ModelBadge        — Xiaomi MiMo / others               │
+│      ├─ chat/    Thread · Message · AssistantMessage           │
+│      │           ToolTrace · StreamingIndicator                │
+│      │           ConfirmExecuteDialog · ConnectionStatusBanner │
+│      ├─ cards/   TableCard · ObjectCard · LogCard              │
+│      │           CardRenderer                                   │
+│      ├─ shell/   Header · Sidebar · ChannelSelector · AppShell │
+│      └─ ui/      shadcn primitives                             │
+│                                                                 │
+│  lib/  api.ts · sse.ts · types.ts · storage.ts · toast.ts      │
+│        curl-builder.ts · json-tree.tsx · format-duration.ts    │
 └──────────────────────────────────┬─────────────────────────────┘
                                    │ HTTP/SSE
-                                   │ (CORS allowed only localhost)
+                                   │ CORS: только BACKEND_ALLOWED_ORIGINS
 ┌──────────────────────────────────▼─────────────────────────────┐
 │ FastAPI Backend (localhost:8010)                                │
 │                                                                 │
-│  app/main.py                                                    │
-│   ├─ /chat               POST SSE        — orchestrator        │
-│   ├─ /sessions           CRUD            — session storage     │
-│   ├─ /connections        CRUD            — MCP endpoints       │
-│   ├─ /llm                POST validate   — test API key        │
-│   └─ /mcp/{conn_id}/ping GET             — health check        │
+│  routes/                                                        │
+│   ├─ chat.py         POST /chat (SSE stream)                   │
+│   │                  POST /chat/confirm (SEC-01)               │
+│   ├─ sessions.py     GET/POST/PATCH/DELETE /sessions           │
+│   │                  GET /sessions/{id}/messages               │
+│   ├─ connections.py  CRUD /connections + POST /ping            │
+│   ├─ log_cards.py    POST /sessions/{sid}/…/cards/{cid}/load-more │
+│   ├─ mcp.py          POST /mcp/_/ping                          │
+│   └─ health.py       GET /health                               │
 │                                                                 │
-│  app/orchestrator.py     — main loop                            │
-│   1. load tools schema for active channel                       │
-│   2. stream LLM completion with function-calling enabled        │
-│   3. on tool_call → invoke MCP → append to messages             │
-│   4. continue LLM until natural stop                            │
-│   5. emit SSE events: status, tool_call, result, content        │
+│  orchestrator/                                                  │
+│   ├─ loop.py         tool-calling loop (MAX 10 итераций)       │
+│   ├─ events.py       SSE-модели + format_sse()                 │
+│   ├─ cards.py        build_card_from_tool_result()             │
+│   ├─ persistence.py  save/get sessions · messages · card_states│
+│   ├─ safety.py       scan_for_dangerous() + asyncio.Event      │
+│   └─ title.py        auto-title через LLM                      │
 │                                                                 │
-│  app/clients/                                                   │
-│   ├─ llm.py              — OpenAI-compat httpx client           │
-│   └─ mcp.py              — MCP Streamable HTTP client           │
+│  clients/                                                       │
+│   ├─ llm.py          OpenAI-compat httpx streaming             │
+│   └─ mcp.py          MCP Streamable HTTP + initialize          │
 │                                                                 │
-│  app/storage/                                                   │
-│   ├─ db.py               — SQLite via aiosqlite                 │
-│   ├─ sessions.py         — sessions / messages                  │
-│   ├─ connections.py      — MCP endpoints                        │
-│   └─ settings.py         — LLM config (no api keys)             │
+│  storage/                                                       │
+│   ├─ db.py           aiosqlite init + lifespan                 │
+│   └─ migrations.py   schema_version=3 (idempotent)             │
 └─────────────────────┬─────────────────────┬─────────────────────┘
                       │                     │
               ┌───────▼────────┐    ┌──────▼─────────────────┐
               │ LLM Provider   │    │ 1С MCP Toolkit         │
-              │ (configurable) │    │ (one per channel)      │
+              │ (configurable) │    │ (per channel)          │
               │                │    │                        │
-              │ Xiaomi MiMo    │    │ EPF в 1С :6010 / :6003 │
-              │ OpenAI-compat  │    │ HTTP Streamable        │
-              │ sk-... key     │    │ 10 tools               │
-              │                │    │                        │
+              │ Xiaomi MiMo    │    │ EPF на :6010 / :6003   │
+              │ OpenAI-compat  │    │ MCP Streamable HTTP    │
+              │ X-LLM-API-Key  │    │ 10 инструментов        │
               └────────────────┘    └────────┬───────────────┘
                                              │
                                     ┌────────▼────────────────┐
                                     │ База 1С клиента         │
-                                    │ (Информационная база)   │
                                     └─────────────────────────┘
 ```
 
-## Data flow: один запрос юзера
+---
+
+## Data flow: один запрос
 
 ```
-[Browser]                                                   [Backend]
-─────────                                                   ────────
-ChatInput.send("покажи 32 ОПП без шапки")
-   │
-   │  POST /chat
-   │  { message, sessionId, channelId }
-   ├──────────────────────────────────────────────────────▶ /chat handler
-                                                            │
-                                                            │ load session messages from SQLite
-                                                            │ load MCP tools schema for channelId
-                                                            │ build LLM payload {system, history, tools}
-                                                            │
-                                                            ├──▶ stream LLM (function calling)
-                                                            │
-                                                            │ ◀── chunk: tool_call="execute_query"
-                                                            │     args={"query":"ВЫБРАТЬ ...", limit:100}
-                                                            │
-   ◀── SSE: event=tool_call name="execute_query" args={...}
-                                                            │
-                                                            ├──▶ POST MCP /api/execute_query
-                                                            │
-                                                            │ ◀── {"success":true, "data":[32 rows]}
-                                                            │
-   ◀── SSE: event=tool_result name="execute_query" rows=32
-                                                            │
-                                                            ├──▶ continue LLM with tool result
-                                                            │
-                                                            │ ◀── chunk: "Нашёл 32 документа..."
-   ◀── SSE: event=delta content="Нашёл 32 ..."
-                                                            │ ◀── chunk: "[render Table card]"
-   ◀── SSE: event=card type="table" payload={...}
-                                                            │ ◀── stop
-   ◀── SSE: event=done
-                                                            │
-                                                            │ save messages to SQLite
-                                                            ▼
-[Browser]
-ChatThread renders: TL;DR text + Table card
-                  + collapsed ToolTrace ("▸ 1 tool: execute_query 134ms")
+[Browser]                                                [Backend]
+───────────────────────────────────────────────────────────────
+Пользователь: «Покажи 32 ОПП за 30.04 без шапки»
+
+POST /chat {message, sessionId, channelId}
+   + X-LLM-API-Key: sk-...
+   + X-LLM-Endpoint / X-LLM-Model
+   ────────────────────────────────────────────────────▶
+
+   ◀── SSE: event=status {stage:"thinking"}
+
+   ensure_session(), save_user_message()
+   lookup_mcp_endpoint(channelId)
+   MCPClient.initialize() → list_tools()
+   LLMClient.stream_chat_completion(messages + tools)
+
+   ◀── SSE: event=status {stage:"calling_tool"}
+   ◀── SSE: event=tool_call {name:"execute_query", args:{...}}
+
+   [опц.] scan_for_dangerous → event=confirm_required
+          → ждать POST /chat/confirm
+
+   MCPClient.call_tool("execute_query", args)
+
+   ◀── SSE: event=tool_result {ok:true, result:{rows:[...]}}
+   ◀── SSE: event=card {type:"table", payload:{...}}
+
+   continue LLM with tool result
+
+   ◀── SSE: event=status {stage:"formatting"}
+   ◀── SSE: event=delta {content:"Нашёл 32 документа..."}
+   ◀── SSE: event=done {message_id, total_duration_ms}
+
+   save_assistant_message()  ← реальный message_id
+   save_card_state() for каждой LogCard
+   touch_session()
 ```
 
-## Storage Schema (SQLite)
+---
+
+## SSE Events Matrix
+
+| Event | Payload | Когда |
+|-------|---------|-------|
+| `status` | `{stage: "thinking"\|"calling_tool"\|"formatting"}` | Каждую итерацию loop |
+| `tool_call` | `{id, name, args}` | LLM решила вызвать инструмент |
+| `tool_result` | `{id, ok, result, error, duration_ms}` | После вызова MCP |
+| `delta` | `{content}` | Текстовый фрагмент LLM |
+| `card` | `{type, payload}` | Inline-карточка (table/object/log) |
+| `done` | `{message_id, total_duration_ms}` | Стрим завершён |
+| `error` | `{message, code, retry_after_s?}` | Ошибка, стрим закрыт |
+| `confirm_required` | `{tool_call_id, name, args, reason}` | SEC-01: требует подтверждения |
+
+**Итого: 8 events.**
+
+---
+
+## Error Codes
+
+| Код | Источник |
+|-----|---------|
+| `llm_rate_limit` | LLM 429 |
+| `llm_invalid_key` | LLM 401/403 |
+| `llm_network_error` | httpx.RequestError |
+| `llm_server_error` | LLM 5xx |
+| `mcp_disconnected` | MCPDisconnectedError |
+| `mcp_connect_error` | MCP init failed |
+| `tool_loop_limit` | MAX_TOOL_ITERATIONS=10 |
+| `unknown_channel` | channel_id не найден |
+| `init_error` | ошибка инициализации |
+| `internal_error` | непредвиденная ошибка |
+| `user_declined` | пользователь нажал «Отменить» |
+| `dangerous_keyword_blocked` | confirm timeout |
+
+**Итого: 12 ErrorCode.**
+
+---
+
+## Persistence Layer (SQLite)
+
+### Схема v3 (current)
 
 ```sql
--- Sessions (chat threads)
+-- v1: базовые таблицы
 CREATE TABLE sessions (
-  id TEXT PRIMARY KEY,            -- UUID v4
-  title TEXT,                     -- auto-generated from first message
-  channel_id TEXT NOT NULL,       -- which MCP connection
+  id TEXT PRIMARY KEY,
+  title TEXT,
+  channel_id TEXT NOT NULL,
   created_at TIMESTAMP,
   updated_at TIMESTAMP
 );
 
--- Messages within sessions
 CREATE TABLE messages (
   id TEXT PRIMARY KEY,
   session_id TEXT REFERENCES sessions(id) ON DELETE CASCADE,
-  role TEXT NOT NULL,             -- user | assistant | tool
-  content TEXT,                   -- markdown or null for tool
-  tool_calls JSON,                -- when role=assistant with tool calls
-  tool_call_id TEXT,              -- when role=tool
-  cards JSON,                     -- rendered inline cards (table/object/...)
+  role TEXT NOT NULL,            -- user | assistant | tool
+  content TEXT,
+  tool_calls JSON,               -- [{id, name, args, result, error, duration_ms}]
+  tool_call_id TEXT,
+  cards JSON,                    -- [{type, payload}] snapshot
   created_at TIMESTAMP,
-  duration_ms INTEGER             -- for assistant messages
+  duration_ms INTEGER
 );
 
--- MCP connections (multi-tenant)
 CREATE TABLE mcp_connections (
   id TEXT PRIMARY KEY,
-  name TEXT NOT NULL,             -- "Русский Транзит prod"
-  endpoint TEXT NOT NULL,         -- http://localhost:6010/mcp
-  channel TEXT,                   -- ?channel=... param
+  name TEXT NOT NULL,
+  endpoint TEXT NOT NULL,        -- http://localhost:6010/mcp
+  channel TEXT,
   anon_enabled BOOLEAN DEFAULT 0,
   last_seen_at TIMESTAMP,
   created_at TIMESTAMP
 );
 
--- LLM settings (only metadata, NOT keys — keys в localStorage)
 CREATE TABLE llm_settings (
   id INTEGER PRIMARY KEY,
-  endpoint TEXT NOT NULL,         -- https://api.xiaomi.com/v1
-  model TEXT NOT NULL,            -- mimo-32b
+  endpoint TEXT NOT NULL,
+  model TEXT NOT NULL,
   temperature REAL DEFAULT 0.3,
   max_tokens INTEGER DEFAULT 4096,
-  -- api_key стораджится только в frontend localStorage,
-  -- forward'ится с каждым /chat запросом через header
   updated_at TIMESTAMP
+);
+
+-- v2: индексы
+CREATE INDEX idx_messages_session_created ON messages(session_id, created_at);
+CREATE INDEX idx_sessions_updated ON sessions(updated_at DESC);
+
+-- v3: card_states для LogCard load-more (Plan 03-04)
+CREATE TABLE card_states (
+  card_id TEXT PRIMARY KEY,      -- UUID4, хранится в card.payload.card_id
+  session_id TEXT NOT NULL,
+  message_id TEXT NOT NULL,
+  tool_name TEXT NOT NULL,       -- "get_event_log"
+  original_args TEXT NOT NULL,   -- JSON исходных аргументов
+  channel_id TEXT NOT NULL,
+  created_at TIMESTAMP,
+  FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
 );
 ```
 
-## Key Design Decisions
+Миграции идемпотентны (`apply_migrations()`). Запускаются при старте backend.
 
-### 1. API ключи только в localStorage браузера
-**Why:** безопасность. Backend никогда не персистит ключи. Каждый /chat запрос содержит ключ в header `X-LLM-API-Key`. Backend форвардит к LLM provider'у и забывает.
+---
 
-**Tradeoff:** ключ загружается при каждой странице. Решается через secure storage browser API или crypto.subtle для encryption-at-rest.
+## Security
 
-### 2. SSE для streaming, не WebSocket
-**Why:** SSE проще (unidirectional), достаточно для chat. WebSocket нужен только для realtime collaboration — это вне MVP.
+| Механизм | Реализация |
+|----------|-----------|
+| API ключи | Только в localStorage браузера. Backend НЕ хранит. Forward через X-LLM-API-Key header |
+| Confirm dialog (SEC-01) | scan_for_dangerous() на args execute_code → asyncio.Event пауза loop |
+| CSP (SEC-02) | next.config.ts headers() в production. default-src 'self', connect-src backend-url |
+| Pydantic strict (SEC-03) | Все Request models: `ConfigDict(extra="forbid", strict=True)` |
+| CORS (SEC-04) | BACKEND_ALLOWED_ORIGINS env (fail-secure: пустой в prod = warning) |
+| Ownership check | POST load-more: state.session_id == sid, state.message_id == mid |
 
-### 3. Один MCP endpoint = один channel
-**Why:** аналитик подключает базы клиентов индивидуально. Channel selector в header — это просто переключение `connection_id`.
+---
 
-### 4. LLM tools schema генерится из MCP capabilities
-**Why:** не дублируем определения tools. Backend при init дёргает `tools/list` к MCP, конвертирует в OpenAI function calling format.
-
-### 5. Metadata cache в SQLite на стороне backend
-**Why:** `get_metadata` запросы могут быть медленными для больших конфигураций. Кэш с TTL (1 час) + manual invalidation через UI кнопку.
-
-### 6. Анонимизация — pass-through
-**Why:** анонимизация делается на стороне MCP Toolkit (EPF в 1С). Backend только устанавливает заголовок / parameter, ответ MCP уже anonymized. `submit_for_deanonymization` вызывается явно через UI toggle.
-
-## Module Layout
+## Frontend Architecture
 
 ```
-backend/
-├── pyproject.toml
-├── app/
-│   ├── __init__.py
-│   ├── main.py                 ← FastAPI app + routes
-│   ├── config.py               ← env, defaults
-│   ├── models.py               ← Pydantic models (Session, Message, ...)
-│   ├── orchestrator.py         ← chat orchestration loop
-│   ├── clients/
-│   │   ├── llm.py              ← OpenAI-compat client
-│   │   └── mcp.py              ← MCP Streamable HTTP client
-│   ├── storage/
-│   │   ├── db.py               ← aiosqlite init + migrations
-│   │   ├── sessions.py
-│   │   ├── messages.py
-│   │   ├── connections.py
-│   │   └── settings.py
-│   └── routes/
-│       ├── chat.py
-│       ├── sessions.py
-│       ├── connections.py
-│       ├── settings.py
-│       └── health.py
-└── tests/
-    ├── test_orchestrator.py
-    ├── test_mcp_client.py
-    └── test_llm_client.py
+app/
+├── layout.tsx              AppShell + Toaster + CSP meta
+├── page.tsx                main chat — useChatStream hook
+└── sessions/[id]/page.tsx  история загружается fetchSessionMessages
 
-frontend/
-├── package.json
-├── next.config.ts
-├── tailwind.config.ts
-├── app/
-│   ├── layout.tsx              ← AppShell (header + sidebar + main)
-│   ├── page.tsx                ← /chat (главный экран)
-│   ├── settings/
-│   │   ├── page.tsx
-│   │   ├── llm/page.tsx        ← LLM endpoint + key + model
-│   │   └── connections/page.tsx ← MCP endpoints CRUD
-│   └── api/                    ← (опц.) Next.js API routes для proxy
-├── components/
-│   ├── chat/
-│   │   ├── thread.tsx
-│   │   ├── input.tsx
-│   │   ├── message.tsx
-│   │   └── trace.tsx
-│   ├── cards/
-│   │   ├── table.tsx
-│   │   ├── object.tsx
-│   │   ├── log.tsx
-│   │   ├── metric.tsx
-│   │   ├── references.tsx
-│   │   └── code.tsx
-│   ├── shell/
-│   │   ├── header.tsx
-│   │   ├── sidebar.tsx
-│   │   ├── channel-selector.tsx
-│   │   └── model-badge.tsx
-│   └── ui/                     ← shadcn primitives
-├── lib/
-│   ├── api.ts                  ← fetch wrappers
-│   ├── sse.ts                  ← SSE event parsing
-│   ├── storage.ts              ← localStorage (api keys, prefs)
-│   └── types.ts                ← shared types
-└── tests/
+lib/
+├── api.ts          fetch wrappers (BACKEND = NEXT_PUBLIC_BACKEND_URL)
+├── sse.ts          parseSSEStream — ReadableStream → AsyncIterable<SSEEvent>
+├── types.ts        зеркало Pydantic models (SSEEvent, CardEnvelope, ...)
+├── storage.ts      localStorage (LLMConfig, MCPConnections, activeChannelId)
+├── toast.ts        publishToast() — CustomEvent "app:toast" → Toaster
+├── curl-builder.ts buildCurlCommand(toolCall, mcpEndpoint) → shell string
+├── json-tree.tsx   рекурсивный JSON renderer
+└── format-duration.ts  мс → "1.2 сек" / "842 мс"
 ```
 
-## Security Considerations
+---
 
-- API ключи → localStorage only, never backend storage
-- MCP endpoints — обычно localhost, но при self-host надо authenticate
-- CORS — backend разрешает только `http://localhost:3010` в dev, configurable для prod
-- Content Security Policy — Strict
-- Input validation — Pydantic на backend, Zod на frontend
-- BSL `execute_code` — dangerous keywords blocked by MCP, UI должен ещё раз confirm
+## Phase Summaries
 
-## Performance Targets
+| Фаза | Summary |
+|------|---------|
+| Phase 1 (Foundation) | `.planning/phases/01-foundation/PHASE-summary.md` |
+| Phase 2 (MVP Chat) | `.planning/phases/02-mvp-chat/PHASE-summary.md` |
+| Phase 3 Plan 01 | `.planning/phases/03-production-ready/03-01-SUMMARY.md` |
+| Phase 3 Plan 02 | `.planning/phases/03-production-ready/03-02-SUMMARY.md` |
+| Phase 3 Plan 03 | `.planning/phases/03-production-ready/03-03-SUMMARY.md` |
+| Phase 3 Plan 04 | `.planning/phases/03-production-ready/03-04-SUMMARY.md` |
 
-- `/chat` first byte (SSE start): ≤ 500 мс
-- Tool call roundtrip (LLM → MCP → LLM): ≤ 3 сек (зависит от tool)
-- Metadata cache TTL: 1 час
-- Concurrent sessions per backend: 10 (single-user)
-- Sessions retention: до 1000 в SQLite
+---
 
-## Deployment (later)
+## Historical: legacy mockups
 
-- Dev: `docker compose up`
-- Prod: self-host через Docker Compose, no SaaS в MVP
+`mockups/_legacy/v0-object-ide/` — исторические макеты v0 (Object-IDE, tree + AI-rail).
+`docs/_archive-v0-object-ide/` — архив документов v0 workflow-editor.
+Не используются в текущей реализации.

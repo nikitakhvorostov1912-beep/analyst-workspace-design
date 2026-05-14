@@ -1,106 +1,132 @@
 # 1С Аналитик — чат с MCP
 
-> Веб-консоль для бизнес-аналитиков 1С. Аналитик пишет вопрос на естественном языке, LLM (Xiaomi MiMo / любая OpenAI-совместимая) под капотом вызывает операции **1С MCP Toolkit**, форматирует ответ с inline-карточками (таблица / объект / журнал / метрика / ссылки / код). Multi-tenant: несколько баз клиентов через channel selector.
+Веб-приложение: чат-консоль для бизнес-аналитиков 1С через MCP Toolkit.
+LLM сама вызывает MCP-инструменты — аналитик только пишет на русском.
 
-**Status:** 🚧 In development (M1 — Foundation). Не для продакшен использования.
+## Возможности
 
----
-
-## Demo concept
-
-```
-🧑 «Покажи 32 ОПП за 30.04 без шапки»
-   ↓
-🤖 LLM решает: нужен execute_query → вызов через MCP
-   ↓
-📊 Ответ: TL;DR + Table card (32 строки) + ▸ свёрнутый trace
-```
+- Чат с потоковым ответом (SSE), inline-карточки (Table / Object / Log)
+- История сессий, channel selector (multi-tenant, несколько баз 1С)
+- Trace tool calls с кнопкой «Скопировать как curl»
+- Confirm dialog для опасных execute_code
+- Пагинация LogCard (load-more следующей страницы журнала)
 
 ## Стек
 
-- **Frontend:** Next.js 15 + shadcn/ui + Tailwind 4 (тёмная тема, русский UI)
-- **Backend:** FastAPI + Pydantic v2 + SSE streaming
-- **LLM:** любой OpenAI-compatible (Xiaomi MiMo, DeepSeek, OpenAI, local llama.cpp)
-- **MCP:** прямой HTTP к [1С MCP Toolkit](https://github.com/ROCTUP/1c-mcp-toolkit)
-- **Storage:** SQLite (sessions / messages / connections)
+| Слой | Технологии |
+|------|-----------|
+| Frontend | Next.js 15 + React 19 + Tailwind 4 + shadcn/ui |
+| Backend | FastAPI + Pydantic v2 + SSE streaming + SQLite |
+| LLM | OpenAI-compatible HTTP (Xiaomi MiMo, GPT-4o, любой) |
+| MCP | 1С MCP Toolkit v1.7.0 (EPF) на localhost:6010 или :6003 |
 
-## Архитектура (one diagram)
+## Быстрый старт (за 15 минут)
 
-```
-Browser (Next.js)  ⇄  FastAPI Backend  ⇄  LLM Provider  (Xiaomi MiMo)
-                       │
-                       └────────────────  1С MCP Toolkit  ⇄  База 1С
-```
+### 1. Требования
 
-Полная топология — см. [ARCHITECTURE.md](./ARCHITECTURE.md).
+- Docker + Docker Compose, либо Python 3.12 + Node 22 + pnpm 9
+- 1С MCP Toolkit EPF запущен на localhost:6010 (или другом порту)
+- LLM endpoint OpenAI-compatible (Xiaomi MiMo, OpenAI, Azure, Ollama...)
 
-## Quickstart (после M1)
+### 2. Запуск через docker-compose
 
 ```bash
-# 1. Clone
-git clone https://github.com/nikitakhvorostov1912-beep/analyst-workspace-design.git
+git clone <repo-url> analyst-workspace-design
 cd analyst-workspace-design
-
-# 2. Run
 docker compose up
-
-# 3. Open
-# - Frontend: http://localhost:3010
-# - Backend:  http://localhost:8010
-# - Docs:     http://localhost:8010/docs (OpenAPI)
-
-# 4. Setup (in browser)
-# Settings → Connections → Add MCP endpoint (e.g. http://localhost:6010/mcp)
-# Settings → LLM → endpoint + API key + model
-# → начни писать в чат
 ```
 
-> Требуется запущенный [1С MCP Toolkit](https://github.com/ROCTUP/1c-mcp-toolkit) — EPF-обработка в твоей 1С базе. Подробнее в [USER.md](./docs/USER.md) (TBD).
+- Backend: http://localhost:8010
+- Frontend: http://localhost:3010
+- Swagger UI: http://localhost:8010/docs
+
+### 3. Запуск вручную
+
+**Backend:**
+
+```bash
+cd backend
+python -m venv .venv
+source .venv/bin/activate      # Windows: .venv\Scripts\activate
+pip install -e ".[dev]"
+uvicorn app.main:app --reload --port 8010
+```
+
+**Frontend:**
+
+```bash
+cd frontend
+pnpm install
+pnpm dev   # http://localhost:3010
+```
+
+### 4. Конфигурация
+
+Backend `.env`:
+
+```env
+DATABASE_URL=sqlite+aiosqlite:///./data/app.db
+BACKEND_ALLOWED_ORIGINS=http://localhost:3010
+DEFAULT_LLM_ENDPOINT=https://api.mimo.example/v1
+DEFAULT_LLM_MODEL=mimo-32b
+LOG_LEVEL=INFO
+```
+
+Frontend `.env.local`:
+
+```env
+NEXT_PUBLIC_BACKEND_URL=http://localhost:8010
+```
+
+### 5. Первый запрос
+
+1. Открыть http://localhost:3010
+2. Пустой экран → кнопка «Настройки» → вкладка Подключения → Добавить MCP
+   - URL: `http://localhost:6010/mcp`
+   - Имя: `1С Транзит`
+   - Нажать «Ping» — должен увидеть «ok»
+3. Настройки → LLM → ввести endpoint + API key + model → «Тест»
+4. Главная страница → ввести «Расскажи про базу» → Cmd-Enter (или кнопка отправить)
+5. Видеть статус «Анализирую...» → «Вызываю tool...» → ответ с карточкой
+
+## Тестирование
+
+```bash
+# Backend (unit + integration)
+cd backend && pytest -v --cov-fail-under=80
+
+# Frontend (unit vitest)
+cd frontend && pnpm test
+
+# E2E (Playwright, требует запущенного frontend)
+cd frontend && pnpm exec playwright install --with-deps chromium && pnpm exec playwright test
+```
+
+## CI
+
+GitHub Actions на каждый PR и push в main:
+- Job `backend`: ruff check + pytest --cov-fail-under=80
+- Job `frontend`: type-check + lint + build + vitest
+- Job `e2e`: Playwright 3 flow (only on PR)
+
+## Troubleshooting
+
+| Проблема | Решение |
+|----------|---------|
+| Backend не стартует | Проверить порт 8010 свободен; права на `data/` для SQLite |
+| MCP ping красный | Запущен ли EPF MCP Toolkit? Открыть `http://localhost:6010/health` |
+| LLM 429 | rate-limited модель — ждать `retry-after` секунд из toast |
+| Confirm dialog на безобидном коде | Regex чувствительный; см. docs/USER.md «Опасные команды» |
+| Кнопка «Загрузить ещё» disabled | card_id отсутствует в старых сессиях (created до v3 миграции) |
+| Build падает на Node < 22 | Обновить Node до 22 LTS |
 
 ## Документация
 
-| Документ | Содержание |
-|---|---|
-| [PROJECT.md](./PROJECT.md) | Vision, problem space, success criteria |
-| [ARCHITECTURE.md](./ARCHITECTURE.md) | Топология, data flow, storage schema |
-| [REQUIREMENTS.md](./REQUIREMENTS.md) | FR / NFR / IR с MoSCoW приоритизацией |
-| [ROADMAP.md](./ROADMAP.md) | Phased roadmap (M1-M4) |
-| [CLAUDE.md](./CLAUDE.md) | Внутренние правила разработки (для Claude Code) |
-| [docs/00b-mcp-capability-map.md](./docs/00b-mcp-capability-map.md) | Паспорт 10 MCP операций (backend reference) |
+- [docs/USER.md](docs/USER.md) — руководство аналитика
+- [docs/API.md](docs/API.md) — REST API endpoints
+- [docs/CURL.md](docs/CURL.md) — формат «Скопировать как curl»
+- [ARCHITECTURE.md](ARCHITECTURE.md) — топология, SSE events, persistence
 
-## Какие проблемы решает
+## Лицензия
 
-Бизнес-аналитик 1С (4-6 параллельных проектов УТ/КА/ERP/УСО):
-
-- 🔍 **Discovery незнакомой базы клиента** — сейчас 3+ дня. Цель: 1 час
-- 📊 **Drill-down цифры из отчёта руководству** — сейчас «через неделю когда разраб сделает». Цель: ответ в той же встрече
-- 🐛 **Bug-triage** через журнал регистрации + поиск ссылок + чтение кода
-- 📥 **Маппинг внешних данных** (CSV/API) в документы 1С с валидацией типов
-- 📚 **Knowledge work** — knowledge graph по конфигурациям и ловушкам
-
-## Почему не Claude Code / Cursor?
-
-Эти инструменты — для разработчиков. Аналитик:
-- Не пишет BSL руками
-- Не знает про `get_metadata`/`execute_query`
-- Работает с **несколькими базами клиентов** (channel selector)
-- Хочет одну поверхность для всех проектов
-- Не хочет ставить Claude Code / Cursor + конфигурировать MCP вручную
-
-Этот инструмент — для них. Простой URL → подключил базу → задал вопрос.
-
-## Развитие
-
-См. [ROADMAP.md](./ROADMAP.md). 4 milestone'а:
-- **M1 Foundation** — инфраструктура
-- **M2 MVP Chat** — работающий чат от и до
-- **M3 Production Ready** — надёжность + безопасность + тесты
-- **M4 Demo & Refine** — feedback от реальных аналитиков
-
-## Контакты
-
-Автор: Никита Хворостов — nikita.khvorostov1912@gmail.com
-
-## License
-
-MIT (см. [LICENSE](./LICENSE) после добавления)
+MIT
