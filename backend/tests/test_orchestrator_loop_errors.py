@@ -333,7 +333,12 @@ async def test_loop_no_traceback_in_error_message(mem_db, monkeypatch):
         def __init__(self, *a, **kw): pass
 
         def stream_chat_completion(self, *a, **kw):
-            raise RuntimeError("Some internal Python error\nFile 'backend/app/orchestrator/loop.py', line 200\nTraceback (most recent call last):\n  ...")
+            tb = (
+                "Some internal Python error\n"
+                "File 'backend/app/orchestrator/loop.py', line 200\n"
+                "Traceback (most recent call last):\n  ..."
+            )
+            raise RuntimeError(tb)
 
         async def aclose(self): pass
 
