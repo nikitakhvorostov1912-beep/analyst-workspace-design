@@ -7,13 +7,15 @@ import { Send } from "lucide-react";
 
 interface ChatInputProps {
   onSubmit?: (message: string) => void;
+  disabled?: boolean;
 }
 
-export function ChatInput({ onSubmit }: ChatInputProps) {
+export function ChatInput({ onSubmit, disabled }: ChatInputProps) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   function handleSubmit() {
+    if (disabled) return;
     const text = value.trim();
     if (!text) return;
 
@@ -57,13 +59,14 @@ export function ChatInput({ onSubmit }: ChatInputProps) {
         onInput={handleInput}
         placeholder="Спросите про базу 1С..."
         rows={1}
-        className="flex-1 resize-none rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-3 text-sm text-[var(--fg)] placeholder:text-[var(--fg-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] transition-colors"
+        readOnly={disabled}
+        className="flex-1 resize-none rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-3 text-sm text-[var(--fg)] placeholder:text-[var(--fg-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] transition-colors disabled:opacity-50"
         style={{ minHeight: "56px", maxHeight: "240px", height: "56px" }}
       />
       <Button
         size="icon"
         onClick={handleSubmit}
-        disabled={!value.trim()}
+        disabled={!value.trim() || disabled}
         aria-label="Отправить"
         className="flex-none mb-0.5"
       >

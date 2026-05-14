@@ -1,4 +1,12 @@
-import type { ChatRequest, HealthResponse, MCPPingResponse, SSEEvent } from "./types";
+import type {
+  ChatRequest,
+  HealthResponse,
+  MCPPingResponse,
+  MessageRow,
+  SessionDetail,
+  SessionsGrouped,
+  SSEEvent,
+} from "./types";
 import { getLLMConfig } from "./storage";
 import { parseSSEStream } from "./sse";
 
@@ -95,4 +103,97 @@ export async function* fetchChat(
   }
 
   yield* parseSSEStream(response.body);
+}
+
+// --- Sessions API (Plan 02-03) ---
+
+/**
+ * Создаёт новую сессию в backend.
+ */
+export async function createSession(
+  channel_id: string,
+  title?: string,
+): Promise<SessionDetail> {
+  const body: { channel_id: string; title?: string } = { channel_id };
+  if (title) body.title = title;
+
+  const response = await fetch(`${BACKEND}/sessions`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Ошибка создания сессии: ${response.status}`);
+  }
+  return response.json() as Promise<SessionDetail>;
+}
+
+/**
+ * Загружает список сессий, сгруппированных по дате.
+ */
+export async function fetchSessions(channel_id?: string): Promise<SessionsGrouped> {
+  const url = channel_id
+    ? `${BACKEND}/sessions?channel_id=${encodeURIComponent(channel_id)}`
+    : `${BACKEND}/sessions`;
+
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Ошибка загрузки сессий: ${response.status}`);
+  }
+  return response.json() as Promise<SessionsGrouped>;
+}
+
+/**
+ * Загружает детали одной сессии. Возвращает null при 404.
+ */
+export async function fetchSessionDetail(id: string): Promise<SessionDetail | null> {
+  const response = await fetch(`${BACKEND}/sessions/${id}`);
+  if (response.status === 404) return null;
+  if (!response.ok) {
+    throw new Error(`Ошибка загрузки сессии: ${response.status}`);
+  }
+  return response.json() as Promise<SessionDetail>;
+}
+
+/**
+ * Загружает все сообщения сессии в хронологическом порядке.
+ */
+export async function fetchSessionMessages(id: string): Promise<MessageRow[]> {
+  const response = await fetch(`${BACKEND}/sessions/${id}/messages`);
+  if (!response.ok) {
+    throw new Error(`Ошибка загрузки сообщений: ${response.status}`);
+  }
+  const data = (await response.json()) as { messages: MessageRow[] };
+  return data.messages;
+}
+
+/**
+ * Удаляет сессию и все её сообщения.
+ */
+export async function deleteSession(id: string): Promise<void> {
+  const response = await fetch(`${BACKEND}/sessions/${id}`, {
+    method: "DELETE",
+  });
+  if (!response.ok && response.status !== 204) {
+    throw new Error(`Ошибка удаления сессии: ${response.status}`);
+  }
+}
+
+/**
+ * Переименовывает сессию.
+ */
+export async function patchSessionTitle(
+  id: string,
+  title: string,
+): Promise<SessionDetail> {
+  const response = await fetch(`${BACKEND}/sessions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ title }),
+  });
+  if (!response.ok) {
+    throw new Error(`Ошибка переименования сессии: ${response.status}`);
+  }
+  return response.json() as Promise<SessionDetail>;
 }

@@ -1,4 +1,4 @@
-// Зеркало Pydantic моделей backend (Plan 02-01)
+// Зеркало Pydantic моделей backend (Plan 02-01, 02-03)
 
 export type ChatRequest = {
   message: string;
@@ -107,4 +107,39 @@ export type ChatMessage = {
   cards?: CardEnvelope[];
   tool_calls?: ToolCallRecord[];
   duration_ms?: number;
+};
+
+// --- Sessions types (Plan 02-03) ---
+
+export type SessionListItem = {
+  id: string;
+  title: string | null;
+  channel_id: string;
+  updated_at: string;
+  message_count: number;
+};
+
+export type SessionsGrouped = {
+  today: SessionListItem[];
+  yesterday: SessionListItem[];
+  this_week: SessionListItem[];
+  earlier: SessionListItem[];
+};
+
+export type SessionDetail = {
+  id: string;
+  title: string | null;
+  channel_id: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type MessageRow = {
+  id: string;
+  role: "user" | "assistant" | "tool";
+  content: string | null;
+  tool_calls: ToolCallRecord[] | null;
+  cards: CardEnvelope[] | null;
+  duration_ms: number | null;
+  created_at: string;
 };
