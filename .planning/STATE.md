@@ -24,11 +24,11 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | # | Phase | Status | Plans | Progress |
 |---|-------|--------|-------|----------|
 | 1 | Foundation | ✓ Complete | 2/2 executed | 100% |
-| 2 | MVP Chat | ◆ Planned | 0/5 executed (5 planned) | 0% |
+| 2 | MVP Chat | ◆ In Progress | 1/5 executed | 20% |
 | 3 | Production Ready | ○ Pending | 0/4 | 0% |
 | 4 | Demo & Refine | ○ Pending | 0/4 | 0% |
 
-**Overall:** Progress: ███░░░░░░░ 13% (Phase 1 закрыта; 0/13 планов M2-M4)
+**Overall:** Progress: ████░░░░░░ 17% (Phase 1 закрыта; 1/13 планов M2-M4)
 
 ## Artifacts Status
 
@@ -42,6 +42,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 - [x] Phase 1 Plan 02 execution — frontend Next.js 15 scaffold (2026-05-14, type-check + lint + build зелёные)
 - [x] Phase 1 VERIFICATION — **PASS** (15 VERIFIED + 3 PARTIAL только из-за отсутствия Docker/GUI в sandbox). Runtime smoke на dev-машине: uvicorn `/health` 5.8 мс, SSE контракт ok, Next dev ready 2.3 сек, HTML lang=ru dark IBM Plex. См. `phases/01-foundation/VERIFICATION.md`
 - [x] Phase 2 plan — 5 PLAN-файлов (02-01..02-05) + PHASE-summary + CONTEXT (2026-05-14, opus + sonnet checker). plan-checker verdict: **PASS_WITH_NOTES** (0 blockers, 4 warnings). 15 задач, 3 wave, 15/15 REQ покрытие. См. `phases/02-mvp-chat/PLAN-CHECK.md`
+- [x] Phase 2 Plan 01 execution — orchestrator loop + SSE v2 + persistence + 3 e2e (2026-05-14, 71 tests green, ruff clean, pnpm type-check clean). 4 tasks, 3 commits (`0aacf74`, `afe1fe2`, `cfacb1b`). SUMMARY: `phases/02-mvp-chat/02-01-SUMMARY.md`
 
 ## Pivot History (Lessons Learned)
 
@@ -64,7 +65,8 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 3. ~~`/gsd-execute-phase 1`~~ ✓ done — 2 plans executed, 8 commits
 4. ~~Runtime smoke на dev-машине~~ ✓ done — uvicorn `/health` 5.8 мс, SSE `event: status` первым байтом, Next dev Ready 2.3 сек, HTML lang=ru class=dark IBM Plex
 5. ~~`/gsd:plan-phase 2`~~ ✓ done — 5 планов, PLAN-CHECK = PASS_WITH_NOTES
-6. **Now:** `/gsd:execute-phase 2` — выполнить Wave 1 (02-01 orchestrator) → Wave 2 (02-02 cards, 02-03 sessions, 02-04 channel selector — с ordering: cards T1+T2 до sessions T2) → Wave 3 (02-05 trace)
+6. ~~`/gsd:execute-phase 2` Wave 1~~ ✓ done — Plan 02-01 выполнен (71 tests green)
+7. **Now:** Wave 2 — 02-02 cards, 02-03 sessions, 02-04 channel selector
 7. **Pending (можно начинать параллельно с Phase 2 dev):** настройка LLM endpoint (Xiaomi MiMo) + MCP Toolkit (порт 6010) у разработчика
 8. **Pending визуальный smoke в браузере** (когда удобно): открыть `http://localhost:3010` глазами — AppShell, IBM Plex, бейдж backend, Ctrl+Enter
 
