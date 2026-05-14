@@ -81,10 +81,30 @@ export type MCPConnection = {
   anon_enabled: boolean;
 };
 
+// Card discriminated union — для рендеринга inline-карточек в AssistantMessage
+export type CardEnvelope =
+  | { type: "table"; payload: TableCardPayload }
+  | { type: "object"; payload: ObjectCardPayload }
+  | { type: "log"; payload: LogCardPayload };
+
+// Запись об одном tool call — для Trace panel (Plan 2.5)
+export type ToolCallRecord = {
+  id: string;
+  name: string;
+  args: Record<string, unknown>;
+  result?: unknown;
+  ok?: boolean;
+  duration_ms?: number;
+  error?: string | null;
+};
+
 // Сообщение чата
 export type ChatMessage = {
   id: string;
   role: "user" | "assistant" | "tool";
   content: string;
   created_at: string;
+  cards?: CardEnvelope[];
+  tool_calls?: ToolCallRecord[];
+  duration_ms?: number;
 };
