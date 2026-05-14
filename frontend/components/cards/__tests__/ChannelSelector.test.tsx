@@ -84,7 +84,7 @@ vi.mock("@/lib/storage", () => ({
 
 import { ChannelSelector } from "../../shell/ChannelSelector";
 import { fetchConnections, pingConnection } from "@/lib/api";
-import { getMCPConnections, setMCPConnections } from "@/lib/storage";
+import { getMCPConnections } from "@/lib/storage";
 import type { MCPConnection } from "@/lib/types";
 
 const makeConn = (id: string, name: string): MCPConnection => ({
