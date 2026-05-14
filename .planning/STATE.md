@@ -28,10 +28,10 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | Aspect | Value |
 |--------|-------|
 | **Current Milestone** | M1 — Foundation |
-| **Current Phase** | Phase 2 — MVP Chat (planned, готов к execute) |
+| **Current Phase** | Phase 2 — MVP Chat ✓ **PASS** — готов к Phase 3 |
 | **Previous Phase** | Phase 1 — Foundation ✓ PASS |
 | **Mode** | YOLO + coarse granularity + parallel execution |
-| **Last Update** | 2026-05-14 (Plan 02-02 complete) |
+| **Last Update** | 2026-05-14 (Phase 2 verified PASS + ruff fix) |
 
 ## Phase Progress
 
@@ -60,7 +60,8 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 - [x] Phase 2 Plan 02 execution — cards UI (TableCard/ObjectCard/LogCard) + AssistantMessage + Markdown + CSV + backend finalization (2026-05-14, backend 79 tests, frontend 16 vitest, type-check+lint+build green). 3 tasks, 3 commits (`95b3fc1`, `1f657c0`, `fdf4df9`). SUMMARY: `phases/02-mvp-chat/02-02-SUMMARY.md`
 - [x] Phase 2 Plan 03 execution — sessions CRUD + group_by_date + auto-title + SessionList + useChatStream + /sessions/[id] route (2026-05-14, backend 111 tests, frontend 32 vitest, type-check+lint+build green). 3 tasks, 3 commits (`b4a179a`, `9989db3`, `ae32e6e`). SUMMARY: `phases/02-mvp-chat/02-03-SUMMARY.md`
 - [x] Phase 2 Plan 04 execution — Channel Selector dropdown + connections CRUD + ping-статус + Header/AppShell wire-up (2026-05-14, backend 122 tests, frontend 37 vitest, type-check+lint+build green). 3 tasks, 3 commits (`6363f9d`, `eb8d400`, `044f161`). SUMMARY: `phases/02-mvp-chat/02-04-SUMMARY.md`
-- [x] Phase 2 Plan 05 execution — Trace Panel: JsonTree + formatDuration + ToolTrace + AssistantMessage wire-up (2026-05-14, frontend 56 vitest, type-check+lint+build green). 2 tasks, 2 commits (`3873b9e`, `e753427`). SUMMARY: `phases/02-mvp-chat/02-05-SUMMARY.md`. **Phase 2 COMPLETE.**
+- [x] Phase 2 Plan 05 execution — Trace Panel: JsonTree + formatDuration + ToolTrace + AssistantMessage wire-up (2026-05-14, frontend 56 vitest, type-check+lint+build green). 2 tasks, 2 commits (`3873b9e`, `e753427`). SUMMARY: `phases/02-mvp-chat/02-05-SUMMARY.md`
+- [x] Phase 2 VERIFICATION — **PASS** (14 VERIFIED + 1 PARTIAL только из-за отсутствия реальной 1С в sandbox). Ruff BLOCKER из initial verify закрыт коммитом `fix(02): ruff cleanup` → "All checks passed". Runtime smoke: uvicorn /health 5.8 мс, POST /connections + /sessions CRUD ok, group_by_date 4 группы, DELETE каскад, frontend 4 routes (включая dynamic /sessions/[id]). 122 pytest + 56 vitest, type-check+lint+build green. См. `phases/02-mvp-chat/VERIFICATION.md`. **Phase 2 COMPLETE.**
 
 ## Pivot History (Lessons Learned)
 
@@ -86,9 +87,11 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 6. ~~`/gsd:execute-phase 2` Wave 1~~ ✓ done — Plan 02-01 выполнен (71 tests green)
 7. ~~Wave 2 — 02-02 cards~~ ✓ done — cards UI полностью, 79+16 тестов, build зелёный
 8. ~~Wave 2 — 02-03 sessions, 02-04 channel selector~~ ✓ done — sessions + channel selector выполнены, 122 backend + 37 frontend тестов, build зелёный
-9. ~~Wave 3 — 02-05 trace panel~~ ✓ done — JsonTree + ToolTrace выполнены, 56 frontend тестов, build зелёный. **Phase 2 COMPLETE.**
-7. **Pending (можно начинать параллельно с Phase 2 dev):** настройка LLM endpoint (Xiaomi MiMo) + MCP Toolkit (порт 6010) у разработчика
-8. **Pending визуальный smoke в браузере** (когда удобно): открыть `http://localhost:3010` глазами — AppShell, IBM Plex, бейдж backend, Ctrl+Enter
+9. ~~Wave 3 — 02-05 trace panel~~ ✓ done — JsonTree + ToolTrace выполнены, 56 frontend тестов, build зелёный
+10. ~~Phase 2 VERIFICATION + ruff fix + runtime smoke~~ ✓ done — **PASS**: 122 pytest + 56 vitest, ruff clean, type-check+lint+build green, 8 runtime endpoints проверены
+11. **Now:** `/gsd:plan-phase 3` (Production Ready: error states, анонимизация, SEC-01..04, DEVX-01..04, TRACE-03 Copy as curl, LogCard cursor-fetch endpoint)
+12. **Pending:** настройка реального LLM endpoint (Xiaomi MiMo) + MCP Toolkit (порт 6010) у разработчика — для финального smoke 3 acceptance prompts с живой 1С
+13. **Pending визуальный smoke в браузере** (когда удобно): открыть `http://localhost:3010` глазами — AppShell, IBM Plex, ChannelSelector dropdown, Sidebar groups
 
 ## Warnings from plan-checker (для execute-phase)
 
