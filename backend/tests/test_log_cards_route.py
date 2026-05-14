@@ -12,11 +12,10 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from app.storage.migrations import apply_migrations
-from app.orchestrator.persistence import save_card_state, get_card_state
 from app.orchestrator.cards import build_card_from_tool_result
+from app.orchestrator.persistence import get_card_state, save_card_state
 from app.routes.log_cards import get_app_db
-
+from app.storage.migrations import apply_migrations
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -208,7 +207,8 @@ async def test_loop_saves_card_state_on_log_card(fresh_db):
         "INSERT INTO sessions (id, title, channel_id) VALUES ('s-loop', 'T', 'ch-loop')"
     )
     await fresh_db.execute(
-        "INSERT INTO mcp_connections (id, name, endpoint, channel) VALUES ('ch-loop', 'T', 'http://localhost:6010/mcp', 'ch-loop')"
+        "INSERT INTO mcp_connections (id, name, endpoint, channel) "
+        "VALUES ('ch-loop', 'T', 'http://localhost:6010/mcp', 'ch-loop')"
     )
     await fresh_db.commit()
 

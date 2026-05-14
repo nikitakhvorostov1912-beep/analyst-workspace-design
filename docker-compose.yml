@@ -9,3 +9,16 @@ services:
       - path: ./backend/.env
         required: false
     restart: unless-stopped
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3010:3010"
+    env_file:
+      - path: ./frontend/.env.local
+        required: false
+    environment:
+      - NEXT_PUBLIC_BACKEND_URL=http://localhost:8010
+    depends_on:
+      - backend
+    restart: unless-stopped
