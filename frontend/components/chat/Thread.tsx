@@ -11,9 +11,11 @@ interface ThreadProps {
   /** Стадия стриминга — прокидывается в последний AssistantMessage */
   streamingStage?: StreamingStage | null;
   currentToolName?: string | null;
+  /** ID сессии — для CardContext load-more (Plan 03-04) */
+  sessionId?: string;
 }
 
-export function Thread({ messages, streamingStage, currentToolName }: ThreadProps) {
+export function Thread({ messages, streamingStage, currentToolName, sessionId }: ThreadProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll вниз при появлении новых сообщений (стриминг и загрузка истории)
@@ -37,6 +39,7 @@ export function Thread({ messages, streamingStage, currentToolName }: ThreadProp
             message={msg}
             streamingStage={i === lastAssistantIdx ? streamingStage : null}
             currentToolName={i === lastAssistantIdx ? currentToolName : null}
+            sessionId={sessionId}
           />
         ))}
         <div ref={bottomRef} />

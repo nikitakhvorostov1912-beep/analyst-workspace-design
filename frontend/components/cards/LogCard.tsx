@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { publishToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import type { LogCardPayload, LogEntry } from "@/lib/types";
 
@@ -72,31 +74,53 @@ function LogEntryRow({ entry }: { entry: LogEntry }) {
 
 interface LogCardProps {
   payload: LogCardPayload;
-  /** Вызывается при клике «Загрузить ещё» если next_cursor не null. Phase 3. */
-  onLoadMore?: (cursor: string) => void;
+  /**
+   * Вызывается при клике «Загрузить ещё» с cursor.
+   * Должна вернуть Promise с {entries, next_cursor}.
+   * При null next_cursor кнопка исчезает.
+   */
+  onLoadMore?: (cursor: string) => Promise<{ entries: LogEntry[]; next_cursor: string | null }>;
 }
 
 export function LogCard({ payload, onLoadMore }: LogCardProps) {
-  const { entries, next_cursor } = payload;
+  const [extraEntries, setExtraEntries] = useState<LogEntry[]>([]);
+  const [currentCursor, setCurrentCursor] = useState<string | null>(payload.next_cursor);
+  const [loading, setLoading] = useState(false);
+
+  const allEntries = [...payload.entries, ...extraEntries];
+
+  async function handleLoadMore() {
+    if (!currentCursor || !onLoadMore || loading) return;
+    setLoading(true);
+    try {
+      const result = await onLoadMore(currentCursor);
+      setExtraEntries((prev) => [...prev, ...result.entries]);
+      setCurrentCursor(result.next_cursor);
+    } catch {
+      publishToast({ type: "error", message: "Не удалось загрузить следующую страницу" });
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] overflow-hidden">
       {/* Заголовок */}
       <div className="px-3 py-2 border-b border-[var(--border)]">
         <span className="text-xs text-[var(--fg-muted)]">
-          Журнал регистрации · {entries.length}{" "}
-          {entries.length === 1 ? "запись" : "записей"}
+          Журнал регистрации · {allEntries.length}{" "}
+          {allEntries.length === 1 ? "запись" : "записей"}
         </span>
       </div>
 
-      {entries.length === 0 ? (
+      {allEntries.length === 0 ? (
         <div className="px-3 py-6 text-xs text-[var(--fg-muted)] text-center">
           Записи отсутствуют
         </div>
       ) : (
         <ScrollArea className="max-h-[400px]">
           <div>
-            {entries.map((entry, i) => (
+            {allEntries.map((entry, i) => (
               <LogEntryRow key={i} entry={entry} />
             ))}
           </div>
@@ -104,19 +128,19 @@ export function LogCard({ payload, onLoadMore }: LogCardProps) {
       )}
 
       {/* Кнопка загрузки следующей страницы */}
-      {next_cursor !== null && (
+      {currentCursor !== null && (
         <div className="px-3 py-2 border-t border-[var(--border)]">
           {onLoadMore ? (
             <Button
               size="sm"
               variant="secondary"
               className="w-full text-xs"
-              onClick={() => onLoadMore(next_cursor)}
+              disabled={loading}
+              onClick={() => { void handleLoadMore(); }}
             >
-              Загрузить ещё
+              {loading ? "Загрузка..." : "Загрузить ещё"}
             </Button>
           ) : (
-            // Phase 3 (P3-LOG-CURSOR): реальный fetch при наличии endpoint /messages/{id}/cards/log?cursor
             <Button
               size="sm"
               variant="secondary"

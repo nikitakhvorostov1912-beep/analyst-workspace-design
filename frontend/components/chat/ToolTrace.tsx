@@ -1,8 +1,10 @@
 "use client";
 import { useState } from "react";
-import { ChevronRight, ChevronDown } from "lucide-react";
+import { ChevronRight, ChevronDown, Copy } from "lucide-react";
 import { JsonTree } from "@/lib/json-tree";
 import { formatDuration } from "@/lib/format-duration";
+import { buildCurlCommand } from "@/lib/curl-builder";
+import { publishToast } from "@/lib/toast";
 import type { ToolCallRecord } from "@/lib/types";
 
 function pluralTools(n: number): string {
@@ -14,14 +16,28 @@ function pluralTools(n: number): string {
 type ToolTraceProps = {
   toolCalls: ToolCallRecord[];
   totalDurationMs?: number;
+  /** URL MCP endpoint — для формирования curl-команды. Если не передан → placeholder в curl. */
+  mcpEndpoint?: string;
+  /** Mcp-Session-Id — опционально, не хранится на фронте */
+  mcpSessionId?: string;
 };
 
-export function ToolTrace({ toolCalls, totalDurationMs }: ToolTraceProps) {
+export function ToolTrace({ toolCalls, totalDurationMs, mcpEndpoint, mcpSessionId }: ToolTraceProps) {
   const [open, setOpen] = useState(false);
 
   if (!toolCalls || toolCalls.length === 0) return null;
 
   const durationStr = totalDurationMs != null ? `, ${formatDuration(totalDurationMs)}` : "";
+
+  async function handleCopyCurl(tc: ToolCallRecord) {
+    try {
+      const cmd = buildCurlCommand(tc, mcpEndpoint ?? "", mcpSessionId);
+      await navigator.clipboard.writeText(cmd);
+      publishToast({ type: "info", message: "Скопировано" });
+    } catch {
+      publishToast({ type: "error", message: "Не удалось скопировать" });
+    }
+  }
 
   return (
     <div className="mt-2 text-xs text-[var(--fg-muted)]">
@@ -42,7 +58,7 @@ export function ToolTrace({ toolCalls, totalDurationMs }: ToolTraceProps) {
         <ul className="mt-2 space-y-3 border-l-2 border-[var(--border)] pl-3" data-testid="trace-list">
           {toolCalls.map((tc) => (
             <li key={tc.id} className="space-y-1">
-              <div className="flex items-baseline gap-2">
+              <div className="flex items-baseline gap-2 flex-wrap">
                 <span className="font-mono text-[var(--fg)]" data-testid="tool-name">{tc.name}</span>
                 {tc.duration_ms != null ? (
                   <span className="text-[var(--fg-muted)]">· {formatDuration(tc.duration_ms)}</span>
@@ -50,6 +66,16 @@ export function ToolTrace({ toolCalls, totalDurationMs }: ToolTraceProps) {
                 {tc.ok === false ? (
                   <span className="text-red-400" data-testid="tool-error-badge">· ошибка</span>
                 ) : null}
+                {/* Кнопка «Скопировать как curl» (TRACE-03) */}
+                <button
+                  type="button"
+                  onClick={() => { void handleCopyCurl(tc); }}
+                  aria-label="Скопировать как curl"
+                  className="text-xs text-[var(--fg-muted)] hover:text-[var(--fg)] inline-flex items-center gap-1 ml-auto"
+                >
+                  <Copy size={12} />
+                  <span>Скопировать как curl</span>
+                </button>
               </div>
 
               <details className="ml-2">

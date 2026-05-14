@@ -132,7 +132,7 @@ describe("ToolTrace copy-curl", () => {
     });
 
     expect(writeTextMock).toHaveBeenCalledTimes(1);
-    const curlCmd = writeTextMock.mock.calls[0][0] as string;
+    const curlCmd = (writeTextMock.mock.calls[0] as unknown[])[0] as string;
     expect(curlCmd).toContain("curl -X POST");
     expect(curlCmd).toContain("execute_query");
   });
@@ -160,7 +160,9 @@ describe("ToolTrace copy-curl", () => {
       ([e]) => e instanceof CustomEvent && (e as CustomEvent).type === "app:toast"
     );
     expect(toastEvents.length).toBeGreaterThan(0);
-    const lastEvent = toastEvents[toastEvents.length - 1]![0] as CustomEvent;
+    const lastToast = toastEvents[toastEvents.length - 1];
+    expect(lastToast).toBeDefined();
+    const lastEvent = lastToast![0] as CustomEvent;
     expect(lastEvent.detail.type).toBe("error");
   });
 });

@@ -76,6 +76,15 @@ export type LogEntry = {
 export type LogCardPayload = {
   entries: LogEntry[];
   next_cursor: string | null;
+  card_id?: string | null;  // UUID4 для load-more endpoint (Plan 03-04)
+};
+
+/** Контекст карточки для load-more и curl-copy (Plan 03-04) */
+export type CardContext = {
+  sessionId: string;
+  messageId: string;
+  mcpEndpoint?: string;
+  mcpSessionId?: string;
 };
 
 /** Payload события confirm_required (SEC-01 Plan 3.2) */

@@ -7,9 +7,11 @@ interface MessageProps {
   message: ChatMessage;
   streamingStage?: StreamingStage | null;
   currentToolName?: string | null;
+  /** ID сессии — для CardContext load-more (Plan 03-04) */
+  sessionId?: string;
 }
 
-export function Message({ message, streamingStage, currentToolName }: MessageProps) {
+export function Message({ message, streamingStage, currentToolName, sessionId }: MessageProps) {
   // tool messages не рендерятся в Thread — только в Trace panel (Plan 2.5)
   if (message.role === "tool") return null;
 
@@ -19,6 +21,7 @@ export function Message({ message, streamingStage, currentToolName }: MessagePro
         message={message}
         streamingStage={streamingStage}
         currentToolName={currentToolName}
+        sessionId={sessionId}
       />
     );
   }

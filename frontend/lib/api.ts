@@ -1,6 +1,7 @@
 import type {
   ChatRequest,
   HealthResponse,
+  LogEntry,
   MCPConnection,
   MCPPingResponse,
   MessageRow,
@@ -283,6 +284,32 @@ export async function postChatConfirm(body: {
   if (!response.ok) {
     throw new Error(`Ошибка подтверждения: ${response.status}`);
   }
+}
+
+// --- LogCard load-more API (Plan 03-04) ---
+
+/**
+ * Загружает следующую страницу записей LogCard.
+ * Вызывает POST /sessions/{sid}/messages/{mid}/cards/{cid}/load-more.
+ */
+export async function loadMoreLogEntries(
+  sessionId: string,
+  messageId: string,
+  cardId: string,
+  cursor: string,
+): Promise<{ entries: LogEntry[]; next_cursor: string | null }> {
+  const response = await fetch(
+    `${BACKEND}/sessions/${encodeURIComponent(sessionId)}/messages/${encodeURIComponent(messageId)}/cards/${encodeURIComponent(cardId)}/load-more`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ cursor }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`Ошибка загрузки следующей страницы: ${response.status}`);
+  }
+  return response.json() as Promise<{ entries: LogEntry[]; next_cursor: string | null }>;
 }
 
 /**

@@ -208,6 +208,7 @@ export default function SessionPage() {
           messages={messages}
           streamingStage={streamingStage}
           currentToolName={currentToolName}
+          sessionId={id}
         />
         {error && (
           <div className="px-4 pb-2 text-xs text-red-400">{error}</div>

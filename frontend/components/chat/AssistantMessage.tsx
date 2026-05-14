@@ -4,18 +4,31 @@ import { Markdown } from "./Markdown";
 import { CardRenderer } from "@/components/cards/CardRenderer";
 import { ToolTrace } from "./ToolTrace";
 import { StreamingIndicator } from "./StreamingIndicator";
+import { getMCPConnections, getActiveChannelId } from "@/lib/storage";
 import type { StreamingStage } from "./StreamingIndicator";
-import type { ChatMessage } from "@/lib/types";
+import type { ChatMessage, CardContext } from "@/lib/types";
 
 interface AssistantMessageProps {
   message: ChatMessage;
   /** Стадия стриминга — показывает StreamingIndicator под контентом */
   streamingStage?: StreamingStage | null;
   currentToolName?: string | null;
+  /** ID сессии — для CardContext load-more */
+  sessionId?: string;
 }
 
 /** Композитный assistant message: TL;DR markdown + cards[] + ToolTrace (Plan 2.5) + StreamingIndicator (Plan 3.1). */
-export function AssistantMessage({ message, streamingStage, currentToolName }: AssistantMessageProps) {
+export function AssistantMessage({ message, streamingStage, currentToolName, sessionId }: AssistantMessageProps) {
+  // Получаем mcpEndpoint из активного канала (для curl-copy и load-more context)
+  const activeChannelId = getActiveChannelId();
+  const connections = getMCPConnections();
+  const mcpEndpoint = connections.find((c) => c.id === activeChannelId)?.endpoint;
+
+  // Формируем CardContext для load-more
+  const cardContext: CardContext | undefined = sessionId && message.id
+    ? { sessionId, messageId: message.id, mcpEndpoint }
+    : undefined;
+
   return (
     <div className="flex w-full justify-start">
       <div className="max-w-3xl w-full">
@@ -49,7 +62,7 @@ export function AssistantMessage({ message, streamingStage, currentToolName }: A
         {message.cards && message.cards.length > 0 && (
           <div className="space-y-3 mt-3">
             {message.cards.map((card, i) => (
-              <CardRenderer key={i} card={card} />
+              <CardRenderer key={i} card={card} context={cardContext} />
             ))}
           </div>
         )}
@@ -58,6 +71,7 @@ export function AssistantMessage({ message, streamingStage, currentToolName }: A
         <ToolTrace
           toolCalls={message.tool_calls ?? []}
           totalDurationMs={message.duration_ms}
+          mcpEndpoint={mcpEndpoint}
         />
       </div>
     </div>
