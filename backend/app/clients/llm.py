@@ -1,0 +1,96 @@
+"""OpenAI-совместимый LLM-клиент со streaming."""
+
+import json
+import logging
+from collections.abc import AsyncIterator
+
+import httpx
+
+logger = logging.getLogger(__name__)
+
+
+class LLMClient:
+    """HTTP-клиент для OpenAI-совместимых LLM API (streaming)."""
+
+    def __init__(self, endpoint: str, model: str, timeout: float = 60.0) -> None:
+        self.endpoint = endpoint.rstrip("/")
+        self.model = model
+        self._http = httpx.AsyncClient(base_url=self.endpoint, timeout=timeout)
+
+    async def stream_chat_completion(
+        self,
+        messages: list[dict],
+        api_key: str,
+        tools: list[dict] | None = None,
+        temperature: float = 0.3,
+    ) -> AsyncIterator[dict]:
+        """Стримит чанки из POST /chat/completions.
+
+        Каждый yielded dict — это choices[0].delta из SSE-чанка.
+        Останов на 'data: [DONE]'.
+
+        Raises:
+            httpx.HTTPStatusError: при ошибке HTTP от провайдера.
+        """
+        payload: dict = {
+            "model": self.model,
+            "messages": messages,
+            "stream": True,
+            "temperature": temperature,
+        }
+        if tools:
+            payload["tools"] = tools
+
+        # Authorization header не логируем — T-01-01
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        }
+
+        async with self._http.stream(
+            "POST",
+            "/chat/completions",
+            json=payload,
+            headers=headers,
+        ) as response:
+            response.raise_for_status()
+            async for line in response.aiter_lines():
+                if not line.startswith("data: "):
+                    continue
+                raw = line[len("data: "):]
+                if raw.strip() == "[DONE]":
+                    break
+                try:
+                    chunk = json.loads(raw)
+                except json.JSONDecodeError:
+                    logger.warning("Не удалось распарсить SSE чанк: %s", raw[:100])
+                    continue
+                choices = chunk.get("choices")
+                if not choices:
+                    continue
+                yield choices[0]
+
+    async def aclose(self) -> None:
+        """Закрывает внутренний httpx.AsyncClient."""
+        await self._http.aclose()
+
+    async def __aenter__(self) -> "LLMClient":
+        return self
+
+    async def __aexit__(self, *_: object) -> None:
+        await self.aclose()
+
+
+async def stream_chat_completion(
+    endpoint: str,
+    model: str,
+    messages: list[dict],
+    api_key: str,
+    tools: list[dict] | None = None,
+    temperature: float = 0.3,
+    timeout: float = 60.0,
+) -> AsyncIterator[dict]:
+    """Функциональная обёртка над LLMClient для разового вызова."""
+    async with LLMClient(endpoint, model, timeout) as client:
+        async for chunk in client.stream_chat_completion(messages, api_key, tools, temperature):
+            yield chunk
