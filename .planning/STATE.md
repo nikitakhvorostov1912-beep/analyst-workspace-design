@@ -14,7 +14,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | Aspect | Value |
 |--------|-------|
 | **Current Milestone** | M1 — Foundation |
-| **Current Phase** | Phase 1 — Foundation (Plan 01 complete, Plan 02 pending) |
+| **Current Phase** | Phase 1 — Foundation (PARTIAL: код + автотесты ✓, runtime smoke ожидает ручной проверки) |
 | **Mode** | YOLO + coarse granularity + parallel execution |
 | **Last Update** | 2026-05-14 |
 
@@ -22,12 +22,12 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 
 | # | Phase | Status | Plans | Progress |
 |---|-------|--------|-------|----------|
-| 1 | Foundation | ▶ In Progress | 1/2 executed (2 planned) | 50% |
+| 1 | Foundation | ◆ Verified (PARTIAL) | 2/2 executed | 95% (runtime smoke pending) |
 | 2 | MVP Chat | ○ Pending | 0/5 | 0% |
 | 3 | Production Ready | ○ Pending | 0/4 | 0% |
 | 4 | Demo & Refine | ○ Pending | 0/4 | 0% |
 
-**Overall:** Progress: █░░░░░░░░░ 10% (1/2 Phase 1 plans + 0/15 remaining)
+**Overall:** Progress: ██░░░░░░░░ 13% (2/2 Phase 1 plans + 0/15 remaining)
 
 ## Artifacts Status
 
@@ -38,6 +38,8 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 - [x] [intel/](./intel/) — pre-loaded technology + integration intel
 - [x] Phase 1 plan — 2 plans + summary in `.planning/phases/01-foundation/` (verified by plan-checker: PASS_WITH_NOTES)
 - [x] Phase 1 Plan 01 execution — backend skeleton (2026-05-14, 20 tests green, ruff clean)
+- [x] Phase 1 Plan 02 execution — frontend Next.js 15 scaffold (2026-05-14, type-check + lint + build зелёные)
+- [x] Phase 1 VERIFICATION — 17/18 must-haves verified, 1 PARTIAL (Docker недоступен в sandbox). См. `phases/01-foundation/VERIFICATION.md`
 
 ## Pivot History (Lessons Learned)
 
@@ -55,11 +57,17 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 
 ## Next Steps
 
-1. ~~**Now:** Git init + GitHub репозиторий + push~~ ✓ done
-2. ~~**Next:** `/gsd-plan-phase 1` (запуск plan для Foundation)~~ ✓ done — 2 plans + summary committed
-3. ~~**Now:** `/gsd-execute-phase 1` — параллельное выполнение PLAN-01-backend и PLAN-02-frontend (yolo)~~ backend done
-4. **Next:** Execute Plan 02 — frontend Next.js scaffold
-4. Параллельно: настройка LLM/MCP environment у разработчика
+1. ~~Git init + GitHub репозиторий + push~~ ✓ done
+2. ~~`/gsd-plan-phase 1`~~ ✓ done — 2 plans committed
+3. ~~`/gsd-execute-phase 1`~~ ✓ done — 2 plans executed, 8 commits, verification PARTIAL
+4. **Human runtime smoke** (5 пунктов, ~10 мин):
+   - `docker compose up -d backend` → `curl http://localhost:8010/health` → ожидаем `{"status":"ok","version":"0.1.0","db":"ok"}`
+   - Cold start ≤ 2 сек (`time docker compose restart backend`)
+   - `cd frontend && pnpm dev` → открыть `http://localhost:3010` → AppShell, тёмная тема, IBM Plex, русский, empty state с CTA «Настроить»
+   - Бейдж «Backend: ok 0.1.0» при работающем backend
+   - Ctrl+Enter в textarea срабатывает
+5. Если smoke зелёный → `/gsd:plan-phase 2` (MVP Chat: orchestrator + cards + sessions + settings + trace)
+6. Параллельно: настройка LLM endpoint (Xiaomi MiMo) + MCP Toolkit (порт 6010) у разработчика
 
 ---
 
