@@ -3,7 +3,6 @@
 import uuid
 from datetime import datetime, timedelta
 
-import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
@@ -156,19 +155,17 @@ class TestGetSessionMessages:
         tool_calls_data = json.dumps([{"id": "tc1", "name": "execute_query", "args": {}}])
         cards_data = json.dumps([{"type": "table", "payload": {"columns": [], "rows": [], "total": 0, "meta": {}}}])
 
-        await db.execute(
-            "INSERT INTO messages (id, session_id, role, content, created_at) VALUES (?, ?, 'user', 'Привет', CURRENT_TIMESTAMP)",
-            (msg1_id, sid),
+        user_msg_sql = (
+            "INSERT INTO messages (id, session_id, role, content, created_at) "
+            "VALUES (?, ?, 'user', ?, CURRENT_TIMESTAMP)"
         )
+        await db.execute(user_msg_sql, (msg1_id, sid, "Привет"))
         await db.execute(
             "INSERT INTO messages (id, session_id, role, content, tool_calls, cards, duration_ms, created_at) "
             "VALUES (?, ?, 'assistant', 'Ответ', ?, ?, 500, CURRENT_TIMESTAMP)",
             (msg2_id, sid, tool_calls_data, cards_data),
         )
-        await db.execute(
-            "INSERT INTO messages (id, session_id, role, content, created_at) VALUES (?, ?, 'user', 'Второй', CURRENT_TIMESTAMP)",
-            (msg3_id, sid),
-        )
+        await db.execute(user_msg_sql, (msg3_id, sid, "Второй"))
         await db.commit()
 
         resp = await client.get(f"/sessions/{sid}/messages")

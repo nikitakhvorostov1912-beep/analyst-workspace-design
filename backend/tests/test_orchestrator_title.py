@@ -1,9 +1,8 @@
 """Тесты auto-title генерации (Plan 2.3)."""
 
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import MagicMock
 
 import pytest
-import pytest_asyncio
 
 from app.orchestrator.title import FALLBACK_TITLE, generate_title, heuristic_title
 

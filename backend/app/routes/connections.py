@@ -6,7 +6,6 @@ from typing import Annotated
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException, Path, Request
-from pydantic import ValidationError
 
 from app.clients.mcp import MCPClient
 from app.models import (
