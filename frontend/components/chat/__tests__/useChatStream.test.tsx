@@ -298,4 +298,123 @@ describe("useChatStream", () => {
     // После done streamingStage должен быть null
     expect(result.current.streamingStage).toBeNull();
   });
+
+  // --- Plan 03-02: confirm_required flow ---
+
+  it("confirm_required event sets pendingConfirm state", async () => {
+    const confirmPayload = {
+      tool_call_id: "call-test-123",
+      name: "execute_code",
+      args: { code: "Удалить()" },
+      reason: "keyword: Удалить",
+    };
+
+    // Stream с confirm_required — стрим НЕ закрывается (loop ждёт)
+    async function* makeConfirmStream(): AsyncIterable<SSEEvent> {
+      yield {
+        event: "confirm_required" as "error", // cast чтобы TypeScript не ругался на union
+        data: confirmPayload as unknown as { message: string; code: "internal_error" },
+      };
+      // Стрим приостанавливается — больше событий нет пока не ответим
+    }
+
+    vi.mocked(fetchChat).mockReturnValue(makeConfirmStream());
+
+    const { result } = renderHook(() =>
+      useChatStream({ sessionId: "s1", channelId: "ch1" }),
+    );
+
+    await act(async () => {
+      await result.current.send("вопрос");
+    });
+
+    // pendingConfirm должен быть установлен
+    expect(result.current.pendingConfirm).not.toBeNull();
+    expect(result.current.pendingConfirm?.tool_call_id).toBe("call-test-123");
+    expect(result.current.pendingConfirm?.reason).toBe("keyword: Удалить");
+  });
+
+  it("resolveConfirm sends POST to /chat/confirm with approved=true", async () => {
+    const fetchSpy = vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      new Response(null, { status: 204 }),
+    );
+
+    const confirmPayload = {
+      tool_call_id: "call-abc",
+      name: "execute_code",
+      args: { code: "Удалить()" },
+      reason: "keyword: Удалить",
+    };
+
+    async function* makeConfirmStream(): AsyncIterable<SSEEvent> {
+      yield {
+        event: "confirm_required" as "error",
+        data: confirmPayload as unknown as { message: string; code: "internal_error" },
+      };
+    }
+
+    vi.mocked(fetchChat).mockReturnValue(makeConfirmStream());
+
+    const { result } = renderHook(() =>
+      useChatStream({ sessionId: "s1", channelId: "ch1" }),
+    );
+
+    await act(async () => {
+      await result.current.send("вопрос");
+    });
+
+    await act(async () => {
+      await result.current.resolveConfirm(true);
+    });
+
+    expect(fetchSpy).toHaveBeenCalledWith(
+      expect.stringContaining("/chat/confirm"),
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ tool_call_id: "call-abc", approved: true }),
+      }),
+    );
+
+    fetchSpy.mockRestore();
+  });
+
+  it("resolveConfirm clears pendingConfirm after call", async () => {
+    vi.spyOn(global, "fetch").mockResolvedValueOnce(
+      new Response(null, { status: 204 }),
+    );
+
+    const confirmPayload = {
+      tool_call_id: "call-xyz",
+      name: "execute_code",
+      args: { code: "Удалить()" },
+      reason: "keyword: Удалить",
+    };
+
+    async function* makeConfirmStream(): AsyncIterable<SSEEvent> {
+      yield {
+        event: "confirm_required" as "error",
+        data: confirmPayload as unknown as { message: string; code: "internal_error" },
+      };
+    }
+
+    vi.mocked(fetchChat).mockReturnValue(makeConfirmStream());
+
+    const { result } = renderHook(() =>
+      useChatStream({ sessionId: "s1", channelId: "ch1" }),
+    );
+
+    await act(async () => {
+      await result.current.send("вопрос");
+    });
+
+    expect(result.current.pendingConfirm).not.toBeNull();
+
+    await act(async () => {
+      await result.current.resolveConfirm(false);
+    });
+
+    expect(result.current.pendingConfirm).toBeNull();
+
+    vi.restoreAllMocks();
+  });
 });
