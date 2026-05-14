@@ -14,20 +14,20 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | Aspect | Value |
 |--------|-------|
 | **Current Milestone** | M1 — Foundation |
-| **Current Phase** | Phase 1 — Foundation (planned, ready to execute) |
+| **Current Phase** | Phase 1 — Foundation (Plan 01 complete, Plan 02 pending) |
 | **Mode** | YOLO + coarse granularity + parallel execution |
-| **Last Update** | 2026-05-13 |
+| **Last Update** | 2026-05-14 |
 
 ## Phase Progress
 
 | # | Phase | Status | Plans | Progress |
 |---|-------|--------|-------|----------|
-| 1 | Foundation | ◆ Planned | 0/2 executed (2 planned) | 0% |
+| 1 | Foundation | ▶ In Progress | 1/2 executed (2 planned) | 50% |
 | 2 | MVP Chat | ○ Pending | 0/5 | 0% |
 | 3 | Production Ready | ○ Pending | 0/4 | 0% |
 | 4 | Demo & Refine | ○ Pending | 0/4 | 0% |
 
-**Overall:** Progress: ░░░░░░░░░░ 0%
+**Overall:** Progress: █░░░░░░░░░ 10% (1/2 Phase 1 plans + 0/15 remaining)
 
 ## Artifacts Status
 
@@ -37,7 +37,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 - [x] [config.json](./config.json) — workflow preferences
 - [x] [intel/](./intel/) — pre-loaded technology + integration intel
 - [x] Phase 1 plan — 2 plans + summary in `.planning/phases/01-foundation/` (verified by plan-checker: PASS_WITH_NOTES)
-- [ ] Phase 1 execution (run `/gsd-execute-phase 1`)
+- [x] Phase 1 Plan 01 execution — backend skeleton (2026-05-14, 20 tests green, ruff clean)
 
 ## Pivot History (Lessons Learned)
 
@@ -57,7 +57,8 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 
 1. ~~**Now:** Git init + GitHub репозиторий + push~~ ✓ done
 2. ~~**Next:** `/gsd-plan-phase 1` (запуск plan для Foundation)~~ ✓ done — 2 plans + summary committed
-3. **Now:** `/gsd-execute-phase 1` — параллельное выполнение PLAN-01-backend и PLAN-02-frontend (yolo)
+3. ~~**Now:** `/gsd-execute-phase 1` — параллельное выполнение PLAN-01-backend и PLAN-02-frontend (yolo)~~ backend done
+4. **Next:** Execute Plan 02 — frontend Next.js scaffold
 4. Параллельно: настройка LLM/MCP environment у разработчика
 
 ---
