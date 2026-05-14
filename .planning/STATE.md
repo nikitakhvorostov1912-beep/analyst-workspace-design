@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-05-14T09:44:33.489Z"
+last_updated: "2026-05-14T12:09:08.288Z"
 progress:
   total_phases: 4
   completed_phases: 2
-  total_plans: 7
-  completed_plans: 9
+  total_plans: 11
+  completed_plans: 11
   percent: 100
 ---
 
@@ -39,10 +39,10 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 |---|-------|--------|-------|----------|
 | 1 | Foundation | ✓ Complete | 2/2 executed | 100% |
 | 2 | MVP Chat | ✓ Complete | 5/5 executed | 100% |
-| 3 | Production Ready | ◆ Planned | 0/4 executed | 0% |
+| 3 | Production Ready | ◆ In Progress | 1/4 executed | 25% |
 | 4 | Demo & Refine | ○ Pending | 0/4 | 0% |
 
-**Overall:** Progress: ████░░░░░░ 17% (Phase 1 закрыта; 1/13 планов M2-M4)
+**Overall:** Progress: █████░░░░░ 24% (Phase 1+2 закрыты; Phase 3 1/4 планов выполнен)
 
 ## Artifacts Status
 
@@ -89,7 +89,9 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 8. ~~Wave 2 — 02-03 sessions, 02-04 channel selector~~ ✓ done — sessions + channel selector выполнены, 122 backend + 37 frontend тестов, build зелёный
 9. ~~Wave 3 — 02-05 trace panel~~ ✓ done — JsonTree + ToolTrace выполнены, 56 frontend тестов, build зелёный
 10. ~~Phase 2 VERIFICATION + ruff fix + runtime smoke~~ ✓ done — **PASS**: 122 pytest + 56 vitest, ruff clean, type-check+lint+build green, 8 runtime endpoints проверены
-11. **Now:** `/gsd:plan-phase 3` (Production Ready: error states, анонимизация, SEC-01..04, DEVX-01..04, TRACE-03 Copy as curl, LogCard cursor-fetch endpoint)
+11. ~~`/gsd:plan-phase 3`~~ ✓ done — 4 планов, план готов к execute
+12. ~~Phase 3 Plan 01: Error UX (STATE-02, STATE-03)~~ ✓ done — Toaster + ConnectionStatusBanner + StreamingIndicator + error routing, 136 backend + 76 frontend тестов, f956ab5 + 534ecda. SUMMARY: `phases/03-production-ready/03-01-SUMMARY.md`
+13. **Now:** Phase 3 Plan 02 (confirm-required + dangerous keywords)
 12. **Pending:** настройка реального LLM endpoint (Xiaomi MiMo) + MCP Toolkit (порт 6010) у разработчика — для финального smoke 3 acceptance prompts с живой 1С
 13. **Pending визуальный smoke в браузере** (когда удобно): открыть `http://localhost:3010` глазами — AppShell, IBM Plex, ChannelSelector dropdown, Sidebar groups
 
