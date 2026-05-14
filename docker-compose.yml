@@ -1,0 +1,11 @@
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8010:8010"
+    volumes:
+      - ./data:/data
+    env_file:
+      - path: ./backend/.env
+        required: false
+    restart: unless-stopped
