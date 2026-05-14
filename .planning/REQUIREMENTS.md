@@ -47,6 +47,21 @@
 - [ ] **STATE-02**: MCP disconnected: красный баннер вверху чата + кнопка «Повторить»; input disabled до восстановления
 - [ ] **STATE-03**: LLM error (rate limit / invalid key / etc): readable error, не stack trace; respect `Retry-After` header
 
+### Security (Phase 3)
+
+- [ ] **SEC-01**: Confirm dialog перед `execute_code` с dangerous keywords (Удалить, Записать, etc)
+- [ ] **SEC-02**: CSP headers (script-src, connect-src)
+- [ ] **SEC-03**: Pydantic strict validation на всех endpoints
+- [ ] **SEC-04**: CORS lockdown — только configurable list origins
+
+### DevX (Phase 3)
+
+- [ ] **DEVX-01**: Unit tests orchestrator/MCP client/LLM client (coverage ≥80% backend)
+- [ ] **DEVX-02**: E2E Playwright tests для 3 ключевых flow
+- [ ] **DEVX-03**: GitHub Actions CI: lint + test + build on PR
+- [ ] **DEVX-04**: docker-compose.yml для one-command setup + README post-MVP
+- [ ] **DEVX-05**: USER.md гид для новых аналитиков
+
 ## v2 Requirements
 
 Отложено до post-MVP. Tracked, но не в текущем roadmap.
@@ -70,21 +85,6 @@
 - **PROD-03**: @-mentions объектов 1С: `@Документ.ОПП` — подсказчик из metadata cache
 - **PROD-04**: Cmd-K — поиск по сессиям и messages
 - **PROD-05**: Экспорт ответа: Copy markdown / CSV / PDF
-
-### Security
-
-- **SEC-01**: Confirm dialog перед `execute_code` с dangerous keywords (Удалить, Записать, etc)
-- **SEC-02**: CSP headers (script-src, connect-src)
-- **SEC-03**: Pydantic strict validation на всех endpoints
-- **SEC-04**: CORS lockdown — только configurable list origins
-
-### DevX
-
-- **DEVX-01**: Unit tests orchestrator/MCP client/LLM client (coverage ≥80% backend)
-- **DEVX-02**: E2E Playwright tests для 3 ключевых flow
-- **DEVX-03**: GitHub Actions CI: lint + test + build on PR
-- **DEVX-04**: docker-compose.yml для one-command setup
-- **DEVX-05**: USER.md гид для новых аналитиков
 
 ## Out of Scope
 
@@ -134,10 +134,19 @@
 | STATE-01 | Phase 1 | Pending |
 | STATE-02 | Phase 3 | Pending |
 | STATE-03 | Phase 3 | Pending |
+| SEC-01 | Phase 3 | Pending |
+| SEC-02 | Phase 3 | Pending |
+| SEC-03 | Phase 3 | Pending |
+| SEC-04 | Phase 3 | Pending |
+| DEVX-01 | Phase 3 | Pending |
+| DEVX-02 | Phase 3 | Pending |
+| DEVX-03 | Phase 3 | Pending |
+| DEVX-04 | Phase 3 | Pending |
+| DEVX-05 | Phase 3 | Pending |
 
 **Coverage:**
-- v1 requirements: 22 total
-- Mapped to phases: 22
+- v1 requirements: 31 total (22 функциональных + 9 нефункциональных SEC/DEVX перемещены из v2 для Phase 3)
+- Mapped to phases: 31
 - Unmapped: 0 ✓
 
 ---
