@@ -1,5 +1,5 @@
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { render, screen, fireEvent, act } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { ToolTrace } from "@/components/chat/ToolTrace";
 import type { ToolCallRecord } from "@/lib/types";
 
@@ -80,5 +80,87 @@ describe("ToolTrace", () => {
     );
     render(<ToolTrace toolCalls={tcs} />);
     expect(screen.getByText(/5 инструментов/)).toBeInTheDocument();
+  });
+});
+
+describe("ToolTrace copy-curl", () => {
+  let writeTextMock: ReturnType<typeof vi.fn>;
+
+  beforeEach(() => {
+    writeTextMock = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, "clipboard", {
+      value: { writeText: writeTextMock },
+      configurable: true,
+      writable: true,
+    });
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("test_tool_trace_renders_copy_curl_button: expanded mode показывает кнопку Скопировать как curl", () => {
+    render(
+      <ToolTrace
+        toolCalls={[makeTC()]}
+        mcpEndpoint="http://localhost:6010/mcp"
+      />
+    );
+    // Открываем trace
+    fireEvent.click(screen.getByTestId("trace-toggle"));
+    expect(
+      screen.getByRole("button", { name: /Скопировать как curl/i })
+    ).toBeInTheDocument();
+  });
+
+  it("test_tool_trace_copy_curl_click_calls_clipboard_and_toast: click → clipboard.writeText вызван", async () => {
+    // Мокаем publishToast
+    const toastMock = vi.fn();
+    vi.doMock("@/lib/toast", () => ({ publishToast: toastMock }));
+
+    render(
+      <ToolTrace
+        toolCalls={[makeTC({ name: "execute_query", args: { q: "SELECT 1" } })]}
+        mcpEndpoint="http://localhost:6010/mcp"
+      />
+    );
+    fireEvent.click(screen.getByTestId("trace-toggle"));
+
+    const btn = screen.getByRole("button", { name: /Скопировать как curl/i });
+    await act(async () => {
+      fireEvent.click(btn);
+    });
+
+    expect(writeTextMock).toHaveBeenCalledTimes(1);
+    const curlCmd = writeTextMock.mock.calls[0][0] as string;
+    expect(curlCmd).toContain("curl -X POST");
+    expect(curlCmd).toContain("execute_query");
+  });
+
+  it("test_tool_trace_copy_curl_failure_shows_error_toast: writeText reject → publishToast error", async () => {
+    writeTextMock.mockRejectedValue(new Error("NotAllowed"));
+
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+
+    render(
+      <ToolTrace
+        toolCalls={[makeTC()]}
+        mcpEndpoint="http://localhost:6010/mcp"
+      />
+    );
+    fireEvent.click(screen.getByTestId("trace-toggle"));
+
+    const btn = screen.getByRole("button", { name: /Скопировать как curl/i });
+    await act(async () => {
+      fireEvent.click(btn);
+    });
+
+    // publishToast вызывается через window.dispatchEvent
+    const toastEvents = dispatchSpy.mock.calls.filter(
+      ([e]) => e instanceof CustomEvent && (e as CustomEvent).type === "app:toast"
+    );
+    expect(toastEvents.length).toBeGreaterThan(0);
+    const lastEvent = toastEvents[toastEvents.length - 1]![0] as CustomEvent;
+    expect(lastEvent.detail.type).toBe("error");
   });
 });

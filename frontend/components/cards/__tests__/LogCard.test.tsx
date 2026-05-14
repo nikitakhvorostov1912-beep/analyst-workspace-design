@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import { LogCard } from "../LogCard";
 import type { LogCardPayload } from "@/lib/types";
 
@@ -79,5 +79,56 @@ describe("LogCard", () => {
   it("пустой список entries показывает сообщение", () => {
     render(<LogCard payload={makePayload({ entries: [] })} />);
     expect(screen.getByText("Записи отсутствуют")).toBeTruthy();
+  });
+});
+
+describe("LogCard load-more (wired)", () => {
+  beforeEach(() => {
+    vi.resetAllMocks();
+  });
+
+  it("test_log_card_load_more_calls_api_and_appends_entries: клик загружает и аппендит новые записи, кнопка исчезает при null cursor", async () => {
+    const newEntry = { time: "2026-05-14T11:00:00Z", level: "Info" as const, event: "new-event-e2" };
+    const onLoadMore = vi.fn().mockResolvedValue({
+      entries: [newEntry],
+      next_cursor: null,
+    });
+
+    const payload = makePayload({ next_cursor: "cursor_abc" });
+    render(<LogCard payload={payload} onLoadMore={onLoadMore} />);
+
+    const btn = screen.getByText("Загрузить ещё").closest("button")!;
+    await act(async () => {
+      fireEvent.click(btn);
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText("new-event-e2")).toBeTruthy();
+    });
+    // кнопка должна исчезнуть когда next_cursor = null
+    await waitFor(() => {
+      expect(screen.queryByText("Загрузить ещё")).toBeNull();
+    });
+  });
+
+  it("test_log_card_load_more_api_failure_shows_error_toast: ошибка load-more → dispatch toast error", async () => {
+    const onLoadMore = vi.fn().mockRejectedValue(new Error("Network fail"));
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+
+    const payload = makePayload({ next_cursor: "cursor_xyz" });
+    render(<LogCard payload={payload} onLoadMore={onLoadMore} />);
+
+    const btn = screen.getByText("Загрузить ещё").closest("button")!;
+    await act(async () => {
+      fireEvent.click(btn);
+    });
+
+    // Ожидаем что publishToast(error) был вызван
+    const toastEvents = dispatchSpy.mock.calls.filter(
+      ([e]) => e instanceof CustomEvent && (e as CustomEvent).type === "app:toast"
+    );
+    expect(toastEvents.length).toBeGreaterThan(0);
+    const evt = toastEvents[0]![0] as CustomEvent;
+    expect(evt.detail.type).toBe("error");
   });
 });
