@@ -46,6 +46,14 @@ export function setMCPConnections(conns: MCPConnection[]): void {
   ls.setItem(KEY_MCP, JSON.stringify(conns));
 }
 
+/**
+ * Синхронизирует localStorage-кеш после успешного backend CRUD.
+ * Используется как offline-fallback: если backend недоступен, показываем последний известный список.
+ */
+export function syncMCPConnections(conns: MCPConnection[]): void {
+  setMCPConnections(conns);
+}
+
 export function getActiveChannelId(): string | null {
   const ls = safeLocalStorage();
   if (!ls) return null;

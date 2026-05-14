@@ -11,7 +11,7 @@ import {
   fetchSessionDetail,
   fetchSessionMessages,
 } from "@/lib/api";
-import { getActiveChannelId } from "@/lib/storage";
+import { getActiveChannelId, setActiveChannelId } from "@/lib/storage";
 import type { ChatMessage, SessionDetail } from "@/lib/types";
 
 function messageRowToChat(row: {
@@ -43,6 +43,7 @@ export default function SessionPage() {
   const [initialMessages, setInitialMessages] = useState<ChatMessage[]>([]);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
+  const [activeChannelId, setLocalActiveChannelId] = useState<string | null>(null);
 
   const store = useSessionsStore();
 
@@ -50,6 +51,9 @@ export default function SessionPage() {
   const channelId = detail?.channel_id ?? getActiveChannelId() ?? "default";
 
   useEffect(() => {
+    // Инициализируем activeChannelId из localStorage
+    setLocalActiveChannelId(getActiveChannelId());
+
     async function load() {
       try {
         // Загружаем данные сессии параллельно
@@ -66,6 +70,7 @@ export default function SessionPage() {
         }
 
         setDetail(sessionDetail);
+        setLocalActiveChannelId(sessionDetail.channel_id ?? getActiveChannelId());
         setInitialMessages(messages.map(messageRowToChat));
         setReady(true);
       } catch {
@@ -77,6 +82,18 @@ export default function SessionPage() {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
+
+  /**
+   * При переключении канала в /sessions/[id]:
+   * Сохраняем новый activeChannelId и редиректим на /
+   * (CONTEXT.md: «Текущий чат при switch — обнуляется»)
+   */
+  function handleChannelChange(newId: string) {
+    setActiveChannelId(newId);
+    setLocalActiveChannelId(newId);
+    // Redirect на главную — текущая сессия привязана к старому каналу
+    router.push("/");
+  }
 
   const { messages, isStreaming, error, send } = useChatStream({
     sessionId: id,
@@ -131,6 +148,10 @@ export default function SessionPage() {
       activeId={id}
       onCreateNew={handleCreateNew}
       onDeleteSession={handleDelete}
+      headerProps={{
+        activeChannelId: activeChannelId ?? detail?.channel_id ?? null,
+        onChannelChange: handleChannelChange,
+      }}
       bottom={
         <ChatInput
           onSubmit={send}

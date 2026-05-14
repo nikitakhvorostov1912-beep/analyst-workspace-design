@@ -79,6 +79,8 @@ export type MCPConnection = {
   endpoint: string;        // "http://localhost:6010/mcp"
   channel: string | null;
   anon_enabled: boolean;
+  last_seen_at?: string | null;   // ISO timestamp последнего успешного пинга
+  created_at?: string;
 };
 
 // Card discriminated union — для рендеринга inline-карточек в AssistantMessage

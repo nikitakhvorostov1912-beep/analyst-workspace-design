@@ -8,7 +8,7 @@ import { Thread } from "@/components/chat/Thread";
 import { Button } from "@/components/ui/button";
 import { fetchHealth } from "@/lib/api";
 import { useSessionsStore } from "@/lib/sessions-store";
-import { getMCPConnections, getLLMConfig, getActiveChannelId } from "@/lib/storage";
+import { getMCPConnections, getLLMConfig, getActiveChannelId, setActiveChannelId } from "@/lib/storage";
 import type { HealthResponse } from "@/lib/types";
 
 type BackendStatus = "loading" | "ok" | "unavailable";
@@ -51,21 +51,29 @@ export default function HomePage() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
   const [hasConfig, setHasConfig] = useState(false);
+  const [activeChannelId, setLocalActiveChannelId] = useState<string | null>(null);
   const store = useSessionsStore();
 
   useEffect(() => {
     const conns = getMCPConnections();
     const llm = getLLMConfig();
-    setHasConfig(conns.length > 0 && !!llm);
+    setHasConfig(conns.length > 0 || !!llm);
+    setLocalActiveChannelId(getActiveChannelId());
     setReady(true);
   }, []);
 
   useEffect(() => {
-    if (!ready || !hasConfig) return;
-    // Загружаем список сессий
+    if (!ready) return;
     void store.refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, hasConfig]);
+  }, [ready]);
+
+  function handleChannelChange(newId: string) {
+    setActiveChannelId(newId);
+    setLocalActiveChannelId(newId);
+    // Обновляем список сессий для нового канала
+    void store.refresh();
+  }
 
   // Skeleton пока не загрузились данные из localStorage
   if (!ready) {
@@ -120,6 +128,10 @@ export default function HomePage() {
         activeId={null}
         onCreateNew={handleCreateNew}
         onDeleteSession={handleDelete}
+        headerProps={{
+          activeChannelId,
+          onChannelChange: handleChannelChange,
+        }}
       >
         <div className="h-full flex flex-col items-center justify-center gap-4 text-center px-6">
           <p className="text-[var(--fg-muted)] text-sm">

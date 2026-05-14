@@ -1,6 +1,7 @@
 import type {
   ChatRequest,
   HealthResponse,
+  MCPConnection,
   MCPPingResponse,
   MessageRow,
   SessionDetail,
@@ -103,6 +104,88 @@ export async function* fetchChat(
   }
 
   yield* parseSSEStream(response.body);
+}
+
+// --- Connections API (Plan 02-04) ---
+
+/**
+ * Загружает список MCP-подключений с backend.
+ */
+export async function fetchConnections(): Promise<MCPConnection[]> {
+  const response = await fetch(`${BACKEND}/connections`);
+  if (!response.ok) {
+    throw new Error(`Ошибка загрузки подключений: ${response.status}`);
+  }
+  const data = (await response.json()) as { connections: MCPConnection[] };
+  return data.connections;
+}
+
+/**
+ * Создаёт новое MCP-подключение.
+ */
+export async function createConnection(body: {
+  name: string;
+  endpoint: string;
+  channel?: string;
+  anon_enabled?: boolean;
+}): Promise<MCPConnection> {
+  const response = await fetch(`${BACKEND}/connections`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(`Ошибка создания подключения: ${response.status}`);
+  }
+  return response.json() as Promise<MCPConnection>;
+}
+
+/**
+ * Обновляет поля MCP-подключения (partial update).
+ */
+export async function updateConnection(
+  id: string,
+  patch: Partial<{ name: string; endpoint: string; channel: string; anon_enabled: boolean }>,
+): Promise<MCPConnection> {
+  const response = await fetch(`${BACKEND}/connections/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!response.ok) {
+    throw new Error(`Ошибка обновления подключения: ${response.status}`);
+  }
+  return response.json() as Promise<MCPConnection>;
+}
+
+/**
+ * Удаляет MCP-подключение.
+ */
+export async function deleteConnection(id: string): Promise<void> {
+  const response = await fetch(`${BACKEND}/connections/${id}`, {
+    method: "DELETE",
+  });
+  if (!response.ok && response.status !== 204) {
+    throw new Error(`Ошибка удаления подключения: ${response.status}`);
+  }
+}
+
+/**
+ * Пингует MCP-подключение по его id в backend.
+ * Обновляет last_seen_at при успехе.
+ */
+export async function pingConnection(
+  id: string,
+  signal?: AbortSignal,
+): Promise<MCPPingResponse> {
+  const response = await fetch(`${BACKEND}/connections/${id}/ping`, {
+    method: "POST",
+    signal,
+  });
+  if (!response.ok) {
+    throw new Error(`MCP ping вернул ${response.status}`);
+  }
+  return response.json() as Promise<MCPPingResponse>;
 }
 
 // --- Sessions API (Plan 02-03) ---

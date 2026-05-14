@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Header } from "./Header";
+import type { HeaderProps } from "./Header";
 import { Sidebar } from "./Sidebar";
 import type { SessionsGrouped } from "@/lib/types";
 
@@ -10,7 +11,13 @@ interface AppShellProps {
   activeId?: string | null;
   onCreateNew?: () => void;
   onDeleteSession?: (id: string) => void;
+  headerProps?: HeaderProps;
 }
+
+const DEFAULT_HEADER_PROPS: HeaderProps = {
+  activeChannelId: null,
+  onChannelChange: () => undefined,
+};
 
 export function AppShell({
   children,
@@ -19,11 +26,12 @@ export function AppShell({
   activeId,
   onCreateNew,
   onDeleteSession,
+  headerProps = DEFAULT_HEADER_PROPS,
 }: AppShellProps) {
   return (
     <div className="grid h-screen" style={{ gridTemplateColumns: "260px 1fr", gridTemplateRows: "56px 1fr auto" }}>
       {/* Header — занимает обе колонки */}
-      <Header />
+      <Header {...headerProps} />
 
       {/* Sidebar */}
       <Sidebar
