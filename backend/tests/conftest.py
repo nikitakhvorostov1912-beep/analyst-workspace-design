@@ -35,6 +35,17 @@ async def client():
             yield ac
 
 
+@pytest.fixture(autouse=True)
+def _reset_pending():
+    """Сбрасываем safety._pending между тестами."""
+    yield
+    try:
+        from app.orchestrator.safety import _pending
+        _pending.clear()
+    except (ImportError, AttributeError):
+        pass
+
+
 @pytest_asyncio.fixture
 async def db():
     """Отдельное aiosqlite соединение для тестов БД."""

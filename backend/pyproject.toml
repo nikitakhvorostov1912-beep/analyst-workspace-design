@@ -34,6 +34,19 @@ include = ["app*"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
+addopts = "--cov=app/orchestrator --cov=app/clients --cov-fail-under=80 --cov-report=term-missing -ra"
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/main.py", "app/storage/db.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
+precision = 1
 
 [tool.ruff]
 line-length = 120
