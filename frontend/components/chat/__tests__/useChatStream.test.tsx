@@ -9,7 +9,7 @@ vi.mock("@/lib/api", () => ({
   postChatConfirm: vi.fn().mockResolvedValue(undefined),
 }));
 
-// Мокаем getLLMConfig
+// Мокаем getLLMConfig + getAnonEnabled (анонимизация добавлена в 04-01)
 vi.mock("@/lib/storage", () => ({
   getLLMConfig: () => ({
     endpoint: "http://localhost:1234/v1",
@@ -17,6 +17,8 @@ vi.mock("@/lib/storage", () => ({
     model: "test-model",
     temperature: 0.3,
   }),
+  getAnonEnabled: () => false,
+  setAnonEnabled: vi.fn(),
 }));
 
 // Мокаем publishToast
