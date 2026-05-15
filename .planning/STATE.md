@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-05-14T13:27:25.549Z"
+last_updated: "2026-05-15T13:38:00.000Z"
 progress:
   total_phases: 4
   completed_phases: 3
-  total_plans: 11
-  completed_plans: 13
+  total_plans: 15
+  completed_plans: 17
   percent: 100
 ---
 
@@ -28,11 +28,11 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | Aspect | Value |
 |--------|-------|
 | **Current Milestone** | M1 — Foundation |
-| **Current Phase** | Phase 4 — Demo & Refine (planned, готов к execute) |
+| **Current Phase** | Phase 4 — Demo & Refine (in progress) |
 | **Previous Phase 3** | Production Ready ✓ PASS |
 | **Previous Phase** | Phase 2 — MVP Chat ✓ PASS |
 | **Mode** | YOLO + coarse granularity + parallel execution |
-| **Last Update** | 2026-05-14 (Phase 3 Plan 04 завершён: TRACE-03, DEVX-04/05, CARD-03 load-more закрыты) |
+| **Last Update** | 2026-05-15 (Phase 4 Plan 02 завершён: CARD-04..06 — MetricCard/ReferencesCard/CodeCard + prismjs BSL grammar) |
 
 ## Phase Progress
 
@@ -41,9 +41,9 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | 1 | Foundation | ✓ Complete | 2/2 executed | 100% |
 | 2 | MVP Chat | ✓ Complete | 5/5 executed | 100% |
 | 3 | Production Ready | ✓ Complete | 4/4 executed | 100% |
-| 4 | Demo & Refine | ◆ Planned | 0/4 executed | 0% |
+| 4 | Demo & Refine | ◈ In Progress | 2/4 executed | 50% |
 
-**Overall:** Progress: █████████░ 92% (Phase 1+2+3 закрыты; Phase 4 — финальный)
+**Overall:** Progress: ██████████ 97% (Phase 1+2+3 закрыты; Phase 4 Plan 2/4 — CARD-04..06 ✓)
 
 ## Artifacts Status
 
@@ -67,6 +67,8 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 - [x] Phase 3 Plan 03 execution — DEVX-01/02/03: coverage gates 92.8% (gate ≥80%), 9 Playwright E2E тестов с route() mock, GitHub Actions 3-job CI. 200 backend + 88 frontend тестов, playwright 9 тестов. 3 commits (`7c16e0d`, `938ad79`, `5daab40`). SUMMARY: `phases/03-production-ready/03-03-SUMMARY.md`
 - [x] Phase 3 Plan 04 execution — TRACE-03 Copy as curl, DEVX-04/05 (README+USER.md+API.md+CURL.md+ARCHITECTURE), CARD-03 LogCard cursor-fetch backend (migration v3, card_states table). 215 backend + 97 frontend тестов. 6 commits. SUMMARY: `phases/03-production-ready/03-04-SUMMARY.md`
 - [x] Phase 3 VERIFICATION — **PASS** (13/13 VERIFIED). Initial 2 gaps закрыты: ruff clean, pytest 215/215 coverage 92.74%, frontend Dockerfile + docker-compose frontend service. Bonus: устранена регрессия test_migration_schema_version (v2→v3 после 03-04). См. `phases/03-production-ready/VERIFICATION.md`. **Phase 3 COMPLETE.**
+- [x] Phase 4 Plan 01 execution — ANON-01..03: анонимизация end-to-end. Toggle в Header + X-Anon-Enabled forwarding + visual amber highlight + Раскрыть button. Migration v4 (anon_tokens column). 23 backend + 25 frontend тестов, log_cards 91.8% coverage, type-check+lint green. 2 commits (`0096834`, `4f3dab2`). SUMMARY: `phases/04-demo-refine/04-01-SUMMARY.md`
+- [x] Phase 4 Plan 02 execution — CARD-04..06: MetricCard (value+sparkline+delta) + ReferencesCard (groups by usage_kind) + CodeCard (prismjs BSL/SQL/JSON highlight). 53 backend + 33 frontend тестов, cards.py 87.8% coverage, pnpm build green. 2 commits (`c5c984d`, `d8b7bbd`). SUMMARY: `phases/04-demo-refine/04-02-SUMMARY.md`
 
 ## Pivot History (Lessons Learned)
 
