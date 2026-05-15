@@ -3,20 +3,21 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useChatStream } from "../useChatStream";
 import type { SSEEvent } from "@/lib/types";
 
-// Мокаем fetchChat и postChatConfirm из api.ts
+// Мокаем fetchChat, postChatConfirm и fetchLLMConfig из api.ts
 vi.mock("@/lib/api", () => ({
   fetchChat: vi.fn(),
   postChatConfirm: vi.fn().mockResolvedValue(undefined),
-}));
-
-// Мокаем getLLMConfig + getAnonEnabled (анонимизация добавлена в 04-01)
-vi.mock("@/lib/storage", () => ({
-  getLLMConfig: () => ({
+  // fetchLLMConfig мокируем: useChatStream вызывает его перед каждым fetchChat (Plan 5.4 UX-04)
+  fetchLLMConfig: vi.fn().mockResolvedValue({
+    id: "default",
     endpoint: "http://localhost:1234/v1",
-    api_key: "sk-test",
     model: "test-model",
     temperature: 0.3,
   }),
+}));
+
+// Мокаем getAnonEnabled из storage (getLLMConfig больше не используется в useChatStream, Plan 5.4)
+vi.mock("@/lib/storage", () => ({
   getAnonEnabled: () => false,
   setAnonEnabled: vi.fn(),
 }));
