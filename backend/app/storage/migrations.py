@@ -74,11 +74,51 @@ MIGRATIONS_V3 = [
     """,
 ]
 
-CURRENT_VERSION = 4
+CURRENT_VERSION = 5
 
 # Миграция v4: расширение card_states — добавление колонки anon_tokens JSON
 MIGRATIONS_V4 = [
     "ALTER TABLE card_states ADD COLUMN anon_tokens TEXT",
+]
+
+# Миграция v5: FTS5 виртуальная таблица + триггеры + metadata_cache
+MIGRATIONS_V5 = [
+    """
+    CREATE VIRTUAL TABLE IF NOT EXISTS messages_fts USING fts5(
+        content,
+        session_id UNINDEXED,
+        message_id UNINDEXED,
+        tokenize = 'porter unicode61'
+    )
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS messages_ai AFTER INSERT ON messages BEGIN
+        INSERT INTO messages_fts(rowid, content, session_id, message_id)
+        VALUES (new.rowid, COALESCE(new.content, ''), new.session_id, new.id);
+    END
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS messages_au AFTER UPDATE OF content ON messages BEGIN
+        UPDATE messages_fts SET content = COALESCE(new.content, '') WHERE rowid = old.rowid;
+    END
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS messages_ad AFTER DELETE ON messages BEGIN
+        DELETE FROM messages_fts WHERE rowid = old.rowid;
+    END
+    """,
+    """
+    CREATE TABLE IF NOT EXISTS metadata_cache (
+        channel_id TEXT NOT NULL,
+        object_path TEXT NOT NULL,
+        object_type TEXT NOT NULL,
+        name TEXT NOT NULL,
+        presentation TEXT,
+        fetched_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (channel_id, object_path)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_metadata_cache_channel_name ON metadata_cache(channel_id, name)",
 ]
 
 
@@ -131,5 +171,20 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
             (4,),
+        )
+        await db.commit()
+
+    if current < 5:
+        # FTS5 virtual table + 3 triggers + metadata_cache (v5)
+        for stmt in MIGRATIONS_V5:
+            await db.execute(stmt)
+        # Backfill: перенос существующих сообщений в FTS5 (один раз)
+        await db.execute(
+            "INSERT INTO messages_fts(rowid, content, session_id, message_id) "
+            "SELECT rowid, COALESCE(content, ''), session_id, id FROM messages"
+        )
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (5,),
         )
         await db.commit()

@@ -396,3 +396,24 @@ async def get_card_anon_tokens(
         return json.loads(rows[0][0])
     except (json.JSONDecodeError, TypeError):
         return []
+
+
+# --- FTS5 / metadata_cache helpers (Plan 04-03) ---
+
+
+async def count_fts_rows(db: aiosqlite.Connection) -> int:
+    """Возвращает количество строк в messages_fts virtual table."""
+    rows = await db.execute_fetchall("SELECT COUNT(*) FROM messages_fts")
+    return int(rows[0][0]) if rows else 0
+
+
+async def count_metadata_cache_rows(
+    db: aiosqlite.Connection,
+    channel_id: str,
+) -> int:
+    """Возвращает количество записей в metadata_cache для channel_id."""
+    rows = await db.execute_fetchall(
+        "SELECT COUNT(*) FROM metadata_cache WHERE channel_id = ?",
+        (channel_id,),
+    )
+    return int(rows[0][0]) if rows else 0

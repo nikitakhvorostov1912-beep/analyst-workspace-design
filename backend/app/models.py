@@ -244,3 +244,53 @@ class DeanonymizeResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     mapping: dict[str, str]
+
+
+# --- Search models (Plan 04-03) ---
+
+
+class SearchResultItem(BaseModel):
+    """Один результат полнотекстового поиска."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    session_id: str
+    session_title: str | None
+    message_id: str
+    snippet: str
+    created_at: str
+    channel_id: str
+
+
+class SearchResponse(BaseModel):
+    """Ответ GET /search."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    results: list[SearchResultItem]
+    total: int
+    query: str
+
+
+# --- Metadata suggest models (Plan 04-03) ---
+
+
+class MetadataSuggestItem(BaseModel):
+    """Один объект метаданных из кеша."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    object_type: str
+    name: str
+    full_path: str
+    presentation: str | None = None
+
+
+class MetadataSuggestResponse(BaseModel):
+    """Ответ GET /channels/{id}/metadata-suggest."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    items: list[MetadataSuggestItem]
+    cached: bool
+    stale: bool = False
