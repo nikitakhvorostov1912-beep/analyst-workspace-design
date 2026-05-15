@@ -26,7 +26,12 @@ const securityHeaders = isProd
     ]
   : [];
 
+// output: "standalone" — включается через env NEXT_OUTPUT=standalone для Docker production и Electron.
+// Windows caveat: pnpm использует symlinks в .pnpm; build-bundle.js устанавливает node-linker=hoisted
+// перед вызовом pnpm build и восстанавливает после — это делает node_modules плоским (без symlinks).
+const isStandalone = process.env.NEXT_OUTPUT === "standalone";
 const nextConfig: NextConfig = {
+  ...(isStandalone ? { output: "standalone" as const } : {}),
   experimental: {
     reactCompiler: false,
   },
