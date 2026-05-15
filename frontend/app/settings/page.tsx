@@ -3,17 +3,60 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { getLLMConfig, getMCPConnections } from "@/lib/storage";
-import type { LLMConfig, MCPConnection } from "@/lib/types";
+import { fetchConnections, fetchLLMConfig } from "@/lib/api";
+import { MCPConnectionList } from "@/components/settings/MCPConnectionList";
+import { LLMConfigForm } from "@/components/settings/LLMConfigForm";
+import type { LLMConfigResponse, MCPConnection } from "@/lib/types";
 
 export default function SettingsPage() {
-  const [llmConfig, setLlmConfig] = useState<LLMConfig | null>(null);
-  const [mcpConnections, setMcpConnections] = useState<MCPConnection[]>([]);
+  const [connections, setConnections] = useState<MCPConnection[]>([]);
+  const [llmConfig, setLlmConfig] = useState<LLMConfigResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    setLlmConfig(getLLMConfig());
-    setMcpConnections(getMCPConnections());
+    let cancelled = false;
+
+    async function load() {
+      try {
+        const [conns, llm] = await Promise.all([
+          fetchConnections(),
+          fetchLLMConfig(),
+        ]);
+        if (cancelled) return;
+        setConnections(conns);
+        setLlmConfig(llm);
+      } catch {
+        if (cancelled) return;
+        setError("Backend недоступен. Запустите docker compose up");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+
+    load();
+    return () => {
+      cancelled = true;
+    };
   }, []);
+
+  async function reloadConnections() {
+    try {
+      const conns = await fetchConnections();
+      setConnections(conns);
+    } catch {
+      // keep current
+    }
+  }
+
+  async function reloadLLM() {
+    try {
+      const llm = await fetchLLMConfig();
+      setLlmConfig(llm);
+    } catch {
+      // keep current
+    }
+  }
 
   return (
     <div className="min-h-screen bg-[var(--bg)] p-6 max-w-2xl mx-auto">
@@ -29,80 +72,44 @@ export default function SettingsPage() {
         <h1 className="text-lg font-semibold text-[var(--fg)]">Настройки</h1>
       </div>
 
-      {/* Секция LLM */}
-      <section className="mb-6">
-        <div className="border border-[var(--border)] rounded-lg p-5 bg-[var(--bg-elevated)]">
-          <h2 className="text-sm font-semibold text-[var(--fg)] mb-4">LLM</h2>
-
-          {llmConfig ? (
-            <div className="space-y-3">
-              <SettingRow label="Endpoint" value={llmConfig.endpoint} />
-              <SettingRow label="Модель" value={llmConfig.model} />
-              <SettingRow label="Температура" value={String(llmConfig.temperature)} />
-              <SettingRow label="API ключ" value="••••••••" />
-            </div>
-          ) : (
-            <p className="text-sm text-[var(--fg-muted)]">
-              LLM не настроен
-            </p>
-          )}
-
-          <div className="mt-4 pt-4 border-t border-[var(--border)]">
-            <p className="text-xs text-[var(--fg-muted)] italic">
-              Редактирование появится в следующей итерации (Phase 2)
-            </p>
-          </div>
+      {loading && (
+        <div className="flex items-center justify-center py-16">
+          <p className="text-sm text-[var(--fg-muted)]">Загрузка...</p>
         </div>
-      </section>
+      )}
 
-      {/* Секция MCP подключения */}
-      <section>
-        <div className="border border-[var(--border)] rounded-lg p-5 bg-[var(--bg-elevated)]">
-          <h2 className="text-sm font-semibold text-[var(--fg)] mb-4">
-            MCP подключения
-          </h2>
-
-          {mcpConnections.length > 0 ? (
-            <div className="space-y-4">
-              {mcpConnections.map((conn) => (
-                <div
-                  key={conn.id}
-                  className="p-3 border border-[var(--border)] rounded-md space-y-2"
-                >
-                  <SettingRow label="Название" value={conn.name} />
-                  <SettingRow label="Endpoint" value={conn.endpoint} />
-                  {conn.channel && (
-                    <SettingRow label="Канал" value={conn.channel} />
-                  )}
-                  <SettingRow
-                    label="Анонимизация"
-                    value={conn.anon_enabled ? "Включена" : "Выключена"}
-                  />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="text-sm text-[var(--fg-muted)]">
-              Нет настроенных подключений
-            </p>
-          )}
-
-          <div className="mt-4 pt-4 border-t border-[var(--border)]">
-            <p className="text-xs text-[var(--fg-muted)] italic">
-              Редактирование появится в следующей итерации (Phase 2)
-            </p>
-          </div>
+      {!loading && error && (
+        <div className="border border-red-800 rounded-lg p-5 bg-[var(--bg-elevated)]">
+          <p className="text-sm text-red-400">{error}</p>
         </div>
-      </section>
-    </div>
-  );
-}
+      )}
 
-function SettingRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-center justify-between gap-4">
-      <span className="text-xs text-[var(--fg-muted)] flex-none">{label}</span>
-      <span className="text-sm text-[var(--fg)] font-mono truncate">{value}</span>
+      {!loading && !error && (
+        <>
+          {/* Секция MCP подключений */}
+          <section className="mb-6">
+            <div className="border border-[var(--border)] rounded-lg p-5 bg-[var(--bg-elevated)]">
+              <h2 className="text-sm font-semibold text-[var(--fg)] mb-4">
+                Подключения 1С
+              </h2>
+              <MCPConnectionList
+                initialConnections={connections}
+                onChanged={reloadConnections}
+              />
+            </div>
+          </section>
+
+          {/* Секция LLM */}
+          <section>
+            <div className="border border-[var(--border)] rounded-lg p-5 bg-[var(--bg-elevated)]">
+              <h2 className="text-sm font-semibold text-[var(--fg)] mb-4">
+                LLM
+              </h2>
+              <LLMConfigForm initial={llmConfig} onSaved={reloadLLM} />
+            </div>
+          </section>
+        </>
+      )}
     </div>
   );
 }
