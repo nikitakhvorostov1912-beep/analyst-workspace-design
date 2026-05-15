@@ -5,15 +5,14 @@ import json
 import pytest
 
 from app.orchestrator.cards import (
+    ColumnSchema,
     _build_code_card,
     _build_references_card,
     _dispatch_query_card,
     _find_period_column,
     _is_numeric_column,
-    ColumnSchema,
     build_card_from_tool_result,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers для тестов
@@ -236,9 +235,24 @@ def test_references_card_groups_by_usage_kind():
     """ReferencesCard группирует items по usage_kind."""
     result = {
         "references": [
-            {"object_type": "Документ", "name": "ОПП", "full_path": "Документ.ОПП.Реквизит.ИНН", "usage_kind": "Реквизит"},
-            {"object_type": "Справочник", "name": "Контрагенты", "full_path": "Справочник.Контрагенты.Форма", "usage_kind": "Шаблон"},
-            {"object_type": "Документ", "name": "Заказ", "full_path": "Документ.Заказ.Реквизит.Контрагент", "usage_kind": "Реквизит"},
+            {
+                "object_type": "Документ",
+                "name": "ОПП",
+                "full_path": "Документ.ОПП.Реквизит.ИНН",
+                "usage_kind": "Реквизит",
+            },
+            {
+                "object_type": "Справочник",
+                "name": "Контрагенты",
+                "full_path": "Справочник.Контрагенты.Форма",
+                "usage_kind": "Шаблон",
+            },
+            {
+                "object_type": "Документ",
+                "name": "Заказ",
+                "full_path": "Документ.Заказ.Реквизит.Контрагент",
+                "usage_kind": "Реквизит",
+            },
         ]
     }
     card = _build_references_card({}, result)

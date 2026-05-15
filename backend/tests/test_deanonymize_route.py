@@ -4,7 +4,7 @@ Plan 04-01 Task 1.
 """
 
 import json
-from unittest.mock import AsyncMock, patch
+from unittest.mock import patch
 
 import aiosqlite
 import pytest
@@ -14,7 +14,6 @@ from httpx import ASGITransport, AsyncClient
 from app.orchestrator.persistence import save_card_state
 from app.routes.log_cards import get_app_db
 from app.storage.migrations import apply_migrations
-
 
 # ---------------------------------------------------------------------------
 # Fixtures

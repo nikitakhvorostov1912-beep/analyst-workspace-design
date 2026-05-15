@@ -286,11 +286,13 @@ async def test_metadata_suggest_mcp_fails_cache_empty_returns_502(client):
 @pytest.mark.asyncio
 async def test_metadata_suggest_strict_extra_field_rejected(client):
     """MetadataSuggestResponse — extra fields forbidden в модели."""
-    from app.models import MetadataSuggestResponse, MetadataSuggestItem
     import pytest
+    from pydantic import ValidationError
 
-    # Попытка создать с лишним полем — должна упасть
-    with pytest.raises(Exception):
+    from app.models import MetadataSuggestResponse
+
+    # Попытка создать с лишним полем — должна упасть на Pydantic strict validation
+    with pytest.raises(ValidationError):
         MetadataSuggestResponse(
             items=[],
             cached=True,

@@ -56,7 +56,7 @@ class DeltaEvent(BaseModel):
 class CardEvent(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    type: Literal["table", "object", "log"]
+    type: Literal["table", "object", "log", "metric", "references", "code"]
     payload: dict[str, Any]
 
 

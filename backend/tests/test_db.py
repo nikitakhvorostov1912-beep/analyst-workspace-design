@@ -4,29 +4,39 @@ import pytest
 
 @pytest.mark.asyncio
 async def test_migrations_create_all_tables(db: aiosqlite.Connection):
-    """apply_migrations создаёт все таблицы (включая card_states из v3)."""
+    """apply_migrations создаёт ожидаемые user-таблицы (включая v3 card_states + v5 metadata_cache + FTS5)."""
     rows = await db.execute_fetchall(
         "SELECT name FROM sqlite_master WHERE type='table' ORDER BY name"
     )
     table_names = {row[0] for row in rows}
-    expected = {"sessions", "messages", "mcp_connections", "llm_settings", "schema_version", "card_states"}
-    assert expected == table_names, f"Таблицы: {table_names}"
+    # v1+v2: sessions, messages, mcp_connections, llm_settings, schema_version
+    # v3: card_states
+    # v5: metadata_cache + FTS5 (messages_fts + shadow tables messages_fts_*)
+    expected_core = {
+        "sessions", "messages", "mcp_connections", "llm_settings",
+        "schema_version", "card_states", "metadata_cache", "messages_fts",
+    }
+    assert expected_core.issubset(table_names), f"Не хватает таблиц. Получено: {table_names}"
 
 
 @pytest.mark.asyncio
 async def test_migrations_are_idempotent(db: aiosqlite.Connection):
-    """Повторный вызов apply_migrations не вызывает исключений."""
+    """Повторный вызов apply_migrations не вызывает исключений и не плодит таблиц."""
     from app.storage.migrations import apply_migrations
+
+    rows_before = await db.execute_fetchall(
+        "SELECT COUNT(*) FROM sqlite_master WHERE type='table'"
+    )
+    count_before = rows_before[0][0]
 
     # Второй вызов поверх уже существующей схемы
     await apply_migrations(db)
 
-    # Таблицы всё ещё на месте (6 таблиц включая card_states v3)
-    rows = await db.execute_fetchall(
+    rows_after = await db.execute_fetchall(
         "SELECT COUNT(*) FROM sqlite_master WHERE type='table'"
     )
-    count = rows[0][0]
-    assert count == 6
+    count_after = rows_after[0][0]
+    assert count_before == count_after, "Повторный apply_migrations плодит таблицы"
 
 
 @pytest.mark.asyncio

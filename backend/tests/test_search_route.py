@@ -14,7 +14,7 @@ async def test_search_200_returns_results(client):
     ch_id = conns["connections"][0]["id"]
 
     sess = (await client.post("/sessions", json={"channel_id": ch_id, "title": "test"})).json()
-    sid = sess["id"]
+    _sid = sess["id"]  # noqa: F841 — фикстура создаёт session для search контекста, sid не используется напрямую
 
     # Напрямую вставим сообщение через sessions endpoint не существует,
     # используем db фикстуру через lifespan
@@ -84,12 +84,12 @@ async def test_search_filters_by_channel(db):
 
     await db.execute("INSERT INTO sessions (id, channel_id) VALUES ('s-ch1', 'channel-A')")
     await db.execute("INSERT INTO sessions (id, channel_id) VALUES ('s-ch2', 'channel-B')")
-    await db.execute(
-        "INSERT INTO messages (id, session_id, role, content) VALUES ('m-a', 's-ch1', 'user', 'уникальный текст канала А')"
+    insert_msg = (
+        "INSERT INTO messages (id, session_id, role, content) "
+        "VALUES (?, ?, 'user', ?)"
     )
-    await db.execute(
-        "INSERT INTO messages (id, session_id, role, content) VALUES ('m-b', 's-ch2', 'user', 'уникальный текст канала Б')"
-    )
+    await db.execute(insert_msg, ("m-a", "s-ch1", "уникальный текст канала А"))
+    await db.execute(insert_msg, ("m-b", "s-ch2", "уникальный текст канала Б"))
     await db.commit()
 
     # Поиск только в channel-A
@@ -158,8 +158,8 @@ async def test_search_quoting_escapes_fts5_specials():
 @pytest.mark.asyncio
 async def test_search_prefix_match_works(db):
     """Prefix-matching: поиск 'журн' находит 'журнал'."""
-    from app.storage.migrations import apply_migrations
     from app.routes.search import _fts5_safe_query
+    from app.storage.migrations import apply_migrations
 
     await apply_migrations(db)
 
@@ -172,7 +172,7 @@ async def test_search_prefix_match_works(db):
 
     safe_q = _fts5_safe_query("журн")
     rows = await db.execute_fetchall(
-        f"SELECT message_id FROM messages_fts WHERE messages_fts MATCH ?",
+        "SELECT message_id FROM messages_fts WHERE messages_fts MATCH ?",
         (safe_q,),
     )
     assert any(row[0] == "m-pfx" for row in rows), "Prefix match не сработал"
@@ -190,13 +190,12 @@ async def test_search_limit_respected(client):
 @pytest.mark.asyncio
 async def test_search_503_when_fts_disabled(client):
     """503 возвращается если FTS5 недоступен (mock OperationalError)."""
-    import sqlite3
 
-    with patch("app.routes.search.router") as mock_router:
-        pass  # Нельзя просто мокать router
+    # Note: попытка мокать router здесь не работает (FastAPI binding на startup);
+    # реальный mock происходит через aiosqlite ниже
+    pass
 
     # Мокаем execute_fetchall чтобы имитировать отсутствие FTS5
-    from httpx import AsyncClient
 
     with patch(
         "aiosqlite.Connection.execute_fetchall",

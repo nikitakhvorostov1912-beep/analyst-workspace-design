@@ -130,8 +130,17 @@ async def test_loop_one_tool_call(mem_db, monkeypatch):
 
         async def aclose(self): pass
 
+    # 2 строки → TableCard (одиночная numeric строка после 04-02 трактуется как MetricCard).
     fake_mcp = FakeMCPClient(
-        tool_map={"execute_query": {"columns": [{"name": "N", "type": "Number"}], "rows": [[1]]}}
+        tool_map={
+            "execute_query": {
+                "columns": [
+                    {"name": "Контрагент", "type": "String"},
+                    {"name": "Сумма", "type": "Number"},
+                ],
+                "rows": [["Альфа", 100], ["Бета", 200]],
+            }
+        }
     )
     monkeypatch.setattr(loop_module, "LLMClient", FakeLLM)
     monkeypatch.setattr(loop_module, "MCPClient", lambda *a, **kw: fake_mcp)

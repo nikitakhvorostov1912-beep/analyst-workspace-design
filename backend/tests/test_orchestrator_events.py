@@ -160,29 +160,30 @@ async def test_migration_v2_creates_indexes():
 
 @pytest.mark.asyncio
 async def test_migration_schema_version_is_current():
-    """После apply_migrations версия схемы = 3 (миграция card_states из 03-04)."""
-    from app.storage.migrations import apply_migrations
+    """После apply_migrations версия схемы соответствует текущей (≥3, после Phase 4 = 5)."""
+    from app.storage.migrations import CURRENT_VERSION, apply_migrations
 
     conn = await aiosqlite.connect(":memory:")
     await apply_migrations(conn)
 
     rows = await conn.execute_fetchall("SELECT MAX(version) FROM schema_version")
     version = rows[0][0]
-    assert version == 3
+    assert version == CURRENT_VERSION
+    assert version >= 3  # минимум v3 после Phase 3 (card_states)
 
     await conn.close()
 
 
 @pytest.mark.asyncio
 async def test_migration_idempotent_current():
-    """Повторный вызов apply_migrations не повышает версию выше 3."""
-    from app.storage.migrations import apply_migrations
+    """Повторный вызов apply_migrations не повышает версию схемы."""
+    from app.storage.migrations import CURRENT_VERSION, apply_migrations
 
     conn = await aiosqlite.connect(":memory:")
     await apply_migrations(conn)
     await apply_migrations(conn)  # второй вызов — не должен упасть
 
     rows = await conn.execute_fetchall("SELECT MAX(version) FROM schema_version")
-    assert rows[0][0] == 3
+    assert rows[0][0] == CURRENT_VERSION
 
     await conn.close()

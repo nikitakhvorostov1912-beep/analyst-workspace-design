@@ -85,7 +85,10 @@ async def test_migration_v5_backfill_messages_into_fts(fresh_db):
     """Backfill: существующие messages должны попасть в FTS5 после миграции."""
     # Сначала создаём базовую схему v1-v4 вручную (упрощённо)
     await fresh_db.execute(
-        "CREATE TABLE IF NOT EXISTS schema_version (version INTEGER PRIMARY KEY, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)"
+        "CREATE TABLE IF NOT EXISTS schema_version ("
+        "version INTEGER PRIMARY KEY, "
+        "applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
+        ")"
     )
     await fresh_db.execute(
         """

@@ -299,7 +299,7 @@ async def metadata_suggest(
     channel_id: Annotated[str, Path(description="ID MCP-подключения (channel)")],
     q: str = Query(..., min_length=1, max_length=80),
     limit: int = Query(default=20, ge=1, le=100),
-    db=Depends(_get_db),
+    db=Depends(_get_db),  # noqa: B008  — стандартный FastAPI dependency-injection паттерн
 ) -> MetadataSuggestResponse:
     """Возвращает список объектов метаданных 1С из кеша (TTL 1ч).
 

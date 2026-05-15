@@ -4,21 +4,18 @@ Plan 04-01 Task 1.
 """
 
 import json
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import aiosqlite
 import pytest
 import pytest_asyncio
 
 from app.orchestrator.cards import (
-    TableCardPayload,
-    ObjectCardPayload,
     _extract_anon_tokens_from_payload,
     build_card_from_tool_result,
 )
 from app.orchestrator.persistence import get_card_anon_tokens, save_card_state
 from app.storage.migrations import apply_migrations
-
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -284,8 +281,9 @@ async def test_run_chat_loop_passes_anon_header_to_mcp():
         mock_llm_instance.aclose = AsyncMock()
         MockLLM.return_value = mock_llm_instance
 
-        from app.orchestrator.loop import run_chat_loop
         import aiosqlite
+
+        from app.orchestrator.loop import run_chat_loop
 
         db = await aiosqlite.connect(":memory:")
         db.row_factory = aiosqlite.Row
@@ -344,8 +342,9 @@ async def test_run_chat_loop_without_anon_no_header():
         mock_llm_instance.aclose = AsyncMock()
         MockLLM.return_value = mock_llm_instance
 
-        from app.orchestrator.loop import run_chat_loop
         import aiosqlite
+
+        from app.orchestrator.loop import run_chat_loop
 
         db = await aiosqlite.connect(":memory:")
         db.row_factory = aiosqlite.Row

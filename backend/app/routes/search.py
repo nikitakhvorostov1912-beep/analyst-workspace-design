@@ -40,7 +40,7 @@ async def search(
     q: str = Query(..., min_length=2, max_length=200),
     channel: str | None = Query(default=None),
     limit: int = Query(default=20, ge=1, le=50),
-    db=Depends(_get_db),
+    db=Depends(_get_db),  # noqa: B008  — стандартный FastAPI DI паттерн
 ) -> SearchResponse:
     """Полнотекстовый поиск по messages через FTS5 virtual table.
 
