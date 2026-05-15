@@ -59,8 +59,8 @@
 - [x] **DEVX-01**: Unit tests orchestrator/MCP client/LLM client (coverage ≥80% backend) — 92.8% фактически
 - [x] **DEVX-02**: E2E Playwright tests для 3 ключевых flow — 9 тестов в 3 spec-файлах
 - [x] **DEVX-03**: GitHub Actions CI: lint + test + build on PR — 3-job pipeline
-- [ ] **DEVX-04**: docker-compose.yml для one-command setup + README post-MVP
-- [ ] **DEVX-05**: USER.md гид для новых аналитиков
+- [x] **DEVX-04**: docker-compose.yml для one-command setup + README post-MVP
+- [x] **DEVX-05**: USER.md гид для новых аналитиков
 
 ### UX Polish (Phase 5)
 
@@ -149,8 +149,8 @@
 | DEVX-01 | Phase 3 | ✓ Done — 03-03 |
 | DEVX-02 | Phase 3 | ✓ Done — 03-03 |
 | DEVX-03 | Phase 3 | ✓ Done — 03-03 |
-| DEVX-04 | Phase 3 | Pending |
-| DEVX-05 | Phase 3 | Pending |
+| DEVX-04 | Phase 3 | ✓ Done — 03-04 (docker-compose + Phase 5 frontend service) |
+| DEVX-05 | Phase 3 | ✓ Done — 03-04 (USER.md + Phase 5 onboarding FAQ) |
 | UX-01 | Phase 5 | ✓ Done — 05-03 |
 | UX-02 | Phase 5 | ✓ Done — 05-02 |
 | UX-03 | Phase 5 | ✓ Done — 05-02 |
