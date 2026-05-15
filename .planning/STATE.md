@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-05-15T11:23:43.684Z"
+last_updated: "2026-05-15T11:36:08.579Z"
 progress:
   total_phases: 4
   completed_phases: 4
   total_plans: 15
-  completed_plans: 18
+  completed_plans: 19
   percent: 100
 ---
 
@@ -32,7 +32,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | **Previous Phase 3** | Production Ready ✓ PASS |
 | **Previous Phase** | Phase 2 — MVP Chat ✓ PASS |
 | **Mode** | YOLO + coarse granularity + parallel execution |
-| **Last Update** | 2026-05-15 (Phase 4 Plan 03 завершён: PROD-01..04 — QuickPrompts + SlashCommands + @-mention + Cmd-K CommandPalette + FTS5 migration v5) |
+| **Last Update** | 2026-05-15 (Phase 4 Plan 04 завершён: Demo artifacts — DEMO-SCRIPT + OBSERVER + FEEDBACK + seed-demo-data.py + BACKLOG-POST-MVP. Phase 4 COMPLETE.) |
 
 ## Phase Progress
 
@@ -41,9 +41,9 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | 1 | Foundation | ✓ Complete | 2/2 executed | 100% |
 | 2 | MVP Chat | ✓ Complete | 5/5 executed | 100% |
 | 3 | Production Ready | ✓ Complete | 4/4 executed | 100% |
-| 4 | Demo & Refine | ◈ In Progress | 3/4 executed | 75% |
+| 4 | Demo & Refine | ✓ Complete | 4/4 executed | 100% |
 
-**Overall:** Progress: ██████████ 98% (Phase 1+2+3 закрыты; Phase 4 Plan 3/4 — PROD-01..04 ✓)
+**Overall:** Progress: ██████████ 100% (Phase 1+2+3+4 закрыты; все 4 фазы выполнены)
 
 ## Artifacts Status
 
@@ -70,6 +70,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 - [x] Phase 4 Plan 01 execution — ANON-01..03: анонимизация end-to-end. Toggle в Header + X-Anon-Enabled forwarding + visual amber highlight + Раскрыть button. Migration v4 (anon_tokens column). 23 backend + 25 frontend тестов, log_cards 91.8% coverage, type-check+lint green. 2 commits (`0096834`, `4f3dab2`). SUMMARY: `phases/04-demo-refine/04-01-SUMMARY.md`
 - [x] Phase 4 Plan 02 execution — CARD-04..06: MetricCard (value+sparkline+delta) + ReferencesCard (groups by usage_kind) + CodeCard (prismjs BSL/SQL/JSON highlight). 53 backend + 33 frontend тестов, cards.py 87.8% coverage, pnpm build green. 2 commits (`c5c984d`, `d8b7bbd`). SUMMARY: `phases/04-demo-refine/04-02-SUMMARY.md`
 - [x] Phase 4 Plan 03 execution — PROD-01..04: QuickPrompts chips + SlashCommands popover + @-mention metadata cache + Cmd-K CommandPalette + FTS5 migration v5. 30 backend + 37 frontend тестов, search/connections ≥87% coverage, pnpm build green. 2 commits (`c69b7f1`, `b29a5e1`). SUMMARY: `phases/04-demo-refine/04-03-SUMMARY.md`
+- [x] Phase 4 Plan 04 execution — Demo artifacts: DEMO-SCRIPT.md (15-min сценарий 8 разделов) + DEMO-OBSERVER-CHECKLIST.md (5 категорий) + DEMO-FEEDBACK-TEMPLATE.md (6 секций) + seed-demo-data.py (6 сессий, 6 типов cards, 8 тестов) + BACKLOG-POST-MVP.md (6 категорий). README секция «Демо для аналитика». 2 commits (`4c3d7c1`, `2ec3de7`). SUMMARY: `phases/04-demo-refine/04-04-SUMMARY.md`
 
 ## Pivot History (Lessons Learned)
 
