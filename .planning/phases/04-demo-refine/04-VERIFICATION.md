@@ -1,9 +1,33 @@
 ---
 phase: 04-demo-refine
 verified: 2026-05-15T12:30:43Z
-status: gaps_found
-score: 3/4
-overrides_applied: 0
+re_verified: 2026-05-15T13:00:00Z
+status: pass
+score: 4/4 verified (после fix BLOCKER + ruff cleanup)
+overrides_applied: 2
+fixed_after_verify:
+  - gap: "CardEvent.type Literal не включает metric/references/code"
+    fix_commit: "fix(04): verifier gaps + ruff cleanup"
+    result: "Literal расширен 6 значениями; test_orchestrator_loop.py использует 2-row data для TableCard (1-row+numeric триггерит MetricCard heuristic из 04-02)"
+  - gap: "test_db.py устарел под v5 schema"
+    fix_commit: "fix(04): verifier gaps + ruff cleanup"
+    result: "expected tables — issubset({sessions, messages, mcp_connections, llm_settings, schema_version, card_states, metadata_cache, messages_fts}); idempotent проверка через count_before==count_after"
+  - gap_bonus: "ruff: 26 errors (B008 FastAPI Depends, E501 long lines, B017 blind Exception, F841 unused vars)"
+    fix_commit: "fix(04): verifier gaps + ruff cleanup"
+    result: "ruff clean: 15 auto-fix + 11 manual (noqa B008 для FastAPI DI паттерна, line splits, ValidationError, _-prefix)"
+runtime_2026_05_15:
+  - test: "python -m pytest (full + coverage)"
+    result: "301 passed in 23.50s, coverage 91.69% (gate ≥80%)"
+    status: VERIFIED
+  - test: "python -m ruff check ."
+    result: "All checks passed!"
+    status: VERIFIED
+  - test: "pnpm test --run (full vitest)"
+    result: "192 passed (26 test files)"
+    status: VERIFIED
+  - test: "pnpm type-check + lint + build"
+    result: "all green"
+    status: VERIFIED
 gaps:
   - truth: "6 типов inline cards рендерятся (SC-3)"
     status: failed
