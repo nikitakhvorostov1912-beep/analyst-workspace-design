@@ -103,7 +103,7 @@ export type SSEEvent =
   | { event: "delta"; data: { content: string } }
   | { event: "tool_call"; data: { id: string; name: string; args: Record<string, unknown> } }
   | { event: "tool_result"; data: { id: string; ok: boolean; result: unknown; error: string | null; duration_ms: number } }
-  | { event: "card"; data: { type: "table"; payload: TableCardPayload } | { type: "object"; payload: ObjectCardPayload } | { type: "log"; payload: LogCardPayload } }
+  | { event: "card"; data: CardEnvelope }
   | { event: "done"; data: { message_id: string; total_duration_ms: number } }
   | { event: "error"; data: { message: string; code: ErrorCode; retry_after_s?: number | null } }
   | { event: "confirm_required"; data: ConfirmRequiredPayload };
@@ -127,11 +127,53 @@ export type MCPConnection = {
   created_at?: string;
 };
 
+// --- Advanced card types (Plan 04-02) ---
+
+export type SparklinePoint = { label: string; value: number };
+
+export type MetricCardPayload = {
+  value: number;
+  label: string;
+  unit?: string | null;
+  sparkline?: SparklinePoint[] | null;
+  delta?: { value: number; direction: "up" | "down"; percent: boolean; percent_value?: number } | null;
+  card_id?: string | null;
+};
+
+export type ReferenceItem = {
+  object_type: string;
+  name: string;
+  navigation_link?: string | null;
+  full_path: string;
+};
+
+export type ReferenceGroup = {
+  kind: string;
+  items: ReferenceItem[];
+};
+
+export type ReferencesCardPayload = {
+  groups: ReferenceGroup[];
+  total: number;
+  card_id?: string | null;
+};
+
+export type CodeCardPayload = {
+  language: "bsl" | "sql" | "json" | "text";
+  code: string;
+  executable: boolean;
+  result?: object | null;
+  card_id?: string | null;
+};
+
 // Card discriminated union — для рендеринга inline-карточек в AssistantMessage
 export type CardEnvelope =
   | { type: "table"; payload: TableCardPayload }
   | { type: "object"; payload: ObjectCardPayload }
-  | { type: "log"; payload: LogCardPayload };
+  | { type: "log"; payload: LogCardPayload }
+  | { type: "metric"; payload: MetricCardPayload }
+  | { type: "references"; payload: ReferencesCardPayload }
+  | { type: "code"; payload: CodeCardPayload };
 
 // Запись об одном tool call — для Trace panel (Plan 2.5)
 export type ToolCallRecord = {

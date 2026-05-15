@@ -3,16 +3,21 @@
 import { TableCard } from "./TableCard";
 import { ObjectCard } from "./ObjectCard";
 import { LogCard } from "./LogCard";
+import { MetricCard } from "./MetricCard";
+import { ReferencesCard } from "./ReferencesCard";
+import { CodeCard } from "./CodeCard";
 import { deanonymizeCard, loadMoreLogEntries } from "@/lib/api";
-import type { CardEnvelope, CardContext } from "@/lib/types";
+import type { CardEnvelope, CardContext, ReferenceItem } from "@/lib/types";
 
 interface CardRendererProps {
   card: CardEnvelope;
   /** Контекст для load-more, deanonymize и curl-copy (Plan 03-04, 04-01) */
   context?: CardContext;
+  /** Callback для отправки нового сообщения (для ReferencesCard click) */
+  sendMessage?: (text: string) => void;
 }
 
-export function CardRenderer({ card, context }: CardRendererProps) {
+export function CardRenderer({ card, context, sendMessage }: CardRendererProps) {
   // Формируем onDeanonymize если есть card_id и context (Plan 04-01)
   function makeOnDeanonymize(cardId: string | null | undefined) {
     if (!cardId || !context?.sessionId || !context?.messageId) return undefined;
@@ -56,6 +61,26 @@ export function CardRenderer({ card, context }: CardRendererProps) {
         />
       );
     }
+    case "metric":
+      return (
+        <MetricCard
+          payload={card.payload}
+          onDeanonymize={makeOnDeanonymize(card.payload.card_id)}
+        />
+      );
+    case "references": {
+      const onLinkClick = sendMessage
+        ? (item: ReferenceItem) => sendMessage(`Покажи ${item.name}`)
+        : undefined;
+      return (
+        <ReferencesCard
+          payload={card.payload}
+          onLinkClick={onLinkClick}
+        />
+      );
+    }
+    case "code":
+      return <CodeCard payload={card.payload} />;
     default: {
       // TypeScript narrowing исчерпан — runtime защита для неизвестных типов
       const unknown = card as { type: string; payload: unknown };

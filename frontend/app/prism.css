@@ -1,0 +1,53 @@
+/* Prism.js token colors — тёмная тема (Plan 04-02) */
+
+.token.comment {
+  color: var(--fg-muted);
+  font-style: italic;
+}
+
+.token.string {
+  color: #d19a66;
+}
+
+.token.number {
+  color: #d19a66;
+}
+
+.token.keyword {
+  color: #c678dd;
+  font-weight: 500;
+}
+
+.token.builtin {
+  color: #e5c07b;
+}
+
+.token.directive {
+  color: #56b6c2;
+}
+
+.token.region {
+  color: #61afef;
+  font-weight: 500;
+}
+
+.token.punctuation {
+  color: var(--fg-muted);
+}
+
+.token.operator {
+  color: #56b6c2;
+}
+
+.token.function {
+  color: #61afef;
+}
+
+.token.boolean {
+  color: #d19a66;
+}
+
+/* SQL-specific */
+.token.keyword.sql {
+  color: #c678dd;
+}
