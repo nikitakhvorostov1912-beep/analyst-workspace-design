@@ -294,3 +294,70 @@ class MetadataSuggestResponse(BaseModel):
     items: list[MetadataSuggestItem]
     cached: bool
     stale: bool = False
+
+
+# --- LLM Config models (Plan 5.1) ---
+
+
+class LLMConfigCreate(BaseModel):
+    """Тело POST /llm-config. API ключ передаётся через header, не хранится."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    endpoint: str = Field(min_length=1)
+    model: str = Field(min_length=1, max_length=100)
+    temperature: float = Field(ge=0.0, le=2.0, default=0.3)
+
+    def model_post_init(self, _context: object) -> None:
+        if not (self.endpoint.startswith("http://") or self.endpoint.startswith("https://")):
+            raise ValueError("endpoint должен начинаться с http:// или https://")
+
+
+class LLMConfigUpdate(BaseModel):
+    """Тело PATCH /llm-config/default. Все поля опциональны."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    endpoint: str | None = None
+    model: str | None = Field(default=None, min_length=1, max_length=100)
+    temperature: float | None = Field(default=None, ge=0.0, le=2.0)
+
+    def model_post_init(self, _context: object) -> None:
+        if self.endpoint is not None:
+            if not (self.endpoint.startswith("http://") or self.endpoint.startswith("https://")):
+                raise ValueError("endpoint должен начинаться с http:// или https://")
+
+
+class LLMConfigResponse(BaseModel):
+    """Ответ /llm-config. API ключ ОТСУТСТВУЕТ (T-05-01)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    id: str  # всегда "default"
+    endpoint: str
+    model: str
+    temperature: float
+    updated_at: datetime | None = None
+
+
+class LLMConfigTestRequest(BaseModel):
+    """Тело POST /llm-config/test. API ключ — в header X-LLM-API-Key."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    endpoint: str
+    model: str
+
+
+class LLMConfigTestResponse(BaseModel):
+    """Ответ POST /llm-config/test.
+
+    error_code values: invalid_key, network_error, timeout, server_error, invalid_endpoint.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    ok: bool
+    error_code: str | None = None
+    error_message: str | None = None
+    duration_ms: int | None = None
