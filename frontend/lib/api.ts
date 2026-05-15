@@ -1,6 +1,10 @@
 import type {
   ChatRequest,
   HealthResponse,
+  LLMConfigCreate,
+  LLMConfigResponse,
+  LLMConfigTestResponse,
+  LLMConfigUpdate,
   LogEntry,
   MCPConnection,
   MCPPingResponse,
@@ -397,4 +401,85 @@ export async function patchSessionTitle(
     throw new Error(`Ошибка переименования сессии: ${response.status}`);
   }
   return response.json() as Promise<SessionDetail>;
+}
+
+// --- LLM Config API (Plan 5.1) ---
+
+/**
+ * Загружает сохранённый LLM-конфиг с backend.
+ * Возвращает null если конфиг не задан. API ключ не хранится на backend.
+ */
+export async function fetchLLMConfig(): Promise<LLMConfigResponse | null> {
+  const response = await fetch(`${BACKEND}/llm-config`);
+  if (!response.ok) {
+    throw new Error(`Ошибка загрузки LLM-конфига: ${response.status}`);
+  }
+  const data = await response.json() as LLMConfigResponse | null;
+  return data;
+}
+
+/**
+ * Сохраняет (UPSERT) LLM-конфиг на backend. API ключ передаётся отдельно через header.
+ */
+export async function saveLLMConfig(body: LLMConfigCreate): Promise<LLMConfigResponse> {
+  const response = await fetch(`${BACKEND}/llm-config`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    throw new Error(`Ошибка сохранения LLM: ${response.status}`);
+  }
+  return response.json() as Promise<LLMConfigResponse>;
+}
+
+/**
+ * Частично обновляет LLM-конфиг (PATCH /llm-config/default).
+ */
+export async function updateLLMConfig(patch: LLMConfigUpdate): Promise<LLMConfigResponse> {
+  const response = await fetch(`${BACKEND}/llm-config/default`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!response.ok) {
+    throw new Error(`Ошибка обновления LLM-конфига: ${response.status}`);
+  }
+  return response.json() as Promise<LLMConfigResponse>;
+}
+
+/**
+ * Удаляет LLM-конфиг (DELETE /llm-config/default). 204 = успех.
+ */
+export async function deleteLLMConfig(): Promise<void> {
+  const response = await fetch(`${BACKEND}/llm-config/default`, {
+    method: "DELETE",
+  });
+  if (response.status === 204) return;
+  if (!response.ok) {
+    throw new Error(`Ошибка удаления LLM-конфига: ${response.status}`);
+  }
+}
+
+/**
+ * Тестирует LLM endpoint + model через 1-token completion.
+ * API ключ передаётся через header X-LLM-API-Key (T-05-04), не в теле.
+ * Backend всегда возвращает 200; ok=false при ошибках провайдера.
+ */
+export async function testLLMConfig(
+  body: LLMConfigCreate,
+  apiKey: string,
+): Promise<LLMConfigTestResponse> {
+  const response = await fetch(`${BACKEND}/llm-config/test`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-LLM-API-Key": apiKey,
+    },
+    body: JSON.stringify({ endpoint: body.endpoint, model: body.model }),
+  });
+  if (!response.ok) {
+    throw new Error(`Ошибка test endpoint: ${response.status}`);
+  }
+  return response.json() as Promise<LLMConfigTestResponse>;
 }

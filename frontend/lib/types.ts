@@ -270,3 +270,33 @@ export type MetadataSuggestResponse = {
   cached: boolean;
   stale: boolean;
 };
+
+// --- LLM Config backend types (Plan 5.1) ---
+// Зеркало backend Pydantic моделей. LLMConfig (выше) остаётся для legacy localStorage path.
+
+export type LLMConfigResponse = {
+  id: "default";
+  endpoint: string;
+  model: string;
+  temperature: number;
+  updated_at?: string | null;
+};
+
+export type LLMConfigCreate = {
+  endpoint: string;
+  model: string;
+  temperature: number;
+};
+
+export type LLMConfigUpdate = {
+  endpoint?: string;
+  model?: string;
+  temperature?: number;
+};
+
+export type LLMConfigTestResponse = {
+  ok: boolean;
+  error_code?: string | null;
+  error_message?: string | null;
+  duration_ms?: number | null;
+};
