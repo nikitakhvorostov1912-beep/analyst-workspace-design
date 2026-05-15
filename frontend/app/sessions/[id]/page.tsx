@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { Thread } from "@/components/chat/Thread";
 import { ChatInput } from "@/components/chat/Input";
+import { CommandPalette } from "@/components/chat/CommandPalette";
 import { ConfirmExecuteDialog } from "@/components/chat/ConfirmExecuteDialog";
 import { ConnectionStatusBanner } from "@/components/chat/ConnectionStatusBanner";
 import { useChatStream } from "@/components/chat/useChatStream";
@@ -44,6 +45,7 @@ export default function SessionPage() {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
   const [activeChannelId, setLocalActiveChannelId] = useState<string | null>(null);
+  const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
 
   // Banner state — STATE-02
   const [bannerVisible, setBannerVisible] = useState(false);
@@ -149,6 +151,18 @@ export default function SessionPage() {
     }
   }
 
+  // Global Cmd+K / Ctrl+K hotkey (должен быть до ранних return)
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setCmdPaletteOpen((v) => !v);
+      }
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, []);
+
   if (!ready) {
     return (
       <div className="h-screen flex items-center justify-center bg-[var(--bg)]">
@@ -176,6 +190,11 @@ export default function SessionPage() {
 
   return (
     <>
+      <CommandPalette
+        open={cmdPaletteOpen}
+        onClose={() => setCmdPaletteOpen(false)}
+        channelId={channelId}
+      />
       <ConfirmExecuteDialog
         open={!!pendingConfirm}
         payload={pendingConfirm}
@@ -201,6 +220,7 @@ export default function SessionPage() {
             onSubmit={send}
             disabled={inputDisabled}
             disabledReason={inputDisabledReason}
+            channelId={channelId}
           />
         }
       >

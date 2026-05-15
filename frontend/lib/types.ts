@@ -238,3 +238,35 @@ export type MessageRow = {
 
 export type DeanonymizeRequest = { tokens: string[] };
 export type DeanonymizeResponse = { mapping: Record<string, string> };
+
+// --- Search types (Plan 04-03) ---
+
+export type SearchResultItem = {
+  session_id: string;
+  session_title: string | null;
+  message_id: string;
+  snippet: string;
+  created_at: string;
+  channel_id: string;
+};
+
+export type SearchResponse = {
+  results: SearchResultItem[];
+  total: number;
+  query: string;
+};
+
+// --- Metadata suggest types (Plan 04-03) ---
+
+export type MetadataSuggestItem = {
+  object_type: string;
+  name: string;
+  full_path: string;
+  presentation: string | null;
+};
+
+export type MetadataSuggestResponse = {
+  items: MetadataSuggestItem[];
+  cached: boolean;
+  stale: boolean;
+};

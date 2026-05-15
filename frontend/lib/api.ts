@@ -5,6 +5,8 @@ import type {
   MCPConnection,
   MCPPingResponse,
   MessageRow,
+  MetadataSuggestResponse,
+  SearchResponse,
   SessionDetail,
   SessionsGrouped,
   SSEEvent,
@@ -340,6 +342,43 @@ export async function deanonymizeCard(
   }
   const data = (await response.json()) as { mapping: Record<string, string> };
   return data.mapping;
+}
+
+// --- Search API (Plan 04-03) ---
+
+/**
+ * Полнотекстовый поиск по сессиям и сообщениям.
+ * Требует q ≥ 2 символа. Возвращает results с HTML snippet (теги <mark>).
+ */
+export async function searchMessages(
+  q: string,
+  channel?: string,
+): Promise<SearchResponse> {
+  const params = new URLSearchParams({ q });
+  if (channel) params.set("channel", channel);
+  const response = await fetch(`${BACKEND}/search?${params.toString()}`);
+  if (!response.ok) {
+    throw new Error(`Ошибка поиска: ${response.status}`);
+  }
+  return response.json() as Promise<SearchResponse>;
+}
+
+/**
+ * Загружает предложения объектов метаданных 1С из кеша.
+ * При cache miss — backend обновляет через MCP.
+ */
+export async function metadataSuggest(
+  channelId: string,
+  q: string,
+): Promise<MetadataSuggestResponse> {
+  const params = new URLSearchParams({ q });
+  const response = await fetch(
+    `${BACKEND}/connections/${encodeURIComponent(channelId)}/metadata-suggest?${params.toString()}`,
+  );
+  if (!response.ok) {
+    throw new Error(`Ошибка metadata suggest: ${response.status}`);
+  }
+  return response.json() as Promise<MetadataSuggestResponse>;
 }
 
 /**

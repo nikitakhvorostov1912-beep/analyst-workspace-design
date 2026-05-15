@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/shell/AppShell";
 import { Thread } from "@/components/chat/Thread";
+import { CommandPalette } from "@/components/chat/CommandPalette";
 import { Button } from "@/components/ui/button";
 import { fetchHealth } from "@/lib/api";
 import { useSessionsStore } from "@/lib/sessions-store";
@@ -52,6 +53,7 @@ export default function HomePage() {
   const [ready, setReady] = useState(false);
   const [hasConfig, setHasConfig] = useState(false);
   const [activeChannelId, setLocalActiveChannelId] = useState<string | null>(null);
+  const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
   const store = useSessionsStore();
 
   useEffect(() => {
@@ -74,6 +76,18 @@ export default function HomePage() {
     // Обновляем список сессий для нового канала
     void store.refresh();
   }
+
+  // Global Cmd+K / Ctrl+K hotkey для CommandPalette (должен быть до ранних return)
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+        e.preventDefault();
+        setCmdPaletteOpen((v) => !v);
+      }
+    }
+    document.addEventListener("keydown", handleKey);
+    return () => document.removeEventListener("keydown", handleKey);
+  }, []);
 
   // Skeleton пока не загрузились данные из localStorage
   if (!ready) {
@@ -124,6 +138,11 @@ export default function HomePage() {
   // На главной нет активной сессии и чата — ConfirmExecuteDialog не нужен
   return (
     <>
+      <CommandPalette
+        open={cmdPaletteOpen}
+        onClose={() => setCmdPaletteOpen(false)}
+        channelId={activeChannelId ?? undefined}
+      />
       <AppShell
         grouped={store.grouped}
         activeId={null}
