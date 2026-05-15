@@ -18,6 +18,8 @@ htmlcov/
 .nox/
 dist/
 build/
+# Exception: Electron NSIS build resources (source files, not artifacts)
+!desktop/build/
 *.whl
 
 # Virtual environments

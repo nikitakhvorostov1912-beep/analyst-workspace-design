@@ -1,0 +1,42 @@
+appId: com.analyst.desktop
+productName: 1С Аналитик
+copyright: Copyright (c) 2026 analyst-workspace-design
+artifactName: analyst-setup-v${version}.${ext}
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - main.js
+  - preload.js
+  - package.json
+  - "!.git"
+  - "!.DS_Store"
+  - "!node_modules/.cache"
+
+extraResources:
+  - from: resources
+    to: .
+    filter:
+      - "**/*"
+
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: icon.ico
+  publisherName: analyst-workspace-design
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: "1С Аналитик"
+  installerLanguages:
+    - ru_RU
+    - en_US
+  language: 1049
