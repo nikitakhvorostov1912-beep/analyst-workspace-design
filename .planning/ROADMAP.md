@@ -14,7 +14,7 @@
 | 4 | Demo & Refine | Anonymization + advanced cards + productivity features (v2 subset) | ANON-*, CARD-04..06, PROD-* | 4 |
 | 5 | Полировка UX до готового продукта | Settings CRUD UI + First-Run Onboarding + backend как source of truth для connections + dev mode fix + production launch readiness | UX-01..05 (новые) | 5 |
 | 6 | Self-Explanatory UI | /about + /status + try examples в empty state + header иконки | (UX polish, без новых REQ) | — |
-| 7 | Desktop Installer | Electron wrapper + PyInstaller backend + electron-builder → один setup.exe для Windows | DIST-01..05 (новые) | 5 |
+| 7 | Desktop Installer | 1/5 | In Progress|  |
 
 ---
 

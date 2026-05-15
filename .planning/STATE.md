@@ -1,14 +1,14 @@
 ---
 gsd_state_version: 1.0
 milestone: v1.0
-milestone_name: milestone
+milestone_name: "- Smoke: чистая VM Windows 10/11 без Python/Node/pnpm → `setup.exe` → клик ярлыка → приложение работает за < 10 секунд от клика"
 status: unknown
-last_updated: "2026-05-15T16:59:32.948Z"
+last_updated: "2026-05-15T19:52:46.251Z"
 progress:
-  total_phases: 5
+  total_phases: 6
   completed_phases: 5
-  total_plans: 20
-  completed_plans: 25
+  total_plans: 25
+  completed_plans: 27
   percent: 100
 ---
 

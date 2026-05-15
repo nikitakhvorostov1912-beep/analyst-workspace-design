@@ -73,7 +73,7 @@
 ### Distribution (Phase 7)
 
 - [ ] **DIST-01**: Electron main process spawnit backend (PyInstaller exe) + frontend (Next.js standalone), ждёт готовности, открывает BrowserWindow на random свободном порту
-- [ ] **DIST-02**: PyInstaller упаковка backend → один backend.exe (~50 MB) с embedded Python runtime + uvicorn + все зависимости
+- [x] **DIST-02**: PyInstaller упаковка backend → один backend.exe (~50 MB) с embedded Python runtime + uvicorn + все зависимости
 - [ ] **DIST-03**: Next.js standalone build (`output: "standalone"`) — frontend запускается через `node server.js` без npm install
 - [ ] **DIST-04**: electron-builder упаковка в NSIS installer .exe с custom icon, ярлыками Desktop + Start Menu, метаданными
 - [ ] **DIST-05**: Auto-cleanup — close окна убивает все child процессы (SIGTERM, fallback SIGKILL через 3 сек)
