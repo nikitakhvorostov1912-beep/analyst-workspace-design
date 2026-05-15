@@ -9,43 +9,43 @@
 
 ### Connections
 
-- [ ] **CONN-01**: Аналитик может добавить MCP endpoint своей базы 1С (URL + channel + имя) через Settings → Connections, статус ping = green
-- [ ] **CONN-02**: Аналитик может подключить LLM provider (endpoint + API key + model + temperature) через Settings → LLM; ключ хранится в localStorage браузера
-- [ ] **CONN-03**: Channel selector в header переключает контекст между подключёнными базами; новый чат использует tools активной базы
-- [ ] **CONN-04**: Backend проверяет ping/health конкретного MCP подключения через `/mcp/{id}/ping`
+- [x] **CONN-01**: Аналитик может добавить MCP endpoint своей базы 1С (URL + channel + имя) через Settings → Connections, статус ping = green
+- [x] **CONN-02**: Аналитик может подключить LLM provider (endpoint + API key + model + temperature) через Settings → LLM; ключ хранится в localStorage браузера
+- [x] **CONN-03**: Channel selector в header переключает контекст между подключёнными базами; новый чат использует tools активной базы
+- [x] **CONN-04**: Backend проверяет ping/health конкретного MCP подключения через `/mcp/{id}/ping`
 
 ### Chat
 
-- [ ] **CHAT-01**: Аналитик пишет вопрос на русском в textarea → получает ответ ≤30 сек для типовых запросов
-- [ ] **CHAT-02**: LLM автономно выбирает и вызывает нужные MCP tools (через function calling) — аналитик не указывает tool руками
-- [ ] **CHAT-03**: Streaming ответа через SSE: первый chunk ≤500 мс, статусы видны live («Анализирую → Вызываю execute_query → Формирую ответ»)
-- [ ] **CHAT-04**: Tool calling loop поддерживает множественные tool calls в одном ответе (LLM может вызвать 2-3 tools последовательно)
-- [ ] **CHAT-05**: Ответ ассистента содержит TL;DR markdown + 0..N inline-карточек + collapsed trace
+- [x] **CHAT-01**: Аналитик пишет вопрос на русском в textarea → получает ответ ≤30 сек для типовых запросов
+- [x] **CHAT-02**: LLM автономно выбирает и вызывает нужные MCP tools (через function calling) — аналитик не указывает tool руками
+- [x] **CHAT-03**: Streaming ответа через SSE: первый chunk ≤500 мс, статусы видны live («Анализирую → Вызываю execute_query → Формирую ответ»)
+- [x] **CHAT-04**: Tool calling loop поддерживает множественные tool calls в одном ответе (LLM может вызвать 2-3 tools последовательно)
+- [x] **CHAT-05**: Ответ ассистента содержит TL;DR markdown + 0..N inline-карточек + collapsed trace
 
 ### Cards
 
-- [ ] **CARD-01**: TableCard — рендер результата execute_query с пагинацией, сортировкой колонок, экспортом в CSV
-- [ ] **CARD-02**: ObjectCard — рендер карточки объекта из get_metadata(detail) / get_object_by_link: реквизиты / ТЧ / формы / макеты
-- [ ] **CARD-03**: LogCard — рендер get_event_log: таймлайн записей с уровнями, цветовая разметка Error/Warning, курсор-пагинация
+- [x] **CARD-01**: TableCard — рендер результата execute_query с пагинацией, сортировкой колонок, экспортом в CSV
+- [x] **CARD-02**: ObjectCard — рендер карточки объекта из get_metadata(detail) / get_object_by_link: реквизиты / ТЧ / формы / макеты
+- [x] **CARD-03**: LogCard — рендер get_event_log: таймлайн записей с уровнями, цветовая разметка Error/Warning, курсор-пагинация
 
 ### Sessions
 
-- [ ] **HIST-01**: Sidebar показывает список сессий grouped by date (Сегодня / Вчера / На этой неделе / Раньше)
-- [ ] **HIST-02**: Auto-title сессии генерится из первого user message (через LLM или эвристикой)
-- [ ] **HIST-03**: Сессии персистятся в SQLite; после refresh страницы все session messages видны
-- [ ] **HIST-04**: «+ Новый чат» создаёт сессию в текущем channel; меняется в URL `/sessions/{id}`
+- [x] **HIST-01**: Sidebar показывает список сессий grouped by date (Сегодня / Вчера / На этой неделе / Раньше)
+- [x] **HIST-02**: Auto-title сессии генерится из первого user message (через LLM или эвристикой)
+- [x] **HIST-03**: Сессии персистятся в SQLite; после refresh страницы все session messages видны
+- [x] **HIST-04**: «+ Новый чат» создаёт сессию в текущем channel; меняется в URL `/sessions/{id}`
 
 ### Trace
 
-- [ ] **TRACE-01**: Под каждым ответом ассистента есть collapsed строка `▸ LLM вызвала N tool'ов за X мс`; click разворачивает
-- [ ] **TRACE-02**: Развёрнутый trace показывает для каждого tool call: name, input params (JSON tree), output (collapsed by default), duration_ms, error если был
-- [ ] **TRACE-03**: Кнопка «Скопировать как curl» формирует HTTP-запрос для воспроизведения через REST API MCP
+- [x] **TRACE-01**: Под каждым ответом ассистента есть collapsed строка `▸ LLM вызвала N tool'ов за X мс`; click разворачивает
+- [x] **TRACE-02**: Развёрнутый trace показывает для каждого tool call: name, input params (JSON tree), output (collapsed by default), duration_ms, error если был
+- [x] **TRACE-03**: Кнопка «Скопировать как curl» формирует HTTP-запрос для воспроизведения через REST API MCP
 
 ### States
 
-- [ ] **STATE-01**: Empty state когда нет MCP-подключений: hero + кнопка «Настроить подключение» → Settings
-- [ ] **STATE-02**: MCP disconnected: красный баннер вверху чата + кнопка «Повторить»; input disabled до восстановления
-- [ ] **STATE-03**: LLM error (rate limit / invalid key / etc): readable error, не stack trace; respect `Retry-After` header
+- [x] **STATE-01**: Empty state когда нет MCP-подключений: hero + кнопка «Настроить подключение» → Settings
+- [x] **STATE-02**: MCP disconnected: красный баннер вверху чата + кнопка «Повторить»; input disabled до восстановления
+- [x] **STATE-03**: LLM error (rate limit / invalid key / etc): readable error, не stack trace; respect `Retry-After` header
 
 ### Security (Phase 3)
 
