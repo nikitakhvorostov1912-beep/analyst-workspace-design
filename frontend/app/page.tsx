@@ -238,13 +238,53 @@ export default function HomePage() {
           onChannelChange: handleChannelChange,
         }}
       >
-        <div className="h-full flex flex-col items-center justify-center gap-4 text-center px-6">
-          <p className="text-[var(--fg-muted)] text-sm">
-            Выберите сессию из истории или начните новый чат
-          </p>
-          <Button onClick={handleCreateNew} variant="secondary">
+        <div className="h-full flex flex-col items-center justify-center gap-6 text-center px-6 max-w-2xl mx-auto">
+          <div className="space-y-2">
+            <h2 className="text-2xl font-semibold text-[var(--fg)]">
+              Готов отвечать на вопросы по 1С
+            </h2>
+            <p className="text-[var(--fg-muted)] text-sm leading-relaxed">
+              Напишите вопрос на русском — модель сама подберёт нужные инструменты 1С,
+              выполнит запросы и покажет ответ с таблицей или карточкой объекта.
+            </p>
+          </div>
+
+          <Button onClick={handleCreateNew} className="gap-2">
             + Новый чат
           </Button>
+
+          <div className="w-full pt-4 border-t border-[var(--border)] space-y-2 text-left">
+            <p className="text-xs text-[var(--fg-muted)] uppercase tracking-wide">
+              Попробуйте спросить
+            </p>
+            <div className="space-y-1.5">
+              {[
+                "Расскажи про базу — какие подсистемы, основные документы",
+                "Покажи последние 50 документов реализации",
+                "Что в журнале регистрации за сегодня — есть ошибки?",
+                "Сколько контрагентов в базе и сколько активных",
+                "Где используется справочник Номенклатура — какие документы",
+              ].map((q) => (
+                <button
+                  key={q}
+                  type="button"
+                  onClick={handleCreateNew}
+                  className="block w-full text-left text-sm text-[var(--fg-muted)] hover:text-[var(--fg)] hover:bg-[var(--bg-elevated)] rounded px-3 py-2 transition-colors border border-transparent hover:border-[var(--border)]"
+                >
+                  → {q}
+                </button>
+              ))}
+            </div>
+            <p className="text-xs text-[var(--fg-muted)] pt-2">
+              <Link href="/about" className="text-blue-400 hover:underline">
+                Подробнее о приложении
+              </Link>
+              {" · "}
+              <Link href="/status" className="text-blue-400 hover:underline">
+                Проверить диагностику
+              </Link>
+            </p>
+          </div>
         </div>
         <Thread messages={[]} />
       </AppShell>

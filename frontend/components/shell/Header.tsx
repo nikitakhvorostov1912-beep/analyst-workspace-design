@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Settings } from "lucide-react";
+import { Settings, HelpCircle, Activity } from "lucide-react";
 import { ChannelSelector } from "./ChannelSelector";
 import { ModelBadge } from "./ModelBadge";
 import { AnonymizationToggle } from "./AnonymizationToggle";
@@ -26,14 +26,31 @@ export function Header({ activeChannelId, onChannelChange }: Props) {
         <ChannelSelector activeId={activeChannelId} onChange={onChannelChange} />
       </div>
 
-      {/* Справа: Anonymization toggle + Model badge + настройки */}
+      {/* Справа: Anonymization toggle + Model badge + статус + помощь + настройки */}
       <div className="flex-none flex items-center gap-3">
         <AnonymizationToggle />
         <ModelBadge />
         <Link
+          href="/status"
+          className="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors"
+          aria-label="Диагностика"
+          title="Диагностика — проверить что всё работает"
+        >
+          <Activity size={18} />
+        </Link>
+        <Link
+          href="/about"
+          className="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors"
+          aria-label="О приложении"
+          title="О приложении — что это и как пользоваться"
+        >
+          <HelpCircle size={18} />
+        </Link>
+        <Link
           href="/settings"
           className="text-[var(--fg-muted)] hover:text-[var(--fg)] transition-colors"
           aria-label="Настройки"
+          title="Настройки — MCP подключения и LLM"
         >
           <Settings size={18} />
         </Link>
