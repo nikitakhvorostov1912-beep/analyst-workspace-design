@@ -1,4 +1,7 @@
 # PyInstaller spec для упаковки backend.exe
+# ВАЖНО: запускать из чистого venv с только backend зависимостями:
+#   python -m venv .venv-build && .venv-build\Scripts\pip install -e .[build]
+#   .venv-build\Scripts\python -m PyInstaller --clean --noconfirm build.spec
 # При первом запуске backend.exe распаковывает себя в %TEMP%\_MEI<random> — задержка 1-2 сек.
 # Electron main должен ждать /health через waitForUrl с timeout 30s.
 import os
