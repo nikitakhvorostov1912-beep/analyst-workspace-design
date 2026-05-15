@@ -7,9 +7,11 @@ import { AppShell } from "@/components/shell/AppShell";
 import { Thread } from "@/components/chat/Thread";
 import { CommandPalette } from "@/components/chat/CommandPalette";
 import { Button } from "@/components/ui/button";
-import { fetchHealth } from "@/lib/api";
+import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog";
+import { fetchHealth, fetchConnections, fetchLLMConfig } from "@/lib/api";
 import { useSessionsStore } from "@/lib/sessions-store";
 import { getMCPConnections, getLLMConfig, getActiveChannelId, setActiveChannelId } from "@/lib/storage";
+import { getOnboardingCompleted, setOnboardingCompleted } from "@/lib/onboarding-flag";
 import type { HealthResponse } from "@/lib/types";
 
 type BackendStatus = "loading" | "ok" | "unavailable";
@@ -54,14 +56,54 @@ export default function HomePage() {
   const [hasConfig, setHasConfig] = useState(false);
   const [activeChannelId, setLocalActiveChannelId] = useState<string | null>(null);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
+  // null = ещё не определили, true/false = решение принято
+  const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
   const store = useSessionsStore();
 
   useEffect(() => {
-    const conns = getMCPConnections();
-    const llm = getLLMConfig();
-    setHasConfig(conns.length > 0 || !!llm);
-    setLocalActiveChannelId(getActiveChannelId());
-    setReady(true);
+    let cancelled = false;
+
+    (async () => {
+      const flag = getOnboardingCompleted();
+
+      if (flag) {
+        // Флаг уже выставлен — пропускаем onboarding
+        if (!cancelled) setShowOnboarding(false);
+      } else {
+        // Проверяем backend: если уже настроено — legacy guard
+        try {
+          const [conns, llm] = await Promise.all([
+            fetchConnections(),
+            fetchLLMConfig(),
+          ]);
+          if (cancelled) return;
+          const hasBoth = conns.length > 0 && llm !== null;
+          if (hasBoth) {
+            // Legacy users: уже всё настроено — ставим флаг автоматически
+            setOnboardingCompleted(true);
+            setShowOnboarding(false);
+          } else {
+            setShowOnboarding(true);
+          }
+        } catch {
+          // Backend недоступен — не блокируем пользователя onboarding'ом
+          if (!cancelled) setShowOnboarding(false);
+        }
+      }
+
+      // Всегда загружаем начальный state из localStorage для последующего рендера
+      const conns = getMCPConnections();
+      const llm = getLLMConfig();
+      if (!cancelled) {
+        setHasConfig(conns.length > 0 || !!llm);
+        setLocalActiveChannelId(getActiveChannelId());
+        setReady(true);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -73,7 +115,15 @@ export default function HomePage() {
   function handleChannelChange(newId: string) {
     setActiveChannelId(newId);
     setLocalActiveChannelId(newId);
-    // Обновляем список сессий для нового канала
+    void store.refresh();
+  }
+
+  // Перезагружает состояние после завершения onboarding
+  function refreshAfterOnboarding() {
+    const conns = getMCPConnections();
+    const llm = getLLMConfig();
+    setHasConfig(conns.length > 0 || !!llm);
+    setLocalActiveChannelId(getActiveChannelId());
     void store.refresh();
   }
 
@@ -89,12 +139,36 @@ export default function HomePage() {
     return () => document.removeEventListener("keydown", handleKey);
   }, []);
 
-  // Skeleton пока не загрузились данные из localStorage
+  // Skeleton пока не загрузились данные
   if (!ready) {
     return (
       <div className="h-screen flex items-center justify-center bg-[var(--bg)]">
         <div className="text-sm text-[var(--fg-muted)]">Загрузка...</div>
       </div>
+    );
+  }
+
+  // Onboarding wizard (первый запуск)
+  if (showOnboarding) {
+    return (
+      <>
+        <OnboardingDialog
+          open={true}
+          onComplete={(chId) => {
+            setShowOnboarding(false);
+            if (chId) {
+              setActiveChannelId(chId);
+              setLocalActiveChannelId(chId);
+            }
+            refreshAfterOnboarding();
+          }}
+          onSkip={() => {
+            setShowOnboarding(false);
+            refreshAfterOnboarding();
+          }}
+        />
+        <BackendIndicator />
+      </>
     );
   }
 
@@ -135,7 +209,6 @@ export default function HomePage() {
   }
 
   // Основной layout — AppShell с пустым Thread (нет активной сессии)
-  // На главной нет активной сессии и чата — ConfirmExecuteDialog не нужен
   return (
     <>
       <CommandPalette
