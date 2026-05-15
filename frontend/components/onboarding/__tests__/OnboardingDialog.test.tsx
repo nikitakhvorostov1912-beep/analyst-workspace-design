@@ -16,6 +16,13 @@ vi.mock("@/components/ui/dialog", () => ({
   }: {
     children: React.ReactNode;
   }) => <div data-testid="dialog-content">{children}</div>,
+  DialogTitle: ({
+    children,
+    className,
+  }: {
+    children: React.ReactNode;
+    className?: string;
+  }) => <h2 className={className}>{children}</h2>,
 }));
 
 // Мокируем MCPConnectionForm — упрощённая версия: поле name + кнопка Сохранить

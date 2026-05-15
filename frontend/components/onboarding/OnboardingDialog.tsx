@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { StepIndicator } from "./StepIndicator";
@@ -91,9 +92,9 @@ export function OnboardingDialog({
         {step === 1 && (
           <div className="space-y-4">
             <div>
-              <h2 className="text-lg font-semibold text-[var(--fg)]">
+              <DialogTitle className="text-lg font-semibold text-[var(--fg)]">
                 Подключите вашу базу 1С
-              </h2>
+              </DialogTitle>
               <p className="text-sm text-[var(--fg-muted)] mt-1">
                 Адрес MCP Toolkit (обычно{" "}
                 <code className="font-mono text-xs">
@@ -133,9 +134,9 @@ export function OnboardingDialog({
         {step === 2 && (
           <div className="space-y-4">
             <div>
-              <h2 className="text-lg font-semibold text-[var(--fg)]">
+              <DialogTitle className="text-lg font-semibold text-[var(--fg)]">
                 Настройте LLM
-              </h2>
+              </DialogTitle>
               <p className="text-sm text-[var(--fg-muted)] mt-1">
                 OpenAI-совместимый endpoint, например{" "}
                 <code className="font-mono text-xs">
@@ -170,9 +171,9 @@ export function OnboardingDialog({
         {step === 3 && (
           <div className="space-y-6">
             <div>
-              <h2 className="text-lg font-semibold text-[var(--fg)]">
+              <DialogTitle className="text-lg font-semibold text-[var(--fg)]">
                 Готово!
-              </h2>
+              </DialogTitle>
               <p className="text-sm text-[var(--fg-muted)] mt-1">
                 Подключение и LLM настроены. Задайте первый вопрос, например:
                 «Расскажи про базу»
