@@ -67,7 +67,7 @@
 - [ ] **UX-01**: First-run onboarding wizard (3 шага: MCP → LLM → готов)
 - [ ] **UX-02**: Settings → MCP Connections — полноценный CRUD UI (форма + Test ping + Delete)
 - [ ] **UX-03**: Settings → LLM — полноценный CRUD UI (форма + Test completion + Delete)
-- [ ] **UX-04**: Backend как source-of-truth для connections + LLM config; localStorage только активный канал + LLM api_key (security)
+- [x] **UX-04**: Backend как source-of-truth для connections + LLM config; localStorage только активный канал + LLM api_key (security)
 - [ ] **UX-05**: Dev mode launch без ошибок; полный first-run flow за ≤90 секунд
 
 ## v2 Requirements
@@ -154,7 +154,7 @@
 | UX-01 | Phase 5 | Pending |
 | UX-02 | Phase 5 | Pending |
 | UX-03 | Phase 5 | Pending |
-| UX-04 | Phase 5 | Pending |
+| UX-04 | Phase 5 | Done (05-04) |
 | UX-05 | Phase 5 | Pending |
 
 **Coverage:**

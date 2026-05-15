@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-05-15T15:51:36.182Z"
+last_updated: "2026-05-15T16:05:43.174Z"
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 20
-  completed_plans: 23
+  completed_plans: 24
   percent: 100
 ---
 
@@ -28,12 +28,12 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | Aspect | Value |
 |--------|-------|
 | **Current Milestone** | M1 — Foundation |
-| **Current Phase** | Phase 5 — UX Polish (in progress, Plan 03 complete) |
+| **Current Phase** | Phase 5 — UX Polish (in progress, Plan 04 complete) |
 | **Previous Phase 4** | Demo & Refine ✓ PASS — MVP RELEASE READY |
 | **Previous Phase 3** | Production Ready ✓ PASS |
 | **Previous Phase** | Phase 2 — MVP Chat ✓ PASS |
 | **Mode** | YOLO + coarse granularity + parallel execution |
-| **Last Update** | 2026-05-15 (Phase 5 Plan 03 завершён: Onboarding wizard — OnboardingDialog 3-step, StepIndicator, onboarding-flag.ts, page.tsx integration, legacy guard. 9 new tests → 219 total.) |
+| **Last Update** | 2026-05-15 (Phase 5 Plan 04 завершён: Source-of-truth migration UX-04 — fetchChat новая сигнатура + getLLMApiKey, storage.ts @deprecated x4, page.tsx backend-driven hasConfig, migrateLegacyApiKey(), 7 компонентов переключены. 219 тестов pass.) |
 
 ## Phase Progress
 
@@ -43,9 +43,9 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | 2 | MVP Chat | ✓ Complete | 5/5 executed | 100% |
 | 3 | Production Ready | ✓ Complete | 4/4 executed | 100% |
 | 4 | Demo & Refine | ✓ Complete | 4/4 executed | 100% |
-| 5 | UX Polish | In Progress | 3/? executed | — |
+| 5 | UX Polish | In Progress | 4/5 executed | 80% |
 
-**Overall:** Progress: ██████████ 100% (Phase 1+2+3+4 закрыты; Phase 5 запущена, Plan 01+02+03 выполнены)
+**Overall:** Progress: ██████████ 100% (Phase 1+2+3+4 закрыты; Phase 5 запущена, Plan 01+02+03+04 выполнены)
 
 ## Artifacts Status
 
@@ -76,6 +76,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 - [x] Phase 5 Plan 01 execution — UX-04 LLM Config CRUD backend + frontend API client. 5 endpoints (/llm-config GET/POST/PATCH/DELETE/test), 5 Pydantic models, 14/14 tests, 5 frontend API functions, pnpm type-check green. Deviation: direct httpx вместо LLMClient (streaming only). 3 commits (`916f824`, `d3fed9f`, `df9189d`). SUMMARY: `phases/05-ux-polish/05-01-SUMMARY.md`
 - [x] Phase 5 Plan 02 execution — UX-02+UX-03 Settings UI CRUD. MCPConnectionForm/MCPConnectionList/LLMConfigForm (zod safeParse, controlled inputs). api-keys.ts sessionStorage. Slider+AlertDialog shadcn components. /settings page rewritten (stub removed). 18 new tests → 210 total. 2 deviations auto-fixed (gitignore exception + slider type guard). 3 commits (`b7b9954`, `61e7542`, `91b2585`). SUMMARY: `phases/05-ux-polish/05-02-SUMMARY.md`
 - [x] Phase 5 Plan 03 execution — UX-01 First-run onboarding wizard. OnboardingDialog (3-step: MCP→LLM→Done), StepIndicator, onboarding-flag.ts (localStorage SSR-safe), page.tsx integration with legacy guard (Promise.all backend check). Gate-logic: «Далее» disabled до pingPassed/llmTestPassed. 9 new vitest → 219 total. 3 commits (`9b4aa0b`, `6520e03`, `a03f726`). SUMMARY: `phases/05-ux-polish/05-03-SUMMARY.md`
+- [x] Phase 5 Plan 04 execution — UX-04 Source-of-truth migration. fetchChat новая сигнатура (llm param + getLLMApiKey sessionStorage), storage.ts @deprecated x4, page.tsx backend hasConfig (fetchConnections+fetchLLMConfig Promise.all), migrateLegacyApiKey() T-05-13, useChatStream fetchLLMConfig per-send, ModelBadge async, sessions/[id] fetchConnections, Input.tsx sessionStorage check. 219 тестов pass. 3 commits (`412c18c`, `5566052`, `7342835`). SUMMARY: `phases/05-ux-polish/05-04-SUMMARY.md`
 
 ## Pivot History (Lessons Learned)
 
