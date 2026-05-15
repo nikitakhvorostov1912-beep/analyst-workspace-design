@@ -20,15 +20,9 @@ LLM сама вызывает MCP-инструменты — аналитик т
 | LLM | OpenAI-compatible HTTP (Xiaomi MiMo, GPT-4o, любой) |
 | MCP | 1С MCP Toolkit v1.7.0 (EPF) на localhost:6010 или :6003 |
 
-## Быстрый старт (за 15 минут)
+## Быстрый старт
 
-### 1. Требования
-
-- Docker + Docker Compose, либо Python 3.12 + Node 22 + pnpm 9
-- 1С MCP Toolkit EPF запущен на localhost:6010 (или другом порту)
-- LLM endpoint OpenAI-compatible (Xiaomi MiMo, OpenAI, Azure, Ollama...)
-
-### 2. Запуск через docker-compose
+### 1. Запуск
 
 ```bash
 git clone <repo-url> analyst-workspace-design
@@ -40,7 +34,22 @@ docker compose up
 - Frontend: http://localhost:3010
 - Swagger UI: http://localhost:8010/docs
 
-### 3. Запуск вручную
+### 2. Onboarding wizard (~90 секунд до первого ответа)
+
+1. Открыть http://localhost:3010
+2. Появится 3-шаговый onboarding wizard:
+   - **Шаг 1 — MCP:** указать адрес MCP Toolkit вашей базы 1С (обычно `http://localhost:6010/mcp`) → «Сохранить» → «MCP подключён» → «Далее»
+   - **Шаг 2 — LLM:** указать endpoint + модель + API ключ (OpenAI-совместимый сервис) → «Тест» → «Сохранить» → «Далее»
+   - **Шаг 3 — Готово:** нажать «Начать работу»
+3. Задать первый вопрос, например: «Расскажи про базу»
+4. Наблюдать статус: «Анализирую...» → «Вызываю tool...» → ответ с inline-карточкой
+
+**После onboarding:**
+- Настройки MCP/LLM редактируются в `/settings` (кнопка «шестерёнка» в шапке)
+- Добавить ещё одну базу 1С: `/settings` → «+ Добавить подключение»
+- Channel selector в шапке переключает базу для нового чата
+
+### 3. Запуск вручную (без Docker)
 
 **Backend:**
 
@@ -77,17 +86,6 @@ Frontend `.env.local`:
 ```env
 NEXT_PUBLIC_BACKEND_URL=http://localhost:8010
 ```
-
-### 5. Первый запрос
-
-1. Открыть http://localhost:3010
-2. Пустой экран → кнопка «Настройки» → вкладка Подключения → Добавить MCP
-   - URL: `http://localhost:6010/mcp`
-   - Имя: `1С Транзит`
-   - Нажать «Ping» — должен увидеть «ok»
-3. Настройки → LLM → ввести endpoint + API key + model → «Тест»
-4. Главная страница → ввести «Расскажи про базу» → Cmd-Enter (или кнопка отправить)
-5. Видеть статус «Анализирую...» → «Вызываю tool...» → ответ с карточкой
 
 ## Тестирование
 
