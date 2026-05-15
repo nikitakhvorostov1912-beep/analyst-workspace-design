@@ -28,7 +28,8 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | Aspect | Value |
 |--------|-------|
 | **Current Milestone** | M1 — Foundation |
-| **Current Phase** | Phase 3 — Production Ready ✓ **PASS** — готов к Phase 4 |
+| **Current Phase** | Phase 4 — Demo & Refine (planned, готов к execute) |
+| **Previous Phase 3** | Production Ready ✓ PASS |
 | **Previous Phase** | Phase 2 — MVP Chat ✓ PASS |
 | **Mode** | YOLO + coarse granularity + parallel execution |
 | **Last Update** | 2026-05-14 (Phase 3 Plan 04 завершён: TRACE-03, DEVX-04/05, CARD-03 load-more закрыты) |
@@ -40,7 +41,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | 1 | Foundation | ✓ Complete | 2/2 executed | 100% |
 | 2 | MVP Chat | ✓ Complete | 5/5 executed | 100% |
 | 3 | Production Ready | ✓ Complete | 4/4 executed | 100% |
-| 4 | Demo & Refine | ○ Pending | 0/4 | 0% |
+| 4 | Demo & Refine | ◆ Planned | 0/4 executed | 0% |
 
 **Overall:** Progress: █████████░ 92% (Phase 1+2+3 закрыты; Phase 4 — финальный)
 
