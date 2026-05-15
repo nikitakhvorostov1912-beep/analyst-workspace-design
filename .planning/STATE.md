@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-05-15T13:59:15Z"
+last_updated: "2026-05-15T15:51:36.182Z"
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 20
-  completed_plans: 22
+  completed_plans: 23
   percent: 100
 ---
 
@@ -28,12 +28,12 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | Aspect | Value |
 |--------|-------|
 | **Current Milestone** | M1 — Foundation |
-| **Current Phase** | Phase 5 — UX Polish (in progress, Plan 02 complete) |
+| **Current Phase** | Phase 5 — UX Polish (in progress, Plan 03 complete) |
 | **Previous Phase 4** | Demo & Refine ✓ PASS — MVP RELEASE READY |
 | **Previous Phase 3** | Production Ready ✓ PASS |
 | **Previous Phase** | Phase 2 — MVP Chat ✓ PASS |
 | **Mode** | YOLO + coarse granularity + parallel execution |
-| **Last Update** | 2026-05-15 (Phase 5 Plan 02 завершён: Settings UI CRUD — MCPConnectionForm/List/LLMConfigForm, zod v4, api-keys sessionStorage, Slider+AlertDialog. 18 new tests, 210 total.) |
+| **Last Update** | 2026-05-15 (Phase 5 Plan 03 завершён: Onboarding wizard — OnboardingDialog 3-step, StepIndicator, onboarding-flag.ts, page.tsx integration, legacy guard. 9 new tests → 219 total.) |
 
 ## Phase Progress
 
@@ -43,9 +43,9 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | 2 | MVP Chat | ✓ Complete | 5/5 executed | 100% |
 | 3 | Production Ready | ✓ Complete | 4/4 executed | 100% |
 | 4 | Demo & Refine | ✓ Complete | 4/4 executed | 100% |
-| 5 | UX Polish | In Progress | 2/? executed | — |
+| 5 | UX Polish | In Progress | 3/? executed | — |
 
-**Overall:** Progress: ██████████ 100% (Phase 1+2+3+4 закрыты; Phase 5 запущена, Plan 01+02 выполнены)
+**Overall:** Progress: ██████████ 100% (Phase 1+2+3+4 закрыты; Phase 5 запущена, Plan 01+02+03 выполнены)
 
 ## Artifacts Status
 
@@ -75,6 +75,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 - [x] Phase 4 Plan 04 execution — Demo artifacts: DEMO-SCRIPT.md (15-min сценарий 8 разделов) + DEMO-OBSERVER-CHECKLIST.md (5 категорий) + DEMO-FEEDBACK-TEMPLATE.md (6 секций) + seed-demo-data.py (6 сессий, 6 типов cards, 8 тестов) + BACKLOG-POST-MVP.md (6 категорий). README секция «Демо для аналитика». 2 commits (`4c3d7c1`, `2ec3de7`). SUMMARY: `phases/04-demo-refine/04-04-SUMMARY.md`
 - [x] Phase 5 Plan 01 execution — UX-04 LLM Config CRUD backend + frontend API client. 5 endpoints (/llm-config GET/POST/PATCH/DELETE/test), 5 Pydantic models, 14/14 tests, 5 frontend API functions, pnpm type-check green. Deviation: direct httpx вместо LLMClient (streaming only). 3 commits (`916f824`, `d3fed9f`, `df9189d`). SUMMARY: `phases/05-ux-polish/05-01-SUMMARY.md`
 - [x] Phase 5 Plan 02 execution — UX-02+UX-03 Settings UI CRUD. MCPConnectionForm/MCPConnectionList/LLMConfigForm (zod safeParse, controlled inputs). api-keys.ts sessionStorage. Slider+AlertDialog shadcn components. /settings page rewritten (stub removed). 18 new tests → 210 total. 2 deviations auto-fixed (gitignore exception + slider type guard). 3 commits (`b7b9954`, `61e7542`, `91b2585`). SUMMARY: `phases/05-ux-polish/05-02-SUMMARY.md`
+- [x] Phase 5 Plan 03 execution — UX-01 First-run onboarding wizard. OnboardingDialog (3-step: MCP→LLM→Done), StepIndicator, onboarding-flag.ts (localStorage SSR-safe), page.tsx integration with legacy guard (Promise.all backend check). Gate-logic: «Далее» disabled до pingPassed/llmTestPassed. 9 new vitest → 219 total. 3 commits (`9b4aa0b`, `6520e03`, `a03f726`). SUMMARY: `phases/05-ux-polish/05-03-SUMMARY.md`
 
 ## Pivot History (Lessons Learned)
 
