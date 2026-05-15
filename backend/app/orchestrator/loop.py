@@ -462,6 +462,9 @@ async def run_chat_loop(
             "log": "get_event_log",
             "table": "execute_query",
             "object": "get_object_by_link",
+            "metric": "execute_query",
+            "references": "find_references_to_object",
+            "code": "execute_code",
         }
         for card in accumulated_cards:
             card_type = card.get("type")

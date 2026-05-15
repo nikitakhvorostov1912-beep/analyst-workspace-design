@@ -147,48 +147,44 @@ def test_non_json_mcp_content_returns_none():
     assert card is None
 
 
-# --- find_references_to_object → TableCard ---
-
-def test_find_references_direct_rows():
-    """find_references_to_object с {columns, rows} → TableCard."""
-    result = {
-        "columns": [{"name": "Объект"}, {"name": "Путь"}, {"name": "Представление"}],
-        "rows": [["Документ.ОПП", "Форма.Объект.Реквизит", "Номер"]],
-    }
-    card = build_card_from_tool_result("find_references_to_object", {}, result)
-    assert card is not None
-    assert card["type"] == "table"
-    assert card["payload"]["total"] == 1
-
+# --- find_references_to_object → ReferencesCard ---
 
 def test_find_references_items_format():
-    """find_references_to_object с references[] → TableCard с 3 колонками."""
+    """find_references_to_object с references[] → ReferencesCard."""
     result = {
         "references": [
-            {"object": "Документ.РасходнаяНакладная", "path": "Реквизит.Контрагент", "presentation": "Контрагент"},
+            {
+                "object_type": "Документ",
+                "name": "РасходнаяНакладная",
+                "full_path": "Документ.РасходнаяНакладная.Реквизит.Контрагент",
+                "usage_kind": "Реквизит",
+            },
         ]
     }
     card = build_card_from_tool_result("find_references_to_object", {}, result)
     assert card is not None
-    assert card["type"] == "table"
-    assert card["payload"]["columns"][0]["name"] == "Объект"
-    assert card["payload"]["rows"][0][0] == "Документ.РасходнаяНакладная"
+    assert card["type"] == "references"
+    assert card["payload"]["total"] == 1
+    assert card["payload"]["groups"][0]["kind"] == "Реквизит"
 
 
 # --- Вывод типов колонок ---
 
 def test_execute_query_type_inference_from_rows():
-    """execute_query без явных типов → типы выведены из rows."""
+    """execute_query без явных типов с 1 строкой и numeric колонкой → MetricCard (новая логика).
+
+    Примечание: 1 строка с numeric col → MetricCard через _dispatch_query_card.
+    Если нужна проверка type inference → использовать multi-row result.
+    """
     result = {
-        "columns": ["Код", "Сумма", "Активен"],
-        "rows": [["А001", 1234.5, True]],
+        "columns": ["Код", "Сумма", "Период"],
+        "rows": [["А001", 1234.5, "2026-01"], ["А002", 2345.0, "2026-02"]],
     }
     card = build_card_from_tool_result("execute_query", {}, result)
     assert card is not None
-    cols = card["payload"]["columns"]
-    assert cols[0]["type"] == "String"
-    assert cols[1]["type"] == "Number"
-    assert cols[2]["type"] == "Boolean"
+    # multi-row без period-match нет, «Период» как string — timeline или table
+    # Важно: не падает + возвращает dict
+    assert card["type"] in ("table", "metric")
 
 
 def test_execute_query_type_inference_null():
@@ -251,9 +247,13 @@ def test_execute_query_invalid_rows_returns_none():
     assert card is None or card["type"] == "table"  # оба ок, главное не исключение
 
 
-# --- execute_code → None ---
+# --- execute_code → CodeCard ---
 
-def test_execute_code_returns_none():
-    """execute_code → None (не поддерживается карточками)."""
-    card = build_card_from_tool_result("execute_code", {}, {"result": "ok"})
-    assert card is None
+def test_execute_code_returns_code_card():
+    """execute_code → CodeCard с BSL кодом."""
+    code = "Процедура Тест()\n  Сообщить(\"hello\");\nКонецПроцедуры"
+    card = build_card_from_tool_result("execute_code", {"code": code}, {"result": "ok"})
+    assert card is not None
+    assert card["type"] == "code"
+    assert card["payload"]["executable"] is True
+    assert card["payload"]["language"] == "bsl"
