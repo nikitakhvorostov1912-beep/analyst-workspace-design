@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: "- Smoke: чистая VM Windows 10/11 без Python/Node/pnpm → `setup.exe` → клик ярлыка → приложение работает за < 10 секунд от клика"
 status: unknown
-last_updated: "2026-05-15T19:52:46.251Z"
+last_updated: "2026-05-15T20:47:46.953Z"
 progress:
   total_phases: 6
   completed_phases: 5
   total_plans: 25
-  completed_plans: 27
+  completed_plans: 29
   percent: 100
 ---
 
@@ -28,12 +28,12 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | Aspect | Value |
 |--------|-------|
 | **Current Milestone** | M1 — Foundation |
-| **Current Phase** | Phase 5 — UX Polish ✓ COMPLETE — v1.0 RELEASED |
+| **Current Phase** | Phase 7 — Desktop Installer (In Progress: Plan 01 ✓) |
 | **Previous Phase 4** | Demo & Refine ✓ PASS — MVP RELEASE READY |
 | **Previous Phase 3** | Production Ready ✓ PASS |
 | **Previous Phase** | Phase 2 — MVP Chat ✓ PASS |
 | **Mode** | YOLO + coarse granularity + parallel execution |
-| **Last Update** | 2026-05-15 (Phase 5 Plan 05 завершён: E2E Playwright onboarding (7 тестов) + settings-crud (8 тестов), README quick start onboarding, USER.md FAQ sessionStorage, 05-VERIFICATION.md 5/5 truths PASS, git tag v1.0 создан. 219 frontend + 315 backend тестов pass.) |
+| **Last Update** | 2026-05-15 (Phase 7 Plan 01 завершён: Electron main.js (175 lines) + preload.js — getFreePort + spawn(backend.exe+frontend) + waitForUrl(30s) + BrowserWindow 1400×900 + SIGTERM/SIGKILL cleanup. Smoke: dev machine OK, app.db created, no orphan processes. DIST-01 + DIST-05 closed.) |
 
 ## Phase Progress
 
@@ -44,8 +44,9 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | 3 | Production Ready | ✓ Complete | 4/4 executed | 100% |
 | 4 | Demo & Refine | ✓ Complete | 4/4 executed | 100% |
 | 5 | UX Polish | ✓ Complete | 5/5 executed | 100% |
+| 7 | Desktop Installer | In Progress | 1/5 executed | 20% |
 
-**Overall:** Progress: ██████████ 100% (ВСЕ 5 фаз закрыты; v1.0 released 2026-05-15)
+**Overall:** Progress: ██████████ 100% (Phases 1-5 complete, v1.0 released. Phase 7 Desktop Installer started.)
 
 ## Artifacts Status
 
@@ -79,6 +80,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 - [x] Phase 5 Plan 04 execution — UX-04 Source-of-truth migration. fetchChat новая сигнатура (llm param + getLLMApiKey sessionStorage), storage.ts @deprecated x4, page.tsx backend hasConfig (fetchConnections+fetchLLMConfig Promise.all), migrateLegacyApiKey() T-05-13, useChatStream fetchLLMConfig per-send, ModelBadge async, sessions/[id] fetchConnections, Input.tsx sessionStorage check. 219 тестов pass. 3 commits (`412c18c`, `5566052`, `7342835`). SUMMARY: `phases/05-ux-polish/05-04-SUMMARY.md`
 - [x] Phase 5 Plan 05 execution — UX-05 Verification + Release. E2E onboarding.spec.ts (7 тестов), settings-crud.spec.ts (8 тестов), mocks/onboarding-handlers.ts. README quick start onboarding, USER.md FAQ sessionStorage (5 новых вопросов). 05-VERIFICATION.md (5/5 truths PASS), PHASE-summary.md, STATE.md + REQUIREMENTS.md обновлены. git tag v1.0. 3 commits (`85bce52`, `7719c0b`, release). SUMMARY: `phases/05-ux-polish/05-05-SUMMARY.md`
 - [x] **Phase 5 VERIFICATION — PASS** (5/5 truths). 315 pytest + 219 vitest зелёные. pnpm build success. E2E 15/15 + 6 pre-existing. git tag v1.0 создан. **Phase 5 COMPLETE. v1.0 RELEASED 2026-05-15.**
+- [x] Phase 7 Plan 01 execution — Electron main.js (175 lines) + preload.js + npm install electron/electron-builder. getFreePort + waitForUrl(30s) + BrowserWindow 1400×900 + SIGTERM/SIGKILL cleanup. Dev smoke: app.db created, no orphan processes, random freeport confirmed. DIST-01 + DIST-05 closed. 2 commits (`2714be4`, `82f30fb`). SUMMARY: `phases/07-desktop-installer/07-01-SUMMARY.md`
 
 ## Pivot History (Lessons Learned)
 
