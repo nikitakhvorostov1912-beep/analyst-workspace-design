@@ -39,6 +39,9 @@ const nextConfig: NextConfig = {
   // Явно указываем корень для output file tracing — убирает warning о множественных lockfile
   outputFileTracingRoot: path.join(process.cwd(), ".."),
   async headers() {
+    // В dev-режиме headers === [] — Next.js 15 валидатор отвергает пустой headers.
+    // Возвращаем пустой список правил, чтобы dev-сервер стартовал.
+    if (!isProd) return [];
     return [{ source: "/(.*)", headers: securityHeaders }];
   },
 };

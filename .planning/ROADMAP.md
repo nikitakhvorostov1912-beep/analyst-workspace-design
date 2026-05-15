@@ -1,7 +1,7 @@
 # Roadmap: 1С Аналитик — чат с MCP
 
 **Created:** 2026-05-13
-**Granularity:** coarse (4 phases)
+**Granularity:** coarse (5 phases)
 **Mode:** mvp (vertical slices)
 
 ## Overview
@@ -12,6 +12,7 @@
 | 2 | MVP Chat | End-to-end chat: NL → MCP → cards в UI | CHAT-*, CARD-01..03, HIST-*, TRACE-01..02, CONN-03 | 5 |
 | 3 | Production Ready | Error states + security + tests + docs | STATE-02..03, TRACE-03, DEVX-* (partial) | 5 |
 | 4 | Demo & Refine | Anonymization + advanced cards + productivity features (v2 subset) | ANON-*, CARD-04..06, PROD-* | 4 |
+| 5 | Полировка UX до готового продукта | Settings CRUD UI + First-Run Onboarding + backend как source of truth для connections + dev mode fix + production launch readiness | UX-01..05 (новые) | 5 |
 
 ---
 
@@ -197,6 +198,72 @@ Plans:
 
 ---
 
+## Phase 5: Полировка UX до готового продукта
+
+**Goal:** Закрыть все UX-затыки, чтобы готовое приложение можно было открыть и пользоваться без чтения USER.md. Source of truth — backend, не localStorage. /settings — реальный CRUD, не stub.
+
+**Mode:** mvp
+
+**Success Criteria:**
+1. `docker compose up` запускает оба сервиса; `http://localhost:3010` открывается без ошибок dev mode (CSP headers fix)
+2. **First-run experience**: пустая БД → пользователь видит понятный onboarding wizard и через 3 клика добавляет MCP + LLM
+3. **/settings — полноценный CRUD UI**: добавить/редактировать/удалить MCP connection через форму; настроить LLM endpoint+key+model через форму; нет надписей «следующая итерация»
+4. Source of truth для connections — backend `/connections` API (не localStorage); `getMCPConnections()` устарел и удалён или превращён в кеш с фоновой sync
+5. Empty state с понятным CTA: «Шаг 1: подключите 1С» / «Шаг 2: настройте LLM» / «Шаг 3: задайте первый вопрос»
+
+**New Requirements (Phase 5):**
+- **UX-01**: First-run onboarding wizard (3 шага в /settings или модальный)
+- **UX-02**: Settings → MCP Connections — полноценный CRUD с формой (name, endpoint, channel, test ping)
+- **UX-03**: Settings → LLM — полноценный CRUD с формой + кнопкой Test Connection
+- **UX-04**: Source of truth = backend; localStorage только для `activeChannelId` + LLM api_key (security)
+- **UX-05**: Dev mode launch без ошибок — headers fix + проверочный smoke test в CI
+
+**Plans:**
+
+### Plan 5.1: Backend source-of-truth миграция + LLM CRUD endpoints
+- POST/GET/PATCH/DELETE `/llm-config` endpoints (БД таблица `llm_settings` уже есть из Phase 1, но без CRUD UI)
+- `POST /llm-config/test` — валидация ключа через мини-запрос к LLM (1 token)
+- `POST /connections/{id}/test` уже есть — используем
+- Frontend `lib/api.ts` → новые функции `fetchLLMConfig/saveLLMConfig/deleteLLMConfig/testLLMConfig`
+
+**Acceptance:** curl `POST /llm-config` создаёт запись в DB; `GET /llm-config` возвращает (без api_key в response, только префикс)
+
+### Plan 5.2: Settings UI CRUD
+- `/settings/page.tsx` — полная замена stub: 2 секции с формами + кнопками
+- MCP form: name + endpoint + channel + кнопки Сохранить / Тест ping / Удалить
+- LLM form: endpoint + api_key + model + temperature + кнопки Сохранить / Тест / Удалить
+- shadcn `<Form>` + zod валидация (`form-schema.ts`)
+- Inline toast «Сохранено» / «Ошибка: ...» при операциях
+
+**Acceptance:** через UI можно добавить MCP, увидеть в Channel Selector dropdown, отправить первое сообщение
+
+### Plan 5.3: First-Run Onboarding
+- Detection: пустая БД connections + нет LLM → показывается `<OnboardingDialog>` модально поверх главной
+- 3 шага с прогресс-индикатором: «1. Подключите 1С» → форма MCP → ping; «2. Настройте LLM» → форма LLM → test; «3. Готово!»
+- Skip-кнопка для опытных (сразу /settings)
+- localStorage `analyst.onboarding_completed` чтобы не показывать повторно
+
+**Acceptance:** свежая БД + первый запуск → автоматически открывается onboarding; после прохождения — главная с пустой сессией
+
+### Plan 5.4: page.tsx + AppShell — backend как source of truth
+- `getMCPConnections()` удалить или превратить в @deprecated; всё через `fetchConnections()`
+- `page.tsx hasConfig` логика → `useEffect → fetchConnections() && fetchLLMConfig() → hasConfig=true/false`
+- Empty state обновить: «Шаг 1: подключите 1С» с прямой ссылкой на onboarding/settings
+- Header: ChannelSelector уже использует backend (из 02-04) — оставить
+
+**Acceptance:** добавление MCP через curl без UI → refresh главной → empty state пропадает
+
+### Plan 5.5: Verification + Polish
+- E2E Playwright: onboarding flow (3 шага) + CRUD operations + first message
+- Visual smoke артефакты обновить (USER.md скриншоты остаются placeholder, README обновить про onboarding)
+- pytest регрессия на новые `/llm-config` endpoints
+- Финальный health check для CI: backend startup time ≤2 сек NFR-4 verified
+- Final commit `release(v1.0)`: tag готового релиза
+
+**Acceptance:** `docker compose up` → http://localhost:3010 → пройти onboarding за 90 секунд → отправить «Расскажи про базу» → видна TableCard
+
+---
+
 ## Out of Roadmap
 
 Vector search / RAG · Mobile UI · Multi-user · Real-time collaboration · Voice · Light theme · Theming · Direct 1С editing · 1С management.
@@ -204,4 +271,5 @@ Vector search / RAG · Mobile UI · Multi-user · Real-time collaboration · Voi
 ---
 
 *Roadmap created: 2026-05-13*
-*Granularity: coarse (4 phases ≈ 5-7 weeks)*
+*Phase 5 added: 2026-05-15 (UX gaps обнаружены после Phase 4 visual smoke)*
+*Granularity: coarse (5 phases)*

@@ -143,10 +143,15 @@
 | DEVX-03 | Phase 3 | ✓ Done — 03-03 |
 | DEVX-04 | Phase 3 | Pending |
 | DEVX-05 | Phase 3 | Pending |
+| UX-01 | Phase 5 | Pending |
+| UX-02 | Phase 5 | Pending |
+| UX-03 | Phase 5 | Pending |
+| UX-04 | Phase 5 | Pending |
+| UX-05 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 31 total (22 функциональных + 9 нефункциональных SEC/DEVX перемещены из v2 для Phase 3)
-- Mapped to phases: 31
+- v1 requirements: 36 total (22 базовых + 9 SEC/DEVX из Phase 3 + 5 UX из Phase 5)
+- Mapped to phases: 36
 - Unmapped: 0 ✓
 
 ---
