@@ -1,13 +1,15 @@
 {
   "name": "analyst-desktop",
   "version": "1.0.0",
+  "productName": "1С Аналитик",
   "description": "1С Аналитик — Desktop приложение",
   "main": "main.js",
   "scripts": {
     "dev": "electron .",
     "build:bundle": "node scripts/build-bundle.js",
     "build:installer": "electron-builder --win --x64",
-    "build": "npm run build:bundle && npm run build:installer"
+    "build": "npm run build:bundle && npm run build:installer",
+    "clean": "node -e \"const fs=require('fs');for(const d of ['dist','resources/backend.exe','resources/frontend'])try{fs.rmSync(d,{recursive:true,force:true})}catch{}\""
   },
   "devDependencies": {
     "electron": "^33.0.0",
