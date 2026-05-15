@@ -120,6 +120,22 @@ GitHub Actions на каждый PR и push в main:
 | Кнопка «Загрузить ещё» disabled | card_id отсутствует в старых сессиях (created до v3 миграции) |
 | Build падает на Node < 22 | Обновить Node до 22 LTS |
 
+## Демо для аналитика
+
+Перед прогоном:
+
+1. Запустить `docker compose up`
+2. (Опционально) Заполнить демо-данными: `python scripts/seed-demo-data.py --clean`
+   — создаёт 6 сессий с примерами всех 6 типов карточек (без живой 1С)
+3. Открыть [docs/DEMO-SCRIPT.md](docs/DEMO-SCRIPT.md) — 15-минутный пошаговый сценарий
+
+Во время демо:
+
+- Наблюдатель ведёт [docs/DEMO-OBSERVER-CHECKLIST.md](docs/DEMO-OBSERVER-CHECKLIST.md)
+- После — аналитик заполняет [docs/DEMO-FEEDBACK-TEMPLATE.md](docs/DEMO-FEEDBACK-TEMPLATE.md)
+
+После демо — feedback → [.planning/BACKLOG-POST-MVP.md](.planning/BACKLOG-POST-MVP.md)
+
 ## Документация
 
 - [docs/USER.md](docs/USER.md) — руководство аналитика
