@@ -70,6 +70,14 @@
 - [x] **UX-04**: Backend как source-of-truth для connections + LLM config; localStorage только активный канал + LLM api_key (security)
 - [x] **UX-05**: Dev mode launch без ошибок; полный first-run flow за ≤90 секунд
 
+### Distribution (Phase 7)
+
+- [ ] **DIST-01**: Electron main process spawnit backend (PyInstaller exe) + frontend (Next.js standalone), ждёт готовности, открывает BrowserWindow на random свободном порту
+- [ ] **DIST-02**: PyInstaller упаковка backend → один backend.exe (~50 MB) с embedded Python runtime + uvicorn + все зависимости
+- [ ] **DIST-03**: Next.js standalone build (`output: "standalone"`) — frontend запускается через `node server.js` без npm install
+- [ ] **DIST-04**: electron-builder упаковка в NSIS installer .exe с custom icon, ярлыками Desktop + Start Menu, метаданными
+- [ ] **DIST-05**: Auto-cleanup — close окна убивает все child процессы (SIGTERM, fallback SIGKILL через 3 сек)
+
 ## v2 Requirements
 
 Отложено до post-MVP. Tracked, но не в текущем roadmap.

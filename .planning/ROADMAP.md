@@ -1,7 +1,7 @@
 # Roadmap: 1С Аналитик — чат с MCP
 
 **Created:** 2026-05-13
-**Granularity:** coarse (5 phases)
+**Granularity:** coarse (6 phases)
 **Mode:** mvp (vertical slices)
 
 ## Overview
@@ -13,6 +13,8 @@
 | 3 | Production Ready | Error states + security + tests + docs | STATE-02..03, TRACE-03, DEVX-* (partial) | 5 |
 | 4 | Demo & Refine | Anonymization + advanced cards + productivity features (v2 subset) | ANON-*, CARD-04..06, PROD-* | 4 |
 | 5 | Полировка UX до готового продукта | Settings CRUD UI + First-Run Onboarding + backend как source of truth для connections + dev mode fix + production launch readiness | UX-01..05 (новые) | 5 |
+| 6 | Self-Explanatory UI | /about + /status + try examples в empty state + header иконки | (UX polish, без новых REQ) | — |
+| 7 | Desktop Installer | Electron wrapper + PyInstaller backend + electron-builder → один setup.exe для Windows | DIST-01..05 (новые) | 5 |
 
 ---
 
@@ -264,12 +266,85 @@ Plans:
 
 ---
 
+## Phase 7: Desktop Installer
+
+**Goal:** Превратить веб-приложение (требует Python + Node для запуска) в **один Windows installer .exe** — аналитик скачал, кликнул, получил ярлык на рабочем столе, кликнул → окно с приложением.
+
+**Mode:** mvp
+
+**Success Criteria:**
+1. Один файл `analyst-setup-v1.0.exe` (~180 MB) который ставится без админских прав
+2. После установки — ярлык на рабочем столе и в Start Menu «1С Аналитик»
+3. Двойной клик → открывается Electron-окно с приложением. Аналитик НЕ видит cmd-окон, портов, запуска серверов
+4. Приложение **не требует** установленных Python / Node / pnpm у аналитика — всё в инсталляторе
+5. При закрытии окна — все child процессы (backend, frontend) автоматически останавливаются
+
+**New Requirements (Phase 7):**
+- **DIST-01**: Electron main process spawnit backend (PyInstaller exe) + frontend (Next.js standalone) на random свободных портах, ждёт готовности, открывает BrowserWindow
+- **DIST-02**: PyInstaller упаковка backend → один backend.exe (~50 MB) включая Python runtime + uvicorn + все зависимости + миграции
+- **DIST-03**: Next.js standalone build с `output: "standalone"` → frontend готов к запуску через `node server.js` без npm install
+- **DIST-04**: electron-builder упаковка в NSIS installer .exe с custom icon, метаданными, ярлыками
+- **DIST-05**: Auto-cleanup — при close все child процессы убиваются (browser close + Window.on('close') + signal handlers)
+
+**Plans:**
+
+### Plan 7.1: Electron main process + dev launch
+- `desktop/` папка с Electron приложением (main.js, preload.js, package.json)
+- main.js: spawn backend.exe + node server.js → ждёт `/health` 200 → создаёт BrowserWindow → loadURL http://127.0.0.1:<frontend-port>
+- Window.on('close') → kill all spawned children (ChildProcess.kill('SIGTERM'), fallback SIGKILL через 3 сек)
+- Random ports (избежать конфликта с уже занятыми 8010/3010)
+- Dev mode: запускает существующий `uvicorn` и `next dev` для отладки
+
+**Acceptance:** `cd desktop && npm run dev` → открывается окно Electron с приложением (backend и frontend подняты как child processes)
+
+### Plan 7.2: PyInstaller backend bundle
+- `backend/build.spec` для PyInstaller (entry: app/main.py с uvicorn embedded)
+- `pyinstaller --onefile --name backend backend/build.spec` → `dist/backend.exe`
+- Включает: Python 3.12 runtime, fastapi, uvicorn, pydantic, aiosqlite, httpx, sse-starlette
+- DB и frontend dist копируются в директорию рядом с backend.exe (через `--add-data`)
+- Verify: `dist\backend.exe` запускается без Python в системе, /health отвечает
+
+**Acceptance:** удалить Python из PATH временно → `backend.exe` всё равно работает на :8010
+
+### Plan 7.3: Next.js standalone build для bundling
+- Включить `output: "standalone"` в next.config.ts через env
+- `pnpm build` → создаёт `frontend/.next/standalone/server.js` + `frontend/.next/static/`
+- Скрипт копирования: `static/` в `standalone/.next/static/`, `public/` в `standalone/public/`
+- Verify: `node frontend/.next/standalone/server.js` запускает frontend на любом порту
+
+**Acceptance:** удалить `node_modules` временно → standalone server всё равно работает
+
+### Plan 7.4: electron-builder config + сборка installer
+- `desktop/electron-builder.yml` с конфигом:
+  - target: nsis (Windows installer)
+  - icon: `desktop/icon.ico`
+  - extraResources: backend.exe + frontend standalone
+  - artifactName: `analyst-setup-v${version}.exe`
+- `pnpm dlx electron-builder build --win` → `desktop/dist/analyst-setup-v1.0.exe`
+- NSIS configures: ярлык Desktop + Start Menu, AppData install location
+- Размер ~180 MB
+
+**Acceptance:** `setup.exe` поставлен на чистую Windows → ярлык работает, окно открывается
+
+### Plan 7.5: Verification + release v1.1
+- Smoke: чистая VM Windows 10/11 без Python/Node/pnpm → `setup.exe` → клик ярлыка → приложение работает за < 10 секунд от клика
+- Проверить close behavior — backend.exe и node.exe child процессы убиты после закрытия окна
+- README обновить — новый раздел «Скачать .exe для аналитика» + ссылка на release
+- GitHub Release v1.1 с приложенным .exe (если хочется публично)
+
+**Acceptance:** на машине без dev зависимостей `analyst-setup-v1.0.exe` ставится, запускается, работает; close корректно убирает процессы
+
+---
+
 ## Out of Roadmap
 
 Vector search / RAG · Mobile UI · Multi-user · Real-time collaboration · Voice · Light theme · Theming · Direct 1С editing · 1С management.
 
+macOS/Linux installer — Out of Scope (Phase 7 только Windows; кросс-платформа в v2).
+
 ---
 
 *Roadmap created: 2026-05-13*
-*Phase 5 added: 2026-05-15 (UX gaps обнаружены после Phase 4 visual smoke)*
-*Granularity: coarse (5 phases)*
+*Phase 5 added: 2026-05-15 (UX gaps after Phase 4 visual smoke)*
+*Phase 7 added: 2026-05-15 (Electron desktop installer — снять зависимости Python/Node у аналитика)*
+*Granularity: coarse (7 phases)*
