@@ -15,8 +15,10 @@ def reset_settings(monkeypatch):
 
 
 def test_settings_cors_origins_empty_by_default(monkeypatch):
-    """Settings() без BACKEND_ALLOWED_ORIGINS → cors_origins == '' и cors_origins_list == []."""
+    """SEC-04 fail-secure: в production без env → cors_origins_list == [].
+    Dev environment получает localhost fallback для UX (см. config.py docstring)."""
     monkeypatch.delenv("BACKEND_ALLOWED_ORIGINS", raising=False)
+    monkeypatch.setenv("ENVIRONMENT", "prod")
 
     from app.config import get_settings
 
@@ -25,6 +27,22 @@ def test_settings_cors_origins_empty_by_default(monkeypatch):
 
     assert settings.cors_origins == ""
     assert settings.cors_origins_list == []
+
+
+def test_settings_cors_origins_dev_default(monkeypatch):
+    """Dev environment + пустой env → localhost:3010 fallback (UX из коробки)."""
+    monkeypatch.delenv("BACKEND_ALLOWED_ORIGINS", raising=False)
+    monkeypatch.setenv("ENVIRONMENT", "dev")
+
+    from app.config import get_settings
+
+    get_settings.cache_clear()
+    settings = get_settings()
+
+    assert settings.cors_origins_list == [
+        "http://localhost:3010",
+        "http://127.0.0.1:3010",
+    ]
 
 
 def test_settings_cors_origins_from_env(monkeypatch):

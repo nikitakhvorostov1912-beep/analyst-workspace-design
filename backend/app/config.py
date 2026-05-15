@@ -29,8 +29,19 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins_list(self) -> list[str]:
-        """Возвращает список origins. Пропускает пустые строки."""
-        return [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        """Возвращает список origins. Пропускает пустые строки.
+
+        SEC-04 fail-secure: в production без env → пустой список (CORS закрыт).
+        В dev режиме (default environment="dev") при пустом env подставляем localhost
+        фронта чтобы `pnpm dev` + `python -m uvicorn` работали из коробки без .env.
+        Production деплой обязан задать BACKEND_ALLOWED_ORIGINS явно.
+        """
+        explicit = [o.strip() for o in self.cors_origins.split(",") if o.strip()]
+        if explicit:
+            return explicit
+        if self.environment == "dev":
+            return ["http://localhost:3010", "http://127.0.0.1:3010"]
+        return []
 
     @property
     def sqlite_path(self) -> str:
