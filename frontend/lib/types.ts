@@ -55,6 +55,7 @@ export type TableCardPayload = {
   rows: unknown[][];
   total: number;
   meta: { query?: string | null; duration_ms?: number | null };
+  card_id?: string | null;  // UUID4 для deanonymize endpoint (Plan 04-01)
 };
 
 export type ObjectCardPayload = {
@@ -63,6 +64,7 @@ export type ObjectCardPayload = {
   tabular_sections: Array<{ name: string; columns: string[]; rows_preview?: unknown[][] }>;
   forms: Array<{ name: string; type: string }>;
   templates: Array<{ name: string; type: string }>;
+  card_id?: string | null;  // UUID4 для deanonymize endpoint (Plan 04-01)
 };
 
 export type LogEntry = {
@@ -189,3 +191,8 @@ export type MessageRow = {
   duration_ms: number | null;
   created_at: string;
 };
+
+// --- Deanonymize types (Plan 04-01) ---
+
+export type DeanonymizeRequest = { tokens: string[] };
+export type DeanonymizeResponse = { mapping: Record<string, string> };

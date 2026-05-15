@@ -3,21 +3,39 @@
 import { TableCard } from "./TableCard";
 import { ObjectCard } from "./ObjectCard";
 import { LogCard } from "./LogCard";
-import { loadMoreLogEntries } from "@/lib/api";
+import { deanonymizeCard, loadMoreLogEntries } from "@/lib/api";
 import type { CardEnvelope, CardContext } from "@/lib/types";
 
 interface CardRendererProps {
   card: CardEnvelope;
-  /** Контекст для load-more и curl-copy (Plan 03-04) */
+  /** Контекст для load-more, deanonymize и curl-copy (Plan 03-04, 04-01) */
   context?: CardContext;
 }
 
 export function CardRenderer({ card, context }: CardRendererProps) {
+  // Формируем onDeanonymize если есть card_id и context (Plan 04-01)
+  function makeOnDeanonymize(cardId: string | null | undefined) {
+    if (!cardId || !context?.sessionId || !context?.messageId) return undefined;
+    const sid = context.sessionId;
+    const mid = context.messageId;
+    return (tokens: string[]) => deanonymizeCard(sid, mid, cardId, tokens);
+  }
+
   switch (card.type) {
     case "table":
-      return <TableCard payload={card.payload} />;
+      return (
+        <TableCard
+          payload={card.payload}
+          onDeanonymize={makeOnDeanonymize(card.payload.card_id)}
+        />
+      );
     case "object":
-      return <ObjectCard payload={card.payload} />;
+      return (
+        <ObjectCard
+          payload={card.payload}
+          onDeanonymize={makeOnDeanonymize(card.payload.card_id)}
+        />
+      );
     case "log": {
       // Формируем onLoadMore только если есть card_id и context
       const logPayload = card.payload;
@@ -30,7 +48,13 @@ export function CardRenderer({ card, context }: CardRendererProps) {
         onLoadMore = (cursor: string) => loadMoreLogEntries(sid, mid, cardId, cursor);
       }
 
-      return <LogCard payload={logPayload} onLoadMore={onLoadMore} />;
+      return (
+        <LogCard
+          payload={logPayload}
+          onLoadMore={onLoadMore}
+          onDeanonymize={makeOnDeanonymize(cardId)}
+        />
+      );
     }
     default: {
       // TypeScript narrowing исчерпан — runtime защита для неизвестных типов

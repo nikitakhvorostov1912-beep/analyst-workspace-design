@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { fetchChat, postChatConfirm } from "@/lib/api";
 import { publishToast } from "@/lib/toast";
+import { getAnonEnabled } from "@/lib/storage";
 import type { CardEnvelope, ChatMessage, ConfirmRequiredPayload, ErrorCode, ToolCallRecord } from "@/lib/types";
 import type { StreamingStage } from "./StreamingIndicator";
 
@@ -93,11 +94,20 @@ export function useChatStream({
       setCurrentToolName(null);
 
       try {
-        const stream = fetchChat({
-          message: text,
-          session_id: sessionId,
-          channel_id: channelId,
-        });
+        // Читаем флаг анонимизации в момент отправки (не кешируем — toggle мог измениться)
+        const anonHeaders: Record<string, string> = getAnonEnabled()
+          ? { "X-Anon-Enabled": "true" }
+          : {};
+
+        const stream = fetchChat(
+          {
+            message: text,
+            session_id: sessionId,
+            channel_id: channelId,
+          },
+          undefined,
+          anonHeaders,
+        );
 
         for await (const event of stream) {
           if (event.event === "status") {

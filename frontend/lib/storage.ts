@@ -69,3 +69,26 @@ export function setActiveChannelId(id: string | null): void {
     ls.setItem(KEY_ACTIVE_CHANNEL, id);
   }
 }
+
+// --- Anonymization toggle (Plan 04-01) ---
+
+const KEY_ANON_ENABLED = "analyst.anon_enabled";
+
+/**
+ * Читает флаг анонимизации из localStorage.
+ * Возвращает false если не установлен или в SSR-контексте.
+ */
+export function getAnonEnabled(): boolean {
+  const ls = safeLocalStorage();
+  if (!ls) return false;
+  return ls.getItem(KEY_ANON_ENABLED) === "true";
+}
+
+/**
+ * Записывает флаг анонимизации в localStorage.
+ */
+export function setAnonEnabled(enabled: boolean): void {
+  const ls = safeLocalStorage();
+  if (!ls) return;
+  ls.setItem(KEY_ANON_ENABLED, enabled ? "true" : "false");
+}

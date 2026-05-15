@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { publishToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+import { extractAnonTokens, highlightAnonTokens } from "@/lib/anon-tokens";
 import type { LogCardPayload, LogEntry } from "@/lib/types";
 
 type LogLevel = LogEntry["level"];
@@ -24,7 +26,13 @@ const LEVEL_ROW_CLASSES: Record<LogLevel, string> = {
   Critical: "border-l-2 border-l-red-400 bg-red-950/20",
 };
 
-function LogEntryRow({ entry }: { entry: LogEntry }) {
+function LogEntryRow({
+  entry,
+  revealedMap,
+}: {
+  entry: LogEntry;
+  revealedMap?: Record<string, string> | null;
+}) {
   const timeLabel = (() => {
     try {
       return new Date(entry.time).toLocaleString("ru-RU");
@@ -55,7 +63,7 @@ function LogEntryRow({ entry }: { entry: LogEntry }) {
           <span className="text-xs text-[var(--fg-muted)]">{entry.user}</span>
         )}
         <span className="text-xs font-mono text-[var(--fg)] break-all">
-          {entry.event}
+          {highlightAnonTokens(entry.event, revealedMap ?? undefined)}
         </span>
       </div>
       {entry.comment && (
@@ -80,14 +88,38 @@ interface LogCardProps {
    * При null next_cursor кнопка исчезает.
    */
   onLoadMore?: (cursor: string) => Promise<{ entries: LogEntry[]; next_cursor: string | null }>;
+  /** Callback для раскрытия anon-токенов — передаётся из CardRenderer */
+  onDeanonymize?: (tokens: string[]) => Promise<Record<string, string>>;
 }
 
-export function LogCard({ payload, onLoadMore }: LogCardProps) {
+export function LogCard({ payload, onLoadMore, onDeanonymize }: LogCardProps) {
   const [extraEntries, setExtraEntries] = useState<LogEntry[]>([]);
   const [currentCursor, setCurrentCursor] = useState<string | null>(payload.next_cursor);
   const [loading, setLoading] = useState(false);
+  const [revealedMap, setRevealedMap] = useState<Record<string, string> | null>(null);
+  const [revealing, setRevealing] = useState(false);
 
   const allEntries = [...payload.entries, ...extraEntries];
+
+  // Вычисляем anon-токены в записях журнала (memoized)
+  const tokensInPayload = useMemo(
+    () => extractAnonTokens(allEntries),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [payload.entries, extraEntries],
+  );
+
+  async function handleReveal() {
+    if (!onDeanonymize || tokensInPayload.length === 0 || revealing) return;
+    setRevealing(true);
+    try {
+      const mapping = await onDeanonymize(tokensInPayload);
+      setRevealedMap(mapping);
+    } catch {
+      publishToast({ type: "error", message: "Не удалось раскрыть значения" });
+    } finally {
+      setRevealing(false);
+    }
+  }
 
   async function handleLoadMore() {
     if (!currentCursor || !onLoadMore || loading) return;
@@ -121,10 +153,33 @@ export function LogCard({ payload, onLoadMore }: LogCardProps) {
         <ScrollArea className="max-h-[400px]">
           <div>
             {allEntries.map((entry, i) => (
-              <LogEntryRow key={i} entry={entry} />
+              <LogEntryRow key={i} entry={entry} revealedMap={revealedMap} />
             ))}
           </div>
         </ScrollArea>
+      )}
+
+      {/* Anon footer: кнопка Раскрыть или бейдж Реальные значения */}
+      {tokensInPayload.length > 0 && (
+        <div className="px-3 py-2 border-t border-[var(--border)] flex items-center gap-2">
+          {revealedMap !== null ? (
+            <span className="text-xs text-emerald-400 flex items-center gap-1">
+              <Eye className="h-3 w-3" />
+              Реальные значения
+            </span>
+          ) : (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-xs h-7 gap-1 text-amber-400 hover:text-amber-300"
+              disabled={!onDeanonymize || revealing}
+              onClick={() => { void handleReveal(); }}
+            >
+              <Eye className="h-3 w-3" />
+              {revealing ? "Загрузка..." : `Раскрыть реальные значения (${tokensInPayload.length})`}
+            </Button>
+          )}
+        </div>
       )}
 
       {/* Кнопка загрузки следующей страницы */}

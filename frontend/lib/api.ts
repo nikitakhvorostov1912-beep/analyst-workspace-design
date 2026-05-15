@@ -52,6 +52,7 @@ export async function fetchMCPPing(
 export async function* fetchChat(
   req: ChatRequest,
   signal?: AbortSignal,
+  extraHeaders?: Record<string, string>,
 ): AsyncIterable<SSEEvent> {
   const cfg = getLLMConfig();
   if (!cfg || !cfg.api_key) {
@@ -72,6 +73,7 @@ export async function* fetchChat(
         "X-LLM-API-Key": cfg.api_key,
         "X-LLM-Endpoint": cfg.endpoint,
         "X-LLM-Model": cfg.model,
+        ...extraHeaders,
       },
       body: JSON.stringify(req),
       signal,
@@ -310,6 +312,34 @@ export async function loadMoreLogEntries(
     throw new Error(`Ошибка загрузки следующей страницы: ${response.status}`);
   }
   return response.json() as Promise<{ entries: LogEntry[]; next_cursor: string | null }>;
+}
+
+// --- Deanonymize API (Plan 04-01) ---
+
+/**
+ * Раскрывает anon-токены для карточки через backend /deanonymize endpoint.
+ * Возвращает mapping {"[ORG-001]": "ООО Ромашка", ...}.
+ * Cache-Control: no-store устанавливается backend-ом.
+ */
+export async function deanonymizeCard(
+  sessionId: string,
+  messageId: string,
+  cardId: string,
+  tokens: string[],
+): Promise<Record<string, string>> {
+  const response = await fetch(
+    `${BACKEND}/sessions/${encodeURIComponent(sessionId)}/messages/${encodeURIComponent(messageId)}/cards/${encodeURIComponent(cardId)}/deanonymize`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tokens }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`Ошибка раскрытия токенов: ${response.status}`);
+  }
+  const data = (await response.json()) as { mapping: Record<string, string> };
+  return data.mapping;
 }
 
 /**

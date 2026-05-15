@@ -1,8 +1,21 @@
 "use client";
 
+import React from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
+import { highlightAnonTokens } from "@/lib/anon-tokens";
+
+/**
+ * Прогоняет children через highlightAnonTokens если children — строка.
+ * Иначе возвращает children как есть (React-элемент не трогаем).
+ */
+function renderWithAnon(children: React.ReactNode): React.ReactNode {
+  if (typeof children === "string") {
+    return highlightAnonTokens(children);
+  }
+  return children;
+}
 
 /** Whitelist компонентов — без dangerouslySetInnerHTML и без rawHTML (XSS guard). */
 const components: Components = {
@@ -57,7 +70,7 @@ const components: Components = {
   ),
   td: ({ children }) => (
     <td className="px-3 py-1.5 text-sm text-[var(--fg)] border border-[var(--border)]">
-      {children}
+      {renderWithAnon(children)}
     </td>
   ),
   ul: ({ children }) => (
@@ -66,7 +79,7 @@ const components: Components = {
   ol: ({ children }) => (
     <ol className="list-decimal list-inside my-1 space-y-0.5 text-[var(--fg)]">{children}</ol>
   ),
-  li: ({ children }) => <li className="text-sm">{children}</li>,
+  li: ({ children }) => <li className="text-sm">{renderWithAnon(children)}</li>,
   h1: ({ children }) => (
     <h1 className="text-lg font-semibold text-[var(--fg)] mt-3 mb-1">{children}</h1>
   ),
@@ -77,7 +90,7 @@ const components: Components = {
     <h3 className="text-sm font-semibold text-[var(--fg)] mt-2 mb-0.5">{children}</h3>
   ),
   p: ({ children }) => (
-    <p className="text-sm text-[var(--fg)] leading-relaxed mb-1">{children}</p>
+    <p className="text-sm text-[var(--fg)] leading-relaxed mb-1">{renderWithAnon(children)}</p>
   ),
   blockquote: ({ children }) => (
     <blockquote className="border-l-2 border-[var(--border)] pl-3 my-1 text-[var(--fg-muted)] italic">

@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Settings } from "lucide-react";
 import { ChannelSelector } from "./ChannelSelector";
 import { ModelBadge } from "./ModelBadge";
+import { AnonymizationToggle } from "./AnonymizationToggle";
 
 export type HeaderProps = {
   activeChannelId: string | null;
@@ -25,8 +26,9 @@ export function Header({ activeChannelId, onChannelChange }: Props) {
         <ChannelSelector activeId={activeChannelId} onChange={onChannelChange} />
       </div>
 
-      {/* Справа: Model badge + настройки */}
+      {/* Справа: Anonymization toggle + Model badge + настройки */}
       <div className="flex-none flex items-center gap-3">
+        <AnonymizationToggle />
         <ModelBadge />
         <Link
           href="/settings"

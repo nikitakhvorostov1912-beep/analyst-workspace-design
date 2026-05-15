@@ -1,10 +1,17 @@
 "use client";
 
+import { useMemo, useState } from "react";
+import { Eye } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { publishToast } from "@/lib/toast";
+import { extractAnonTokens, highlightAnonTokens } from "@/lib/anon-tokens";
 import type { ObjectCardPayload } from "@/lib/types";
 
 interface ObjectCardProps {
   payload: ObjectCardPayload;
+  /** Callback для раскрытия anon-токенов — передаётся из CardRenderer */
+  onDeanonymize?: (tokens: string[]) => Promise<Record<string, string>>;
 }
 
 function SectionWrapper({
@@ -76,8 +83,28 @@ function MiniTable({
   );
 }
 
-export function ObjectCard({ payload }: ObjectCardProps) {
+export function ObjectCard({ payload, onDeanonymize }: ObjectCardProps) {
   const { header, attributes, tabular_sections, forms, templates } = payload;
+  const [revealedMap, setRevealedMap] = useState<Record<string, string> | null>(null);
+  const [revealing, setRevealing] = useState(false);
+
+  const tokensInPayload = useMemo(
+    () => extractAnonTokens({ attributes, tabular_sections }),
+    [attributes, tabular_sections],
+  );
+
+  async function handleReveal() {
+    if (!onDeanonymize || tokensInPayload.length === 0 || revealing) return;
+    setRevealing(true);
+    try {
+      const mapping = await onDeanonymize(tokensInPayload);
+      setRevealedMap(mapping);
+    } catch {
+      publishToast({ type: "error", message: "Не удалось раскрыть значения" });
+    } finally {
+      setRevealing(false);
+    }
+  }
 
   const hasAny =
     attributes.length > 0 ||
@@ -122,7 +149,7 @@ export function ObjectCard({ payload }: ObjectCardProps) {
                     <dd className="text-xs text-[var(--fg)] py-0.5">
                       <span className="text-[var(--fg-muted)] mr-1">{attr.type}</span>
                       {attr.value !== undefined && attr.value !== null && (
-                        <span>{String(attr.value)}</span>
+                        <span>{highlightAnonTokens(String(attr.value), revealedMap ?? undefined)}</span>
                       )}
                     </dd>
                   </div>
@@ -199,6 +226,29 @@ export function ObjectCard({ payload }: ObjectCardProps) {
             </SectionWrapper>
           )}
         </>
+      )}
+
+      {/* Anon footer: кнопка Раскрыть или бейдж Реальные значения */}
+      {tokensInPayload.length > 0 && (
+        <div className="px-3 py-2 border-t border-[var(--border)] flex items-center gap-2">
+          {revealedMap !== null ? (
+            <span className="text-xs text-emerald-400 flex items-center gap-1">
+              <Eye className="h-3 w-3" />
+              Реальные значения
+            </span>
+          ) : (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-xs h-7 gap-1 text-amber-400 hover:text-amber-300"
+              disabled={!onDeanonymize || revealing}
+              onClick={() => { void handleReveal(); }}
+            >
+              <Eye className="h-3 w-3" />
+              {revealing ? "Загрузка..." : `Раскрыть реальные значения (${tokensInPayload.length})`}
+            </Button>
+          )}
+        </div>
       )}
     </div>
   );

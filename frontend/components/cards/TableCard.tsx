@@ -1,11 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Download, ChevronUp, ChevronDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { Download, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { rowsToCsv, downloadCsv } from "@/lib/csv";
+import { publishToast } from "@/lib/toast";
+import { extractAnonTokens, highlightAnonTokens } from "@/lib/anon-tokens";
 import type { TableCardPayload } from "@/lib/types";
 
 const PAGE_SIZE = 50;
@@ -32,7 +34,11 @@ function compareValues(a: unknown, b: unknown, dir: SortDir): number {
   return dir === "asc" ? result : -result;
 }
 
-function formatCell(value: unknown, colType: string): React.ReactNode {
+function formatCell(
+  value: unknown,
+  colType: string,
+  revealedMap?: Record<string, string> | null,
+): React.ReactNode {
   if (value === null || value === undefined) {
     return <span className="text-[var(--fg-muted)]">—</span>;
   }
@@ -55,18 +61,42 @@ function formatCell(value: unknown, colType: string): React.ReactNode {
   if (colType === "Number" || typeof value === "number") {
     return <span>{str}</span>;
   }
-  return str;
+  // Применяем подсветку anon-токенов для строковых значений
+  return <>{highlightAnonTokens(str, revealedMap ?? undefined)}</>;
 }
 
 interface TableCardProps {
   payload: TableCardPayload;
+  /** Callback для раскрытия anon-токенов — передаётся из CardRenderer */
+  onDeanonymize?: (tokens: string[]) => Promise<Record<string, string>>;
 }
 
-export function TableCard({ payload }: TableCardProps) {
+export function TableCard({ payload, onDeanonymize }: TableCardProps) {
   const { columns, rows, total, meta } = payload;
   const [page, setPage] = useState(0);
   const [sortBy, setSortBy] = useState<number | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");
+  const [revealedMap, setRevealedMap] = useState<Record<string, string> | null>(null);
+  const [revealing, setRevealing] = useState(false);
+
+  // Вычисляем токены в payload (memoized)
+  const tokensInPayload = useMemo(
+    () => extractAnonTokens({ columns, rows }),
+    [columns, rows],
+  );
+
+  async function handleReveal() {
+    if (!onDeanonymize || tokensInPayload.length === 0 || revealing) return;
+    setRevealing(true);
+    try {
+      const mapping = await onDeanonymize(tokensInPayload);
+      setRevealedMap(mapping);
+    } catch {
+      publishToast({ type: "error", message: "Не удалось раскрыть значения" });
+    } finally {
+      setRevealing(false);
+    }
+  }
 
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const showPagination = total > PAGE_SIZE;
@@ -158,7 +188,7 @@ export function TableCard({ payload }: TableCardProps) {
                     columns[ci]?.type === "Number" && "text-right tabular-nums",
                   )}
                 >
-                  {formatCell(cell, columns[ci]?.type ?? "String")}
+                  {formatCell(cell, columns[ci]?.type ?? "String", revealedMap)}
                 </TableCell>
               ))}
             </TableRow>
@@ -204,6 +234,29 @@ export function TableCard({ payload }: TableCardProps) {
               <ChevronRight className="h-3 w-3" />
             </Button>
           </div>
+        </div>
+      )}
+
+      {/* Anon footer: кнопка Раскрыть или бейдж Реальные значения */}
+      {tokensInPayload.length > 0 && (
+        <div className="px-3 py-2 border-t border-[var(--border)] flex items-center gap-2">
+          {revealedMap !== null ? (
+            <span className="text-xs text-emerald-400 flex items-center gap-1">
+              <Eye className="h-3 w-3" />
+              Реальные значения
+            </span>
+          ) : (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-xs h-7 gap-1 text-amber-400 hover:text-amber-300"
+              disabled={!onDeanonymize || revealing}
+              onClick={() => { void handleReveal(); }}
+            >
+              <Eye className="h-3 w-3" />
+              {revealing ? "Загрузка..." : `Раскрыть реальные значения (${tokensInPayload.length})`}
+            </Button>
+          )}
         </div>
       )}
     </div>
