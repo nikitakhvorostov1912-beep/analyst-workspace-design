@@ -170,7 +170,6 @@ class _FakeResponse:
 @pytest.mark.asyncio
 async def test_test_endpoint_ok(client: AsyncClient, monkeypatch):
     """Mock LLMClient 200 → ok=True."""
-    import httpx
 
     class _MockAsyncClient:
         def __init__(self, **kwargs):
@@ -201,7 +200,6 @@ async def test_test_endpoint_ok(client: AsyncClient, monkeypatch):
 @pytest.mark.asyncio
 async def test_test_endpoint_invalid_key(client: AsyncClient, monkeypatch):
     """Mock 401 → ok=False, error_code='invalid_key'."""
-    import httpx
 
     class _MockAsyncClient:
         def __init__(self, **kwargs):

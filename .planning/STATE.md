@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: unknown
-last_updated: "2026-05-15T16:05:43.174Z"
+last_updated: "2026-05-15T16:59:32.948Z"
 progress:
   total_phases: 5
   completed_phases: 5
   total_plans: 20
-  completed_plans: 24
+  completed_plans: 25
   percent: 100
 ---
 
@@ -118,6 +118,7 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 **Date:** 2026-05-15
 **Git tag:** v1.0
 **Key decisions (Phase 5):**
+
 - INTEGER id=1 как singleton для llm_settings (alias "default" в API)
 - api_key в sessionStorage, не localStorage (security trade-off)
 - Controlled inputs + zod.safeParse (без react-hook-form)
