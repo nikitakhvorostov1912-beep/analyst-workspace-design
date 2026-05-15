@@ -179,38 +179,21 @@
 
 **Mode:** mvp
 
+**Plans:** 4 plans
+
 **Success Criteria:**
 1. Демо на реальном проекте (РТ или УСО) проходит за 15 минут
 2. Anonymization работает: ON → ответы с токенами, «Раскрыть» → реальные значения
 3. 6 типов inline cards рендерятся
 4. Quick prompts / slash / @-mentions работают
 
-**Requirements covered:** ANON-01..03, CARD-04..06, PROD-01..05
+**Requirements covered:** ANON-01..03, CARD-04..06, PROD-01..04 (PROD-05 partial: CSV есть, PDF deferred)
 
-**Plans:**
-
-### Plan 4.1: Anonymization
-- Header toggle
-- Backend forward anon mode в MCP
-- submit_for_deanonymization через UI button «Раскрыть»
-- Visual highlight токенов
-
-### Plan 4.2: Advanced Cards
-- MetricCard (число + sparkline)
-- ReferencesCard (где используется)
-- CodeCard (BSL syntax highlight)
-
-### Plan 4.3: Productivity
-- Quick prompts chips
-- Slash commands: /sql /journal /find /audit /clear
-- @-mentions objects из metadata cache
-- Cmd-K search
-
-### Plan 4.4: Live Demo Session
-- Setup на реальной 1С
-- Демо аналитику (Никита или внешний)
-- Запись pain points + feedback
-- Backlog для post-MVP
+Plans:
+- [ ] 04-01-PLAN.md — Anonymization (header toggle + visual highlight + Раскрыть через submit_for_deanonymization)
+- [ ] 04-02-PLAN.md — Advanced Cards (MetricCard со sparkline + ReferencesCard grouped + CodeCard prismjs)
+- [ ] 04-03-PLAN.md — Productivity (Quick prompts + Slash commands + @-mentions + Cmd-K через FTS5)
+- [ ] 04-04-PLAN.md — Live Demo Session (DEMO-SCRIPT.md + observer checklist + feedback template + seed script + post-MVP backlog)
 
 ---
 
