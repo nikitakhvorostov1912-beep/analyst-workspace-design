@@ -51,6 +51,7 @@ yarn.lock
 
 # API keys (никогда не коммитим)
 *api*key*
+!frontend/lib/api-keys.ts
 *secret*
 *.key
 *.pem
