@@ -62,6 +62,14 @@
 - [ ] **DEVX-04**: docker-compose.yml для one-command setup + README post-MVP
 - [ ] **DEVX-05**: USER.md гид для новых аналитиков
 
+### UX Polish (Phase 5)
+
+- [ ] **UX-01**: First-run onboarding wizard (3 шага: MCP → LLM → готов)
+- [ ] **UX-02**: Settings → MCP Connections — полноценный CRUD UI (форма + Test ping + Delete)
+- [ ] **UX-03**: Settings → LLM — полноценный CRUD UI (форма + Test completion + Delete)
+- [ ] **UX-04**: Backend как source-of-truth для connections + LLM config; localStorage только активный канал + LLM api_key (security)
+- [ ] **UX-05**: Dev mode launch без ошибок; полный first-run flow за ≤90 секунд
+
 ## v2 Requirements
 
 Отложено до post-MVP. Tracked, но не в текущем roadmap.
