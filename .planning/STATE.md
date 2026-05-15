@@ -28,12 +28,12 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | Aspect | Value |
 |--------|-------|
 | **Current Milestone** | M1 — Foundation |
-| **Current Phase** | Phase 5 — UX Polish (in progress, Plan 04 complete) |
+| **Current Phase** | Phase 5 — UX Polish ✓ COMPLETE — v1.0 RELEASED |
 | **Previous Phase 4** | Demo & Refine ✓ PASS — MVP RELEASE READY |
 | **Previous Phase 3** | Production Ready ✓ PASS |
 | **Previous Phase** | Phase 2 — MVP Chat ✓ PASS |
 | **Mode** | YOLO + coarse granularity + parallel execution |
-| **Last Update** | 2026-05-15 (Phase 5 Plan 04 завершён: Source-of-truth migration UX-04 — fetchChat новая сигнатура + getLLMApiKey, storage.ts @deprecated x4, page.tsx backend-driven hasConfig, migrateLegacyApiKey(), 7 компонентов переключены. 219 тестов pass.) |
+| **Last Update** | 2026-05-15 (Phase 5 Plan 05 завершён: E2E Playwright onboarding (7 тестов) + settings-crud (8 тестов), README quick start onboarding, USER.md FAQ sessionStorage, 05-VERIFICATION.md 5/5 truths PASS, git tag v1.0 создан. 219 frontend + 315 backend тестов pass.) |
 
 ## Phase Progress
 
@@ -43,9 +43,9 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | 2 | MVP Chat | ✓ Complete | 5/5 executed | 100% |
 | 3 | Production Ready | ✓ Complete | 4/4 executed | 100% |
 | 4 | Demo & Refine | ✓ Complete | 4/4 executed | 100% |
-| 5 | UX Polish | In Progress | 4/5 executed | 80% |
+| 5 | UX Polish | ✓ Complete | 5/5 executed | 100% |
 
-**Overall:** Progress: ██████████ 100% (Phase 1+2+3+4 закрыты; Phase 5 запущена, Plan 01+02+03+04 выполнены)
+**Overall:** Progress: ██████████ 100% (ВСЕ 5 фаз закрыты; v1.0 released 2026-05-15)
 
 ## Artifacts Status
 
@@ -77,6 +77,8 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 - [x] Phase 5 Plan 02 execution — UX-02+UX-03 Settings UI CRUD. MCPConnectionForm/MCPConnectionList/LLMConfigForm (zod safeParse, controlled inputs). api-keys.ts sessionStorage. Slider+AlertDialog shadcn components. /settings page rewritten (stub removed). 18 new tests → 210 total. 2 deviations auto-fixed (gitignore exception + slider type guard). 3 commits (`b7b9954`, `61e7542`, `91b2585`). SUMMARY: `phases/05-ux-polish/05-02-SUMMARY.md`
 - [x] Phase 5 Plan 03 execution — UX-01 First-run onboarding wizard. OnboardingDialog (3-step: MCP→LLM→Done), StepIndicator, onboarding-flag.ts (localStorage SSR-safe), page.tsx integration with legacy guard (Promise.all backend check). Gate-logic: «Далее» disabled до pingPassed/llmTestPassed. 9 new vitest → 219 total. 3 commits (`9b4aa0b`, `6520e03`, `a03f726`). SUMMARY: `phases/05-ux-polish/05-03-SUMMARY.md`
 - [x] Phase 5 Plan 04 execution — UX-04 Source-of-truth migration. fetchChat новая сигнатура (llm param + getLLMApiKey sessionStorage), storage.ts @deprecated x4, page.tsx backend hasConfig (fetchConnections+fetchLLMConfig Promise.all), migrateLegacyApiKey() T-05-13, useChatStream fetchLLMConfig per-send, ModelBadge async, sessions/[id] fetchConnections, Input.tsx sessionStorage check. 219 тестов pass. 3 commits (`412c18c`, `5566052`, `7342835`). SUMMARY: `phases/05-ux-polish/05-04-SUMMARY.md`
+- [x] Phase 5 Plan 05 execution — UX-05 Verification + Release. E2E onboarding.spec.ts (7 тестов), settings-crud.spec.ts (8 тестов), mocks/onboarding-handlers.ts. README quick start onboarding, USER.md FAQ sessionStorage (5 новых вопросов). 05-VERIFICATION.md (5/5 truths PASS), PHASE-summary.md, STATE.md + REQUIREMENTS.md обновлены. git tag v1.0. 3 commits (`85bce52`, `7719c0b`, release). SUMMARY: `phases/05-ux-polish/05-05-SUMMARY.md`
+- [x] **Phase 5 VERIFICATION — PASS** (5/5 truths). 315 pytest + 219 vitest зелёные. pnpm build success. E2E 15/15 + 6 pre-existing. git tag v1.0 создан. **Phase 5 COMPLETE. v1.0 RELEASED 2026-05-15.**
 
 ## Pivot History (Lessons Learned)
 
@@ -109,8 +111,21 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 13. ~~Phase 3 Plan 02: Security Hardening (SEC-01..04)~~ ✓ done — confirm dialog + CSP + Pydantic strict + CORS fail-secure. 161+88 тестов. `phases/03-production-ready/03-02-SUMMARY.md`
 14. ~~Phase 3 Plan 03: Tests + CI~~ ✓ done — coverage 92.8%, 9 Playwright E2E, GitHub Actions CI. `phases/03-production-ready/03-03-SUMMARY.md`
 15. ~~Phase 3 Plan 04: Docs + TRACE-03 + LogCard cursor-fetch~~ ✓ done — curl-builder + load-more endpoint + docs. `d07d4d0`. SUMMARY: `phases/03-production-ready/03-04-SUMMARY.md`
-16. **Pending:** настройка реального LLM endpoint (Xiaomi MiMo) + MCP Toolkit (порт 6010) у разработчика — для финального smoke 3 acceptance prompts с живой 1С
-13. **Pending визуальный smoke в браузере** (когда удобно): открыть `http://localhost:3010` глазами — AppShell, IBM Plex, ChannelSelector dropdown, Sidebar groups
+16. ~~Phase 5 UX Polish — 05-01..05-05~~ ✓ done — все UX-01..05 закрыты, v1.0 released 2026-05-15
+
+## v1.0 Release
+
+**Date:** 2026-05-15
+**Git tag:** v1.0
+**Key decisions (Phase 5):**
+- INTEGER id=1 как singleton для llm_settings (alias "default" в API)
+- api_key в sessionStorage, не localStorage (security trade-off)
+- Controlled inputs + zod.safeParse (без react-hook-form)
+- legacy getMCPConnections/getLLMConfig оставлены @deprecated (backward compat)
+- fetcLLMConfig per-send в useChatStream (T-05-14 accept)
+- migrateLegacyApiKey() one-time migration при старте app
+
+**Next:** Push tag в remote (требует подтверждения), v2 planning — multi-profile LLM, smart discovery
 
 ## Warnings from plan-checker (для execute-phase)
 

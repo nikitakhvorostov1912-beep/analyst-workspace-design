@@ -64,11 +64,11 @@
 
 ### UX Polish (Phase 5)
 
-- [ ] **UX-01**: First-run onboarding wizard (3 шага: MCP → LLM → готов)
-- [ ] **UX-02**: Settings → MCP Connections — полноценный CRUD UI (форма + Test ping + Delete)
-- [ ] **UX-03**: Settings → LLM — полноценный CRUD UI (форма + Test completion + Delete)
+- [x] **UX-01**: First-run onboarding wizard (3 шага: MCP → LLM → готов)
+- [x] **UX-02**: Settings → MCP Connections — полноценный CRUD UI (форма + Test ping + Delete)
+- [x] **UX-03**: Settings → LLM — полноценный CRUD UI (форма + Test completion + Delete)
 - [x] **UX-04**: Backend как source-of-truth для connections + LLM config; localStorage только активный канал + LLM api_key (security)
-- [ ] **UX-05**: Dev mode launch без ошибок; полный first-run flow за ≤90 секунд
+- [x] **UX-05**: Dev mode launch без ошибок; полный first-run flow за ≤90 секунд
 
 ## v2 Requirements
 
@@ -151,11 +151,11 @@
 | DEVX-03 | Phase 3 | ✓ Done — 03-03 |
 | DEVX-04 | Phase 3 | Pending |
 | DEVX-05 | Phase 3 | Pending |
-| UX-01 | Phase 5 | Pending |
-| UX-02 | Phase 5 | Pending |
-| UX-03 | Phase 5 | Pending |
-| UX-04 | Phase 5 | Done (05-04) |
-| UX-05 | Phase 5 | Pending |
+| UX-01 | Phase 5 | ✓ Done — 05-03 |
+| UX-02 | Phase 5 | ✓ Done — 05-02 |
+| UX-03 | Phase 5 | ✓ Done — 05-02 |
+| UX-04 | Phase 5 | ✓ Done — 05-04 |
+| UX-05 | Phase 5 | ✓ Done — 05-05 |
 
 **Coverage:**
 - v1 requirements: 36 total (22 базовых + 9 SEC/DEVX из Phase 3 + 5 UX из Phase 5)
