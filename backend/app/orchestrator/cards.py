@@ -2,10 +2,13 @@
 
 import json
 import logging
+import re
 from typing import Any, Literal
 from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict
+
+_ANON_TOKEN_RE = re.compile(r"\[[A-Z]+-\d+\]")
 
 logger = logging.getLogger(__name__)
 
@@ -24,6 +27,7 @@ class TableCardPayload(BaseModel):
     rows: list[list[Any]]
     total: int
     meta: dict[str, Any]
+    card_id: str | None = None  # UUID4 для deanonymize endpoint (Plan 04-01)
 
 
 class ObjectCardPayload(BaseModel):
@@ -34,6 +38,7 @@ class ObjectCardPayload(BaseModel):
     tabular_sections: list[dict[str, Any]]
     forms: list[dict[str, Any]]
     templates: list[dict[str, Any]]
+    card_id: str | None = None  # UUID4 для deanonymize endpoint (Plan 04-01)
 
 
 class LogEntry(BaseModel):
@@ -117,6 +122,7 @@ def _build_table_card(args: dict, result: dict) -> dict | None:
             "query": args.get("query"),
             "duration_ms": result.get("duration_ms"),
         },
+        card_id=str(uuid4()),
     )
     return {"type": "table", "payload": payload.model_dump()}
 
@@ -139,6 +145,7 @@ def _build_object_card(args: dict, result: dict) -> dict | None:
         tabular_sections=data.get("tabular_sections", []),
         forms=data.get("forms", []),
         templates=data.get("templates", []),
+        card_id=str(uuid4()),
     )
     return {"type": "object", "payload": payload.model_dump()}
 
@@ -216,6 +223,27 @@ def _build_references_card(args: dict, result: dict) -> dict | None:
             ])
     constructed = {"columns": columns, "rows": built_rows}
     return _build_table_card(args, constructed)
+
+
+def _extract_anon_tokens_from_payload(payload: object) -> list[str]:
+    """Рекурсивно обходит payload, извлекает уникальные anon-токены.
+
+    Поддерживает str, dict, list. Возвращает sorted unique список.
+    """
+    found: set[str] = set()
+
+    def _walk(obj: object) -> None:
+        if isinstance(obj, str):
+            found.update(_ANON_TOKEN_RE.findall(obj))
+        elif isinstance(obj, dict):
+            for v in obj.values():
+                _walk(v)
+        elif isinstance(obj, (list, tuple)):
+            for item in obj:
+                _walk(item)
+
+    _walk(payload)
+    return sorted(found)
 
 
 # Tools для которых строим карточки

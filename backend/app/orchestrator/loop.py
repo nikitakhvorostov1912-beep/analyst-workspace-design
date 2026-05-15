@@ -13,7 +13,7 @@ import httpx
 from app.clients.llm import LLMClient, LLMRateLimitError
 from app.clients.mcp import MCPClient, MCPDisconnectedError, MCPError
 from app.models import ChatRequest
-from app.orchestrator.cards import build_card_from_tool_result
+from app.orchestrator.cards import _extract_anon_tokens_from_payload, build_card_from_tool_result
 from app.orchestrator.events import (
     CardEvent,
     ConfirmRequiredEvent,
@@ -144,8 +144,12 @@ async def run_chat_loop(
     api_key: str,
     llm_endpoint: str,
     llm_model: str,
+    x_anon_enabled: bool = False,
 ) -> AsyncIterator[str]:
     """Async-генератор SSE-событий: tool-calling loop.
+
+    Args:
+        x_anon_enabled: если True — MCPClient инициализируется с заголовком X-Anon-Enabled: true.
 
     Yields:
         SSE-строки в формате event: <name>\\ndata: <json>\\n\\n
@@ -194,7 +198,8 @@ async def run_chat_loop(
         return
 
     # --- Получаем список инструментов ---
-    mcp = MCPClient(mcp_endpoint)
+    anon_headers = {"X-Anon-Enabled": "true"} if x_anon_enabled else None
+    mcp = MCPClient(mcp_endpoint, headers=anon_headers)
     try:
         await mcp.initialize()
         mcp_tools = await mcp.list_tools()
@@ -448,30 +453,52 @@ async def run_chat_loop(
         )
         await touch_session(db, session_id)
 
-        # Сохраняем card_state для LogCard (load-more endpoint, Plan 03-04)
+        # Сохраняем card_state для карточек (load-more endpoint + deanonymize)
         # Выполняется ПОСЛЕ save_assistant_message чтобы иметь реальный message_id
+        #
+        # - LogCard всегда сохраняется (нужен card_id для load-more, Plan 03-04)
+        # - Table/Object карточки сохраняются только если x_anon_enabled (для deanonymize, Plan 04-01)
+        _TOOL_FOR_CARD_TYPE = {
+            "log": "get_event_log",
+            "table": "execute_query",
+            "object": "get_object_by_link",
+        }
         for card in accumulated_cards:
-            if card.get("type") == "log":
-                card_id = card.get("payload", {}).get("card_id")
-                if card_id:
-                    # Находим соответствующий tool_call для args
-                    tool_args: dict = {}
-                    for tc in accumulated_tool_calls:
-                        if tc.get("name") == "get_event_log":
-                            tool_args = tc.get("args", {})
-                            break
-                    try:
-                        await save_card_state(
-                            db,
-                            card_id=card_id,
-                            session_id=session_id,
-                            message_id=message_id,
-                            tool_name="get_event_log",
-                            original_args=tool_args,
-                            channel_id=request.channel_id,
-                        )
-                    except Exception:
-                        logger.warning("Не удалось сохранить card_state для card %s", card_id)
+            card_type = card.get("type")
+            card_id = card.get("payload", {}).get("card_id")
+            if not card_id:
+                continue
+            # Determine если надо сохранять
+            save_this = card_type == "log" or x_anon_enabled
+            if not save_this:
+                continue
+
+            tool_name_for_card = _TOOL_FOR_CARD_TYPE.get(card_type, "")
+            # Находим соответствующий tool_call для args
+            card_tool_args: dict = {}
+            for tc in accumulated_tool_calls:
+                if tc.get("name") == tool_name_for_card:
+                    card_tool_args = tc.get("args", {})
+                    break
+
+            # Вычисляем anon_tokens если anon режим
+            anon_tokens: list[str] | None = None
+            if x_anon_enabled:
+                anon_tokens = _extract_anon_tokens_from_payload(card.get("payload", {}))
+
+            try:
+                await save_card_state(
+                    db,
+                    card_id=card_id,
+                    session_id=session_id,
+                    message_id=message_id,
+                    tool_name=tool_name_for_card,
+                    original_args=card_tool_args,
+                    channel_id=request.channel_id,
+                    anon_tokens=anon_tokens,
+                )
+            except Exception:
+                logger.warning("Не удалось сохранить card_state для card %s", card_id)
 
     except Exception:
         logger.exception("Ошибка сохранения assistant message")

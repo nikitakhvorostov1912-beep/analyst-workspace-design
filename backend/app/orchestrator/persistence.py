@@ -324,8 +324,9 @@ async def save_card_state(
     tool_name: str,
     original_args: dict,
     channel_id: str,
+    anon_tokens: list[str] | None = None,
 ) -> None:
-    """Сохраняет состояние карточки для last-more endpoint.
+    """Сохраняет состояние карточки для load-more и deanonymize endpoint.
 
     Args:
         card_id: UUID4 карточки (из payload)
@@ -334,14 +335,24 @@ async def save_card_state(
         tool_name: имя MCP-инструмента (например 'get_event_log')
         original_args: исходные аргументы вызова инструмента
         channel_id: ID MCP-подключения
+        anon_tokens: список anon-токенов найденных в payload (опциональный, v4)
     """
+    anon_tokens_json = json.dumps(anon_tokens, ensure_ascii=False) if anon_tokens is not None else None
     await db.execute(
         """
         INSERT OR REPLACE INTO card_states
-            (card_id, session_id, message_id, tool_name, original_args, channel_id)
-        VALUES (?, ?, ?, ?, ?, ?)
+            (card_id, session_id, message_id, tool_name, original_args, channel_id, anon_tokens)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
-        (card_id, session_id, message_id, tool_name, json.dumps(original_args, ensure_ascii=False), channel_id),
+        (
+            card_id,
+            session_id,
+            message_id,
+            tool_name,
+            json.dumps(original_args, ensure_ascii=False),
+            channel_id,
+            anon_tokens_json,
+        ),
     )
     await db.commit()
 
@@ -368,3 +379,20 @@ async def get_card_state(
         "channel_id": row[5],
         "created_at": row[6],
     }
+
+
+async def get_card_anon_tokens(
+    db: aiosqlite.Connection,
+    card_id: str,
+) -> list[str]:
+    """Возвращает anon-токены сохранённые для карточки, или пустой список."""
+    rows = await db.execute_fetchall(
+        "SELECT anon_tokens FROM card_states WHERE card_id = ?",
+        (card_id,),
+    )
+    if not rows or rows[0][0] is None:
+        return []
+    try:
+        return json.loads(rows[0][0])
+    except (json.JSONDecodeError, TypeError):
+        return []

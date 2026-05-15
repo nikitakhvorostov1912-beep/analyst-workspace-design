@@ -26,6 +26,7 @@ async def chat(
     x_llm_api_key: str | None = Header(default=None, alias="X-LLM-API-Key"),
     x_llm_endpoint: str | None = Header(default=None, alias="X-LLM-Endpoint"),
     x_llm_model: str | None = Header(default=None, alias="X-LLM-Model"),
+    x_anon_enabled: str | None = Header(default=None, alias="X-Anon-Enabled"),
 ) -> StreamingResponse:
     """Принимает сообщение и стримит SSE-ответ от LLM через tool-calling loop.
 
@@ -33,6 +34,7 @@ async def chat(
         X-LLM-API-Key (required): API ключ провайдера.
         X-LLM-Endpoint (optional): URL endpoint (default из Settings).
         X-LLM-Model (optional): модель (default из Settings).
+        X-Anon-Enabled (optional): "true" → анонимизация включена.
 
     Body:
         channel_id (required): идентификатор MCP-подключения.
@@ -43,9 +45,10 @@ async def chat(
     settings = get_settings()
     llm_endpoint = x_llm_endpoint or settings.default_llm_endpoint
     llm_model = x_llm_model or settings.default_llm_model
+    anon_enabled = (x_anon_enabled or "").strip().lower() == "true"
 
     return StreamingResponse(
-        run_chat_loop(db, request, x_llm_api_key, llm_endpoint, llm_model),
+        run_chat_loop(db, request, x_llm_api_key, llm_endpoint, llm_model, x_anon_enabled=anon_enabled),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

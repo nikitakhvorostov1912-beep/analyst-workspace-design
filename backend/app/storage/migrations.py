@@ -74,7 +74,12 @@ MIGRATIONS_V3 = [
     """,
 ]
 
-CURRENT_VERSION = 3
+CURRENT_VERSION = 4
+
+# Миграция v4: расширение card_states — добавление колонки anon_tokens JSON
+MIGRATIONS_V4 = [
+    "ALTER TABLE card_states ADD COLUMN anon_tokens TEXT",
+]
 
 
 async def apply_migrations(db: aiosqlite.Connection) -> None:
@@ -116,5 +121,15 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
             (3,),
+        )
+        await db.commit()
+
+    if current < 4:
+        # Добавляем колонку anon_tokens в card_states (v4)
+        for stmt in MIGRATIONS_V4:
+            await db.execute(stmt)
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (4,),
         )
         await db.commit()

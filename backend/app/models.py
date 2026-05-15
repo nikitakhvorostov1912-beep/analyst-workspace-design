@@ -199,3 +199,48 @@ class LogPagePayload(BaseModel):
 
     entries: list[dict[str, Any]]
     next_cursor: str | None = None
+
+
+# --- Deanonymize models (Plan 04-01) ---
+
+_ANON_TOKEN_PATTERN = r"^\[[A-Z]+-\d+\]$"
+
+
+def _validate_token(v: str) -> str:
+    import re
+    if not re.match(_ANON_TOKEN_PATTERN, v):
+        raise ValueError(f"invalid anon token format: {v!r}")
+    return v
+
+
+class DeanonymizeRequest(BaseModel):
+    """Тело POST /sessions/{sid}/messages/{mid}/cards/{cid}/deanonymize.
+
+    tokens: список anon-токенов вида [ORG-001], [INN-001] и т.д.
+    """
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    tokens: list[str] = Field(min_length=1, max_length=200)
+
+    @classmethod
+    def validate_tokens(cls, tokens: list[str]) -> list[str]:
+        import re
+        for tok in tokens:
+            if not re.match(_ANON_TOKEN_PATTERN, tok):
+                raise ValueError(f"invalid anon token format: {tok!r}")
+        return tokens
+
+    def model_post_init(self, _context: object) -> None:
+        import re
+        for tok in self.tokens:
+            if not re.match(_ANON_TOKEN_PATTERN, tok):
+                raise ValueError(f"invalid anon token format: {tok!r}")
+
+
+class DeanonymizeResponse(BaseModel):
+    """Ответ deanonymize endpoint."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    mapping: dict[str, str]
