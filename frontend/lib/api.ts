@@ -15,7 +15,7 @@ import type {
   SessionsGrouped,
   SSEEvent,
 } from "./types";
-import { getLLMConfig } from "./storage";
+import { getLLMApiKey } from "./api-keys";
 import { parseSSEStream } from "./sse";
 
 const BACKEND =
@@ -52,19 +52,21 @@ export async function fetchMCPPing(
 
 /**
  * Отправляет сообщение в /chat и возвращает AsyncIterable<SSEEvent>.
- * api_key читается из localStorage и передаётся ТОЛЬКО через header X-LLM-API-Key.
+ * api_key читается из sessionStorage (getLLMApiKey) и передаётся ТОЛЬКО через header X-LLM-API-Key.
+ * endpoint + model передаются вызывающим через llm-параметр (source-of-truth = backend, Plan 5.4 UX-04).
  * Никогда не кладём api_key в body (NFR-6, ARCHITECTURE Key Decision #1, T-01-12).
  */
 export async function* fetchChat(
   req: ChatRequest,
+  llm: { endpoint: string; model: string },
   signal?: AbortSignal,
   extraHeaders?: Record<string, string>,
 ): AsyncIterable<SSEEvent> {
-  const cfg = getLLMConfig();
-  if (!cfg || !cfg.api_key) {
+  const apiKey = getLLMApiKey();
+  if (!apiKey) {
     yield {
       event: "error",
-      data: { message: "API ключ не задан. Настройте LLM в разделе Настройки.", code: "no_api_key" },
+      data: { message: "API ключ не задан. Откройте Настройки.", code: "no_api_key" },
     };
     return;
   }
@@ -76,9 +78,9 @@ export async function* fetchChat(
       headers: {
         "Content-Type": "application/json",
         "Accept": "text/event-stream",
-        "X-LLM-API-Key": cfg.api_key,
-        "X-LLM-Endpoint": cfg.endpoint,
-        "X-LLM-Model": cfg.model,
+        "X-LLM-API-Key": apiKey,
+        "X-LLM-Endpoint": llm.endpoint,
+        "X-LLM-Model": llm.model,
         ...extraHeaders,
       },
       body: JSON.stringify(req),

@@ -10,6 +10,11 @@ function safeLocalStorage(): Storage | null {
   return window.localStorage;
 }
 
+/**
+ * @deprecated Используйте fetchLLMConfig() из lib/api.ts (Plan 5.4 UX-04).
+ * Оставлено для обратной совместимости с тестами Phase 1-4.
+ * localStorage держит только: active_channel, anon_enabled, onboarding_completed.
+ */
 export function getLLMConfig(): LLMConfig | null {
   const ls = safeLocalStorage();
   if (!ls) return null;
@@ -22,12 +27,20 @@ export function getLLMConfig(): LLMConfig | null {
   }
 }
 
+/**
+ * @deprecated Используйте saveLLMConfig() из lib/api.ts (Plan 5.4 UX-04).
+ * Оставлено для обратной совместимости с тестами Phase 1-4.
+ */
 export function setLLMConfig(cfg: LLMConfig): void {
   const ls = safeLocalStorage();
   if (!ls) return;
   ls.setItem(KEY_LLM, JSON.stringify(cfg));
 }
 
+/**
+ * @deprecated Используйте fetchConnections() из lib/api.ts (Plan 5.4 UX-04).
+ * Оставлено для offline-fallback в ChannelSelector и backward compat с тестами Phase 1-4.
+ */
 export function getMCPConnections(): MCPConnection[] {
   const ls = safeLocalStorage();
   if (!ls) return [];
@@ -40,6 +53,10 @@ export function getMCPConnections(): MCPConnection[] {
   }
 }
 
+/**
+ * @deprecated Используйте createConnection()/updateConnection() из lib/api.ts (Plan 5.4 UX-04).
+ * Оставлено для syncMCPConnections (offline-cache) и backward compat с тестами Phase 1-4.
+ */
 export function setMCPConnections(conns: MCPConnection[]): void {
   const ls = safeLocalStorage();
   if (!ls) return;
