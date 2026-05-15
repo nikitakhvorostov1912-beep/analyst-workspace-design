@@ -10,8 +10,8 @@ import { ConfirmExecuteDialog } from "@/components/chat/ConfirmExecuteDialog";
 import { ConnectionStatusBanner } from "@/components/chat/ConnectionStatusBanner";
 import { useChatStream } from "@/components/chat/useChatStream";
 import { useSessionsStore } from "@/lib/sessions-store";
-import { fetchSessionDetail, fetchSessionMessages, pingConnection } from "@/lib/api";
-import { getActiveChannelId, setActiveChannelId, getMCPConnections } from "@/lib/storage";
+import { fetchSessionDetail, fetchSessionMessages, fetchConnections, pingConnection } from "@/lib/api";
+import { getActiveChannelId, setActiveChannelId } from "@/lib/storage";
 import { publishToast } from "@/lib/toast";
 import type { ChatMessage, SessionDetail } from "@/lib/types";
 
@@ -94,10 +94,13 @@ export default function SessionPage() {
   }
 
   const handleBannerShow = useCallback((chId: string) => {
-    // Ищем имя канала для отображения в баннере
-    const connections = getMCPConnections();
-    const conn = connections.find((c) => c.id === chId || c.channel === chId);
-    setBannerChannelName(conn?.name);
+    // Ищем имя канала из backend (source-of-truth, Plan 5.4 UX-04)
+    void fetchConnections().then((connections) => {
+      const conn = connections.find((c) => c.id === chId || c.channel === chId);
+      setBannerChannelName(conn?.name);
+    }).catch(() => {
+      // Если backend недоступен — имя канала просто не отображается
+    });
     setBannerVisible(true);
   }, []);
 
@@ -109,7 +112,8 @@ export default function SessionPage() {
     if (bannerRetrying) return;
     setBannerRetrying(true);
     try {
-      const connections = getMCPConnections();
+      // Получаем актуальный список подключений из backend (source-of-truth, Plan 5.4 UX-04)
+      const connections = await fetchConnections();
       const conn = connections.find(
         (c) => c.id === channelId || c.channel === channelId,
       );

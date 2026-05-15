@@ -9,8 +9,9 @@ import { CommandPalette } from "@/components/chat/CommandPalette";
 import { Button } from "@/components/ui/button";
 import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog";
 import { fetchHealth, fetchConnections, fetchLLMConfig } from "@/lib/api";
+import { migrateLegacyApiKey } from "@/lib/api-keys";
 import { useSessionsStore } from "@/lib/sessions-store";
-import { getMCPConnections, getLLMConfig, getActiveChannelId, setActiveChannelId } from "@/lib/storage";
+import { getActiveChannelId, setActiveChannelId } from "@/lib/storage";
 import { getOnboardingCompleted, setOnboardingCompleted } from "@/lib/onboarding-flag";
 import type { HealthResponse } from "@/lib/types";
 
@@ -63,21 +64,23 @@ export default function HomePage() {
   useEffect(() => {
     let cancelled = false;
 
+    // One-time migration: если в localStorage есть старый api_key — переносим в sessionStorage (T-05-13)
+    migrateLegacyApiKey();
+
     (async () => {
       const flag = getOnboardingCompleted();
 
-      if (flag) {
-        // Флаг уже выставлен — пропускаем onboarding
-        if (!cancelled) setShowOnboarding(false);
-      } else {
-        // Проверяем backend: если уже настроено — legacy guard
-        try {
-          const [conns, llm] = await Promise.all([
-            fetchConnections(),
-            fetchLLMConfig(),
-          ]);
-          if (cancelled) return;
-          const hasBoth = conns.length > 0 && llm !== null;
+      try {
+        // Загружаем актуальные данные из backend (source-of-truth, Plan 5.4 UX-04)
+        const [conns, llm] = await Promise.all([
+          fetchConnections(),
+          fetchLLMConfig(),
+        ]);
+        if (cancelled) return;
+
+        const hasBoth = conns.length > 0 && llm !== null;
+
+        if (!flag) {
           if (hasBoth) {
             // Legacy users: уже всё настроено — ставим флаг автоматически
             setOnboardingCompleted(true);
@@ -85,17 +88,21 @@ export default function HomePage() {
           } else {
             setShowOnboarding(true);
           }
-        } catch {
-          // Backend недоступен — не блокируем пользователя onboarding'ом
-          if (!cancelled) setShowOnboarding(false);
+        } else {
+          setShowOnboarding(false);
+        }
+
+        // hasConfig читается из backend (source-of-truth)
+        setHasConfig(hasBoth);
+      } catch {
+        // Backend недоступен — не блокируем пользователя onboarding'ом
+        if (!cancelled) {
+          setShowOnboarding(false);
+          setHasConfig(false);
         }
       }
 
-      // Всегда загружаем начальный state из localStorage для последующего рендера
-      const conns = getMCPConnections();
-      const llm = getLLMConfig();
       if (!cancelled) {
-        setHasConfig(conns.length > 0 || !!llm);
         setLocalActiveChannelId(getActiveChannelId());
         setReady(true);
       }
@@ -118,13 +125,18 @@ export default function HomePage() {
     void store.refresh();
   }
 
-  // Перезагружает состояние после завершения onboarding
+  // Перезагружает состояние после завершения onboarding (Plan 5.4: backend source-of-truth)
   function refreshAfterOnboarding() {
-    const conns = getMCPConnections();
-    const llm = getLLMConfig();
-    setHasConfig(conns.length > 0 || !!llm);
-    setLocalActiveChannelId(getActiveChannelId());
-    void store.refresh();
+    void (async () => {
+      try {
+        const [conns, llm] = await Promise.all([fetchConnections(), fetchLLMConfig()]);
+        setHasConfig(conns.length > 0 && llm !== null);
+      } catch {
+        setHasConfig(false);
+      }
+      setLocalActiveChannelId(getActiveChannelId());
+      void store.refresh();
+    })();
   }
 
   // Global Cmd+K / Ctrl+K hotkey для CommandPalette (должен быть до ранних return)

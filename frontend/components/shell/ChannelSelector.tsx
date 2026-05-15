@@ -55,7 +55,7 @@ export function ChannelSelector({ activeId, onChange }: Props) {
         syncMCPConnections(conns);
         setConnections(conns.map((c) => ({ ...c, ping: "unknown" as PingStatus })));
       } catch {
-        // Fallback на localStorage
+        // @deprecated legacy cache fallback — если backend недоступен, используем последний known state
         const cached = getMCPConnections();
         setConnections(cached.map((c) => ({ ...c, ping: "unknown" as PingStatus })));
       }

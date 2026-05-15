@@ -19,7 +19,10 @@ interface AssistantMessageProps {
 
 /** Композитный assistant message: TL;DR markdown + cards[] + ToolTrace (Plan 2.5) + StreamingIndicator (Plan 3.1). */
 export function AssistantMessage({ message, streamingStage, currentToolName, sessionId }: AssistantMessageProps) {
-  // Получаем mcpEndpoint из активного канала (для curl-copy и load-more context)
+  // Cache fallback after ChannelSelector sync: getMCPConnections() читает localStorage-кеш,
+  // который заполняется через syncMCPConnections() в ChannelSelector после успешного fetchConnections().
+  // Для production source-of-truth используется fetchConnections() в page.tsx (Plan 5.4 UX-04).
+  // Этот read используется только для read-only UX (curl-copy endpoint) — T-05-15 accept.
   const activeChannelId = getActiveChannelId();
   const connections = getMCPConnections();
   const mcpEndpoint = connections.find((c) => c.id === activeChannelId)?.endpoint;

@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { QuickPrompts } from "@/components/chat/QuickPrompts";
 import { SlashPopover } from "@/components/chat/SlashPopover";
 import { MentionPopover } from "@/components/chat/MentionPopover";
-import { getLLMConfig } from "@/lib/storage";
+import { getLLMApiKey } from "@/lib/api-keys";
 import { expandSlashCommand, type SlashCommand } from "@/lib/slash-commands";
 import type { MetadataSuggestItem } from "@/lib/types";
 import { Send } from "lucide-react";
@@ -39,9 +39,10 @@ export function ChatInput({ onSubmit, disabled, disabledReason, channelId }: Cha
     const text = value.trim();
     if (!text) return;
 
-    const cfg = getLLMConfig();
-    if (!cfg) {
-      alert("Подключите MCP и LLM в настройках");
+    // Проверяем наличие api_key в sessionStorage — быстрый UX disabled-state check (Plan 5.4)
+    const apiKey = getLLMApiKey();
+    if (!apiKey) {
+      alert("Введите API ключ в разделе Настройки");
       return;
     }
 

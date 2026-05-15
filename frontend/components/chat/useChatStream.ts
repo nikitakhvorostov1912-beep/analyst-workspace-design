@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { fetchChat, postChatConfirm } from "@/lib/api";
+import { fetchChat, fetchLLMConfig, postChatConfirm } from "@/lib/api";
 import { publishToast } from "@/lib/toast";
 import { getAnonEnabled } from "@/lib/storage";
 import type { CardEnvelope, ChatMessage, ConfirmRequiredPayload, ErrorCode, ToolCallRecord } from "@/lib/types";
@@ -94,6 +94,23 @@ export function useChatStream({
       setCurrentToolName(null);
 
       try {
+        // Получаем LLM конфиг из backend (source-of-truth, Plan 5.4 UX-04)
+        // Один дополнительный round-trip при отправке — приемлемо (T-05-14 accept)
+        const llmConfig = await fetchLLMConfig();
+        if (!llmConfig) {
+          setError("LLM не настроен. Откройте Настройки.");
+          setMessages((prev) => {
+            const last = prev[prev.length - 1];
+            if (!last || last.role !== "assistant") return prev;
+            return [
+              ...prev.slice(0, -1),
+              { ...last, error: { message: "LLM не настроен. Откройте Настройки.", code: "no_api_key" } },
+            ];
+          });
+          setIsStreaming(false);
+          return;
+        }
+
         // Читаем флаг анонимизации в момент отправки (не кешируем — toggle мог измениться)
         const anonHeaders: Record<string, string> = getAnonEnabled()
           ? { "X-Anon-Enabled": "true" }
@@ -105,6 +122,7 @@ export function useChatStream({
             session_id: sessionId,
             channel_id: channelId,
           },
+          { endpoint: llmConfig.endpoint, model: llmConfig.model },
           undefined,
           anonHeaders,
         );
