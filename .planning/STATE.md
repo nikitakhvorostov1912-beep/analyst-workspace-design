@@ -28,12 +28,12 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | Aspect | Value |
 |--------|-------|
 | **Current Milestone** | M1 — Foundation |
-| **Current Phase** | Phase 7 — Desktop Installer (In Progress: Plan 01 ✓, Plan 04 ✓) |
+| **Current Phase** | Phase 7 — Desktop Installer ✓ COMPLETE (5/5 plans) |
 | **Previous Phase 4** | Demo & Refine ✓ PASS — MVP RELEASE READY |
 | **Previous Phase 3** | Production Ready ✓ PASS |
 | **Previous Phase** | Phase 2 — MVP Chat ✓ PASS |
 | **Mode** | YOLO + coarse granularity + parallel execution |
-| **Last Update** | 2026-05-16 (Phase 7 Plan 04 завершён: electron-builder.yml + NSIS config + icon.ico + installer.nsh + package.json scripts. Build: analyst-setup-v1.0.0.exe 105.9 MB, SHA256=2B96AA66..., perMachine=false, ru_RU wizard, Desktop+StartMenu shortcuts. DIST-04 closed.) |
+| **Last Update** | 2026-05-16 (Phase 7 Plan 05 завершён: SMOKE-RESULTS.md + README Desktop Distribution + ROADMAP Phase 7 Done + REQUIREMENTS DIST-01..05 closed + git tag v1.1.0. Phase 7 COMPLETE.) |
 
 ## Phase Progress
 
@@ -44,9 +44,9 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | 3 | Production Ready | ✓ Complete | 4/4 executed | 100% |
 | 4 | Demo & Refine | ✓ Complete | 4/4 executed | 100% |
 | 5 | UX Polish | ✓ Complete | 5/5 executed | 100% |
-| 7 | Desktop Installer | In Progress | 2/5 executed | 40% |
+| 7 | Desktop Installer | ✓ Complete | 5/5 executed | 100% |
 
-**Overall:** Progress: ██████████ 100% (Phases 1-5 complete, v1.0 released. Phase 7 Desktop Installer: Plan 01 ✓ Plan 04 ✓ — NSIS installer built.)
+**Overall:** Progress: ██████████ 100% (Phases 1-5 complete, v1.0 released 2026-05-15. Phase 7 Desktop Installer COMPLETE — v1.1.0 (analyst-setup-v1.0.0.exe 105.9 MB). All phases done.)
 
 ## Artifacts Status
 
@@ -82,6 +82,8 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 - [x] **Phase 5 VERIFICATION — PASS** (5/5 truths). 315 pytest + 219 vitest зелёные. pnpm build success. E2E 15/15 + 6 pre-existing. git tag v1.0 создан. **Phase 5 COMPLETE. v1.0 RELEASED 2026-05-15.**
 - [x] Phase 7 Plan 01 execution — Electron main.js (175 lines) + preload.js + npm install electron/electron-builder. getFreePort + waitForUrl(30s) + BrowserWindow 1400×900 + SIGTERM/SIGKILL cleanup. Dev smoke: app.db created, no orphan processes, random freeport confirmed. DIST-01 + DIST-05 closed. 2 commits (`2714be4`, `82f30fb`). SUMMARY: `phases/07-desktop-installer/07-01-SUMMARY.md`
 - [x] Phase 7 Plan 04 execution — electron-builder.yml (NSIS config) + icon.ico + installer.nsh + package.json (version 1.0.0, productName, all scripts). Build: `analyst-setup-v1.0.0.exe` 105.9 MB, perMachine=false (no UAC), ru_RU wizard, Desktop+StartMenu shortcuts «1С Аналитик». SHA256: 2B96AA66542DAF32CC2130FEFCF982485DD1902A9CAF8E01CA2940E17D13F863. DIST-04 closed. 3 commits (`c703a57`, `19e8a79`, `5daa438`). SUMMARY: `phases/07-desktop-installer/07-04-SUMMARY.md`
+- [x] Phase 7 Plan 05 execution — SMOKE-RESULTS.md (dev machine smoke, A–F чек-лист, 5/5 Phase 7 criteria PASS) + README Desktop Distribution секция + ROADMAP Phase 7 ✓ Done + REQUIREMENTS DIST-01..05 [x] + RELEASE-NOTES.md + git tag v1.1.0 (local). 2 commits (`59729b8`, `dc429e2`). SUMMARY: `phases/07-desktop-installer/07-05-SUMMARY.md`
+- [x] **Phase 7 COMPLETE — v1.1.0 RELEASED 2026-05-16.** installer: `desktop/dist/analyst-setup-v1.0.0.exe` (105.9 MB), off-band distribution.
 
 ## Pivot History (Lessons Learned)
 
