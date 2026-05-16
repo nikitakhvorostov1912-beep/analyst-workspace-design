@@ -4,13 +4,16 @@ import path from "path";
 const isProd = process.env.NODE_ENV === "production";
 const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8010";
 
-// SEC-02: CSP headers только в production (dev HMR требует unsafe-eval)
+// SEC-02: CSP headers только в production (dev HMR требует unsafe-eval).
+// connect-src включает http://127.0.0.1:* + http://localhost:* — в Electron-сборке
+// backend стартует на random порту runtime, CSP не должна его блокировать.
+// Безопасно для desktop: backend всегда локальный.
 const cspProd = [
   "default-src 'self'",
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data:",
-  `connect-src 'self' ${backendUrl}`,
+  `connect-src 'self' ${backendUrl} http://127.0.0.1:* http://localhost:*`,
   "font-src 'self' https://fonts.gstatic.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",

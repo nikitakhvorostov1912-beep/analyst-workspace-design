@@ -18,16 +18,32 @@ import type {
 import { getLLMApiKey } from "./api-keys";
 import { parseSSEStream } from "./sse";
 
-const BACKEND =
-  (typeof process !== "undefined" && process.env.NEXT_PUBLIC_BACKEND_URL) ||
-  "http://localhost:8010";
+/**
+ * Backend URL resolution priority:
+ *   1. window.__BACKEND_URL__ — runtime-injected server-component в layout.tsx
+ *      (актуально для Electron-сборки, где backend стартует на random порту).
+ *   2. process.env.NEXT_PUBLIC_BACKEND_URL — server-side рендеринг.
+ *   3. http://localhost:8010 — dev/docker fallback.
+ *
+ * Use getter (не const на module level), иначе значение зафиксируется в client bundle на build-time.
+ */
+function getBackend(): string {
+  if (typeof window !== "undefined") {
+    const w = window as Window & { __BACKEND_URL__?: string };
+    if (w.__BACKEND_URL__) return w.__BACKEND_URL__;
+  }
+  if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_BACKEND_URL) {
+    return process.env.NEXT_PUBLIC_BACKEND_URL;
+  }
+  return "http://localhost:8010";
+}
 
 /**
  * Проверяет доступность backend.
  * Возвращает HealthResponse или выбрасывает при сетевой ошибке.
  */
 export async function fetchHealth(): Promise<HealthResponse> {
-  const response = await fetch(`${BACKEND}/health`);
+  const response = await fetch(`${getBackend()}/health`);
   if (!response.ok) {
     throw new Error(`Сервер вернул ${response.status}`);
   }
@@ -42,7 +58,7 @@ export async function fetchMCPPing(
   endpoint: string,
   signal?: AbortSignal,
 ): Promise<MCPPingResponse> {
-  const url = `${BACKEND}/mcp/_/ping?endpoint=${encodeURIComponent(endpoint)}`;
+  const url = `${getBackend()}/mcp/_/ping?endpoint=${encodeURIComponent(endpoint)}`;
   const response = await fetch(url, { method: "POST", signal });
   if (!response.ok) {
     throw new Error(`MCP ping вернул ${response.status}`);
@@ -73,7 +89,7 @@ export async function* fetchChat(
 
   let response: Response;
   try {
-    response = await fetch(`${BACKEND}/chat`, {
+    response = await fetch(`${getBackend()}/chat`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -123,7 +139,7 @@ export async function* fetchChat(
  * Загружает список MCP-подключений с backend.
  */
 export async function fetchConnections(): Promise<MCPConnection[]> {
-  const response = await fetch(`${BACKEND}/connections`);
+  const response = await fetch(`${getBackend()}/connections`);
   if (!response.ok) {
     throw new Error(`Ошибка загрузки подключений: ${response.status}`);
   }
@@ -140,7 +156,7 @@ export async function createConnection(body: {
   channel?: string;
   anon_enabled?: boolean;
 }): Promise<MCPConnection> {
-  const response = await fetch(`${BACKEND}/connections`, {
+  const response = await fetch(`${getBackend()}/connections`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -158,7 +174,7 @@ export async function updateConnection(
   id: string,
   patch: Partial<{ name: string; endpoint: string; channel: string; anon_enabled: boolean }>,
 ): Promise<MCPConnection> {
-  const response = await fetch(`${BACKEND}/connections/${id}`, {
+  const response = await fetch(`${getBackend()}/connections/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
@@ -173,7 +189,7 @@ export async function updateConnection(
  * Удаляет MCP-подключение.
  */
 export async function deleteConnection(id: string): Promise<void> {
-  const response = await fetch(`${BACKEND}/connections/${id}`, {
+  const response = await fetch(`${getBackend()}/connections/${id}`, {
     method: "DELETE",
   });
   if (!response.ok && response.status !== 204) {
@@ -189,7 +205,7 @@ export async function pingConnection(
   id: string,
   signal?: AbortSignal,
 ): Promise<MCPPingResponse> {
-  const response = await fetch(`${BACKEND}/connections/${id}/ping`, {
+  const response = await fetch(`${getBackend()}/connections/${id}/ping`, {
     method: "POST",
     signal,
   });
@@ -211,7 +227,7 @@ export async function createSession(
   const body: { channel_id: string; title?: string } = { channel_id };
   if (title) body.title = title;
 
-  const response = await fetch(`${BACKEND}/sessions`, {
+  const response = await fetch(`${getBackend()}/sessions`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -228,8 +244,8 @@ export async function createSession(
  */
 export async function fetchSessions(channel_id?: string): Promise<SessionsGrouped> {
   const url = channel_id
-    ? `${BACKEND}/sessions?channel_id=${encodeURIComponent(channel_id)}`
-    : `${BACKEND}/sessions`;
+    ? `${getBackend()}/sessions?channel_id=${encodeURIComponent(channel_id)}`
+    : `${getBackend()}/sessions`;
 
   const response = await fetch(url);
   if (!response.ok) {
@@ -242,7 +258,7 @@ export async function fetchSessions(channel_id?: string): Promise<SessionsGroupe
  * Загружает детали одной сессии. Возвращает null при 404.
  */
 export async function fetchSessionDetail(id: string): Promise<SessionDetail | null> {
-  const response = await fetch(`${BACKEND}/sessions/${id}`);
+  const response = await fetch(`${getBackend()}/sessions/${id}`);
   if (response.status === 404) return null;
   if (!response.ok) {
     throw new Error(`Ошибка загрузки сессии: ${response.status}`);
@@ -254,7 +270,7 @@ export async function fetchSessionDetail(id: string): Promise<SessionDetail | nu
  * Загружает все сообщения сессии в хронологическом порядке.
  */
 export async function fetchSessionMessages(id: string): Promise<MessageRow[]> {
-  const response = await fetch(`${BACKEND}/sessions/${id}/messages`);
+  const response = await fetch(`${getBackend()}/sessions/${id}/messages`);
   if (!response.ok) {
     throw new Error(`Ошибка загрузки сообщений: ${response.status}`);
   }
@@ -266,7 +282,7 @@ export async function fetchSessionMessages(id: string): Promise<MessageRow[]> {
  * Удаляет сессию и все её сообщения.
  */
 export async function deleteSession(id: string): Promise<void> {
-  const response = await fetch(`${BACKEND}/sessions/${id}`, {
+  const response = await fetch(`${getBackend()}/sessions/${id}`, {
     method: "DELETE",
   });
   if (!response.ok && response.status !== 204) {
@@ -282,7 +298,7 @@ export async function postChatConfirm(body: {
   tool_call_id: string;
   approved: boolean;
 }): Promise<void> {
-  const response = await fetch(`${BACKEND}/chat/confirm`, {
+  const response = await fetch(`${getBackend()}/chat/confirm`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -309,7 +325,7 @@ export async function loadMoreLogEntries(
   cursor: string,
 ): Promise<{ entries: LogEntry[]; next_cursor: string | null }> {
   const response = await fetch(
-    `${BACKEND}/sessions/${encodeURIComponent(sessionId)}/messages/${encodeURIComponent(messageId)}/cards/${encodeURIComponent(cardId)}/load-more`,
+    `${getBackend()}/sessions/${encodeURIComponent(sessionId)}/messages/${encodeURIComponent(messageId)}/cards/${encodeURIComponent(cardId)}/load-more`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -336,7 +352,7 @@ export async function deanonymizeCard(
   tokens: string[],
 ): Promise<Record<string, string>> {
   const response = await fetch(
-    `${BACKEND}/sessions/${encodeURIComponent(sessionId)}/messages/${encodeURIComponent(messageId)}/cards/${encodeURIComponent(cardId)}/deanonymize`,
+    `${getBackend()}/sessions/${encodeURIComponent(sessionId)}/messages/${encodeURIComponent(messageId)}/cards/${encodeURIComponent(cardId)}/deanonymize`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -362,7 +378,7 @@ export async function searchMessages(
 ): Promise<SearchResponse> {
   const params = new URLSearchParams({ q });
   if (channel) params.set("channel", channel);
-  const response = await fetch(`${BACKEND}/search?${params.toString()}`);
+  const response = await fetch(`${getBackend()}/search?${params.toString()}`);
   if (!response.ok) {
     throw new Error(`Ошибка поиска: ${response.status}`);
   }
@@ -379,7 +395,7 @@ export async function metadataSuggest(
 ): Promise<MetadataSuggestResponse> {
   const params = new URLSearchParams({ q });
   const response = await fetch(
-    `${BACKEND}/connections/${encodeURIComponent(channelId)}/metadata-suggest?${params.toString()}`,
+    `${getBackend()}/connections/${encodeURIComponent(channelId)}/metadata-suggest?${params.toString()}`,
   );
   if (!response.ok) {
     throw new Error(`Ошибка metadata suggest: ${response.status}`);
@@ -394,7 +410,7 @@ export async function patchSessionTitle(
   id: string,
   title: string,
 ): Promise<SessionDetail> {
-  const response = await fetch(`${BACKEND}/sessions/${id}`, {
+  const response = await fetch(`${getBackend()}/sessions/${id}`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ title }),
@@ -412,7 +428,7 @@ export async function patchSessionTitle(
  * Возвращает null если конфиг не задан. API ключ не хранится на backend.
  */
 export async function fetchLLMConfig(): Promise<LLMConfigResponse | null> {
-  const response = await fetch(`${BACKEND}/llm-config`);
+  const response = await fetch(`${getBackend()}/llm-config`);
   if (!response.ok) {
     throw new Error(`Ошибка загрузки LLM-конфига: ${response.status}`);
   }
@@ -424,7 +440,7 @@ export async function fetchLLMConfig(): Promise<LLMConfigResponse | null> {
  * Сохраняет (UPSERT) LLM-конфиг на backend. API ключ передаётся отдельно через header.
  */
 export async function saveLLMConfig(body: LLMConfigCreate): Promise<LLMConfigResponse> {
-  const response = await fetch(`${BACKEND}/llm-config`, {
+  const response = await fetch(`${getBackend()}/llm-config`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body),
@@ -439,7 +455,7 @@ export async function saveLLMConfig(body: LLMConfigCreate): Promise<LLMConfigRes
  * Частично обновляет LLM-конфиг (PATCH /llm-config/default).
  */
 export async function updateLLMConfig(patch: LLMConfigUpdate): Promise<LLMConfigResponse> {
-  const response = await fetch(`${BACKEND}/llm-config/default`, {
+  const response = await fetch(`${getBackend()}/llm-config/default`, {
     method: "PATCH",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(patch),
@@ -454,7 +470,7 @@ export async function updateLLMConfig(patch: LLMConfigUpdate): Promise<LLMConfig
  * Удаляет LLM-конфиг (DELETE /llm-config/default). 204 = успех.
  */
 export async function deleteLLMConfig(): Promise<void> {
-  const response = await fetch(`${BACKEND}/llm-config/default`, {
+  const response = await fetch(`${getBackend()}/llm-config/default`, {
     method: "DELETE",
   });
   if (response.status === 204) return;
@@ -472,7 +488,7 @@ export async function testLLMConfig(
   body: LLMConfigCreate,
   apiKey: string,
 ): Promise<LLMConfigTestResponse> {
-  const response = await fetch(`${BACKEND}/llm-config/test`, {
+  const response = await fetch(`${getBackend()}/llm-config/test`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

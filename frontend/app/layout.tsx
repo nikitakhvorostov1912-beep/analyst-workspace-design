@@ -23,13 +23,26 @@ export const metadata: Metadata = {
   description: "Чат-консоль для бизнес-аналитиков 1С",
 };
 
+// Force dynamic rendering — иначе process.env.NEXT_PUBLIC_BACKEND_URL inline-ится на build-time,
+// а в Electron-сборке backend стартует на random порту runtime. Server-component читает env
+// при каждом запросе и инжектит actual URL в window.__BACKEND_URL__.
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8010";
   return (
     <html lang="ru" className={`dark ${plexSans.variable} ${plexMono.variable}`}>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.__BACKEND_URL__ = ${JSON.stringify(backendUrl)};`,
+          }}
+        />
+      </head>
       <body>
         {children}
         <Toaster />
