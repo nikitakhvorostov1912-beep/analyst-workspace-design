@@ -229,6 +229,7 @@ async def run_chat_loop(
             # Накапливаем tool_calls из streaming chunks
             chunk_tool_calls: dict[int, dict] = {}
             chunk_content = ""
+            chunk_reasoning = ""  # reasoning-content (Xiaomi MiMo, DeepSeek R1 и др.)
             finish_reason: str | None = None
 
             try:
@@ -247,8 +248,18 @@ async def run_chat_loop(
                             chunk_content += content_piece
                             yield format_sse("delta", DeltaEvent(content=content_piece))
 
-                        # Накапливаем tool_calls по index (arguments приходят частями)
-                        tool_calls_delta = delta.get("tool_calls", [])
+                        # Reasoning-content (Xiaomi MiMo, DeepSeek R1) — для thinking mode:
+                        # модель требует вернуть свой reasoning обратно в следующем round
+                        # вместе с tool_calls (иначе 400 "Param Incorrect").
+                        # Юзеру не показываем — это внутренняя цепь рассуждений.
+                        reasoning_piece = delta.get("reasoning_content")
+                        if reasoning_piece:
+                            chunk_reasoning += reasoning_piece
+
+                        # Накапливаем tool_calls по index (arguments приходят частями).
+                        # `or []` — некоторые LLM (Xiaomi MiMo, reasoning-модели)
+                        # возвращают `"tool_calls": null` в delta вместо отсутствующего ключа.
+                        tool_calls_delta = delta.get("tool_calls") or []
                         for tc in tool_calls_delta:
                             idx = tc.get("index", 0)
                             if idx not in chunk_tool_calls:
@@ -331,11 +342,16 @@ async def run_chat_loop(
                 }
                 for tc in chunk_tool_calls.values()
             ]
-            messages.append({
+            assistant_msg: dict = {
                 "role": "assistant",
                 "content": chunk_content or None,
                 "tool_calls": assistant_tool_calls,
-            })
+            }
+            # Reasoning-модели (Xiaomi MiMo thinking, DeepSeek R1) требуют вернуть
+            # `reasoning_content` обратно в следующем round, иначе 400 Param Incorrect.
+            if chunk_reasoning:
+                assistant_msg["reasoning_content"] = chunk_reasoning
+            messages.append(assistant_msg)
 
             # Вызываем каждый tool
             yield format_sse("status", StatusEvent(stage="calling_tool"))

@@ -87,16 +87,38 @@ class MCPClient:
         return response.json()
 
     def _parse_sse_response(self, text: str) -> dict:
-        """Извлекает первый JSON-RPC результат из SSE-потока."""
-        for line in text.splitlines():
-            if line.startswith("data: "):
-                raw = line[len("data: "):]
-                if raw.strip() in ("[DONE]", ""):
-                    continue
-                try:
-                    return json.loads(raw)
-                except json.JSONDecodeError:
-                    continue
+        """Извлекает первый JSON-RPC результат из SSE-потока.
+
+        Согласно SSE-спецификации, multi-line data-блоки конкатенируются через \\n.
+        MCP Toolkit (Native) форматирует pretty-printed JSON, разбивая на много строк
+        с префиксом `data:` каждая → нельзя парсить построчно, нужно собирать в event.
+        """
+        events: list[list[str]] = []
+        current: list[str] = []
+        for raw_line in text.splitlines():
+            line = raw_line.rstrip("\r")
+            if line == "":
+                # Пустая строка = разделитель events
+                if current:
+                    events.append(current)
+                    current = []
+                continue
+            if line.startswith("data:"):
+                # SSE спек: "data: foo" или "data:foo" (пробел опционален)
+                payload = line[len("data:"):].lstrip(" ")
+                current.append(payload)
+        if current:
+            events.append(current)
+
+        for event_lines in events:
+            joined = "\n".join(event_lines)
+            if joined.strip() in ("[DONE]", ""):
+                continue
+            try:
+                return json.loads(joined)
+            except json.JSONDecodeError:
+                continue
+
         msg = "Не удалось найти JSON в SSE-ответе"
         raise MCPError(-32700, msg)
 

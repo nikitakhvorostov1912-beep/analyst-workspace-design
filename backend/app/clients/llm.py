@@ -100,6 +100,16 @@ class LLMClient:
                 )
                 exc.retry_after_s = retry_after_s
                 raise exc
+            if response.status_code >= 400:
+                # Логируем body 4xx/5xx для диагностики — некоторые LLM возвращают
+                # человекочитаемую ошибку в теле, которая не видна без debug.
+                import logging
+                err_body = await response.aread()
+                logging.getLogger(__name__).warning(
+                    "LLM HTTP %s body: %s",
+                    response.status_code,
+                    err_body.decode("utf-8", errors="replace")[:1000],
+                )
             response.raise_for_status()
             async for line in response.aiter_lines():
                 if not line.startswith("data: "):
