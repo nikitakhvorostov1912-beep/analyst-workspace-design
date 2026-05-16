@@ -75,7 +75,7 @@
 - [x] **DIST-01**: Electron main process spawnit backend (PyInstaller exe) + frontend (Next.js standalone), ждёт готовности, открывает BrowserWindow на random свободном порту
 - [x] **DIST-02**: PyInstaller упаковка backend → один backend.exe (~50 MB) с embedded Python runtime + uvicorn + все зависимости
 - [x] **DIST-03**: Next.js standalone build (`output: "standalone"`) — frontend запускается через `node server.js` без npm install
-- [ ] **DIST-04**: electron-builder упаковка в NSIS installer .exe с custom icon, ярлыками Desktop + Start Menu, метаданными
+- [x] **DIST-04**: electron-builder упаковка в NSIS installer .exe с custom icon, ярлыками Desktop + Start Menu, метаданными
 - [x] **DIST-05**: Auto-cleanup — close окна убивает все child процессы (SIGTERM, fallback SIGKILL через 3 сек)
 
 ## v2 Requirements
@@ -164,9 +164,14 @@
 | UX-03 | Phase 5 | ✓ Done — 05-02 |
 | UX-04 | Phase 5 | ✓ Done — 05-04 |
 | UX-05 | Phase 5 | ✓ Done — 05-05 |
+| DIST-01 | Phase 7 | ✓ Done — 07-01 |
+| DIST-02 | Phase 7 | ✓ Done — 07-02/07-04 |
+| DIST-03 | Phase 7 | ✓ Done — 07-03 |
+| DIST-04 | Phase 7 | ✓ Done — 07-04 |
+| DIST-05 | Phase 7 | ✓ Done — 07-01 |
 
 **Coverage:**
-- v1 requirements: 36 total (22 базовых + 9 SEC/DEVX из Phase 3 + 5 UX из Phase 5)
+- v1 requirements: 41 total (22 базовых + 9 SEC/DEVX из Phase 3 + 5 UX из Phase 5 + 5 DIST из Phase 7)
 - Mapped to phases: 36
 - Unmapped: 0 ✓
 

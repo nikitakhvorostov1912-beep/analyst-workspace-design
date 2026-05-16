@@ -14,7 +14,7 @@
 | 4 | Demo & Refine | Anonymization + advanced cards + productivity features (v2 subset) | ANON-*, CARD-04..06, PROD-* | 4 |
 | 5 | Полировка UX до готового продукта | Settings CRUD UI + First-Run Onboarding + backend как source of truth для connections + dev mode fix + production launch readiness | UX-01..05 (новые) | 5 |
 | 6 | Self-Explanatory UI | /about + /status + try examples в empty state + header иконки | (UX polish, без новых REQ) | — |
-| 7 | Desktop Installer | 3/5 | In Progress|  |
+| 7 | Desktop Installer | DIST-01..05 | ✓ Done — v1.1.0 |  |
 
 ---
 
@@ -266,18 +266,21 @@ Plans:
 
 ---
 
-## Phase 7: Desktop Installer
+## Phase 7: Desktop Installer ✓ Done
+
+**Status:** COMPLETE — v1.1.0 (2026-05-16)
+**Installer:** `desktop/dist/analyst-setup-v1.0.0.exe` (105.9 MB), SHA256: 2B96AA66...
 
 **Goal:** Превратить веб-приложение (требует Python + Node для запуска) в **один Windows installer .exe** — аналитик скачал, кликнул, получил ярлык на рабочем столе, кликнул → окно с приложением.
 
 **Mode:** mvp
 
 **Success Criteria:**
-1. Один файл `analyst-setup-v1.0.exe` (~180 MB) который ставится без админских прав
-2. После установки — ярлык на рабочем столе и в Start Menu «1С Аналитик»
-3. Двойной клик → открывается Electron-окно с приложением. Аналитик НЕ видит cmd-окон, портов, запуска серверов
-4. Приложение **не требует** установленных Python / Node / pnpm у аналитика — всё в инсталляторе
-5. При закрытии окна — все child процессы (backend, frontend) автоматически останавливаются
+1. ✓ Один файл `analyst-setup-v1.0.0.exe` (105.9 MB) который ставится без админских прав (perMachine: false)
+2. ✓ После установки — ярлык на рабочем столе и в Start Menu «1С Аналитик»
+3. ✓ Двойной клик → открывается Electron-окно с приложением. Аналитик НЕ видит cmd-окон, портов, запуска серверов
+4. ✓ Приложение **не требует** установленных Python / Node / pnpm у аналитика — всё в инсталляторе
+5. ✓ При закрытии окна — все child процессы (backend, frontend) автоматически останавливаются
 
 **New Requirements (Phase 7):**
 - **DIST-01**: Electron main process spawnit backend (PyInstaller exe) + frontend (Next.js standalone) на random свободных портах, ждёт готовности, открывает BrowserWindow
