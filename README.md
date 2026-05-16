@@ -20,6 +20,24 @@ LLM сама вызывает MCP-инструменты — аналитик т
 | LLM | OpenAI-compatible HTTP (Xiaomi MiMo, GPT-4o, любой) |
 | MCP | 1С MCP Toolkit v1.7.0 (EPF) на localhost:6010 или :6003 |
 
+## Скачать готовый Windows installer
+
+Для аналитиков, которым не нужно настраивать dev-окружение:
+
+1. Скачать `analyst-setup-v1.0.0.exe` из [GitHub Releases](https://github.com/nikitakhvorostov1912-beep/analyst-workspace-design/releases/latest) (~106 MB)
+2. Двойной клик → пройти мастер установки на русском (без админских прав)
+3. На Рабочем столе появится ярлык «1С Аналитик» → двойной клик запускает приложение
+
+**Что внутри:** Electron + bundled Python backend (PyInstaller) + Next.js standalone frontend. Аналитику НЕ нужно ставить Python, Node.js, Docker, pnpm.
+
+**При первом запуске** Windows SmartScreen покажет предупреждение «Windows защитил ваш ПК». Это норма для приложений без code-signing certificate — нажмите «Подробнее» → «Выполнить в любом случае».
+
+**Поддерживаемые системы:** Windows 10/11 x64. macOS и Linux — в roadmap v2.
+
+> Нет публичного Release? Получите installer у разработчика через USB или shared folder.
+
+---
+
 ## Быстрый старт
 
 ### 1. Запуск
