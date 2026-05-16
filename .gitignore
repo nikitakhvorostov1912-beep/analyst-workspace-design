@@ -127,3 +127,9 @@ test-results/
 *.bak
 *.backup
 *~
+
+# Electron build workarounds
+desktop/scripts/fake-7za/
+desktop/.webpack/
+desktop/dist/
+desktop/build.log
