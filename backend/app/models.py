@@ -341,12 +341,18 @@ class LLMConfigResponse(BaseModel):
 
 
 class LLMConfigTestRequest(BaseModel):
-    """Тело POST /llm-config/test. API ключ — в header X-LLM-API-Key."""
+    """Тело POST /llm-config/test. API ключ — в header X-LLM-API-Key.
+
+    UX: temperature опциональная — клиенты обычно отправляют тот же payload,
+    что и в /llm-config (Create/Update). Игнорируем её в test endpoint
+    (test шлёт `max_tokens=1` без temperature), но не отвергаем.
+    """
 
     model_config = ConfigDict(extra="forbid", strict=True)
 
     endpoint: str
     model: str
+    temperature: float | None = Field(default=None, ge=0.0, le=2.0)
 
 
 class LLMConfigTestResponse(BaseModel):
