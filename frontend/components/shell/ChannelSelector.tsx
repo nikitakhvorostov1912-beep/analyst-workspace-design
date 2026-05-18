@@ -11,6 +11,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  StatusDot,
+  type ConnectionStatus,
+} from "@/components/ui/StatusDot";
 import { fetchConnections, pingConnection } from "@/lib/api";
 import { getMCPConnections, setActiveChannelId, syncMCPConnections } from "@/lib/storage";
 import type { MCPConnection } from "@/lib/types";
@@ -27,17 +31,32 @@ type Props = {
   onChange: (newId: string) => void;
 };
 
-function StatusDot({ status }: { status: PingStatus }) {
-  const colors: Record<PingStatus, string> = {
-    unknown: "bg-[var(--fg-muted)]",
-    checking: "bg-yellow-400 animate-pulse",
-    ok: "bg-green-500",
-    error: "bg-red-500",
-  };
+/**
+ * Phase 11.4: внутренний ping-статус (4 значения) → атомарный ConnectionStatus (3 значения).
+ *   unknown / error → offline
+ *   checking → connecting (blink анимация)
+ *   ok → online (pulse анимация)
+ */
+function mapPingToStatus(ping: PingStatus): ConnectionStatus {
+  if (ping === "ok") return "online";
+  if (ping === "checking") return "connecting";
+  return "offline"; // unknown + error
+}
+
+function PingDot({ status }: { status: PingStatus }) {
   return (
-    <span
-      className={`inline-block w-2 h-2 rounded-full flex-none ${colors[status]}`}
-      aria-label={status === "ok" ? "онлайн" : status === "error" ? "офлайн" : "проверяется"}
+    <StatusDot
+      status={mapPingToStatus(status)}
+      size="sm"
+      aria-label={
+        status === "ok"
+          ? "онлайн"
+          : status === "error"
+            ? "офлайн"
+            : status === "checking"
+              ? "проверяется"
+              : "статус неизвестен"
+      }
     />
   );
 }
@@ -119,7 +138,7 @@ export function ChannelSelector({ activeId, onChange }: Props) {
   if (connections.length === 0) {
     return (
       <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] text-sm text-[var(--fg-muted)] select-none min-w-[200px]">
-        <StatusDot status="unknown" />
+        <PingDot status="unknown" />
         <span>Подключения не настроены</span>
         <Link href="/settings" className="ml-auto text-[var(--accent)] hover:underline text-xs">
           Настроить
@@ -135,7 +154,7 @@ export function ChannelSelector({ activeId, onChange }: Props) {
           className="flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] text-sm text-[var(--fg)] hover:bg-[var(--bg-hover)] transition-colors min-w-[200px] cursor-pointer"
           aria-label="Выбор канала"
         >
-          <StatusDot status={activeConn?.ping ?? "unknown"} />
+          <PingDot status={activeConn?.ping ?? "unknown"} />
           <span className="flex-1 text-left truncate">
             {activeConn ? activeConn.name : "Выберите подключение"}
           </span>
@@ -153,7 +172,7 @@ export function ChannelSelector({ activeId, onChange }: Props) {
               className="flex-1 gap-2 cursor-pointer"
               onSelect={() => handleSelect(conn.id)}
             >
-              <StatusDot status={conn.ping} />
+              <PingDot status={conn.ping} />
               <div className="flex-1 min-w-0">
                 <div className="truncate font-medium">{conn.name}</div>
                 {conn.channel && (
