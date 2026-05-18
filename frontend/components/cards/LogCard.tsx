@@ -9,6 +9,7 @@ import { publishToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
 import { extractAnonTokens, highlightAnonTokens } from "@/lib/anon-tokens";
 import type { LogCardPayload, LogEntry } from "@/lib/types";
+import { CardHeader } from "./CardHeader";
 
 type LogLevel = LogEntry["level"];
 
@@ -135,15 +136,11 @@ export function LogCard({ payload, onLoadMore, onDeanonymize }: LogCardProps) {
     }
   }
 
+  const metaLine = `${allEntries.length} ${allEntries.length === 1 ? "запись" : "записей"}`;
+
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] overflow-hidden">
-      {/* Заголовок */}
-      <div className="px-3 py-2 border-b border-[var(--border)]">
-        <span className="text-xs text-[var(--fg-muted)]">
-          Журнал регистрации · {allEntries.length}{" "}
-          {allEntries.length === 1 ? "запись" : "записей"}
-        </span>
-      </div>
+      <CardHeader type="log" title="Журнал регистрации" meta={metaLine} />
 
       {allEntries.length === 0 ? (
         <div className="px-3 py-6 text-xs text-[var(--fg-muted)] text-center">
