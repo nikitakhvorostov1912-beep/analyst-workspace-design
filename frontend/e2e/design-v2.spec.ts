@@ -25,7 +25,7 @@ const LEGACY_CONNECTIONS = [
 ];
 
 const LEGACY_LLM = {
-  id: "default",
+  id: "default" as const,
   endpoint: "http://localhost:1234/v1",
   model: "gpt-4o-mini",
   temperature: 0.3,
@@ -51,7 +51,7 @@ test.describe("Design v2 — Header layout (Phase 11.3)", () => {
     await expect(header.getByText("1С", { exact: true })).toBeVisible();
 
     // Версия и app name
-    await expect(header.getByText("v1.2.0")).toBeVisible();
+    await expect(header.getByText("v1.2.1")).toBeVisible();
     await expect(header.getByText("Аналитик")).toBeVisible();
   });
 

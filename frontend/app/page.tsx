@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/shell/AppShell";
-import { Thread } from "@/components/chat/Thread";
 import { CommandPalette } from "@/components/chat/CommandPalette";
 import { Button } from "@/components/ui/button";
 import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog";
@@ -220,7 +219,9 @@ export default function HomePage() {
     await store.remove(sessionId);
   }
 
-  // Основной layout — AppShell с пустым Thread (нет активной сессии)
+  // Основной layout — AppShell с welcome screen (нет активной сессии).
+  // Важно: не рендерить здесь пустой <Thread /> рядом с welcome — оба имеют h-full,
+  // main:overflow-y-auto скроллит вниз из-за Thread auto-scrollIntoView, welcome уходит выше viewport.
   return (
     <>
       <CommandPalette
@@ -238,7 +239,7 @@ export default function HomePage() {
           onChannelChange: handleChannelChange,
         }}
       >
-        <div className="h-full flex flex-col items-center justify-center gap-6 text-center px-6 max-w-2xl mx-auto">
+        <div className="h-full flex flex-col items-center justify-center gap-6 text-center px-6 max-w-2xl mx-auto" data-testid="welcome-screen">
           <div className="space-y-2">
             <h2 className="text-2xl font-semibold text-[var(--fg)]">
               Готов отвечать на вопросы по 1С
@@ -286,7 +287,6 @@ export default function HomePage() {
             </p>
           </div>
         </div>
-        <Thread messages={[]} />
       </AppShell>
       <BackendIndicator />
     </>
