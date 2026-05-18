@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
 milestone: M5
-milestone_name: "Post-v1.1 Expansion — STACK + SESSIONS + LEARN"
-status: planned
-last_updated: "2026-05-18T00:00:00Z"
+milestone_name: "Post-v1.1 Expansion — STACK + SESSIONS + LEARN + Design v2"
+status: in_progress
+last_updated: "2026-05-18T12:30:00Z"
 progress:
-  total_phases: 9
+  total_phases: 11
   completed_phases: 6
-  total_plans: 31
-  completed_plans: 30
-  percent: 67
+  total_plans: 36
+  completed_plans: 33
+  percent: 69
 ---
 
 # Project State
@@ -48,9 +48,9 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | 8 | STACK Integration | ⧗ Planned | 0/2 | 0% |
 | 9 | Sessions DB Init | ⧗ Planned | 0/1 | 0% |
 | 10 | Learn Engine | ⧗ Planned | 0/3 | 0% |
-| 11 | Design v2 Import | ⧗ Planned | 0/5 | 0% |
+| 11 | Design v2 Import | ⊙ In Progress | 3/5 + prep | 65% |
 
-**Overall:** Progress: ██████░░░░ 60% (Phases 1-5+7 complete; v1.0 released 2026-05-15, v1.1.0 released 2026-05-16. Milestone M5 planned 2026-05-17, Phase 11 added 2026-05-18 после Claude Design handoff. Branch `feature/m5-design-v2-import` создана. Next: Phase 11.1 Design Tokens).
+**Overall:** Progress: ███████░░░ 69% (Phases 1-5+7 complete; v1.0 released 2026-05-15, v1.1.0 released 2026-05-16. Milestone M5 planned 2026-05-17. Phase 11 in progress: 11.1+11.2+11.3 complete, 11.4 prep done (StreamingStages + CardSkeleton), 11.4 integration + 11.5 release pending. Branch `feature/m5-design-v2-import` 6 commits, 265/265 vitest green, build clean. v1.2.0 release after 11.4 integration + 11.5 smoke).
 
 ## Artifacts Status
 
@@ -124,6 +124,22 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 17. **Phase 8 STACK Integration** — `/gsd:plan-phase 8` → создать `.claude/skills/` + `.claude/rules/` + локальный CLAUDE.md routing (2 plans)
 18. **Phase 9 Sessions DB Init** — `/gsd:plan-phase 9` → Electron `app.getPath('userData')` для DATABASE_URL + privacy reset endpoint + smoke на чистой VM (1 plan)
 19. **Phase 10 Learn Engine** — `/gsd:plan-phase 10` → SQLite-vec + embeddings + RAG-orchestrator integration + UI badge + privacy opt-in (3 plans, Path B chosen by Claude's discretion)
+20. ~~**Phase 11.1 Design tokens**~~ ✓ done (commit `1031047`) — Tailwind theme + CSS variables (blue-500 accent, 4 variants), 8 keyframes, granular bg-0..3/fg-1..4/bd-1..3 tokens. 247/247 tests green.
+21. ~~**Phase 11.2 Atoms**~~ ✓ done (commits `98ff863` + `3f23ec0`) — 5 atomic components: StatusDot (online/offline/connecting), EmptyState, ErrorBanner (info/warning/error), CardActionMenu (shadcn DropdownMenu wrapper), CardHeader (unified for 6 card types). 28 new vitest specs.
+22. ~~**Phase 11.3 Shell + Onboarding 4-step**~~ ✓ done (2 commits) — Header redesign (3-col grid, brand mark, optional sidebar toggle + cmd-K), AnonymizationToggle amber pill, ModelBadge with Sparkles, StepIndicator generic API, OnboardingDialog expanded 3→4 steps with Learn opt-in (privacy-first, localStorage `analyst.learn_enabled`). 251/251 tests green.
+23. **Phase 11.4 prep** ✓ done (commit) — StreamingStages (5 stage kinds: analyzing/learn/tool/tool_done/finalizing) + CardSkeleton (3-row default, animate-skeleton-pulse). 265/265 tests green. **Integration pending** (next session): AssistantMessage replace StreamingIndicator, useChatStream SSE→Stage[] adapter, 6 cards refactor through CardHeader, ToolTrace visual upgrade with mini chips, CardRenderer skeleton on loading, ChannelSelector use new StatusDot atom.
+24. **Phase 11.5 Animations + Release** — animate-fade-up на mount cards, dialog-in shadcn Dialog, focus-ring update, Playwright design-v2.spec.ts smoke (header brand mark + Onboarding 4-step + StatusDot pulse), git tag v1.2.0.
+
+## Phase 11 commits (feature/m5-design-v2-import)
+
+| Commit | Phase | Scope |
+|--------|-------|-------|
+| `1031047` | 11.1 | Design tokens (blue-500 accent + 7 keyframes + granular tokens) |
+| `98ff863` | 11.2 | UI atoms (StatusDot + EmptyState + ErrorBanner) |
+| `3f23ec0` | 11.2 | Card atoms (CardActionMenu + CardHeader) |
+| _shell_   | 11.3 | Header + AnonymizationToggle + ModelBadge redesign |
+| _onboarding_ | 11.3 | Onboarding wizard 3→4 steps with Learn opt-in |
+| _prep_    | 11.4 | StreamingStages + CardSkeleton primitives |
 
 ## v1.0 Release
 
