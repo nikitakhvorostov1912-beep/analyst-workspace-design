@@ -50,7 +50,7 @@ export function Header({
               Аналитик
             </div>
             <div className="font-mono text-[10.5px] text-[var(--fg-3)]">
-              v1.1.0
+              v1.2.0
             </div>
           </div>
         </div>

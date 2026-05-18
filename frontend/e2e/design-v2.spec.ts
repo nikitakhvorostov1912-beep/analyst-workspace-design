@@ -51,7 +51,7 @@ test.describe("Design v2 — Header layout (Phase 11.3)", () => {
     await expect(header.getByText("1С", { exact: true })).toBeVisible();
 
     // Версия и app name
-    await expect(header.getByText("v1.1.0")).toBeVisible();
+    await expect(header.getByText("v1.2.0")).toBeVisible();
     await expect(header.getByText("Аналитик")).toBeVisible();
   });
 
