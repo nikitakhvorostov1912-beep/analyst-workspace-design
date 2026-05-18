@@ -89,9 +89,50 @@ import { pingConnection } from "@/lib/api";
 import { setOnboardingCompleted } from "@/lib/onboarding-flag";
 import { publishToast } from "@/lib/toast";
 
+const PING_OK = {
+  mcp_version: "2025-03-26",
+  tool_count: 10,
+  session_id: "test-session",
+  duration_ms: 10,
+};
+
+/**
+ * Helper: progress дviz через шаги 1→2→3 (до Learn step).
+ * После вызова текущий шаг = 3 (Learn opt-in).
+ */
+async function advanceToLearnStep() {
+  vi.mocked(pingConnection).mockResolvedValue(PING_OK);
+
+  // Шаг 1 → Шаг 2
+  await act(async () => {
+    fireEvent.click(screen.getByTestId("mcp-save"));
+  });
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: /далее/i })).not.toBeDisabled();
+  });
+  fireEvent.click(screen.getByRole("button", { name: /далее/i }));
+
+  // Шаг 2 → Шаг 3
+  await waitFor(() => {
+    expect(screen.getByTestId("llm-form")).toBeInTheDocument();
+  });
+  fireEvent.click(screen.getByTestId("llm-save"));
+  await waitFor(() => {
+    expect(screen.getByRole("button", { name: /далее/i })).not.toBeDisabled();
+  });
+  fireEvent.click(screen.getByRole("button", { name: /далее/i }));
+
+  await waitFor(() => {
+    expect(screen.getByTestId("onboarding-step-learn")).toBeInTheDocument();
+  });
+}
+
 describe("OnboardingDialog", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    if (typeof window !== "undefined") {
+      window.localStorage?.clear?.();
+    }
   });
 
   // ————————————————————
@@ -112,12 +153,7 @@ describe("OnboardingDialog", () => {
   // 2. Успешный ping — кнопка «Далее» становится активной
   // ————————————————————
   it("после успешного save MCPConnectionForm + ping — кнопка «Далее» активна, toast success", async () => {
-    vi.mocked(pingConnection).mockResolvedValue({
-      mcp_version: "2025-03-26",
-      tool_count: 10,
-      session_id: "s1",
-      duration_ms: 20,
-    });
+    vi.mocked(pingConnection).mockResolvedValue(PING_OK);
 
     render(
       <OnboardingDialog open={true} onComplete={vi.fn()} onSkip={vi.fn()} />,
@@ -166,18 +202,12 @@ describe("OnboardingDialog", () => {
   // 4. Переход на шаг 2
   // ————————————————————
   it("после успешного ping + click «Далее» — переходит на шаг 2 с LLM-формой", async () => {
-    vi.mocked(pingConnection).mockResolvedValue({
-      mcp_version: "2025-03-26",
-      tool_count: 10,
-      session_id: "s2",
-      duration_ms: 15,
-    });
+    vi.mocked(pingConnection).mockResolvedValue(PING_OK);
 
     render(
       <OnboardingDialog open={true} onComplete={vi.fn()} onSkip={vi.fn()} />,
     );
 
-    // Сохраняем MCP — ping проходит
     await act(async () => {
       fireEvent.click(screen.getByTestId("mcp-save"));
     });
@@ -186,7 +216,6 @@ describe("OnboardingDialog", () => {
       expect(screen.getByRole("button", { name: /далее/i })).not.toBeDisabled();
     });
 
-    // Переходим на шаг 2
     fireEvent.click(screen.getByRole("button", { name: /далее/i }));
 
     await waitFor(() => {
@@ -199,18 +228,12 @@ describe("OnboardingDialog", () => {
   // 5. Назад с шага 2 на шаг 1
   // ————————————————————
   it("кнопка «Назад» на шаге 2 — возвращает на шаг 1", async () => {
-    vi.mocked(pingConnection).mockResolvedValue({
-      mcp_version: "2025-03-26",
-      tool_count: 10,
-      session_id: "s3",
-      duration_ms: 10,
-    });
+    vi.mocked(pingConnection).mockResolvedValue(PING_OK);
 
     render(
       <OnboardingDialog open={true} onComplete={vi.fn()} onSkip={vi.fn()} />,
     );
 
-    // Переходим на шаг 2
     await act(async () => {
       fireEvent.click(screen.getByTestId("mcp-save"));
     });
@@ -222,7 +245,6 @@ describe("OnboardingDialog", () => {
       expect(screen.getByText("Настройте LLM")).toBeInTheDocument();
     });
 
-    // Возврат назад
     fireEvent.click(screen.getByRole("button", { name: /←\s*назад/i }));
 
     await waitFor(() => {
@@ -234,18 +256,12 @@ describe("OnboardingDialog", () => {
   // 6. LLM save — «Далее» на шаге 2 активна
   // ————————————————————
   it("после save LLMConfigForm — кнопка «Далее» на шаге 2 активна", async () => {
-    vi.mocked(pingConnection).mockResolvedValue({
-      mcp_version: "2025-03-26",
-      tool_count: 10,
-      session_id: "s4",
-      duration_ms: 5,
-    });
+    vi.mocked(pingConnection).mockResolvedValue(PING_OK);
 
     render(
       <OnboardingDialog open={true} onComplete={vi.fn()} onSkip={vi.fn()} />,
     );
 
-    // Переходим на шаг 2
     await act(async () => {
       fireEvent.click(screen.getByTestId("mcp-save"));
     });
@@ -257,10 +273,8 @@ describe("OnboardingDialog", () => {
       expect(screen.getByTestId("llm-form")).toBeInTheDocument();
     });
 
-    // «Далее» на шаге 2 должна быть disabled до сохранения
     expect(screen.getByRole("button", { name: /далее/i })).toBeDisabled();
 
-    // Сохраняем LLM
     fireEvent.click(screen.getByTestId("llm-save"));
 
     await waitFor(() => {
@@ -269,89 +283,109 @@ describe("OnboardingDialog", () => {
   });
 
   // ————————————————————
-  // 7. Переход на шаг 3
+  // 7. Переход на шаг 3 (Learn opt-in) — НОВОЕ ПОВЕДЕНИЕ (Phase 11.3)
   // ————————————————————
-  it("после save LLM + click «Далее» — шаг 3 «Готово!» виден", async () => {
-    vi.mocked(pingConnection).mockResolvedValue({
-      mcp_version: "2025-03-26",
-      tool_count: 10,
-      session_id: "s5",
-      duration_ms: 5,
-    });
-
+  it("после save LLM + click «Далее» — переходит на шаг 3 «Обучение» (Learn opt-in)", async () => {
     render(
       <OnboardingDialog open={true} onComplete={vi.fn()} onSkip={vi.fn()} />,
     );
 
-    // Шаг 1 → 2
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("mcp-save"));
-    });
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /далее/i })).not.toBeDisabled();
-    });
-    fireEvent.click(screen.getByRole("button", { name: /далее/i }));
-    await waitFor(() => {
-      expect(screen.getByTestId("llm-form")).toBeInTheDocument();
-    });
+    await advanceToLearnStep();
 
-    // Шаг 2: сохраняем LLM и переходим на 3
-    fireEvent.click(screen.getByTestId("llm-save"));
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /далее/i })).not.toBeDisabled();
-    });
+    expect(screen.getByText(/Обучение на ваших сессиях/)).toBeInTheDocument();
+    expect(screen.getByRole("switch")).toBeInTheDocument();
+  });
+
+  // ————————————————————
+  // 8. Switch на шаге 3 — переключает state
+  // ————————————————————
+  it("на шаге 3 — переключение switch меняет aria-checked + показывает info-блок", async () => {
+    render(
+      <OnboardingDialog open={true} onComplete={vi.fn()} onSkip={vi.fn()} />,
+    );
+
+    await advanceToLearnStep();
+
+    const sw = screen.getByRole("switch");
+    expect(sw).toHaveAttribute("aria-checked", "false");
+    expect(
+      screen.queryByText(/Нужен отдельный API для embeddings/),
+    ).not.toBeInTheDocument();
+
+    fireEvent.click(sw);
+    expect(sw).toHaveAttribute("aria-checked", "true");
+    expect(
+      screen.getByText(/Нужен отдельный API для embeddings/),
+    ).toBeInTheDocument();
+  });
+
+  // ————————————————————
+  // 9. Переход на шаг 4 (Готово) — после Learn step
+  // ————————————————————
+  it("после шага 3 + click «Далее» — переходит на шаг 4 «Готово!»", async () => {
+    render(
+      <OnboardingDialog open={true} onComplete={vi.fn()} onSkip={vi.fn()} />,
+    );
+
+    await advanceToLearnStep();
     fireEvent.click(screen.getByRole("button", { name: /далее/i }));
 
     await waitFor(() => {
+      expect(screen.getByTestId("onboarding-step-done")).toBeInTheDocument();
       expect(screen.getByText("Готово!")).toBeInTheDocument();
     });
   });
 
   // ————————————————————
-  // 8. «Начать работу» на шаге 3
+  // 10. Полный путь + «Начать работу» с learnOn=false
   // ————————————————————
-  it("click «Начать работу» на шаге 3 — setOnboardingCompleted(true) + onComplete вызван", async () => {
-    vi.mocked(pingConnection).mockResolvedValue({
-      mcp_version: "2025-03-26",
-      tool_count: 10,
-      session_id: "s6",
-      duration_ms: 5,
-    });
+  it("complete с learnOn=false → setOnboardingCompleted(true) + localStorage learn=false + onComplete вызван", async () => {
     const onComplete = vi.fn();
 
     render(
       <OnboardingDialog open={true} onComplete={onComplete} onSkip={vi.fn()} />,
     );
 
-    // Прохождение всех шагов
-    await act(async () => {
-      fireEvent.click(screen.getByTestId("mcp-save"));
-    });
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /далее/i })).not.toBeDisabled();
-    });
-    fireEvent.click(screen.getByRole("button", { name: /далее/i }));
-    await waitFor(() => {
-      expect(screen.getByTestId("llm-form")).toBeInTheDocument();
-    });
-    fireEvent.click(screen.getByTestId("llm-save"));
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /далее/i })).not.toBeDisabled();
-    });
+    await advanceToLearnStep();
     fireEvent.click(screen.getByRole("button", { name: /далее/i }));
     await waitFor(() => {
       expect(screen.getByText("Готово!")).toBeInTheDocument();
     });
 
-    // Финальная кнопка
     fireEvent.click(screen.getByRole("button", { name: /начать работу/i }));
 
     expect(setOnboardingCompleted).toHaveBeenCalledWith(true);
     expect(onComplete).toHaveBeenCalledWith("conn-1");
+    expect(window.localStorage.getItem("analyst.learn_enabled")).toBe("false");
   });
 
   // ————————————————————
-  // 9. «Пропустить» с любого шага
+  // 11. Полный путь + Learn включён → localStorage записан true
+  // ————————————————————
+  it("complete с learnOn=true → localStorage learn=true сохранён", async () => {
+    render(
+      <OnboardingDialog open={true} onComplete={vi.fn()} onSkip={vi.fn()} />,
+    );
+
+    await advanceToLearnStep();
+
+    // Включаем Learn switch
+    fireEvent.click(screen.getByRole("switch"));
+    expect(screen.getByRole("switch")).toHaveAttribute("aria-checked", "true");
+
+    fireEvent.click(screen.getByRole("button", { name: /далее/i }));
+    await waitFor(() => {
+      expect(screen.getByText("Готово!")).toBeInTheDocument();
+    });
+    expect(screen.getByText(/обучение/)).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /начать работу/i }));
+
+    expect(window.localStorage.getItem("analyst.learn_enabled")).toBe("true");
+  });
+
+  // ————————————————————
+  // 12. «Пропустить» с шага 1
   // ————————————————————
   it("click «Пропустить» на шаге 1 — setOnboardingCompleted(true) + onSkip вызван", () => {
     const onSkip = vi.fn();
@@ -360,6 +394,23 @@ describe("OnboardingDialog", () => {
       <OnboardingDialog open={true} onComplete={vi.fn()} onSkip={onSkip} />,
     );
 
+    fireEvent.click(screen.getByRole("button", { name: /пропустить/i }));
+
+    expect(setOnboardingCompleted).toHaveBeenCalledWith(true);
+    expect(onSkip).toHaveBeenCalled();
+  });
+
+  // ————————————————————
+  // 13. «Пропустить» с шага 3 (Learn)
+  // ————————————————————
+  it("click «Пропустить» на шаге 3 (Learn) — setOnboardingCompleted(true) + onSkip вызван", async () => {
+    const onSkip = vi.fn();
+
+    render(
+      <OnboardingDialog open={true} onComplete={vi.fn()} onSkip={onSkip} />,
+    );
+
+    await advanceToLearnStep();
     fireEvent.click(screen.getByRole("button", { name: /пропустить/i }));
 
     expect(setOnboardingCompleted).toHaveBeenCalledWith(true);

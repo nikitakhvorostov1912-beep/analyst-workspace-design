@@ -501,3 +501,38 @@ export async function testLLMConfig(
   }
   return response.json() as Promise<LLMConfigTestResponse>;
 }
+
+// ---------------------------------------------------------------------------
+// Admin (Phase 9.1) — privacy escape hatches
+// ---------------------------------------------------------------------------
+
+export interface ResetLocalDbResult {
+  ok: boolean;
+  cleared?: string[];
+  error?: string;
+}
+
+/**
+ * Сбрасывает локальную БД (sessions + messages + card_states + metadata_cache).
+ * Настройки MCP-подключений и LLM сохраняются.
+ *
+ * Требует header X-Confirm-Reset: true — защита от случайного вызова.
+ */
+export async function resetLocalDb(): Promise<ResetLocalDbResult> {
+  try {
+    const response = await fetch(`${getBackend()}/admin/reset-local-db`, {
+      method: "POST",
+      headers: { "X-Confirm-Reset": "true" },
+    });
+    if (!response.ok) {
+      return { ok: false, error: `HTTP ${response.status}` };
+    }
+    const data = (await response.json()) as { status: string; cleared: string[] };
+    return { ok: data.status === "ok", cleared: data.cleared };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Network error",
+    };
+  }
+}

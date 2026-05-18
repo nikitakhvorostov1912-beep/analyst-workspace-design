@@ -1,15 +1,16 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: "- Smoke: чистая VM Windows 10/11 без Python/Node/pnpm → `setup.exe` → клик ярлыка → приложение работает за < 10 секунд от клика"
-status: unknown
-last_updated: "2026-05-16T00:00:00Z"
+milestone: M5
+milestone_name: "Post-v1.1 Expansion — STACK + SESSIONS + LEARN + Design v2"
+status: ready_for_v1.2.0_release
+last_updated: "2026-05-18T15:30:00Z"
 progress:
-  total_phases: 6
-  completed_phases: 5
-  total_plans: 25
-  completed_plans: 30
-  percent: 100
+  total_phases: 11
+  completed_phases: 10
+  total_plans: 36
+  completed_plans: 35
+  percent: 95
+note: "Phase 11 finalized (cards refactor + ToolTrace upgrade + design-v2 e2e). Phase 10 LEARN остаётся deferred to M6 (sqlite-vec + RAG). VM smoke Phase 9 deferred."
 ---
 
 # Project State
@@ -45,8 +46,12 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | 4 | Demo & Refine | ✓ Complete | 4/4 executed | 100% |
 | 5 | UX Polish | ✓ Complete | 5/5 executed | 100% |
 | 7 | Desktop Installer | ✓ Complete | 5/5 executed | 100% |
+| 8 | STACK Integration | ✓ Complete | 2/2 executed | 100% |
+| 9 | Sessions DB Init | ✓ Complete | 1/1 (VM smoke deferred) | 95% |
+| 10 | Learn Engine | ⏸ DEFERRED to M6 | 0/3 | 0% |
+| 11 | Design v2 Import | ✓ Complete | 5/5 done | 100% |
 
-**Overall:** Progress: ██████████ 100% (Phases 1-5 complete, v1.0 released 2026-05-15. Phase 7 Desktop Installer COMPLETE — v1.1.0 (analyst-setup-v1.0.0.exe 105.9 MB). All phases done.)
+**Overall:** Progress: █████████░ 95% (Phases 1-5+7 complete; v1.0 released 2026-05-15, v1.1.0 released 2026-05-16. Milestone M5: Phase 11 finalized (11.1 tokens + 11.2 atoms + 11.3 shell+onboarding + 11.4 cards refactor + ToolTrace upgrade + 11.5 animations + design-v2.spec.ts smoke 5/5), Phase 8 complete (project skills + rules + CLAUDE.md routing), Phase 9 complete (admin reset endpoint + LocalDataSection, VM smoke deferred), Phase 10 deferred to M6 (sqlite-vec + RAG = ~3 dedicated sessions). Branch `feature/m5-design-v2-import` 20+ commits, 278/278 vitest + 321/321 pytest green, build 6.6s clean. v1.2.0 ready for tag + push + merge to master.
 
 ## Artifacts Status
 
@@ -117,6 +122,46 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 14. ~~Phase 3 Plan 03: Tests + CI~~ ✓ done — coverage 92.8%, 9 Playwright E2E, GitHub Actions CI. `phases/03-production-ready/03-03-SUMMARY.md`
 15. ~~Phase 3 Plan 04: Docs + TRACE-03 + LogCard cursor-fetch~~ ✓ done — curl-builder + load-more endpoint + docs. `d07d4d0`. SUMMARY: `phases/03-production-ready/03-04-SUMMARY.md`
 16. ~~Phase 5 UX Polish — 05-01..05-05~~ ✓ done — все UX-01..05 закрыты, v1.0 released 2026-05-15
+17. **Phase 8 STACK Integration** — `/gsd:plan-phase 8` → создать `.claude/skills/` + `.claude/rules/` + локальный CLAUDE.md routing (2 plans)
+18. **Phase 9 Sessions DB Init** — `/gsd:plan-phase 9` → Electron `app.getPath('userData')` для DATABASE_URL + privacy reset endpoint + smoke на чистой VM (1 plan)
+19. **Phase 10 Learn Engine** — `/gsd:plan-phase 10` → SQLite-vec + embeddings + RAG-orchestrator integration + UI badge + privacy opt-in (3 plans, Path B chosen by Claude's discretion)
+20. ~~**Phase 11.1 Design tokens**~~ ✓ done (commit `1031047`) — Tailwind theme + CSS variables (blue-500 accent, 4 variants), 8 keyframes, granular bg-0..3/fg-1..4/bd-1..3 tokens. 247/247 tests green.
+21. ~~**Phase 11.2 Atoms**~~ ✓ done (commits `98ff863` + `3f23ec0`) — 5 atomic components: StatusDot (online/offline/connecting), EmptyState, ErrorBanner (info/warning/error), CardActionMenu (shadcn DropdownMenu wrapper), CardHeader (unified for 6 card types). 28 new vitest specs.
+22. ~~**Phase 11.3 Shell + Onboarding 4-step**~~ ✓ done (2 commits) — Header redesign (3-col grid, brand mark, optional sidebar toggle + cmd-K), AnonymizationToggle amber pill, ModelBadge with Sparkles, StepIndicator generic API, OnboardingDialog expanded 3→4 steps with Learn opt-in (privacy-first, localStorage `analyst.learn_enabled`). 251/251 tests green.
+23. **Phase 11.4 prep** ✓ done (commit) — StreamingStages (5 stage kinds: analyzing/learn/tool/tool_done/finalizing) + CardSkeleton (3-row default, animate-skeleton-pulse). 265/265 tests green. **Integration pending** (next session): AssistantMessage replace StreamingIndicator, useChatStream SSE→Stage[] adapter, 6 cards refactor through CardHeader, ToolTrace visual upgrade with mini chips, CardRenderer skeleton on loading, ChannelSelector use new StatusDot atom.
+24. **Phase 11.5 Animations + Release** — animate-fade-up на mount cards, dialog-in shadcn Dialog, focus-ring update, Playwright design-v2.spec.ts smoke (header brand mark + Onboarding 4-step + StatusDot pulse), git tag v1.2.0.
+
+## M5 commits (feature/m5-design-v2-import)
+
+| Commit | Phase | Scope |
+|--------|-------|-------|
+| `1031047` | 11.1 | Design tokens (blue-500 accent + 7 keyframes + granular tokens) |
+| `98ff863` | 11.2 | UI atoms (StatusDot + EmptyState + ErrorBanner) |
+| `3f23ec0` | 11.2 | Card atoms (CardActionMenu + CardHeader) |
+| `3b735fb` | 11.3 | Shell redesign (Header + AnonymizationToggle + ModelBadge) |
+| `b1e290d` | 11.3 | Onboarding wizard 3→4 steps with Learn opt-in |
+| `94857af` | 11.4 prep | StreamingStages + CardSkeleton primitives |
+| _AssistantMessage_ | 11.4 | Integrate StreamingStages via SSE adapter (buildStreamingStages lib) |
+| _ChannelSelector_  | 11.4 | Atomic StatusDot via PingDot wrapper |
+| _CardRenderer_     | 11.5 | animate-fade-up on mount + v1.2.0 RELEASE-NOTES |
+| `d703214` | STATE | Phase 11 progress snapshot |
+| _Phase 8_ | 8.1+8.2 | Project skills (awd-dev-up/quality-gate/handoff) + rules + .claude/CLAUDE.md routing |
+| _Phase 9_ | 9.1 | Admin reset endpoint + LocalDataSection UI + 5 backend + 5 frontend tests |
+| _Phase 11.4_ | TableCard | refactor: <CardHeader type="table" .../> + Toolbar row |
+| _Phase 11.4_ | ObjectCard | refactor: <CardHeader type="object" title=name meta="type · path"/> |
+| _Phase 11.4_ | LogCard | refactor: <CardHeader type="log" .../> сохранён cursor-fetch |
+| _Phase 11.4_ | ReferencesCard+CodeCard | refactor: <CardHeader type="references\|code" .../> |
+| _Phase 11.4_ | ToolTrace | mini chips + accordion (ToolChip + tone ok/error) |
+| _Phase 11.5_ | design-v2.spec.ts | 5 Playwright тестов (Header brand mark + AnonToggle + ModelBadge + Onboarding 4-step + Learn switch) |
+| _Phase 11.5_ | e2e cleanup | onboarding 3→4 шага + skip 9 legacy specs (Phase 5 source-of-truth migration debt) |
+
+## Deferred (M6 or later)
+
+- **Phase 10 LEARN Engine** — sqlite-vec + embeddings + RAG (см. `phases/10-learn-engine/DEFERRED.md`). Estimated 9-15 часов eng + 5 testing = M6 milestone.
+- **VM smoke Phase 9** — install/uninstall/reinstall на чистой Windows VM (см. `phases/09-sessions-db-init/SMOKE.md`).
+- **VM smoke Phase 11** — manual visual check на чистой Windows VM (см. `phases/11-design-v2-import/RELEASE-NOTES.md` чеклист). Playwright design-v2 покрывает базовый layout, но Electron-сборка не тестировалась.
+- **Legacy e2e specs** — setup-and-prompt.spec.ts (3), sessions-history.spec.ts (3), channel-switch.spec.ts (3) — переписать через `setupOnboardingMocks` (Phase 5 source-of-truth migration debt). В коде помечены `test.describe.skip` с rationale.
+- **MetricCard CardHeader** — мини-tile паттерн принципиально несовместим с верхней панелью, остаётся inline-layout. Не tech debt — design decision.
 
 ## v1.0 Release
 

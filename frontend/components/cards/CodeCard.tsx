@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { Copy, Check, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { highlight } from "@/lib/highlight";
 import { JsonTree } from "@/lib/json-tree";
 import type { CodeCardPayload } from "@/lib/types";
+import { CardHeader } from "./CardHeader";
 
 const CODE_TRUNCATE = 50_000; // T-04-12: DoS protection
 
@@ -43,27 +43,17 @@ export function CodeCard({ payload }: CodeCardProps) {
     }
   }
 
+  const languageLabel = LANGUAGE_LABELS[language] ?? language;
+
   return (
     <div
       className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] overflow-hidden"
-      aria-label={`Блок кода на языке ${LANGUAGE_LABELS[language] ?? language}`}
+      aria-label={`Блок кода на языке ${languageLabel}`}
     >
-      {/* Заголовок */}
-      <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[var(--border)]">
-        {/* Language badge */}
-        <span className={cn(
-          "px-1.5 py-0.5 rounded text-xs font-medium font-mono",
-          language === "bsl" && "bg-violet-900/40 text-violet-300",
-          language === "sql" && "bg-blue-900/40 text-blue-300",
-          language === "json" && "bg-amber-900/40 text-amber-300",
-          language === "text" && "bg-[var(--bg-surface)] text-[var(--fg-muted)]",
-        )}>
-          {LANGUAGE_LABELS[language] ?? language}
-        </span>
+      <CardHeader type="code" title={languageLabel} toolName={language} />
 
-        <div className="flex-1" />
-
-        {/* Кнопка показать результат */}
+      {/* Toolbar row */}
+      <div className="flex items-center justify-end gap-1 px-3 py-1.5 border-b border-[var(--bd-1)] bg-[var(--bg-1)]">
         {executable && result != null && (
           <Button
             size="sm"
@@ -76,7 +66,6 @@ export function CodeCard({ payload }: CodeCardProps) {
           </Button>
         )}
 
-        {/* Copy button */}
         <Button
           size="sm"
           variant="ghost"

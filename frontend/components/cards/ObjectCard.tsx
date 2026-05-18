@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { publishToast } from "@/lib/toast";
 import { extractAnonTokens, highlightAnonTokens } from "@/lib/anon-tokens";
 import type { ObjectCardPayload } from "@/lib/types";
+import { CardHeader } from "./CardHeader";
 
 interface ObjectCardProps {
   payload: ObjectCardPayload;
@@ -112,24 +113,11 @@ export function ObjectCard({ payload, onDeanonymize }: ObjectCardProps) {
     forms.length > 0 ||
     templates.length > 0;
 
+  const metaLine = [header.type, header.path].filter(Boolean).join(" · ");
+
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] overflow-hidden">
-      {/* Header */}
-      <div className="flex flex-col gap-1 px-3 py-2 border-b border-[var(--border)]">
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-[var(--fg)] break-all">
-            {header.name}
-          </span>
-          {header.type && (
-            <Badge variant="secondary" className="shrink-0">
-              {header.type}
-            </Badge>
-          )}
-        </div>
-        {header.path && (
-          <span className="text-xs text-[var(--fg-muted)]">{header.path}</span>
-        )}
-      </div>
+      <CardHeader type="object" title={header.name} meta={metaLine || undefined} />
 
       {!hasAny ? (
         <div className="px-3 py-4 text-xs text-[var(--fg-muted)] text-center">

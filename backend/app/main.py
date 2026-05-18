@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
+from app.routes import admin as admin_router
 from app.routes import chat as chat_router
 from app.routes import connections as connections_router
 from app.routes import health as health_router
@@ -65,6 +66,7 @@ def create_app() -> FastAPI:
     app.include_router(llm_config_router.router)
     app.include_router(log_cards_router.router)
     app.include_router(search_router.router)
+    app.include_router(admin_router.router)
 
     return app
 

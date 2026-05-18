@@ -339,15 +339,221 @@ Plans:
 
 ---
 
+## Milestone 5: Post-v1.1 Expansion
+
+**Status:** Planned (started 2026-05-17)
+**Rationale:** 3 направления допила пользователя из MSG #10 (transcript 769b133a).
+**Source:** `.claude/memory/requirements-stack-sessions-learn.md`
+
+| # | Phase | Goal | Effort |
+|---|-------|------|--------|
+| 8 | STACK Integration | Подцепить релевантные глобальные скиллы/правила/MCP к проекту | M (2 plans) |
+| 9 | Sessions DB Init | БД сессий автоматом связывается при установке Electron | S (1 plan) |
+| 10 | Learn Engine | LLM в продукте обучается на записанных сессиях (RAG over sessions) | L (3 plans) |
+
+---
+
+## Phase 8: STACK Integration
+
+**Goal:** Подцепить релевантные глобальные ресурсы Claude Code (skills, rules, MCP refs) к проекту так, чтобы будущие Claude-сессии имели точечный контекст. НЕ копировать 100+ 1С-метаданных скиллов — этот проект про чат-UI.
+
+**Mode:** mvp
+
+**Success Criteria:**
+1. `.claude/skills/` содержит 3 проектных скилла: `awd-dev-up`, `awd-quality-gate`, `awd-claude-design-handoff`
+2. `.claude/CLAUDE.md` (локальный) routing к 5 релевантным глобальным скиллам: `claude-design`, `playwright-test`, `reflect`, `weekly-improve`, `inspect`
+3. `.claude/rules/` содержит проектные правила (extract из корневого CLAUDE.md)
+4. Локальный CLAUDE.md ЯВНО запрещает работу в `analyst-tools-1c`, описывает workflow при «Продолжай»
+5. Новая Claude-сессия в проекте подгружает локальный CLAUDE.md и видит routing
+
+**Requirements covered:** STACK-01..03 (новые)
+
+### Plan 8.1: Project Skills + Rules Scaffolding
+- Создать `.claude/skills/awd-dev-up/SKILL.md` — поднять backend+frontend с verify
+- Создать `.claude/skills/awd-quality-gate/SKILL.md` — pytest+vitest+playwright+pnpm build → PASS/FAIL
+- Создать `.claude/skills/awd-claude-design-handoff/SKILL.md` — собрать context bundle для claude.ai/design + промпт-шаблон (chat-first, без 8 экранов)
+- Создать `.claude/rules/` с extract правил: `design-bans.md`, `tech-stack.md`, `session-contract.md`
+- Скрипты в `awd-dev-up/scripts/` для запуска (PowerShell + bash)
+
+**Acceptance:** `/awd-dev-up` запускается → backend на :8010 + frontend на :3010 + verify через HTTP
+
+### Plan 8.2: Local CLAUDE.md Routing + Verification
+- Создать `.claude/CLAUDE.md` (НЕ корневой) — routing к проектным скиллам + ссылки на глобальные
+- Lazy-load карта: какие memory-файлы читать на какой триггер (как knowledge-router.md)
+- Wrong-project защита: первый абзац запрещает работу вне `analyst-workspace-design/`
+- README-секция «Структура .claude/» в корневом README.md
+- Smoke: запустить Claude Code в проекте, ввести «Продолжай» → должна прочитать STATE.md + последний PHASE-summary
+
+**Acceptance:** новая Claude-сессия в проекте знает про проектные скиллы и не лезет в analyst-tools-1c
+
+---
+
+## Phase 9: Sessions DB Init
+
+**Goal:** SQLite БД сессий автоматически инициализируется при установке Electron. Путь managed Electron'ом (`%APPDATA%\1С Аналитик\app.db`), миграции прокатываются при первом запуске.
+
+**Mode:** mvp
+
+**Success Criteria:**
+1. `desktop/main.js` выставляет `DATABASE_URL=sqlite+aiosqlite:///${app.getPath('userData')}/app.db` перед spawn backend
+2. Backend при первом запуске накатывает миграции в этот путь (миграции уже есть из Phase 1)
+3. Установка через `analyst-setup-v1.0.0.exe` → запуск → `%APPDATA%\1С Аналитик\app.db` существует
+4. Smoke: install → 3 сессии → uninstall → reinstall → старые сессии видны (userData не очищается)
+5. Privacy escape hatch: в `/settings` кнопка «Сбросить локальную базу» (TRUNCATE всех таблиц)
+
+**Requirements covered:** SESS-01..03 (новые)
+
+### Plan 9.1: Electron-Managed userData DB Path + Reset Endpoint + Smoke
+- Edit `desktop/main.js` — добавить `process.env.DATABASE_URL = ...` перед `spawn(backendExe, ...)`
+- Edit `backend/app/config.py` — приоритет env DATABASE_URL над дефолтом `/data/app.db`
+- Edit `backend/app/storage/db.py` — миграция создаёт schema + индексы если БД пустая
+- Backend endpoint `POST /admin/reset-local-db` (требует confirm header X-Confirm-Reset: true)
+- Frontend `/settings` секция «Локальные данные»: кнопка с AlertDialog подтверждения
+- Verify smoke: build installer → fresh VM install → 3 сессии → uninstall → reinstall → сессии видны
+
+**Acceptance:** на чистой VM: 1) install .exe; 2) приложение запускается; 3) `%APPDATA%\1С Аналитик\app.db` создан; 4) после 3 сессий + uninstall + reinstall — сессии видны в sidebar
+
+---
+
+## Phase 10: Learn Engine
+
+**Goal:** LLM в самом приложении использует прошлые сессии аналитика как контекст для текущего ответа. После N сессий «как ты вчера решал X?» → ответ ссылается на конкретный прошлый разговор.
+
+**Mode:** mvp
+
+**Path decision (Claude's discretion):** **Path B — собственный RAG (SQLite-vss + embeddings)**.
+Reason: Multi-LLM requirement (MSG #11) — решение должно работать **независимо от провайдера** (MiMo / Claude / GPT / Yandex / GigaChat / Grok). Anthropic Memory Tool API работает только с Claude → нарушает требование.
+
+**Success Criteria:**
+1. SQLite-vss vector store с embeddings для всех сообщений (background job)
+2. Backend `POST /learn/retrieve` — top-K релевантных кусков по query
+3. Orchestrator при `/chat` встраивает контекст в system prompt: «На основе прошлых сессий: ...» (top-3, ≤500 токенов)
+4. UI индикатор: «📚 Использован контекст N сообщений» с раскрытием каких именно
+5. Privacy escape hatch: настройка «Отключить Learn» — embeddings не строятся, retrieve не вызывается
+6. Embeddings провайдер — отдельная настройка LLM (independent от main LLM)
+
+**Requirements covered:** LEARN-01..04 (новые)
+
+### Plan 10.1: Vector Store + Embeddings Provider + Indexing Job
+- Установить `sqlite-vec` Python пакет (преемник sqlite-vss)
+- Migration v6: добавить vec0 таблицу `message_embeddings(message_id INTEGER, embedding FLOAT[N])`
+- Backend `app/services/embeddings.py` — обёртка OpenAI-compat embeddings API (по умолчанию `text-embedding-3-small`)
+- Background job `app/jobs/index_messages.py` — индексирует новые сообщения каждые 60 сек
+- Settings UI: новая секция «Embeddings» — endpoint, model, api_key
+- Default embedding model: `text-embedding-3-small` (1536 dims) — можно поменять на `BGE-M3` (1024 dims) или Yandex
+
+**Acceptance:** 10 сессий по 5 сообщений → 50 записей в `message_embeddings` → vector search «расскажи про базу» возвращает top-5 релевантных
+
+### Plan 10.2: Retrieve API + Orchestrator Integration + UI Badge
+- Backend `POST /learn/retrieve` body `{query, channelId, topK=5}` → возвращает массив `{messageId, sessionId, snippet, similarity}`
+- Orchestrator hook: перед LLM-вызовом → retrieve → если top-1 similarity ≥ 0.7 → добавить в system prompt «На основе прошлых сессий: ...»
+- Лимит: max 3 snippets × 500 tokens каждый = 1500 tokens context
+- SSE event `learn_context` с массивом использованных snippets
+- Frontend `LearnContextBadge` component — кликабельная иконка «📚 N» под ответом, разворачивает список использованных snippets с ссылками на сессии
+- E2E: Playwright тест — 2 связанные сессии, проверить что badge появляется на 2-й
+
+**Acceptance:** после 5 сессий про РТ → новый чат «как мы решали проблему с поручительствами?» → ответ содержит ссылку на прошлую сессию + badge «📚 1»
+
+### Plan 10.3: Privacy Controls + Verification + Release
+- Settings UI: toggle «Включить обучение на моих сессиях» (default OFF, opt-in при онбординге Step 3)
+- Backend: если toggle OFF → background job не индексирует новые сообщения, retrieve возвращает пустой массив
+- `POST /learn/forget?sessionId=...` — удалить embeddings конкретной сессии (privacy)
+- `POST /learn/forget-all` — удалить все embeddings (под AlertDialog confirm)
+- Migration v7: добавить `learn_enabled BOOLEAN` в llm_settings
+- E2E + unit coverage ≥ 80% новых модулей
+- README обновить: раздел «Обучение на ваших сессиях» с privacy explanation
+- Tag v1.2.0
+
+**Acceptance:** все 5 success criteria Phase 10 verified + tag v1.2.0 + GitHub release
+
+---
+
+## Phase 11: Design v2 Import
+
+**Source:** Claude Design handoff `Рабочее место 1с Аналитик.zip` (2026-05-18) — `temp/from-claude-design-20260518-111524/`.
+
+**Goal:** Импортировать визуальный язык из Claude Design v2 (15 JSX-файлов + index.html preview) в реальный проект — Tailwind tokens, унифицированные атомы, обновлённые Header/Onboarding/StreamingStages/Cards. Сохранить всю backend-логику (useChatStream, SSE events, fetchConnections и т.д.).
+
+**Mode:** mvp — 5 plans, последовательно
+
+**Success Criteria:**
+1. Design tokens из CSS variables → `tailwind.config.ts` `theme.extend` (palette, transitions, easings)
+2. 5 атомарных компонентов: `StatusDot`, `CardHeader` (unified), `CardActionMenu`, `EmptyState`, `ErrorBanner`
+3. Header переработан: brand mark + channel popover с search + anon pill amber + model badge + cmd-k trigger
+4. Onboarding wizard расширен с 3 до 4 шагов (Step 3 — Learn opt-in)
+5. StreamingStages с иконками заменяет StreamingIndicator: analyzing → learn → tool(spin) → tool_done → finalizing
+6. 6 cards рефакторинг — общий CardHeader + унифицированный action menu
+7. Animations: fade-up, scale-in, dialog-in, spin, blink на правильных местах
+8. Все 315 pytest + ≥219 vitest тестов зелёные после импорта
+9. Tag v1.2.0, deploy через Electron installer
+
+**Requirements covered:** UX-06..10 (новые)
+
+### Plan 11.1: Design Tokens (Tailwind config + CSS layer)
+- Извлечь CSS variables из `temp/from-claude-design-.../index.html`: `--bg-1/2/3`, `--fg-1/2/3/4`, `--bd-1/2/3`, `--accent`, `--accent-08`, `--accent-20`, `--success`, `--warning`, `--warning-12`, `--warning-20`, `--error`
+- Создать `frontend/styles/design-tokens.css` с `:root.dark { ... }`
+- Расширить `tailwind.config.ts` `theme.extend.colors` под названия токенов (bg, fg, bd, accent, success, warning, error)
+- Animation tokens: `--t-micro: 150ms`, `--t-normal: 200ms`, `--t-large: 300ms`, `--ease: cubic-bezier(0.4, 0, 0.2, 1)` — в `theme.extend.transitionDuration` + `transitionTimingFunction`
+- Keyframes: `fade-up`, `scale-in`, `spin`, `blink`, `dialogIn` — в `theme.extend.keyframes` + `theme.extend.animation`
+
+**Acceptance:** существующие компоненты компилируются без падений, цвета визуально не сдвинулись (CSS vars совпадают)
+
+### Plan 11.2: Atoms (5 компонентов)
+- `frontend/components/ui/StatusDot.tsx` — green pulse / red / connecting spin + tooltip props
+- `frontend/components/cards/CardHeader.tsx` — icon + title + tool chip + meta + anon pill + action menu, props под все 6 типов
+- `frontend/components/cards/CardActionMenu.tsx` — popover с items {Copy / Pin / Maximize / Export CSV / Refresh / Hide}
+- `frontend/components/ui/EmptyState.tsx` — illustration + headline + description + CTA
+- `frontend/components/ui/ErrorBanner.tsx` — severity (info/warning/error) + title + description + actions {Retry / Dismiss}
+- Каждый — `.tsx` с типами + vitest тесты ≥ 3 на компонент
+
+**Acceptance:** vitest проходит для 5 новых атомов, type-check clean
+
+### Plan 11.3: Header + ChannelSelector + Onboarding 4-step
+- `frontend/components/shell/Header.tsx` — переработка: brand mark, channel popover с search, anon pill amber, model badge, cmd-k trigger, health + help + settings buttons
+- `frontend/components/shell/ChannelSelector.tsx` — popover с search input, items как в Claude Design (StatusDot + name + url/lastPing + check)
+- `frontend/components/shell/AnonymizationToggle.tsx` — pill `[Lock/Unlock] Анон: ВКЛ/ВЫКЛ`
+- `frontend/components/onboarding/OnboardingDialog.tsx` — расширить с 3 до 4 шагов (вставить Step 3 «Обучение опционально»)
+- Progress bar + StepIndicator pills (done/active/future)
+- Skip button сверху-справа
+
+**Acceptance:** onboarding с пустой БД проходит за 4 клика, channel selector search фильтрует, anon toggle меняет state
+
+### Plan 11.4: StreamingStages + ToolTrace + Cards refactor
+- `frontend/components/chat/StreamingStages.tsx` — заменяет StreamingIndicator. 5 стадий с иконками: analyzing/learn/tool(spin)/tool_done/finalizing
+- `frontend/components/chat/ToolTrace.tsx` — переработка: chevron rotation, mini chips имён, total ms, expandable per-call
+- 6 cards рефакторинг (`TableCard`, `ObjectCard`, `LogCard`, `MetricCard`, `ReferencesCard`, `CodeCard`) — использовать новый `<CardHeader />`, `<CardActionMenu />`
+- `frontend/components/chat/AssistantMessage.tsx` — заменить `StreamingIndicator` на `StreamingStages`, обновить рендер cards
+
+**Acceptance:** main flow «Расскажи про базу» показывает StreamingStages с правильной анимацией, cards рендерятся с CardHeader, action menu кликается
+
+### Plan 11.5: Animations + Smoke + Release v1.2.0
+- Mount transitions: fade-up на сообщениях, scale-in на popovers/dropdowns, dialogIn на modals
+- Streaming text shimmer (CSS gradient на новом тексте)
+- Sidebar collapse animation (width transition 300ms)
+- Status dot pulse 2s infinite
+- E2E Playwright: проверить main flow + onboarding 4-step + cards render
+- Manual smoke на :3010
+- Tag `v1.2.0` + RELEASE-NOTES
+- Сборка Electron installer `analyst-setup-v1.2.0.exe`
+
+**Acceptance:** все анимации smooth (no jank), E2E зелёный, installer ставится на чистую VM
+
+---
+
 ## Out of Roadmap
 
-Vector search / RAG · Mobile UI · Multi-user · Real-time collaboration · Voice · Light theme · Theming · Direct 1С editing · 1С management.
+~~Vector search / RAG~~ → переоценено и включено в Phase 10 (Learn Engine).
+
+Mobile UI · Multi-user (совместная работа в одной сессии) · Real-time collaboration · Voice · Light theme · Theming · Direct 1С editing · 1С management.
 
 macOS/Linux installer — Out of Scope (Phase 7 только Windows; кросс-платформа в v2).
+
+Cross-user learning (sharing embeddings между пользователями) — Privacy violation, Out of Roadmap.
 
 ---
 
 *Roadmap created: 2026-05-13*
 *Phase 5 added: 2026-05-15 (UX gaps after Phase 4 visual smoke)*
 *Phase 7 added: 2026-05-15 (Electron desktop installer — снять зависимости Python/Node у аналитика)*
-*Granularity: coarse (7 phases)*
+*Milestone 5 added: 2026-05-17 (STACK + SESSIONS + LEARN — MSG #10 verbatim)*
+*Granularity: coarse (10 phases across 5 milestones)*

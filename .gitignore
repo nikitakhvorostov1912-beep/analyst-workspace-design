@@ -133,3 +133,7 @@ desktop/scripts/fake-7za/
 desktop/.webpack/
 desktop/dist/
 desktop/build.log
+
+# Working artifacts (Claude Code session)
+.last-bundle-path.txt
+temp/

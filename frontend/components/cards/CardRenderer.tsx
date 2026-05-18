@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { TableCard } from "./TableCard";
 import { ObjectCard } from "./ObjectCard";
 import { LogCard } from "./LogCard";
@@ -17,6 +18,14 @@ interface CardRendererProps {
   sendMessage?: (text: string) => void;
 }
 
+/**
+ * Phase 11.5: animate-fade-up на mount всех cards для плавного появления
+ * после streaming partial → final.
+ */
+function CardMountWrapper({ children }: { children: ReactNode }) {
+  return <div className="animate-fade-up">{children}</div>;
+}
+
 export function CardRenderer({ card, context, sendMessage }: CardRendererProps) {
   // Формируем onDeanonymize если есть card_id и context (Plan 04-01)
   function makeOnDeanonymize(cardId: string | null | undefined) {
@@ -29,17 +38,21 @@ export function CardRenderer({ card, context, sendMessage }: CardRendererProps) 
   switch (card.type) {
     case "table":
       return (
-        <TableCard
-          payload={card.payload}
-          onDeanonymize={makeOnDeanonymize(card.payload.card_id)}
-        />
+        <CardMountWrapper>
+          <TableCard
+            payload={card.payload}
+            onDeanonymize={makeOnDeanonymize(card.payload.card_id)}
+          />
+        </CardMountWrapper>
       );
     case "object":
       return (
-        <ObjectCard
-          payload={card.payload}
-          onDeanonymize={makeOnDeanonymize(card.payload.card_id)}
-        />
+        <CardMountWrapper>
+          <ObjectCard
+            payload={card.payload}
+            onDeanonymize={makeOnDeanonymize(card.payload.card_id)}
+          />
+        </CardMountWrapper>
       );
     case "log": {
       // Формируем onLoadMore только если есть card_id и context
@@ -54,45 +67,57 @@ export function CardRenderer({ card, context, sendMessage }: CardRendererProps) 
       }
 
       return (
-        <LogCard
-          payload={logPayload}
-          onLoadMore={onLoadMore}
-          onDeanonymize={makeOnDeanonymize(cardId)}
-        />
+        <CardMountWrapper>
+          <LogCard
+            payload={logPayload}
+            onLoadMore={onLoadMore}
+            onDeanonymize={makeOnDeanonymize(cardId)}
+          />
+        </CardMountWrapper>
       );
     }
     case "metric":
       return (
-        <MetricCard
-          payload={card.payload}
-          onDeanonymize={makeOnDeanonymize(card.payload.card_id)}
-        />
+        <CardMountWrapper>
+          <MetricCard
+            payload={card.payload}
+            onDeanonymize={makeOnDeanonymize(card.payload.card_id)}
+          />
+        </CardMountWrapper>
       );
     case "references": {
       const onLinkClick = sendMessage
         ? (item: ReferenceItem) => sendMessage(`Покажи ${item.name}`)
         : undefined;
       return (
-        <ReferencesCard
-          payload={card.payload}
-          onLinkClick={onLinkClick}
-        />
+        <CardMountWrapper>
+          <ReferencesCard
+            payload={card.payload}
+            onLinkClick={onLinkClick}
+          />
+        </CardMountWrapper>
       );
     }
     case "code":
-      return <CodeCard payload={card.payload} />;
+      return (
+        <CardMountWrapper>
+          <CodeCard payload={card.payload} />
+        </CardMountWrapper>
+      );
     default: {
       // TypeScript narrowing исчерпан — runtime защита для неизвестных типов
       const unknown = card as { type: string; payload: unknown };
       return (
-        <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] p-3">
-          <p className="text-xs text-[var(--fg-muted)] mb-2">
-            Неизвестный тип карточки: {unknown.type}
-          </p>
-          <pre className="text-xs font-mono text-[var(--fg)] overflow-x-auto">
-            {JSON.stringify(unknown.payload, null, 2).slice(0, 500)}
-          </pre>
-        </div>
+        <CardMountWrapper>
+          <div className="rounded-lg border border-[var(--bd-1)] bg-[var(--bg-1)] p-3">
+            <p className="text-xs text-[var(--fg-3)] mb-2">
+              Неизвестный тип карточки: {unknown.type}
+            </p>
+            <pre className="text-xs font-mono text-[var(--fg-1)] overflow-x-auto">
+              {JSON.stringify(unknown.payload, null, 2).slice(0, 500)}
+            </pre>
+          </div>
+        </CardMountWrapper>
       );
     }
   }

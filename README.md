@@ -5,20 +5,27 @@ LLM сама вызывает MCP-инструменты — аналитик т
 
 ## Возможности
 
-- Чат с потоковым ответом (SSE), inline-карточки (Table / Object / Log)
+- Чат с потоковым ответом (SSE), inline-карточки (Table / Object / Log / Metric / References / Code)
+- Streaming pipeline с иконками: «Анализирую → Вызываю → Получил данные → Формирую ответ» (v1.2.0)
 - История сессий, channel selector (multi-tenant, несколько баз 1С)
 - Trace tool calls с кнопкой «Скопировать как curl»
 - Confirm dialog для опасных execute_code
 - Пагинация LogCard (load-more следующей страницы журнала)
+- 4-шаговый Onboarding wizard с опт-ин обучения на сессиях (v1.2.0)
+- Privacy escape hatch: сброс локальной базы через Settings → Локальные данные (v1.2.0)
+- Анонимизация чувствительных данных (toggle в Header, amber pill когда ВКЛ)
+- Тёмно-синий accent с 4 вариантами палитры (`data-accent="blue|clinical|indigo|orange"`, v1.2.0)
 
 ## Стек
 
 | Слой | Технологии |
 |------|-----------|
-| Frontend | Next.js 15 + React 19 + Tailwind 4 + shadcn/ui |
-| Backend | FastAPI + Pydantic v2 + SSE streaming + SQLite |
+| Frontend | Next.js 15 + React 19 + Tailwind 4 + shadcn/ui + IBM Plex Sans/Mono |
+| Backend | FastAPI + Pydantic v2 + SSE streaming + SQLite (через aiosqlite) |
 | LLM | OpenAI-compatible HTTP (Xiaomi MiMo, GPT-4o, любой) |
 | MCP | 1С MCP Toolkit v1.7.0 (EPF) на localhost:6010 или :6003 |
+| Desktop | Electron 33 + PyInstaller (Windows installer, v1.1.0+) |
+| Тесты | Vitest 4 (278 specs) + Pytest (321 specs) + Playwright |
 
 ## Скачать готовый Windows installer
 
@@ -158,6 +165,46 @@ GitHub Actions на каждый PR и push в main:
 - [docs/API.md](docs/API.md) — REST API endpoints
 - [docs/CURL.md](docs/CURL.md) — формат «Скопировать как curl»
 - [ARCHITECTURE.md](ARCHITECTURE.md) — топология, SSE events, persistence
+
+## Структура `.claude/` (project-local Claude Code routing, v1.2.0)
+
+```
+.claude/
+├── CLAUDE.md          # автоматически подгружается при работе в проекте
+│                        wrong-project guard + lazy-load memory map
+├── skills/            # проектные скиллы (slash commands)
+│   ├── awd-dev-up/                  # /awd-dev-up — поднять :8010 + :3010
+│   ├── awd-quality-gate/            # /awd-quality-gate — pytest + vitest + build + playwright
+│   └── awd-claude-design-handoff/   # /awd-claude-design-handoff — bundle для claude.ai/design
+├── memory/            # проектная память (lazy-load по триггеру)
+│   ├── MEMORY.md                              # индекс
+│   ├── llm-providers.md                       # MiMo, OpenAI-compatible
+│   ├── distribution.md                        # Electron + PyInstaller
+│   ├── design-constraints.md                  # запреты дизайна verbatim
+│   ├── pivot-history.md                       # v0/v0b/v1 lessons
+│   ├── open-questions.md                      # неопределённости
+│   └── requirements-stack-sessions-learn.md   # MSG #10 requirements
+└── rules/             # извлечённые правила
+    ├── design-bans.md           # запреты дизайна
+    ├── tech-stack.md            # locked версии
+    └── session-contract.md      # брутальная честность + workflow
+```
+
+Claude Code автоматически читает `.claude/CLAUDE.md` при работе в проекте.
+Wrong-project guard защищает от случайной работы в других проектах workspace.
+
+## v1.2.0 release notes
+
+См. [.planning/phases/11-design-v2-import/RELEASE-NOTES.md](.planning/phases/11-design-v2-import/RELEASE-NOTES.md):
+
+- Полная переработка визуального языка из Claude Design v2 handoff
+- 12 новых atomic components (StatusDot, EmptyState, ErrorBanner, CardHeader, StreamingStages, etc.)
+- Onboarding 3→4 шага с Learn opt-in (privacy-first)
+- Тёмно-синий accent `#3b82f6` (blue-500) + 4 варианта
+- 7 keyframes анимаций + animate-fade-up на mount cards
+- Privacy reset endpoint + Settings UI (Phase 9)
+- 599 automated tests (278 vitest + 321 pytest)
+- Zero breaking changes в backend API
 
 ## Лицензия
 

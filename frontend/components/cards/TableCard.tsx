@@ -9,6 +9,7 @@ import { rowsToCsv, downloadCsv } from "@/lib/csv";
 import { publishToast } from "@/lib/toast";
 import { extractAnonTokens, highlightAnonTokens } from "@/lib/anon-tokens";
 import type { TableCardPayload } from "@/lib/types";
+import { CardHeader } from "./CardHeader";
 
 const PAGE_SIZE = 50;
 /** Лимит строк для client-side сортировки — свыше показываем предупреждение. */
@@ -120,16 +121,20 @@ export function TableCard({ payload, onDeanonymize }: TableCardProps) {
   const pageRows = sortedRows.slice(page * PAGE_SIZE, (page + 1) * PAGE_SIZE);
 
   const queryLabel = meta?.query ? `«${meta.query.slice(0, 80)}${meta.query.length > 80 ? "…" : ""}»` : null;
+  const metaLine = [
+    `${total} ${total === 1 ? "строка" : "строк"}`,
+    queryLabel,
+    meta?.duration_ms != null ? `${meta.duration_ms} мс` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] overflow-hidden">
-      {/* Заголовок */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border)]">
-        <span className="text-xs text-[var(--fg-muted)]">
-          Таблица · {total} {total === 1 ? "строка" : "строк"}
-          {queryLabel && ` · ${queryLabel}`}
-          {meta?.duration_ms != null && ` · ${meta.duration_ms} мс`}
-        </span>
+      <CardHeader type="table" title="Таблица" meta={metaLine} />
+
+      {/* Toolbar row */}
+      <div className="flex items-center justify-end px-3 py-1.5 border-b border-[var(--bd-1)] bg-[var(--bg-1)]">
         <Button
           size="sm"
           variant="ghost"

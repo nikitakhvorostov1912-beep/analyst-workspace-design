@@ -6,6 +6,7 @@ import { ArrowLeft } from "lucide-react";
 import { fetchConnections, fetchLLMConfig } from "@/lib/api";
 import { MCPConnectionList } from "@/components/settings/MCPConnectionList";
 import { LLMConfigForm } from "@/components/settings/LLMConfigForm";
+import { LocalDataSection } from "@/components/settings/LocalDataSection";
 import type { LLMConfigResponse, MCPConnection } from "@/lib/types";
 
 export default function SettingsPage() {
@@ -100,12 +101,19 @@ export default function SettingsPage() {
           </section>
 
           {/* Секция LLM */}
-          <section>
+          <section className="mb-6">
             <div className="border border-[var(--border)] rounded-lg p-5 bg-[var(--bg-elevated)]">
               <h2 className="text-sm font-semibold text-[var(--fg)] mb-4">
                 LLM
               </h2>
               <LLMConfigForm initial={llmConfig} onSaved={reloadLLM} />
+            </div>
+          </section>
+
+          {/* Phase 9.1: Локальные данные — privacy reset */}
+          <section>
+            <div className="border border-[var(--border)] rounded-lg p-5 bg-[var(--bg-elevated)]">
+              <LocalDataSection />
             </div>
           </section>
         </>
