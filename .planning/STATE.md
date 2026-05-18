@@ -1,15 +1,15 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: "- Smoke: чистая VM Windows 10/11 без Python/Node/pnpm → `setup.exe` → клик ярлыка → приложение работает за < 10 секунд от клика"
-status: unknown
-last_updated: "2026-05-16T00:00:00Z"
+milestone: M5
+milestone_name: "Post-v1.1 Expansion — STACK + SESSIONS + LEARN"
+status: planned
+last_updated: "2026-05-18T00:00:00Z"
 progress:
-  total_phases: 6
-  completed_phases: 5
-  total_plans: 25
+  total_phases: 9
+  completed_phases: 6
+  total_plans: 31
   completed_plans: 30
-  percent: 100
+  percent: 67
 ---
 
 # Project State
@@ -45,8 +45,12 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | 4 | Demo & Refine | ✓ Complete | 4/4 executed | 100% |
 | 5 | UX Polish | ✓ Complete | 5/5 executed | 100% |
 | 7 | Desktop Installer | ✓ Complete | 5/5 executed | 100% |
+| 8 | STACK Integration | ⧗ Planned | 0/2 | 0% |
+| 9 | Sessions DB Init | ⧗ Planned | 0/1 | 0% |
+| 10 | Learn Engine | ⧗ Planned | 0/3 | 0% |
+| 11 | Design v2 Import | ⧗ Planned | 0/5 | 0% |
 
-**Overall:** Progress: ██████████ 100% (Phases 1-5 complete, v1.0 released 2026-05-15. Phase 7 Desktop Installer COMPLETE — v1.1.0 (analyst-setup-v1.0.0.exe 105.9 MB). All phases done.)
+**Overall:** Progress: ██████░░░░ 60% (Phases 1-5+7 complete; v1.0 released 2026-05-15, v1.1.0 released 2026-05-16. Milestone M5 planned 2026-05-17, Phase 11 added 2026-05-18 после Claude Design handoff. Branch `feature/m5-design-v2-import` создана. Next: Phase 11.1 Design Tokens).
 
 ## Artifacts Status
 
@@ -117,6 +121,9 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 14. ~~Phase 3 Plan 03: Tests + CI~~ ✓ done — coverage 92.8%, 9 Playwright E2E, GitHub Actions CI. `phases/03-production-ready/03-03-SUMMARY.md`
 15. ~~Phase 3 Plan 04: Docs + TRACE-03 + LogCard cursor-fetch~~ ✓ done — curl-builder + load-more endpoint + docs. `d07d4d0`. SUMMARY: `phases/03-production-ready/03-04-SUMMARY.md`
 16. ~~Phase 5 UX Polish — 05-01..05-05~~ ✓ done — все UX-01..05 закрыты, v1.0 released 2026-05-15
+17. **Phase 8 STACK Integration** — `/gsd:plan-phase 8` → создать `.claude/skills/` + `.claude/rules/` + локальный CLAUDE.md routing (2 plans)
+18. **Phase 9 Sessions DB Init** — `/gsd:plan-phase 9` → Electron `app.getPath('userData')` для DATABASE_URL + privacy reset endpoint + smoke на чистой VM (1 plan)
+19. **Phase 10 Learn Engine** — `/gsd:plan-phase 10` → SQLite-vec + embeddings + RAG-orchestrator integration + UI badge + privacy opt-in (3 plans, Path B chosen by Claude's discretion)
 
 ## v1.0 Release
 
