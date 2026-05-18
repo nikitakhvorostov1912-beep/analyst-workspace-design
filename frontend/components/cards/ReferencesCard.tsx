@@ -4,6 +4,7 @@ import { useState, useMemo } from "react";
 import { ChevronDown, ChevronRight, Hash, Link2, FileText, Bell, Shield, MoreHorizontal } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ReferencesCardPayload, ReferenceItem } from "@/lib/types";
+import { CardHeader } from "./CardHeader";
 
 // Иконки по usage_kind
 function KindIcon({ kind }: { kind: string }) {
@@ -107,10 +108,7 @@ export function ReferencesCard({ payload, onLinkClick }: ReferencesCardProps) {
 
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] overflow-hidden">
-      {/* Заголовок */}
-      <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border)]">
-        <span className="text-xs text-[var(--fg-muted)]">{totalLabel}</span>
-      </div>
+      <CardHeader type="references" title="Связи" meta={totalLabel} />
 
       {/* Фильтр */}
       <div className="px-3 py-1.5 border-b border-[var(--border)]">
