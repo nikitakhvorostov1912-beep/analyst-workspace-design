@@ -14,7 +14,7 @@ import { test, expect } from "@playwright/test";
 import { setupOnboardingMocks } from "./mocks/onboarding-handlers";
 
 test.describe("First-run onboarding", () => {
-  test("показывает onboarding на пустой БД и проводит через 3 шага", async ({ page }) => {
+  test("показывает onboarding на пустой БД и проводит через 4 шага", async ({ page }) => {
     const start = Date.now();
 
     // Пустая БД + чистый localStorage (first-run)
@@ -66,7 +66,11 @@ test.describe("First-run onboarding", () => {
     await expect(nextBtn2).not.toBeDisabled({ timeout: 10000 });
     await nextBtn2.click();
 
-    // Шаг 3: экран «Готово»
+    // Шаг 3 (Phase 11.3): Learn opt-in
+    await expect(page.getByTestId("onboarding-step-learn")).toBeVisible({ timeout: 10000 });
+    await page.getByRole("button", { name: /Далее/ }).click();
+
+    // Шаг 4: экран «Готово»
     await expect(page.getByText("Готово!")).toBeVisible();
 
     // Завершаем onboarding
