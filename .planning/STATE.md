@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: M5
 milestone_name: "Post-v1.1 Expansion — STACK + SESSIONS + LEARN + Design v2"
-status: in_progress
-last_updated: "2026-05-18T14:00:00Z"
+status: ready_for_v1.2.0_release
+last_updated: "2026-05-18T15:30:00Z"
 progress:
   total_phases: 11
-  completed_phases: 9
+  completed_phases: 10
   total_plans: 36
   completed_plans: 35
-  percent: 82
-note: "Phase 10 LEARN Engine deferred to M6 (see DEFERRED.md). Phase 11.4 cards refactor pending separate session."
+  percent: 95
+note: "Phase 11 finalized (cards refactor + ToolTrace upgrade + design-v2 e2e). Phase 10 LEARN остаётся deferred to M6 (sqlite-vec + RAG). VM smoke Phase 9 deferred."
 ---
 
 # Project State
@@ -49,9 +49,9 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | 8 | STACK Integration | ✓ Complete | 2/2 executed | 100% |
 | 9 | Sessions DB Init | ✓ Complete | 1/1 (VM smoke deferred) | 95% |
 | 10 | Learn Engine | ⏸ DEFERRED to M6 | 0/3 | 0% |
-| 11 | Design v2 Import | ⊙ In Progress | 5/5 partial | 80% |
+| 11 | Design v2 Import | ✓ Complete | 5/5 done | 100% |
 
-**Overall:** Progress: ████████░░ 82% (Phases 1-5+7 complete; v1.0 released 2026-05-15, v1.1.0 released 2026-05-16. Milestone M5: Phase 11 partial done (11.1+11.2+11.3+11.4 prep + integration + 11.5 animations), Phase 8 complete (project skills + rules + CLAUDE.md routing), Phase 9 complete (admin reset endpoint + LocalDataSection, VM smoke deferred), Phase 10 deferred to M6 (sqlite-vec + RAG = ~3 dedicated sessions). Branch `feature/m5-design-v2-import` 14+ commits, 278/278 vitest + 321/321 pytest green, build clean. v1.2.0 release after manual smoke).
+**Overall:** Progress: █████████░ 95% (Phases 1-5+7 complete; v1.0 released 2026-05-15, v1.1.0 released 2026-05-16. Milestone M5: Phase 11 finalized (11.1 tokens + 11.2 atoms + 11.3 shell+onboarding + 11.4 cards refactor + ToolTrace upgrade + 11.5 animations + design-v2.spec.ts smoke 5/5), Phase 8 complete (project skills + rules + CLAUDE.md routing), Phase 9 complete (admin reset endpoint + LocalDataSection, VM smoke deferred), Phase 10 deferred to M6 (sqlite-vec + RAG = ~3 dedicated sessions). Branch `feature/m5-design-v2-import` 20+ commits, 278/278 vitest + 321/321 pytest green, build 6.6s clean. v1.2.0 ready for tag + push + merge to master.
 
 ## Artifacts Status
 
@@ -147,14 +147,21 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | `d703214` | STATE | Phase 11 progress snapshot |
 | _Phase 8_ | 8.1+8.2 | Project skills (awd-dev-up/quality-gate/handoff) + rules + .claude/CLAUDE.md routing |
 | _Phase 9_ | 9.1 | Admin reset endpoint + LocalDataSection UI + 5 backend + 5 frontend tests |
+| _Phase 11.4_ | TableCard | refactor: <CardHeader type="table" .../> + Toolbar row |
+| _Phase 11.4_ | ObjectCard | refactor: <CardHeader type="object" title=name meta="type · path"/> |
+| _Phase 11.4_ | LogCard | refactor: <CardHeader type="log" .../> сохранён cursor-fetch |
+| _Phase 11.4_ | ReferencesCard+CodeCard | refactor: <CardHeader type="references\|code" .../> |
+| _Phase 11.4_ | ToolTrace | mini chips + accordion (ToolChip + tone ok/error) |
+| _Phase 11.5_ | design-v2.spec.ts | 5 Playwright тестов (Header brand mark + AnonToggle + ModelBadge + Onboarding 4-step + Learn switch) |
+| _Phase 11.5_ | e2e cleanup | onboarding 3→4 шага + skip 9 legacy specs (Phase 5 source-of-truth migration debt) |
 
 ## Deferred (M6 or later)
 
 - **Phase 10 LEARN Engine** — sqlite-vec + embeddings + RAG (см. `phases/10-learn-engine/DEFERRED.md`). Estimated 9-15 часов eng + 5 testing = M6 milestone.
-- **Phase 11.4 cards refactor** — 6 cards через CardHeader (invasive, 6 unique test files). См. `phases/11-design-v2-import/RELEASE-NOTES.md` секция «Что НЕ вошло».
-- **Phase 11.5 Playwright design-v2.spec.ts** — требует live :3010 + Electron app.
 - **VM smoke Phase 9** — install/uninstall/reinstall на чистой Windows VM (см. `phases/09-sessions-db-init/SMOKE.md`).
-- **VM smoke Phase 11** — manual visual check всех Phase 11 changes (см. `phases/11-design-v2-import/RELEASE-NOTES.md` чеклист).
+- **VM smoke Phase 11** — manual visual check на чистой Windows VM (см. `phases/11-design-v2-import/RELEASE-NOTES.md` чеклист). Playwright design-v2 покрывает базовый layout, но Electron-сборка не тестировалась.
+- **Legacy e2e specs** — setup-and-prompt.spec.ts (3), sessions-history.spec.ts (3), channel-switch.spec.ts (3) — переписать через `setupOnboardingMocks` (Phase 5 source-of-truth migration debt). В коде помечены `test.describe.skip` с rationale.
+- **MetricCard CardHeader** — мини-tile паттерн принципиально несовместим с верхней панелью, остаётся inline-layout. Не tech debt — design decision.
 
 ## v1.0 Release
 
