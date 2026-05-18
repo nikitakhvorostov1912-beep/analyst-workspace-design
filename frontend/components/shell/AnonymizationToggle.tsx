@@ -1,17 +1,18 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Lock, LockOpen } from "lucide-react";
+import { Lock, Unlock } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { getAnonEnabled, setAnonEnabled } from "@/lib/storage";
 
 /**
- * Глобальный переключатель анонимизации.
+ * Глобальный переключатель анонимизации (amber pill дизайн).
  *
  * - Состояние хранится в localStorage: `analyst.anon_enabled`
  * - Диспатчит CustomEvent `anon-toggle` для синхронизации без re-mount
  * - SSR-safe: читает localStorage только в useEffect (не в initial render)
  *
- * Plan 04-01.
+ * Phase 04-01 (поведение) + Phase 11.3 (визуал из Claude Design v2).
  */
 export function AnonymizationToggle() {
   // Инициализируем false для SSR — значение подставляется в useEffect
@@ -36,21 +37,26 @@ export function AnonymizationToggle() {
       onClick={handleToggle}
       aria-pressed={enabled}
       aria-label="Переключатель анонимизации"
-      title={enabled ? "Анонимизация ВКЛ — нажмите для отключения" : "Анонимизация ВЫКЛ — нажмите для включения"}
-      className={[
-        "flex items-center gap-1.5 px-2 py-1 rounded text-xs transition-colors select-none",
+      data-anon={enabled ? "on" : "off"}
+      title={
         enabled
-          ? "bg-amber-500/15 border border-amber-500/40 text-amber-400 hover:bg-amber-500/25"
-          : "bg-transparent border border-[var(--border)] text-[var(--fg-muted)] hover:text-[var(--fg)] hover:border-[var(--fg-muted)]",
-      ].join(" ")}
+          ? "Анонимизация ВКЛ — нажмите для отключения"
+          : "Анонимизация ВЫКЛ — нажмите для включения"
+      }
+      className={cn(
+        "inline-flex items-center gap-1.5 px-2.5 h-[30px] rounded-md text-xs border transition-colors duration-micro ease-design-ease select-none",
+        enabled
+          ? "bg-[var(--warning-12)] text-[var(--warning)] border-[var(--warning-20)] hover:bg-[var(--warning-20)]"
+          : "bg-[var(--bg-1)] text-[var(--fg-3)] border-[var(--bd-2)] hover:text-[var(--fg-1)] hover:border-[var(--bd-3)]",
+      )}
     >
       {enabled ? (
-        <Lock size={13} className="shrink-0" />
+        <Lock className="h-3 w-3 shrink-0" />
       ) : (
-        <LockOpen size={13} className="shrink-0" />
+        <Unlock className="h-3 w-3 shrink-0" />
       )}
       <span className="hidden sm:inline whitespace-nowrap">
-        {enabled ? "Анон: ВКЛ" : "Анон: ВЫКЛ"}
+        Анон: <span className="font-mono">{enabled ? "ВКЛ" : "ВЫКЛ"}</span>
       </span>
     </button>
   );
