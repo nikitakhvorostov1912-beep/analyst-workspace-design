@@ -1,45 +1,62 @@
 "use client";
 
+import { Check } from "lucide-react";
+import { cn } from "@/lib/utils";
+
 interface StepIndicatorProps {
-  current: 1 | 2 | 3;
-  total: 3;
+  current: number;
+  total: number;
+  labels?: string[];
 }
 
-export function StepIndicator({ current, total }: StepIndicatorProps) {
+export function StepIndicator({ current, total, labels }: StepIndicatorProps) {
   return (
-    <div className="flex flex-col items-center gap-3">
-      <div className="flex items-center w-full max-w-xs">
+    <div className="flex flex-col items-center gap-3" data-testid="step-indicator">
+      <div className="flex items-center w-full max-w-md">
         {Array.from({ length: total }, (_, i) => {
-          const step = (i + 1) as 1 | 2 | 3;
+          const step = i + 1;
           const isDone = step < current;
           const isActive = step === current;
 
           return (
             <div key={step} className="flex items-center flex-1">
               <div
-                className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-medium transition-colors ${
-                  isActive
-                    ? "bg-[var(--accent)] text-white"
-                    : isDone
-                      ? "bg-[var(--accent)]/30 text-[var(--accent)]"
-                      : "bg-[var(--border)] text-[var(--fg-muted)]"
-                }`}
+                data-step={step}
+                data-state={isActive ? "active" : isDone ? "done" : "future"}
+                className={cn(
+                  "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-medium transition-colors duration-normal ease-design-ease",
+                  isActive &&
+                    "bg-[var(--accent)] text-white shadow-[0_0_0_3px_var(--accent-20)]",
+                  isDone && "bg-[var(--accent-20)] text-[var(--accent)]",
+                  !isActive &&
+                    !isDone &&
+                    "bg-[var(--bd-2)] text-[var(--fg-3)]",
+                )}
+                aria-label={
+                  labels?.[i]
+                    ? `Шаг ${step}: ${labels[i]}`
+                    : `Шаг ${step} из ${total}`
+                }
               >
-                {step}
+                {isDone ? <Check className="h-4 w-4" /> : step}
               </div>
               {step < total && (
                 <div
-                  className={`h-px flex-1 mx-1 transition-colors ${
-                    isDone ? "bg-[var(--accent)]/30" : "bg-[var(--border)]"
-                  }`}
+                  className={cn(
+                    "h-px flex-1 mx-1 transition-colors duration-normal ease-design-ease",
+                    isDone ? "bg-[var(--accent-20)]" : "bg-[var(--bd-2)]",
+                  )}
                 />
               )}
             </div>
           );
         })}
       </div>
-      <p className="text-xs text-[var(--fg-muted)]">
+      <p className="text-xs text-[var(--fg-3)]">
         Шаг {current} из {total}
+        {labels?.[current - 1] && (
+          <span className="text-[var(--fg-2)]">: {labels[current - 1]}</span>
+        )}
       </p>
     </div>
   );
