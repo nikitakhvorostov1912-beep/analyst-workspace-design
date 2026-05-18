@@ -3,13 +3,14 @@ gsd_state_version: 1.0
 milestone: M5
 milestone_name: "Post-v1.1 Expansion — STACK + SESSIONS + LEARN + Design v2"
 status: in_progress
-last_updated: "2026-05-18T12:30:00Z"
+last_updated: "2026-05-18T14:00:00Z"
 progress:
   total_phases: 11
-  completed_phases: 6
+  completed_phases: 9
   total_plans: 36
-  completed_plans: 33
-  percent: 69
+  completed_plans: 35
+  percent: 82
+note: "Phase 10 LEARN Engine deferred to M6 (see DEFERRED.md). Phase 11.4 cards refactor pending separate session."
 ---
 
 # Project State
@@ -45,12 +46,12 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 | 4 | Demo & Refine | ✓ Complete | 4/4 executed | 100% |
 | 5 | UX Polish | ✓ Complete | 5/5 executed | 100% |
 | 7 | Desktop Installer | ✓ Complete | 5/5 executed | 100% |
-| 8 | STACK Integration | ⧗ Planned | 0/2 | 0% |
-| 9 | Sessions DB Init | ⧗ Planned | 0/1 | 0% |
-| 10 | Learn Engine | ⧗ Planned | 0/3 | 0% |
-| 11 | Design v2 Import | ⊙ In Progress | 3/5 + prep | 65% |
+| 8 | STACK Integration | ✓ Complete | 2/2 executed | 100% |
+| 9 | Sessions DB Init | ✓ Complete | 1/1 (VM smoke deferred) | 95% |
+| 10 | Learn Engine | ⏸ DEFERRED to M6 | 0/3 | 0% |
+| 11 | Design v2 Import | ⊙ In Progress | 5/5 partial | 80% |
 
-**Overall:** Progress: ███████░░░ 69% (Phases 1-5+7 complete; v1.0 released 2026-05-15, v1.1.0 released 2026-05-16. Milestone M5 planned 2026-05-17. Phase 11 in progress: 11.1+11.2+11.3 complete, 11.4 prep done (StreamingStages + CardSkeleton), 11.4 integration + 11.5 release pending. Branch `feature/m5-design-v2-import` 6 commits, 265/265 vitest green, build clean. v1.2.0 release after 11.4 integration + 11.5 smoke).
+**Overall:** Progress: ████████░░ 82% (Phases 1-5+7 complete; v1.0 released 2026-05-15, v1.1.0 released 2026-05-16. Milestone M5: Phase 11 partial done (11.1+11.2+11.3+11.4 prep + integration + 11.5 animations), Phase 8 complete (project skills + rules + CLAUDE.md routing), Phase 9 complete (admin reset endpoint + LocalDataSection, VM smoke deferred), Phase 10 deferred to M6 (sqlite-vec + RAG = ~3 dedicated sessions). Branch `feature/m5-design-v2-import` 14+ commits, 278/278 vitest + 321/321 pytest green, build clean. v1.2.0 release after manual smoke).
 
 ## Artifacts Status
 
@@ -130,16 +131,30 @@ See: `.planning/PROJECT.md` (updated 2026-05-13)
 23. **Phase 11.4 prep** ✓ done (commit) — StreamingStages (5 stage kinds: analyzing/learn/tool/tool_done/finalizing) + CardSkeleton (3-row default, animate-skeleton-pulse). 265/265 tests green. **Integration pending** (next session): AssistantMessage replace StreamingIndicator, useChatStream SSE→Stage[] adapter, 6 cards refactor through CardHeader, ToolTrace visual upgrade with mini chips, CardRenderer skeleton on loading, ChannelSelector use new StatusDot atom.
 24. **Phase 11.5 Animations + Release** — animate-fade-up на mount cards, dialog-in shadcn Dialog, focus-ring update, Playwright design-v2.spec.ts smoke (header brand mark + Onboarding 4-step + StatusDot pulse), git tag v1.2.0.
 
-## Phase 11 commits (feature/m5-design-v2-import)
+## M5 commits (feature/m5-design-v2-import)
 
 | Commit | Phase | Scope |
 |--------|-------|-------|
 | `1031047` | 11.1 | Design tokens (blue-500 accent + 7 keyframes + granular tokens) |
 | `98ff863` | 11.2 | UI atoms (StatusDot + EmptyState + ErrorBanner) |
 | `3f23ec0` | 11.2 | Card atoms (CardActionMenu + CardHeader) |
-| _shell_   | 11.3 | Header + AnonymizationToggle + ModelBadge redesign |
-| _onboarding_ | 11.3 | Onboarding wizard 3→4 steps with Learn opt-in |
-| _prep_    | 11.4 | StreamingStages + CardSkeleton primitives |
+| `3b735fb` | 11.3 | Shell redesign (Header + AnonymizationToggle + ModelBadge) |
+| `b1e290d` | 11.3 | Onboarding wizard 3→4 steps with Learn opt-in |
+| `94857af` | 11.4 prep | StreamingStages + CardSkeleton primitives |
+| _AssistantMessage_ | 11.4 | Integrate StreamingStages via SSE adapter (buildStreamingStages lib) |
+| _ChannelSelector_  | 11.4 | Atomic StatusDot via PingDot wrapper |
+| _CardRenderer_     | 11.5 | animate-fade-up on mount + v1.2.0 RELEASE-NOTES |
+| `d703214` | STATE | Phase 11 progress snapshot |
+| _Phase 8_ | 8.1+8.2 | Project skills (awd-dev-up/quality-gate/handoff) + rules + .claude/CLAUDE.md routing |
+| _Phase 9_ | 9.1 | Admin reset endpoint + LocalDataSection UI + 5 backend + 5 frontend tests |
+
+## Deferred (M6 or later)
+
+- **Phase 10 LEARN Engine** — sqlite-vec + embeddings + RAG (см. `phases/10-learn-engine/DEFERRED.md`). Estimated 9-15 часов eng + 5 testing = M6 milestone.
+- **Phase 11.4 cards refactor** — 6 cards через CardHeader (invasive, 6 unique test files). См. `phases/11-design-v2-import/RELEASE-NOTES.md` секция «Что НЕ вошло».
+- **Phase 11.5 Playwright design-v2.spec.ts** — требует live :3010 + Electron app.
+- **VM smoke Phase 9** — install/uninstall/reinstall на чистой Windows VM (см. `phases/09-sessions-db-init/SMOKE.md`).
+- **VM smoke Phase 11** — manual visual check всех Phase 11 changes (см. `phases/11-design-v2-import/RELEASE-NOTES.md` чеклист).
 
 ## v1.0 Release
 
