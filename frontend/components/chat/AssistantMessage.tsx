@@ -3,22 +3,34 @@
 import { Markdown } from "./Markdown";
 import { CardRenderer } from "@/components/cards/CardRenderer";
 import { ToolTrace } from "./ToolTrace";
-import { StreamingIndicator } from "./StreamingIndicator";
+import { StreamingStages } from "./StreamingStages";
+import { buildStreamingStages } from "@/lib/streaming-stages";
 import { getMCPConnections, getActiveChannelId } from "@/lib/storage";
 import type { StreamingStage } from "./StreamingIndicator";
 import type { ChatMessage, CardContext } from "@/lib/types";
 
 interface AssistantMessageProps {
   message: ChatMessage;
-  /** Стадия стриминга — показывает StreamingIndicator под контентом */
+  /** Стадия стриминга — показывает StreamingStages под контентом */
   streamingStage?: StreamingStage | null;
   currentToolName?: string | null;
   /** ID сессии — для CardContext load-more */
   sessionId?: string;
 }
 
-/** Композитный assistant message: TL;DR markdown + cards[] + ToolTrace (Plan 2.5) + StreamingIndicator (Plan 3.1). */
-export function AssistantMessage({ message, streamingStage, currentToolName, sessionId }: AssistantMessageProps) {
+/**
+ * Композитный assistant message:
+ *   TL;DR markdown + cards[] + ToolTrace (Plan 2.5) + StreamingStages (Phase 11.4)
+ *
+ * Phase 11.4: StreamingIndicator → StreamingStages с pipeline-визуализацией.
+ * Adapter в `lib/streaming-stages.ts` маппит SSE state на массив Stage.
+ */
+export function AssistantMessage({
+  message,
+  streamingStage,
+  currentToolName,
+  sessionId,
+}: AssistantMessageProps) {
   // Cache fallback after ChannelSelector sync: getMCPConnections() читает localStorage-кеш,
   // который заполняется через syncMCPConnections() в ChannelSelector после успешного fetchConnections().
   // Для production source-of-truth используется fetchConnections() в page.tsx (Plan 5.4 UX-04).
@@ -31,6 +43,13 @@ export function AssistantMessage({ message, streamingStage, currentToolName, ses
   const cardContext: CardContext | undefined = sessionId && message.id
     ? { sessionId, messageId: message.id, mcpEndpoint }
     : undefined;
+
+  // Phase 11.4: преобразуем SSE state → линейный pipeline для StreamingStages
+  const pipeline = buildStreamingStages({
+    streamingStage: streamingStage ?? null,
+    currentToolName: currentToolName ?? null,
+    toolCalls: message.tool_calls ?? [],
+  });
 
   return (
     <div className="flex w-full justify-start">
@@ -54,10 +73,13 @@ export function AssistantMessage({ message, streamingStage, currentToolName, ses
           </div>
         )}
 
-        {/* Streaming stage индикатор */}
-        {streamingStage && (
-          <div className="mt-1">
-            <StreamingIndicator stage={streamingStage} toolName={currentToolName ?? undefined} />
+        {/* Streaming pipeline — pipeline-визуализация с иконками + переходы */}
+        {pipeline && (
+          <div className="mt-2">
+            <StreamingStages
+              stages={pipeline.stages}
+              activeIndex={pipeline.activeIndex}
+            />
           </div>
         )}
 
