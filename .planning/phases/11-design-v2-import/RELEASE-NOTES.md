@@ -1,9 +1,10 @@
 # Release Notes — v1.2.0 Design v2 Import
 
 **Date:** 2026-05-18
-**Type:** Visual / UX upgrade (no backend changes)
-**Tag:** v1.2.0 (pending manual smoke approval)
-**Branch:** `feature/m5-design-v2-import` (8 commits)
+**Type:** Visual / UX upgrade + Electron installer rebuild
+**Tag:** v1.2.0
+**Branch:** `feature/m5-design-v2-import` (10+ commits, merged into main `cd2e7c1`)
+**Installer:** `desktop/dist/analyst-setup-v1.2.0.exe`
 
 ---
 
