@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchChat, fetchLLMConfig, postChatConfirm } from "@/lib/api";
 import { publishToast } from "@/lib/toast";
 import { getAnonEnabled } from "@/lib/storage";
@@ -60,6 +60,32 @@ export function useChatStream({
   const [streamingStage, setStreamingStage] = useState<StreamingStage | null>(null);
   const [currentToolName, setCurrentToolName] = useState<string | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<ConfirmRequiredPayload | null>(null);
+
+  // Сброс state при смене сессии. Без этого Next.js не размонтирует страницу
+  // [id] при навигации между /sessions/A → /sessions/B — useChatStream
+  // остаётся тот же инстанс и держит messages предыдущей сессии.
+  // Также подхватываем initialMessages когда они приходят асинхронно (после
+  // fetchSessionMessages родитель setInitialMessages).
+  const lastSessionIdRef = useRef<string>(sessionId);
+  useEffect(() => {
+    if (lastSessionIdRef.current !== sessionId) {
+      // Новая сессия — полный сброс
+      lastSessionIdRef.current = sessionId;
+      setMessages(initialMessages);
+      setIsStreaming(false);
+      setError(null);
+      setStreamingStage(null);
+      setCurrentToolName(null);
+      setPendingConfirm(null);
+      return;
+    }
+    // Та же сессия — обновляем messages если initialMessages пришли позже
+    // (родитель загружает их асинхронно, при первом рендере пустой массив).
+    if (initialMessages.length > 0 && messages.length === 0) {
+      setMessages(initialMessages);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, initialMessages]);
 
   const send = useCallback(
     async (text: string): Promise<void> => {

@@ -86,7 +86,7 @@ test.describe("Design v2 — Header layout (Phase 11.3)", () => {
     await expect(toggle).toHaveAttribute("data-anon", "off");
   });
 
-  test("ModelBadge показывает Sparkles + mono model name", async ({ page }) => {
+  test("ModelBadge показывает Sparkles + читаемое имя модели + tech id в data-model", async ({ page }) => {
     await setupOnboardingMocks(page, {
       initialConnections: LEGACY_CONNECTIONS,
       initialLLM: { ...LEGACY_LLM, model: "claude-sonnet-4-6", temperature: 0.7 },
@@ -99,12 +99,49 @@ test.describe("Design v2 — Header layout (Phase 11.3)", () => {
 
     const badge = page.getByTestId("model-badge");
     await expect(badge).toBeVisible({ timeout: 15000 });
-    await expect(badge).toContainText("claude-sonnet-4-6");
+    // Видимый текст — человекочитаемое имя
+    await expect(badge).toContainText("Claude Sonnet 4.6");
     await expect(badge).toContainText(/0\.7/);
+    // Tech id доступен в data-атрибуте для интеграций
+    await expect(badge).toHaveAttribute("data-model", "claude-sonnet-4-6");
 
     // Sparkles SVG icon
     const svg = badge.locator("svg").first();
     await expect(svg).toBeVisible();
+  });
+
+  test("ModelBadge: для unknown модели показывает tech id как есть", async ({ page }) => {
+    await setupOnboardingMocks(page, {
+      initialConnections: LEGACY_CONNECTIONS,
+      initialLLM: { ...LEGACY_LLM, model: "some-custom-model-2025", temperature: 0.5 },
+    });
+    await page.addInitScript(() => {
+      localStorage.clear();
+    });
+
+    await page.goto("/");
+
+    const badge = page.getByTestId("model-badge");
+    await expect(badge).toBeVisible({ timeout: 15000 });
+    await expect(badge).toContainText("some-custom-model-2025");
+    await expect(badge).toHaveAttribute("data-model", "some-custom-model-2025");
+  });
+
+  test("ModelBadge: Xiaomi MiMo v2 Pro отображается человекочитаемо", async ({ page }) => {
+    await setupOnboardingMocks(page, {
+      initialConnections: LEGACY_CONNECTIONS,
+      initialLLM: { ...LEGACY_LLM, model: "mimo-v2-pro", temperature: 0.3 },
+    });
+    await page.addInitScript(() => {
+      localStorage.clear();
+    });
+
+    await page.goto("/");
+
+    const badge = page.getByTestId("model-badge");
+    await expect(badge).toBeVisible({ timeout: 15000 });
+    await expect(badge).toContainText("Xiaomi MiMo v2 Pro");
+    await expect(badge).toHaveAttribute("data-model", "mimo-v2-pro");
   });
 });
 
