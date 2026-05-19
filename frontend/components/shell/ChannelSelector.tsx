@@ -43,6 +43,34 @@ function mapPingToStatus(ping: PingStatus): ConnectionStatus {
   return "offline"; // unknown + error
 }
 
+/**
+ * Извлекает host:port из endpoint URL.
+ *   http://localhost:6010/mcp → "localhost:6010"
+ *   https://api.example.com/mcp → "api.example.com"
+ *   битый URL → пустая строка
+ *
+ * Аналитик должен всегда видеть к какой базе он подключён —
+ * особенно когда баз несколько (Транзит :6010 vs КА Демо :6010 на разных хостах).
+ */
+function extractHostPort(endpoint: string): string {
+  try {
+    const u = new URL(endpoint);
+    return u.port ? `${u.hostname}:${u.port}` : u.hostname;
+  } catch {
+    return "";
+  }
+}
+
+/** Только порт (для компактного отображения в header). */
+function extractPort(endpoint: string): string {
+  try {
+    const u = new URL(endpoint);
+    return u.port || (u.protocol === "https:" ? "443" : "80");
+  } catch {
+    return "";
+  }
+}
+
 function PingDot({ status }: { status: PingStatus }) {
   return (
     <StatusDot
@@ -153,11 +181,21 @@ export function ChannelSelector({ activeId, onChange }: Props) {
         <button
           className="flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] text-sm text-[var(--fg)] hover:bg-[var(--bg-hover)] transition-colors min-w-[200px] cursor-pointer"
           aria-label="Выбор канала"
+          title={activeConn ? `${activeConn.name} — ${activeConn.endpoint}` : undefined}
+          data-testid="channel-selector-button"
         >
           <PingDot status={activeConn?.ping ?? "unknown"} />
           <span className="flex-1 text-left truncate">
             {activeConn ? activeConn.name : "Выберите подключение"}
           </span>
+          {activeConn && (
+            <span
+              className="font-mono text-[11px] text-[var(--fg-muted)] flex-none"
+              data-testid="channel-selector-port"
+            >
+              :{extractPort(activeConn.endpoint)}
+            </span>
+          )}
           <span className="text-[var(--fg-muted)] text-xs">▾</span>
         </button>
       </DropdownMenuTrigger>
@@ -175,6 +213,12 @@ export function ChannelSelector({ activeId, onChange }: Props) {
               <PingDot status={conn.ping} />
               <div className="flex-1 min-w-0">
                 <div className="truncate font-medium">{conn.name}</div>
+                <div
+                  className="text-xs text-[var(--fg-muted)] truncate font-mono"
+                  title={conn.endpoint}
+                >
+                  {extractHostPort(conn.endpoint) || conn.endpoint}
+                </div>
                 {conn.channel && (
                   <div className="text-xs text-[var(--fg-muted)] truncate">{conn.channel}</div>
                 )}
