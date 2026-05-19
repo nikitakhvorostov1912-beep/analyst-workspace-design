@@ -1,17 +1,24 @@
 "use client";
 
-import { useRef, useState, type KeyboardEvent } from "react";
+import { useCallback, useRef, useState, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
 import { QuickPrompts } from "@/components/chat/QuickPrompts";
 import { SlashPopover } from "@/components/chat/SlashPopover";
 import { MentionPopover } from "@/components/chat/MentionPopover";
 import { getLLMApiKey } from "@/lib/api-keys";
 import { expandSlashCommand, type SlashCommand } from "@/lib/slash-commands";
-import type { MetadataSuggestItem } from "@/lib/types";
-import { Send } from "lucide-react";
+import {
+  FILE_ACCEPT_ATTR,
+  MAX_FILES_PER_MESSAGE,
+  approximateSize,
+  filesToAttachments,
+} from "@/lib/attachments";
+import { publishToast } from "@/lib/toast";
+import type { ChatAttachment, MetadataSuggestItem } from "@/lib/types";
+import { File as FileIcon, Paperclip, Send, X } from "lucide-react";
 
 interface ChatInputProps {
-  onSubmit?: (message: string) => void;
+  onSubmit?: (message: string, attachments?: ChatAttachment[]) => void;
   disabled?: boolean;
   /** Если disabled по причине MCP disconnected — показать подсказку */
   disabledReason?: "banner" | "streaming" | null;
@@ -22,6 +29,7 @@ interface ChatInputProps {
 export function ChatInput({ onSubmit, disabled, disabledReason, channelId }: ChatInputProps) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Slash popover state
   const [slashOpen, setSlashOpen] = useState(false);
@@ -32,12 +40,45 @@ export function ChatInput({ onSubmit, disabled, disabledReason, channelId }: Cha
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionStart, setMentionStart] = useState(-1);
 
+  // Attachments state — прикреплённые файлы перед отправкой
+  const [attachments, setAttachments] = useState<ChatAttachment[]>([]);
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [loadingFiles, setLoadingFiles] = useState(false);
+
   const anchorRef = useRef<HTMLDivElement>(null);
+
+  const handleFilesAdded = useCallback(
+    async (files: File[]) => {
+      if (files.length === 0) return;
+      const remaining = MAX_FILES_PER_MESSAGE - attachments.length;
+      if (remaining <= 0) {
+        publishToast({
+          type: "error",
+          message: `Уже ${MAX_FILES_PER_MESSAGE} файлов — больше не помещается.`,
+        });
+        return;
+      }
+      setLoadingFiles(true);
+      try {
+        const { attachments: newAtt, errors } = await filesToAttachments(
+          files.slice(0, remaining),
+        );
+        errors.forEach((e) => publishToast({ type: "error", message: e }));
+        if (newAtt.length > 0) {
+          setAttachments((prev) => [...prev, ...newAtt].slice(0, MAX_FILES_PER_MESSAGE));
+        }
+      } finally {
+        setLoadingFiles(false);
+      }
+    },
+    [attachments.length],
+  );
 
   function handleSubmit() {
     if (disabled) return;
     const text = value.trim();
-    if (!text) return;
+    // Разрешаем отправку с пустым text если есть файлы — модель сама поймёт
+    if (!text && attachments.length === 0) return;
 
     // Проверяем наличие api_key в sessionStorage — быстрый UX disabled-state check (Plan 5.4)
     const apiKey = getLLMApiKey();
@@ -46,15 +87,22 @@ export function ChatInput({ onSubmit, disabled, disabledReason, channelId }: Cha
       return;
     }
 
+    const att = attachments;
     setValue("");
+    setAttachments([]);
     setSlashOpen(false);
     setMentionOpen(false);
     if (textareaRef.current) {
       textareaRef.current.style.height = "56px";
     }
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
 
     if (onSubmit) {
-      onSubmit(text);
+      // Если текст пустой — отправляем дефолтную фразу, чтобы LLM знал что делать
+      const finalText = text || "Изучи прикреплённые файлы и сделай краткое резюме.";
+      onSubmit(finalText, att.length > 0 ? att : undefined);
     }
   }
 
@@ -158,12 +206,93 @@ export function ChatInput({ onSubmit, disabled, disabledReason, channelId }: Cha
   }
 
 
+  // Drag-and-drop handlers
+  function handleDragOver(e: React.DragEvent) {
+    if (disabled) return;
+    e.preventDefault();
+    if (e.dataTransfer.types.includes("Files") && !isDragOver) {
+      setIsDragOver(true);
+    }
+  }
+
+  function handleDragLeave(e: React.DragEvent) {
+    e.preventDefault();
+    // Игнорируем dragLeave от дочерних элементов — закрываем только когда покинули контейнер
+    if (e.currentTarget === e.target) {
+      setIsDragOver(false);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent) {
+    e.preventDefault();
+    setIsDragOver(false);
+    if (disabled) return;
+    const files = Array.from(e.dataTransfer.files);
+    if (files.length > 0) {
+      void handleFilesAdded(files);
+    }
+  }
+
+  function handleFilePickerChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length > 0) {
+      void handleFilesAdded(files);
+    }
+  }
+
+  function handleRemoveAttachment(idx: number) {
+    setAttachments((prev) => prev.filter((_, i) => i !== idx));
+  }
+
   return (
-    <div className="flex flex-col gap-1 p-3">
-      {/* Quick prompts: показываются только если textarea пустая */}
+    <div
+      className={`flex flex-col gap-1 p-3 relative ${isDragOver ? "ring-2 ring-[var(--accent)] ring-inset rounded-md bg-[var(--accent-08)]" : ""}`}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {isDragOver && (
+        <div
+          className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-[var(--accent)] font-medium z-10"
+          data-testid="drag-overlay"
+        >
+          Отпустите файл — прикрепится к сообщению
+        </div>
+      )}
+
+      {/* Прикреплённые файлы — чипы над textarea */}
+      {attachments.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 mb-1" data-testid="attachments-list">
+          {attachments.map((att, i) => (
+            <div
+              key={i}
+              className="inline-flex items-center gap-1.5 px-2 py-1 bg-[var(--bg-2)] border border-[var(--bd-2)] rounded text-xs"
+              data-testid="attachment-chip"
+            >
+              <FileIcon className="h-3 w-3 text-[var(--accent)]" />
+              <span className="font-medium text-[var(--fg-1)] max-w-[180px] truncate" title={att.name}>
+                {att.name}
+              </span>
+              <span className="font-mono text-[10.5px] text-[var(--fg-3)]">
+                {approximateSize(att.content_base64)}
+              </span>
+              <button
+                type="button"
+                onClick={() => handleRemoveAttachment(i)}
+                className="p-0.5 hover:bg-[var(--bg-3)] rounded text-[var(--fg-3)] hover:text-[var(--fg-1)]"
+                aria-label={`Убрать ${att.name}`}
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Quick prompts: показываются только если textarea пустая И нет файлов */}
       <QuickPrompts
         onSelect={handleQuickPromptSelect}
-        hidden={value.trim().length > 0}
+        hidden={value.trim().length > 0 || attachments.length > 0}
       />
 
       {disabledReason === "banner" && (
@@ -171,6 +300,17 @@ export function ChatInput({ onSubmit, disabled, disabledReason, channelId }: Cha
           Нет соединения с базой. Восстановите подключение для отправки.
         </p>
       )}
+
+      {/* Hidden file input для picker */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept={FILE_ACCEPT_ATTR}
+        className="hidden"
+        onChange={handleFilePickerChange}
+        data-testid="file-input"
+      />
 
       {/* Relative container для поповеров */}
       <div className="relative flex items-end gap-2" ref={anchorRef}>
@@ -199,7 +339,7 @@ export function ChatInput({ onSubmit, disabled, disabledReason, channelId }: Cha
           onChange={(e) => handleChange(e.target.value)}
           onKeyDown={handleKeyDown}
           onInput={handleInput}
-          placeholder="Спросите про базу 1С..."
+          placeholder="Спросите про базу 1С или прикрепите документ..."
           rows={1}
           readOnly={disabled}
           autoComplete="off"
@@ -207,9 +347,25 @@ export function ChatInput({ onSubmit, disabled, disabledReason, channelId }: Cha
           style={{ minHeight: "56px", maxHeight: "240px", height: "56px" }}
         />
         <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={disabled || loadingFiles || attachments.length >= MAX_FILES_PER_MESSAGE}
+          aria-label="Прикрепить файл"
+          title={
+            attachments.length >= MAX_FILES_PER_MESSAGE
+              ? `Максимум ${MAX_FILES_PER_MESSAGE} файлов`
+              : "Прикрепить файл (PDF / DOCX / XLSX / TXT / CSV)"
+          }
+          className="flex-none mb-0.5"
+          data-testid="attach-button"
+        >
+          <Paperclip size={16} className={loadingFiles ? "animate-pulse" : ""} />
+        </Button>
+        <Button
           size="icon"
           onClick={handleSubmit}
-          disabled={!value.trim() || disabled}
+          disabled={(!value.trim() && attachments.length === 0) || disabled || loadingFiles}
           aria-label="Отправить"
           className="flex-none mb-0.5"
         >

@@ -4,7 +4,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchChat, fetchLLMConfig, postChatConfirm } from "@/lib/api";
 import { publishToast } from "@/lib/toast";
 import { getAnonEnabled } from "@/lib/storage";
-import type { CardEnvelope, ChatMessage, ConfirmRequiredPayload, ErrorCode, ToolCallRecord } from "@/lib/types";
+import type {
+  CardEnvelope,
+  ChatAttachment,
+  ChatMessage,
+  ConfirmRequiredPayload,
+  ErrorCode,
+  ToolCallRecord,
+} from "@/lib/types";
 import type { StreamingStage } from "./StreamingIndicator";
 
 export type UseChatStreamOptions = {
@@ -27,7 +34,7 @@ export type UseChatStreamReturn = {
   pendingConfirm: ConfirmRequiredPayload | null;
   /** Отвечает на pending confirm — POST /chat/confirm */
   resolveConfirm: (approved: boolean) => Promise<void>;
-  send: (text: string) => Promise<void>;
+  send: (text: string, attachments?: ChatAttachment[]) => Promise<void>;
 };
 
 /** Коды ошибок, которые маршрутизируются в ConnectionStatusBanner */
@@ -88,18 +95,27 @@ export function useChatStream({
   }, [sessionId, initialMessages]);
 
   const send = useCallback(
-    async (text: string): Promise<void> => {
+    async (text: string, attachments?: ChatAttachment[]): Promise<void> => {
       if (isStreaming) return;
 
       setError(null);
 
       const now = new Date().toISOString();
 
-      // 1. Добавляем user message
+      // 1. Добавляем user message. Для UI рендерим оригинальный текст +
+      // компактный список прикреплённых файлов в конце (LLM получает полный
+      // извлечённый текст на backend — там содержимое склеивается).
+      const attachmentNote =
+        attachments && attachments.length > 0
+          ? "\n\n" +
+            attachments
+              .map((a) => `📎 ${a.name}`)
+              .join("\n")
+          : "";
       const userMsg: ChatMessage = {
         id: crypto.randomUUID(),
         role: "user",
-        content: text,
+        content: text + attachmentNote,
         created_at: now,
       };
 
@@ -147,6 +163,7 @@ export function useChatStream({
             message: text,
             session_id: sessionId,
             channel_id: channelId,
+            attachments: attachments && attachments.length > 0 ? attachments : undefined,
           },
           { endpoint: llmConfig.endpoint, model: llmConfig.model },
           undefined,

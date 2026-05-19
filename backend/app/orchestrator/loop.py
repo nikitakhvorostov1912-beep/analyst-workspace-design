@@ -12,6 +12,10 @@ import httpx
 
 from app.clients.llm import LLMClient, LLMRateLimitError
 from app.clients.mcp import MCPClient, MCPDisconnectedError, MCPError
+from app.orchestrator.attachments import (
+    extract_attachment,
+    format_attachments_for_llm,
+)
 from app.orchestrator.mcp_pool import MCPPool, build_aux_clients
 from app.config import get_settings
 from app.models import ChatRequest
@@ -341,7 +345,21 @@ async def run_chat_loop(
         # Считаем сообщения ДО сохранения нового — чтобы знать первое ли это
         msg_count_before = await count_session_messages(db, session_id)
 
-        await save_user_message(db, session_id, request.message)
+        # Извлекаем текст из прикреплённых файлов (PDF, DOCX, XLSX, …) и
+        # склеиваем с user message. LLM видит как обычный текст с разделителем.
+        user_message_for_llm = request.message
+        if request.attachments:
+            extracted = [
+                extract_attachment(att.name, att.mime, att.content_base64)
+                for att in request.attachments
+            ]
+            attachments_block = format_attachments_for_llm(extracted)
+            if attachments_block:
+                user_message_for_llm = f"{request.message}\n\n{attachments_block}".strip()
+
+        # В БД сохраняем именно объединённый текст — иначе при load_history
+        # модель не увидит вложения, и follow-up «что было в файле?» не сработает.
+        await save_user_message(db, session_id, user_message_for_llm)
 
         mcp_endpoint = await lookup_mcp_endpoint(db, request.channel_id)
     except Exception:

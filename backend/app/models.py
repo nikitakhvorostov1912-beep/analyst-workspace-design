@@ -4,6 +4,16 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class ChatAttachment(BaseModel):
+    """Один прикреплённый к сообщению файл — клиент base64-кодирует содержимое."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    name: str = Field(min_length=1, max_length=255)
+    mime: str = Field(default="", max_length=200)
+    content_base64: str = Field(min_length=1)
+
+
 class ChatRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
@@ -11,6 +21,10 @@ class ChatRequest(BaseModel):
     session_id: str | None = None
     channel_id: str = Field(min_length=1)
     # api key пробрасывается через header X-LLM-API-Key, в теле НЕ передаётся
+    # Опциональные прикреплённые файлы — PDF, DOCX, XLSX, TXT, CSV, JSON, XML, MD.
+    # Cap MAX_ATTACHMENTS_PER_MESSAGE=5 на сообщение, MAX_TEXT_PER_FILE=50000 символов
+    # после извлечения. Изображения пока не поддерживаются (Phase 2 — multimodal).
+    attachments: list[ChatAttachment] = Field(default_factory=list, max_length=5)
 
 
 class ChatSSEEvent(BaseModel):

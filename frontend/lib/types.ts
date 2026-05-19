@@ -25,10 +25,21 @@ export type ErrorCode =
   | "sse_json"
   | string;
 
+export type ChatAttachment = {
+  /** Имя файла (для UI и LLM-промпта). */
+  name: string;
+  /** MIME-тип, например application/pdf. Может быть пустым — backend определит по расширению. */
+  mime: string;
+  /** Содержимое в base64 без data:URI префикса. */
+  content_base64: string;
+};
+
 export type ChatRequest = {
   message: string;
   session_id?: string | null;
   channel_id: string; // required в Phase 2
+  /** Опциональные прикреплённые документы (PDF/DOCX/XLSX/TXT/CSV). Max 5, ≤25MB каждый. */
+  attachments?: ChatAttachment[];
 };
 
 export type HealthResponse = {
