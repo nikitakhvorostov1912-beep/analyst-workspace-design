@@ -6,10 +6,18 @@ import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 import { highlightAnonTokens } from "@/lib/anon-tokens";
 import { CodeCard } from "@/components/cards/CodeCard";
+import {
+  ChartCard,
+  ChartCardError,
+  parseChartSpec,
+} from "@/components/cards/ChartCard";
 import type { CodeCardPayload } from "@/lib/types";
 
 /** Языки для которых рендерим CodeCard вместо plain <pre><code>. */
 const CODE_CARD_LANGUAGES = new Set(["bsl", "sql", "json"]);
+
+/** Языки для inline-карточек поверх code-блока. */
+const CHART_LANGUAGE = "chart";
 
 /**
  * Прогоняет children через highlightAnonTokens если children — строка.
@@ -38,6 +46,23 @@ const components: Components = {
     const isBlock = className?.startsWith("language-");
     if (isBlock) {
       const lang = className?.replace("language-", "") ?? "";
+
+      // ```chart\n{<json spec>}\n``` → Recharts графики
+      if (lang === CHART_LANGUAGE) {
+        const raw = typeof children === "string" ? children : String(children ?? "");
+        const trimmed = raw.replace(/\n$/, "");
+        const spec = parseChartSpec(trimmed);
+        if (spec) {
+          return <ChartCard spec={spec} />;
+        }
+        return (
+          <ChartCardError
+            raw={trimmed}
+            error="невалидный JSON или неподдерживаемый type (нужен bar / line / pie)"
+          />
+        );
+      }
+
       if (CODE_CARD_LANGUAGES.has(lang)) {
         const code = typeof children === "string" ? children : String(children ?? "");
         const payload: CodeCardPayload = {
