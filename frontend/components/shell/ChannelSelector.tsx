@@ -163,13 +163,13 @@ export function ChannelSelector({ activeId, onChange }: Props) {
 
   const activeConn = connections.find((c) => c.id === activeId);
 
-  // Empty state
+  // Empty state — крупно, чтобы аналитик сразу заметил «надо настроить»
   if (connections.length === 0) {
     return (
-      <div className="flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] text-sm text-[var(--fg-muted)] select-none min-w-[200px]">
+      <div className="flex items-center gap-2.5 h-10 px-3.5 rounded-md border-2 border-dashed border-[var(--warning-20)] bg-[var(--bg-2)] text-[13.5px] text-[var(--fg-2)] select-none min-w-[300px]">
         <PingDot status="unknown" />
-        <span>Подключения не настроены</span>
-        <Link href="/settings" className="ml-auto text-[var(--accent)] hover:underline text-xs">
+        <span className="font-medium">Подключения не настроены</span>
+        <Link href="/settings" className="ml-auto text-[var(--accent)] hover:underline text-xs font-medium">
           Настроить
         </Link>
       </div>
@@ -180,25 +180,25 @@ export function ChannelSelector({ activeId, onChange }: Props) {
     <DropdownMenu open={open} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
         <button
-          className="flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] text-sm text-[var(--fg)] hover:bg-[var(--bg-hover)] transition-colors min-w-[200px] cursor-pointer"
+          className="flex items-center gap-2.5 h-10 px-3.5 rounded-md border border-[var(--bd-2)] bg-[var(--bg-2)] text-[13.5px] text-[var(--fg-1)] hover:bg-[var(--bg-hover)] hover:border-[var(--accent-20)] transition-colors min-w-[300px] cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-20)]"
           aria-label="Выбор канала"
           title={activeConn ? `${activeConn.name} — ${activeConn.endpoint}` : undefined}
           data-testid="channel-selector-button"
         >
           <PingDot status={activeConn?.ping ?? "unknown"} />
-          <span className="flex-1 text-left truncate">
+          <span className="flex-1 text-left truncate font-semibold">
             {activeConn ? activeConn.name : "Выберите подключение"}
           </span>
-          {activeConn && <KindBadge kind={activeConn.kind} />}
+          {activeConn && <KindBadge kind={activeConn.kind} size="md" />}
           {activeConn && (
             <span
-              className="font-mono text-[11px] text-[var(--fg-muted)] flex-none"
+              className="font-mono text-[12px] text-[var(--fg-2)] flex-none tabular-nums"
               data-testid="channel-selector-port"
             >
               :{extractPort(activeConn.endpoint)}
             </span>
           )}
-          <span className="text-[var(--fg-muted)] text-xs">▾</span>
+          <span className="text-[var(--fg-3)] text-xs">▾</span>
         </button>
       </DropdownMenuTrigger>
 

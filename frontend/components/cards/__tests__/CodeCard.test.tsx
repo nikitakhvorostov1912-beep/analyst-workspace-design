@@ -74,4 +74,38 @@ describe("CodeCard", () => {
     );
     expect(screen.queryByText("Результат")).toBeNull();
   });
+
+  // --- Collapse длинного кода ---
+
+  it("короткий код (≤6 строк) — нет кнопки сворачивания", () => {
+    render(<CodeCard payload={makePayload()} />);
+    expect(screen.queryByTestId("code-collapse-toggle")).toBeNull();
+  });
+
+  it("длинный код (>6 строк) свёрнут по умолчанию с кнопкой «Показать N строк»", () => {
+    const longCode = Array.from({ length: 15 }, (_, i) => `Строка${i + 1}`).join("\n");
+    render(<CodeCard payload={makePayload({ code: longCode })} />);
+
+    const toggle = screen.getByTestId("code-collapse-toggle");
+    expect(toggle).toBeTruthy();
+    expect(toggle.textContent).toContain("15 строк");
+    // Должно быть «свёрнут» в meta header
+    expect(screen.getByText(/15 строк · свёрнут/)).toBeTruthy();
+  });
+
+  it("клик на toggle раскрывает / сворачивает код", () => {
+    const longCode = Array.from({ length: 12 }, (_, i) => `Строка${i + 1}`).join("\n");
+    render(<CodeCard payload={makePayload({ code: longCode })} />);
+
+    const toggle = screen.getByTestId("code-collapse-toggle");
+    // Свёрнут — текст «Показать 12 строк»
+    expect(toggle.textContent).toMatch(/Показать 12 строк/);
+
+    fireEvent.click(toggle);
+    // Раскрыт — текст «Свернуть»
+    expect(toggle.textContent).toMatch(/Свернуть/);
+
+    fireEvent.click(toggle);
+    expect(toggle.textContent).toMatch(/Показать 12 строк/);
+  });
 });
