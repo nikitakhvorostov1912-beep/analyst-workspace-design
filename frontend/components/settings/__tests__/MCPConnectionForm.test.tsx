@@ -30,14 +30,15 @@ describe("MCPConnectionForm", () => {
     vi.clearAllMocks();
   });
 
-  it("рендерит поля name/endpoint/channel без initial", () => {
+  it("рендерит поля name/endpoint без initial (поле channel убрано из UI)", () => {
     render(<MCPConnectionForm onSaved={vi.fn()} />);
 
     expect(screen.getByPlaceholderText("Транзит")).toBeInTheDocument();
     expect(
       screen.getByPlaceholderText("http://localhost:6010/mcp"),
     ).toBeInTheDocument();
-    expect(screen.getByPlaceholderText("default")).toBeInTheDocument();
+    // Канал больше не отображается в UI (внутренний параметр, не для аналитика)
+    expect(screen.queryByPlaceholderText("default")).not.toBeInTheDocument();
   });
 
   it("показывает ошибку валидации при невалидном endpoint", async () => {

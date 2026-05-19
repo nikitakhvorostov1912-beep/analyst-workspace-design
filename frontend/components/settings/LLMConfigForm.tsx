@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
@@ -64,6 +65,11 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  // Endpoint и Temperature скрыты под "Расширенные настройки" — аналитик их не должен знать.
+  // Всегда свёрнуто по умолчанию: если есть существующий endpoint — пользователь сам раскроет
+  // когда понадобится. Принцип: «по умолчанию минимум полей».
+  const DEFAULT_ENDPOINT = "http://localhost:1234/v1";
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   function getEffectiveApiKey(): string {
     if (showKeyInput) return apiKey;
@@ -108,7 +114,7 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
       if (result.ok) {
         publishToast({
           type: "info",
-          message: `LLM работает, модель: ${data.model}`,
+          message: `Модель отвечает: ${data.model}`,
         });
       } else {
         publishToast({
@@ -144,7 +150,7 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
         await saveLLMConfig(configPayload);
       }
 
-      publishToast({ type: "info", message: "LLM конфиг сохранён" });
+      publishToast({ type: "info", message: "Настройки модели ИИ сохранены" });
       onSaved?.();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Ошибка сохранения";
@@ -171,20 +177,6 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
     <div className="space-y-4">
       <div>
         <label className="block text-xs text-[var(--fg-muted)] mb-1">
-          Endpoint
-        </label>
-        <Input
-          value={endpoint}
-          onChange={(e) => setEndpoint(e.target.value)}
-          placeholder="http://localhost:1234/v1"
-        />
-        {errors.endpoint && (
-          <p className="text-xs text-red-400 mt-1">{errors.endpoint}</p>
-        )}
-      </div>
-
-      <div>
-        <label className="block text-xs text-[var(--fg-muted)] mb-1">
           Модель
         </label>
         <Input
@@ -195,25 +187,6 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
         />
         {errors.model && (
           <p className="text-xs text-red-400 mt-1">{errors.model}</p>
-        )}
-      </div>
-
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="text-xs text-[var(--fg-muted)]">Температура</label>
-          <span className="text-xs text-[var(--fg)] font-mono">
-            {temperature.toFixed(1)}
-          </span>
-        </div>
-        <Slider
-          value={[temperature]}
-          onValueChange={([v]) => v !== undefined && setTemperature(v)}
-          min={0}
-          max={2}
-          step={0.1}
-        />
-        {errors.temperature && (
-          <p className="text-xs text-red-400 mt-1">{errors.temperature}</p>
         )}
       </div>
 
@@ -245,6 +218,64 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
         )}
         {errors.api_key && (
           <p className="text-xs text-red-400 mt-1">{errors.api_key}</p>
+        )}
+      </div>
+
+      {/* Расширенные настройки: endpoint + temperature */}
+      <div className="border-t border-[var(--bd-1)] pt-3">
+        <button
+          type="button"
+          onClick={() => setAdvancedOpen((v) => !v)}
+          className="flex items-center gap-1.5 text-xs text-[var(--fg-3)] hover:text-[var(--fg-1)] transition-colors"
+          aria-expanded={advancedOpen}
+        >
+          {advancedOpen ? (
+            <ChevronDown className="h-3 w-3" />
+          ) : (
+            <ChevronRight className="h-3 w-3" />
+          )}
+          <span>Расширенные настройки</span>
+        </button>
+
+        {advancedOpen && (
+          <div className="space-y-4 mt-3 pl-4 border-l border-[var(--bd-1)]">
+            <div>
+              <label className="block text-xs text-[var(--fg-muted)] mb-1">
+                Endpoint
+              </label>
+              <Input
+                value={endpoint}
+                onChange={(e) => setEndpoint(e.target.value)}
+                placeholder="http://localhost:1234/v1"
+              />
+              {errors.endpoint ? (
+                <p className="text-xs text-red-400 mt-1">{errors.endpoint}</p>
+              ) : (
+                <p className="text-xs text-[var(--fg-3)] mt-1">
+                  OpenAI-совместимый URL. По умолчанию <span className="font-mono">{DEFAULT_ENDPOINT}</span> (LM&nbsp;Studio).
+                </p>
+              )}
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <label className="text-xs text-[var(--fg-muted)]">Температура</label>
+                <span className="text-xs text-[var(--fg)] font-mono">
+                  {temperature.toFixed(1)}
+                </span>
+              </div>
+              <Slider
+                value={[temperature]}
+                onValueChange={([v]) => v !== undefined && setTemperature(v)}
+                min={0}
+                max={2}
+                step={0.1}
+              />
+              {errors.temperature && (
+                <p className="text-xs text-red-400 mt-1">{errors.temperature}</p>
+              )}
+            </div>
+          </div>
         )}
       </div>
 

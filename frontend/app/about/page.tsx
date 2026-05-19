@@ -21,37 +21,32 @@ export default function AboutPage() {
         <section className="space-y-3">
           <h2 className="text-2xl font-semibold">Что это?</h2>
           <p className="text-[var(--fg-muted)] leading-relaxed">
-            <strong className="text-[var(--fg)]">1С Аналитик</strong> — чат-консоль для
-            бизнес-аналитиков 1С. Аналог ChatGPT, но специализированный под работу с базами 1С через
-            MCP Toolkit. Вы задаёте вопросы на естественном языке — модель сама вызывает нужные
-            инструменты 1С и формирует ответ.
+            <strong className="text-[var(--fg)]">1С Аналитик</strong> — чат с базой 1С на русском
+            языке. Аналог ChatGPT, но вместо общих вопросов он отвечает по вашей базе:
+            показывает документы, считает остатки, находит ошибки в журнале регистрации.
+            Вы пишете вопрос — приложение само формирует запрос к 1С и показывает ответ
+            таблицей или карточкой.
           </p>
         </section>
 
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">Как это работает</h2>
           <ol className="space-y-3 text-[var(--fg-muted)] leading-relaxed pl-5 list-decimal">
+            <li>Вы пишете на русском: «Покажи документы ОПП за вчера»</li>
             <li>
-              Вы пишете вопрос: «Покажи документы ОПП за вчера»
+              Приложение передаёт вопрос модели ИИ — она понимает, какие данные из 1С нужны.
             </li>
             <li>
-              Backend передаёт запрос LLM-модели (GPT-4 / Claude / Xiaomi MiMo — на ваш выбор), вместе со
-              списком доступных инструментов 1С
+              Модель формирует запрос к 1С автоматически (вам не нужно знать SQL или язык
+              запросов 1С).
             </li>
             <li>
-              LLM решает: «Нужен <code className="font-mono text-xs px-1 bg-[var(--bg-elevated)] rounded">execute_query</code>»
-              — и формирует запрос
+              1С возвращает данные, модель оформляет их таблицей, карточкой документа,
+              графиком или списком ссылок «где используется».
             </li>
             <li>
-              Backend вызывает MCP Toolkit, который выполняет запрос к вашей живой базе 1С
-            </li>
-            <li>
-              Результат возвращается LLM, она форматирует ответ + строит inline-карточку (таблица /
-              объект / журнал / метрика / ссылки / код)
-            </li>
-            <li>
-              Вы видите ответ за ≤30 секунд + можете развернуть «trace» — увидеть какие именно
-              инструменты вызывались
+              Вы получаете ответ обычно за 5–30 секунд. Можно развернуть «трассировку»,
+              чтобы увидеть, какие именно операции выполнила модель.
             </li>
           </ol>
         </section>
@@ -60,33 +55,32 @@ export default function AboutPage() {
           <h2 className="text-xl font-semibold">Что вы получите</h2>
           <ul className="space-y-2 text-[var(--fg-muted)] leading-relaxed pl-5 list-disc">
             <li>
-              <strong className="text-[var(--fg)]">Не нужно знать SQL/BSL</strong> — пишите на
-              русском, модель сама формирует запросы
+              <strong className="text-[var(--fg)]">Не нужно знать SQL или BSL</strong> —
+              пишете на русском, модель сама формирует запросы.
             </li>
             <li>
-              <strong className="text-[var(--fg)]">6 типов карточек</strong> — таблицы с
-              сортировкой/CSV, карточки объектов с реквизитами и ТЧ, журнал регистрации, метрики,
-              ссылки «где используется», код BSL с подсветкой
+              <strong className="text-[var(--fg)]">6 типов ответов</strong> — таблицы (с
+              сортировкой и выгрузкой в CSV), карточки объектов с реквизитами и табличными
+              частями, журнал регистрации, числовые метрики, список «где используется»,
+              блоки кода с подсветкой.
             </li>
             <li>
-              <strong className="text-[var(--fg)]">Несколько баз одновременно</strong> — переключайтесь
-              между базами клиентов через канал-селектор в шапке
+              <strong className="text-[var(--fg)]">Несколько баз</strong> — переключайтесь
+              между базами клиентов в шапке.
             </li>
             <li>
-              <strong className="text-[var(--fg)]">История</strong> — все диалоги сохраняются,
-              группируются по датам
+              <strong className="text-[var(--fg)]">История</strong> — все диалоги
+              сохраняются и группируются по датам.
             </li>
             <li>
-              <strong className="text-[var(--fg)]">Анонимизация</strong> — тоггл в шапке скрывает
-              реальные имена контрагентов/документов токенами вида <code className="font-mono text-xs px-1 bg-[var(--bg-elevated)] rounded">[ORG-001]</code>
+              <strong className="text-[var(--fg)]">Маскировка</strong> — переключатель в
+              шапке скрывает реальные имена контрагентов и документов (заменяет на
+              анонимные коды вроде <code className="font-mono text-xs px-1 bg-[var(--bg-elevated)] rounded">[ORG-001]</code>).
+              Полезно для скриншотов, переписки, ИТ-разбора.
             </li>
             <li>
-              <strong className="text-[var(--fg)]">Безопасность</strong> — модальное подтверждение
-              перед опасными операциями (Удалить, Записать)
-            </li>
-            <li>
-              <strong className="text-[var(--fg)]">Trace</strong> — для каждого ответа видны
-              вызванные инструменты + кнопка «Скопировать как curl»
+              <strong className="text-[var(--fg)]">Защита от случайностей</strong> — перед
+              удалением или записью данных приложение спрашивает подтверждение.
             </li>
           </ul>
         </section>
@@ -95,24 +89,28 @@ export default function AboutPage() {
           <h2 className="text-xl font-semibold">Что нужно настроить (≈ 2 минуты)</h2>
           <ol className="space-y-2 text-[var(--fg-muted)] leading-relaxed pl-5 list-decimal">
             <li>
-              <strong className="text-[var(--fg)]">MCP Toolkit</strong> — обработка для 1С, которая
-              даёт API доступ к базе. Запустите EPF в вашей 1С на порту 6010 (или другом)
+              <strong className="text-[var(--fg)]">Подключение к 1С</strong> — в вашей базе
+              запускается специальная обработка (EPF-файл, ставит ИТ-отдел) на порту 6010.
+              Приложение обращается к ней через адрес вида{" "}
+              <code className="font-mono text-xs px-1 bg-[var(--bg-elevated)] rounded">
+                http://localhost:6010/mcp
+              </code>.
             </li>
             <li>
-              <strong className="text-[var(--fg)]">LLM провайдер</strong> — endpoint
-              OpenAI-совместимого API + ключ. Подойдёт OpenAI, Anthropic, локальная LM Studio,
-              Xiaomi MiMo и т.п.
+              <strong className="text-[var(--fg)]">Модель ИИ</strong> — введите API ключ
+              вашего поставщика (OpenAI, Anthropic, Aitunnel, Xiaomi MiMo или локальная
+              модель). Адрес и название модели уже подставлены по умолчанию.
             </li>
             <li>
-              <strong className="text-[var(--fg)]">Готово</strong> — задавайте вопросы
+              <strong className="text-[var(--fg)]">Готово</strong> — задавайте вопросы.
             </li>
           </ol>
           <p className="text-sm text-[var(--fg-muted)] italic mt-2">
-            Пройдите мастер настройки на главной странице или зайдите в{" "}
+            Откройте{" "}
             <Link href="/settings" className="text-blue-400 hover:underline">
               Настройки
-            </Link>
-            .
+            </Link>{" "}
+            и заполните 2 секции. При первом запуске показывается мастер настройки.
           </p>
         </section>
 
@@ -122,9 +120,9 @@ export default function AboutPage() {
             Откройте{" "}
             <Link href="/status" className="text-blue-400 hover:underline">
               страницу диагностики
-            </Link>
-            {" "}— она показывает статус backend, базы данных, MCP-подключений и LLM в одном
-            месте. Зелёные галки = всё работает, красный = смотрите подсказку рядом.
+            </Link>{" "}
+            — там видно, доступна ли база 1С и модель ИИ. Зелёные галки = всё ок, оранжевый
+            треугольник = смотрите подсказку рядом.
           </p>
         </section>
 
@@ -132,28 +130,29 @@ export default function AboutPage() {
           <h2 className="text-xl font-semibold">Безопасность данных</h2>
           <ul className="space-y-2 text-[var(--fg-muted)] leading-relaxed pl-5 list-disc">
             <li>
-              <strong className="text-[var(--fg)]">API ключ LLM</strong> хранится в{" "}
-              <code className="font-mono text-xs px-1 bg-[var(--bg-elevated)] rounded">sessionStorage</code>{" "}
-              браузера и удаляется при закрытии вкладки. На сервере не сохраняется
+              <strong className="text-[var(--fg)]">API ключ модели</strong> хранится только
+              на вашей машине, на сервер не отправляется. Один раз ввели — работает.
             </li>
             <li>
-              <strong className="text-[var(--fg)]">Данные базы 1С</strong> не покидают вашу машину —
-              приложение работает локально, MCP вызывает 1С через ваш собственный сервер
+              <strong className="text-[var(--fg)]">Данные базы 1С</strong> не покидают
+              ваш контур — приложение работает локально, обращение к 1С идёт через ваш
+              собственный сервер.
             </li>
             <li>
-              <strong className="text-[var(--fg)]">Опасные операции</strong> (<code className="font-mono text-xs px-1 bg-[var(--bg-elevated)] rounded">Удалить</code>,{" "}
-              <code className="font-mono text-xs px-1 bg-[var(--bg-elevated)] rounded">Записать</code>) перехватываются — выводится подтверждение
+              <strong className="text-[var(--fg)]">Опасные операции</strong> (удалить,
+              записать) требуют явного подтверждения в диалоге.
             </li>
             <li>
-              <strong className="text-[var(--fg)]">Чувствительные данные</strong> — включите toggle
-              «Анонимизация» в шапке. Реальные имена будут заменены токенами
+              <strong className="text-[var(--fg)]">Чувствительные данные</strong> —
+              включите «Маскировка» в шапке. Реальные имена будут заменены на
+              условные коды.
             </li>
           </ul>
         </section>
 
         <section className="pt-6 border-t border-[var(--border)]">
           <p className="text-xs text-[var(--fg-muted)]">
-            Версия 1.0 · MIT License ·{" "}
+            Версия 1.2.1 · MIT License ·{" "}
             <a
               href="https://github.com/nikitakhvorostov1912-beep/analyst-workspace-design"
               target="_blank"

@@ -95,6 +95,11 @@ const makeLLMConfig = (): LLMConfigResponse => ({
   temperature: 0.3,
 });
 
+/** Раскрыть свёрнутую секцию «Расширенные настройки» — endpoint и temperature теперь там. */
+function openAdvanced() {
+  fireEvent.click(screen.getByRole("button", { name: /Расширенные настройки/i }));
+}
+
 describe("LLMConfigForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -104,17 +109,23 @@ describe("LLMConfigForm", () => {
   it("рендерит пустые поля без initial, Удалить не виден", () => {
     render(<LLMConfigForm initial={null} />);
 
-    expect(screen.getByPlaceholderText("http://localhost:1234/v1")).toBeInTheDocument();
+    // Модель и API ключ — основные видимые поля
     expect(screen.getByPlaceholderText("gpt-4o-mini")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("sk-...")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /сохранить/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /тест/i })).toBeInTheDocument();
-    // Нет кнопки Удалить
     expect(screen.queryByRole("button", { name: /удалить/i })).not.toBeInTheDocument();
+
+    // Endpoint скрыт под Advanced; раскрываем — должен появиться
+    expect(screen.queryByPlaceholderText("http://localhost:1234/v1")).not.toBeInTheDocument();
+    openAdvanced();
+    expect(screen.getByPlaceholderText("http://localhost:1234/v1")).toBeInTheDocument();
   });
 
   it("показывает ошибку если api_key слишком короткий", async () => {
     render(<LLMConfigForm initial={null} />);
 
+    openAdvanced();
     fireEvent.change(screen.getByPlaceholderText("http://localhost:1234/v1"), {
       target: { value: "http://localhost:1234/v1" },
     });
@@ -137,6 +148,7 @@ describe("LLMConfigForm", () => {
 
     render(<LLMConfigForm initial={null} />);
 
+    openAdvanced();
     fireEvent.change(screen.getByPlaceholderText("http://localhost:1234/v1"), {
       target: { value: "http://localhost:1234/v1" },
     });
@@ -167,6 +179,7 @@ describe("LLMConfigForm", () => {
 
     render(<LLMConfigForm initial={null} />);
 
+    openAdvanced();
     fireEvent.change(screen.getByPlaceholderText("http://localhost:1234/v1"), {
       target: { value: "http://localhost:1234/v1" },
     });
@@ -240,6 +253,7 @@ describe("LLMConfigForm", () => {
 
     render(<LLMConfigForm initial={null} onSaved={onSaved} />);
 
+    openAdvanced();
     fireEvent.change(screen.getByPlaceholderText("http://localhost:1234/v1"), {
       target: { value: "http://localhost:1234/v1" },
     });

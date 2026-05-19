@@ -93,6 +93,18 @@ export default function HomePage() {
 
         // hasConfig читается из backend (source-of-truth)
         setHasConfig(hasBoth);
+
+        // Auto-select: если ничего не активно, но подключения есть — выбираем первое.
+        // Иначе аналитик видит «Выберите подключение» с красной точкой и не понимает что делать.
+        if (!cancelled && conns.length > 0) {
+          const savedActive = getActiveChannelId();
+          const stillExists = savedActive && conns.some((c) => c.id === savedActive);
+          if (!stillExists) {
+            const firstId = conns[0]!.id;
+            setActiveChannelId(firstId);
+            setLocalActiveChannelId(firstId);
+          }
+        }
       } catch {
         // Backend недоступен — не блокируем пользователя onboarding'ом
         if (!cancelled) {
@@ -102,7 +114,11 @@ export default function HomePage() {
       }
 
       if (!cancelled) {
-        setLocalActiveChannelId(getActiveChannelId());
+        // Если auto-select выше уже выставил activeChannelId — повторно не перетираем.
+        // setLocalActiveChannelId вызывается выше в auto-select ветке; здесь подхватываем
+        // сохранённое значение только если оно валидно.
+        const saved = getActiveChannelId();
+        if (saved !== null) setLocalActiveChannelId((prev) => prev ?? saved);
         setReady(true);
       }
     })();
@@ -193,7 +209,7 @@ export default function HomePage() {
               Начните работу
             </h1>
             <p className="text-[var(--fg-muted)] max-w-sm text-sm leading-relaxed">
-              Подключите вашу базу 1С через MCP и укажите LLM-провайдер
+              Укажите адрес базы 1С и подключите модель — после этого можно задавать вопросы.
             </p>
           </div>
           <Button asChild>

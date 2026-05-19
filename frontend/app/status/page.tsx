@@ -32,22 +32,22 @@ export default function StatusPage() {
 
     const results: Check[] = [];
 
-    // 1. Backend health
+    // 1. Сервер приложения
     try {
       const h = await fetchHealth();
       results.push({
         id: "backend",
-        title: "Backend (FastAPI)",
+        title: "Сервер приложения",
         status: "ok",
         message: `OK · версия ${h.version} · БД ${h.db}`,
       });
     } catch {
       results.push({
         id: "backend",
-        title: "Backend (FastAPI)",
+        title: "Сервер приложения",
         status: "error",
         message: "Не отвечает",
-        hint: "Запустите `docker compose up backend` или `python -m uvicorn app.main:app --port 8010`",
+        hint: "Перезапустите приложение «1С Аналитик» — фоновый сервер не отвечает.",
       });
       setChecks([...results, ...placeholderRest()]);
       setRunning(false);
@@ -70,30 +70,29 @@ export default function StatusPage() {
     if (connections.length === 0) {
       results.push({
         id: "connections",
-        title: "MCP подключения",
+        title: "База 1С",
         status: "warn",
         message: "Подключений нет",
-        hint: "Добавьте подключение к вашей базе 1С через Настройки → MCP",
+        hint: "Откройте Настройки и добавьте адрес вашей базы 1С.",
       });
     } else {
-      // Пингуем каждое подключение
       for (const conn of connections) {
         try {
           const ping = await pingConnection(conn.id);
           const toolCount = (ping as { tool_count?: number }).tool_count;
           results.push({
             id: `mcp-${conn.id}`,
-            title: `MCP «${conn.name}»`,
+            title: `База «${conn.name}»`,
             status: "ok",
             message: `OK · ${toolCount ?? "?"} инструментов · ${conn.endpoint}`,
           });
         } catch (e) {
           results.push({
             id: `mcp-${conn.id}`,
-            title: `MCP «${conn.name}»`,
+            title: `База «${conn.name}»`,
             status: "error",
             message: e instanceof Error ? e.message : "Не отвечает",
-            hint: `Проверьте что MCP Toolkit запущен на ${conn.endpoint}`,
+            hint: `Проверьте что в 1С запущена обработка-обработчик на адресе ${conn.endpoint}`,
           });
         }
       }
@@ -110,20 +109,20 @@ export default function StatusPage() {
     if (!llmConfig) {
       results.push({
         id: "llm-config",
-        title: "LLM провайдер",
+        title: "Модель ИИ",
         status: "warn",
-        message: "Не настроен",
-        hint: "Добавьте endpoint и ключ через Настройки → LLM",
+        message: "Не настроена",
+        hint: "Откройте Настройки и введите API ключ.",
       });
     } else {
       const apiKey = getLLMApiKey();
       if (!apiKey) {
         results.push({
           id: "llm-config",
-          title: "LLM провайдер",
+          title: "Модель ИИ",
           status: "warn",
-          message: `Endpoint настроен (${llmConfig.endpoint}), но ключ не введён`,
-          hint: "Ключ хранится в sessionStorage и теряется после закрытия вкладки — введите его снова в Настройках",
+          message: `Адрес настроен (${llmConfig.endpoint}), но API ключ не введён`,
+          hint: "Введите API ключ в Настройках — ключ хранится локально, по сети не передаётся.",
         });
       } else {
         try {
@@ -138,23 +137,23 @@ export default function StatusPage() {
           if (t.ok) {
             results.push({
               id: "llm-config",
-              title: "LLM провайдер",
+              title: "Модель ИИ",
               status: "ok",
               message: `OK · ${llmConfig.endpoint} · модель ${llmConfig.model}`,
             });
           } else {
             results.push({
               id: "llm-config",
-              title: "LLM провайдер",
+              title: "Модель ИИ",
               status: "error",
               message: t.error_code === "invalid_key" ? "Неверный API ключ" : (t.error_code ?? "Ошибка"),
-              hint: "Проверьте endpoint и ключ в Настройках → LLM",
+              hint: "Проверьте API ключ и адрес в Настройках.",
             });
           }
         } catch (e) {
           results.push({
             id: "llm-config",
-            title: "LLM провайдер",
+            title: "Модель ИИ",
             status: "error",
             message: e instanceof Error ? e.message : "Не отвечает",
           });
@@ -244,16 +243,16 @@ export default function StatusPage() {
       {/* Подсказка снизу */}
       <div className="mt-8 pt-6 border-t border-[var(--border)] text-xs text-[var(--fg-muted)] space-y-1">
         <p>
-          <strong>Backend</strong> — FastAPI-сервер, который маршрутизирует запросы между UI, LLM и
-          MCP Toolkit.
+          <strong>Сервер приложения</strong> — внутренний процесс, который связывает чат, базу 1С
+          и модель ИИ. Стартует автоматически вместе с приложением.
         </p>
         <p>
-          <strong>MCP</strong> — обработка 1С (EPF), которая даёт API доступ к базе. Должна быть
-          запущена в вашей 1С.
+          <strong>База 1С</strong> — ваша рабочая база. К ней приложение обращается через специальную
+          обработку, запущенную в самой 1С (ставит ИТ-отдел).
         </p>
         <p>
-          <strong>LLM</strong> — модель которая интерпретирует ваши вопросы и решает какие
-          инструменты 1С вызвать.
+          <strong>Модель ИИ</strong> — внешний сервис (OpenAI, Anthropic и т.п.), который читает
+          ваши вопросы и решает, какие данные из 1С достать.
         </p>
       </div>
     </div>
@@ -300,15 +299,15 @@ function placeholderRest(): Check[] {
   return [
     {
       id: "connections-skip",
-      title: "MCP подключения",
+      title: "База 1С",
       status: "warn" as const,
-      message: "Проверка пропущена (backend не отвечает)",
+      message: "Проверка пропущена — сервер приложения не отвечает.",
     },
     {
       id: "llm-skip",
-      title: "LLM провайдер",
+      title: "Модель ИИ",
       status: "warn" as const,
-      message: "Проверка пропущена (backend не отвечает)",
+      message: "Проверка пропущена — сервер приложения не отвечает.",
     },
   ];
 }

@@ -117,7 +117,7 @@ export function Header({
           <Link
             href="/settings"
             aria-label="Настройки"
-            title="Настройки — MCP подключения и LLM"
+            title="Настройки — базы 1С и модель ИИ"
           >
             <Settings className="h-[15px] w-[15px]" />
           </Link>

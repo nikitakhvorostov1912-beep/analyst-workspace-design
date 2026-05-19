@@ -1,61 +1,79 @@
 /**
- * SSR-safe sessionStorage helpers для api_key LLM.
- * Ключ выживает до закрытия вкладки (не localStorage — trade-off T-05-06).
+ * SSR-safe localStorage helpers для api_key LLM.
+ *
+ * История решений:
+ *  - Phase 5 (UX-04): хранили в sessionStorage — теряли ключ при закрытии вкладки.
+ *    Аналитик постоянно вводил ключ заново — UX-катастрофа.
+ *  - v1.2.2: миграция на localStorage. Проект распространяется только как Electron
+ *    desktop installer (см. ROADMAP Phase 7), где нет third-party XSS векторов и
+ *    нет shared browser context. Trade-off: на чистом веб-деплое ключ доступен из
+ *    любого JS на origin — но web-деплой не поддерживается.
+ *
+ * При запуске приложения миграция переносит sessionStorage → localStorage если
+ * там есть legacy ключ.
  */
 
 const KEY_LLM_API_KEY = "analyst.llm_api_key";
-// Старый ключ в localStorage (до Plan 5.4) — для one-time migration T-05-13
+// Старый ключ внутри JSON в localStorage (до Plan 5.4)
 const KEY_LEGACY_LLM = "analyst.llm";
 
-function safeSessionStorage(): Storage | null {
+function safeLocalStorage(): Storage | null {
   if (typeof window === "undefined") return null;
-  return window.sessionStorage;
+  return window.localStorage;
 }
 
 export function getLLMApiKey(): string | null {
-  const ss = safeSessionStorage();
-  if (!ss) return null;
-  return ss.getItem(KEY_LLM_API_KEY);
+  const ls = safeLocalStorage();
+  if (!ls) return null;
+  return ls.getItem(KEY_LLM_API_KEY);
 }
 
 export function setLLMApiKey(key: string): void {
-  const ss = safeSessionStorage();
-  if (!ss) return;
-  ss.setItem(KEY_LLM_API_KEY, key);
+  const ls = safeLocalStorage();
+  if (!ls) return;
+  ls.setItem(KEY_LLM_API_KEY, key);
 }
 
 export function clearLLMApiKey(): void {
-  const ss = safeSessionStorage();
-  if (!ss) return;
-  ss.removeItem(KEY_LLM_API_KEY);
+  const ls = safeLocalStorage();
+  if (!ls) return;
+  ls.removeItem(KEY_LLM_API_KEY);
 }
 
 /**
- * One-time migration T-05-13: если sessionStorage пуст но в localStorage есть
- * старый LLM api_key (от версий до Plan 5.4) — переносим в sessionStorage и
- * очищаем localStorage. Запускается один раз при старте приложения.
+ * One-time migration:
+ *  - Если ключ уже в localStorage (новая схема) — выходим.
+ *  - Если есть sessionStorage[analyst.llm_api_key] — переносим в localStorage.
+ *  - Если есть legacy JSON localStorage[analyst.llm].api_key — переносим и удаляем.
  */
 export function migrateLegacyApiKey(): void {
   if (typeof window === "undefined") return;
 
-  const ss = window.sessionStorage;
   const ls = window.localStorage;
+  const ss = window.sessionStorage;
 
-  // Если ключ уже в sessionStorage — миграция не нужна
-  if (ss.getItem(KEY_LLM_API_KEY)) return;
+  // Уже в localStorage — миграция не нужна
+  if (ls.getItem(KEY_LLM_API_KEY)) return;
 
-  // Читаем старый ключ из localStorage
+  // Шаг 1: sessionStorage от Phase 5
+  const fromSession = ss.getItem(KEY_LLM_API_KEY);
+  if (fromSession) {
+    ls.setItem(KEY_LLM_API_KEY, fromSession);
+    ss.removeItem(KEY_LLM_API_KEY);
+    return;
+  }
+
+  // Шаг 2: legacy JSON от версий до Plan 5.4
   const legacyRaw = ls.getItem(KEY_LEGACY_LLM);
   if (!legacyRaw) return;
 
   try {
     const parsed = JSON.parse(legacyRaw) as Record<string, unknown>;
     if (parsed && typeof parsed.api_key === "string" && parsed.api_key.length > 0) {
-      ss.setItem(KEY_LLM_API_KEY, parsed.api_key);
-      // Очищаем устаревший localStorage ключ
+      ls.setItem(KEY_LLM_API_KEY, parsed.api_key);
       ls.removeItem(KEY_LEGACY_LLM);
     }
   } catch {
-    // Если legacy значение не парсится — оставляем как есть
+    // Не парсится — оставляем legacy как есть
   }
 }

@@ -40,8 +40,8 @@ export function AnonymizationToggle() {
       data-anon={enabled ? "on" : "off"}
       title={
         enabled
-          ? "Анонимизация ВКЛ — нажмите для отключения"
-          : "Анонимизация ВЫКЛ — нажмите для включения"
+          ? "Маскировка ВКЛ — реальные имена контрагентов/документов скрыты. Нажмите для отключения."
+          : "Маскировка ВЫКЛ — нажмите для включения, чтобы скрыть реальные имена."
       }
       className={cn(
         "inline-flex items-center gap-1.5 px-2.5 h-[30px] rounded-md text-xs border transition-colors duration-micro ease-design-ease select-none",
@@ -56,7 +56,7 @@ export function AnonymizationToggle() {
         <Unlock className="h-3 w-3 shrink-0" />
       )}
       <span className="hidden sm:inline whitespace-nowrap">
-        Анон: <span className="font-mono">{enabled ? "ВКЛ" : "ВЫКЛ"}</span>
+        Маскировка: <span className="font-mono">{enabled ? "ВКЛ" : "ВЫКЛ"}</span>
       </span>
     </button>
   );

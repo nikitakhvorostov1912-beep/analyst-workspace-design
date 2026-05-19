@@ -219,7 +219,7 @@ describe("OnboardingDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: /далее/i }));
 
     await waitFor(() => {
-      expect(screen.getByText("Настройте LLM")).toBeInTheDocument();
+      expect(screen.getByText("Подключите модель ИИ")).toBeInTheDocument();
       expect(screen.getByTestId("llm-form")).toBeInTheDocument();
     });
   });
@@ -242,7 +242,7 @@ describe("OnboardingDialog", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /далее/i }));
     await waitFor(() => {
-      expect(screen.getByText("Настройте LLM")).toBeInTheDocument();
+      expect(screen.getByText("Подключите модель ИИ")).toBeInTheDocument();
     });
 
     fireEvent.click(screen.getByRole("button", { name: /←\s*назад/i }));
@@ -292,7 +292,7 @@ describe("OnboardingDialog", () => {
 
     await advanceToLearnStep();
 
-    expect(screen.getByText(/Обучение на ваших сессиях/)).toBeInTheDocument();
+    expect(screen.getByText(/Обучение на ваших чатах/)).toBeInTheDocument();
     expect(screen.getByRole("switch")).toBeInTheDocument();
   });
 
@@ -309,13 +309,13 @@ describe("OnboardingDialog", () => {
     const sw = screen.getByRole("switch");
     expect(sw).toHaveAttribute("aria-checked", "false");
     expect(
-      screen.queryByText(/Нужен отдельный API для embeddings/),
+      screen.queryByText(/Готовим функцию обучения/),
     ).not.toBeInTheDocument();
 
     fireEvent.click(sw);
     expect(sw).toHaveAttribute("aria-checked", "true");
     expect(
-      screen.getByText(/Нужен отдельный API для embeddings/),
+      screen.getByText(/Готовим функцию обучения/),
     ).toBeInTheDocument();
   });
 

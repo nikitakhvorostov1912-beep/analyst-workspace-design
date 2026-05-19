@@ -49,7 +49,7 @@ export function MCPConnectionList({
       const result = await pingConnection(id);
       publishToast({
         type: "info",
-        message: `MCP работает: ${result.tool_count} инструментов, ${result.duration_ms}мс`,
+        message: `База 1С отвечает · ${result.tool_count} инструментов · ${result.duration_ms} мс`,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Ошибка пинга";
@@ -102,11 +102,6 @@ export function MCPConnectionList({
                   <span className="text-sm font-medium text-[var(--fg)]">
                     {conn.name}
                   </span>
-                  {conn.channel && (
-                    <span className="text-xs text-[var(--fg-muted)] ml-1">
-                      ({conn.channel})
-                    </span>
-                  )}
                   <p className="text-xs text-[var(--fg-muted)] font-mono truncate">
                     {conn.endpoint}
                   </p>

@@ -37,8 +37,8 @@ test.describe("First-run onboarding", () => {
     // Сохраняем подключение
     await page.getByRole("button", { name: "Сохранить" }).click();
 
-    // После onSaved → pingConnection → toast «MCP подключён»
-    await expect(page.getByText("MCP подключён")).toBeVisible({ timeout: 10000 });
+    // После onSaved → pingConnection → toast «База 1С отвечает»
+    await expect(page.getByText("База 1С отвечает")).toBeVisible({ timeout: 10000 });
 
     // Кнопка «Далее» теперь активна (ping прошёл)
     const nextBtn = page.getByRole("button", { name: /Далее/ });
@@ -46,7 +46,7 @@ test.describe("First-run onboarding", () => {
     await nextBtn.click();
 
     // Шаг 2: видим форму LLM
-    await expect(page.getByText("Настройте LLM")).toBeVisible();
+    await expect(page.getByText("Подключите модель ИИ")).toBeVisible();
 
     // Заполняем LLMConfigForm — placeholders из LLMConfigForm.tsx
     await page.getByPlaceholder("http://localhost:1234/v1").fill("http://localhost:1234/v1");
@@ -55,11 +55,11 @@ test.describe("First-run onboarding", () => {
 
     // Тест LLM
     await page.getByRole("button", { name: "Тест" }).click();
-    await expect(page.getByText(/LLM работает/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Модель отвечает/i)).toBeVisible({ timeout: 10000 });
 
     // Сохраняем LLM конфиг
     await page.getByRole("button", { name: "Сохранить" }).click();
-    await expect(page.getByText("LLM конфиг сохранён")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Настройки модели ИИ сохранены")).toBeVisible({ timeout: 10000 });
 
     // «Далее» разблокирован (onSaved вызван)
     const nextBtn2 = page.getByRole("button", { name: /Далее/ });
@@ -194,14 +194,14 @@ test.describe("First-run onboarding", () => {
     await page.getByPlaceholder("Транзит").fill("Test Connection");
     await page.getByPlaceholder("http://localhost:6010/mcp").fill("http://localhost:6010/mcp");
     await page.getByRole("button", { name: "Сохранить" }).click();
-    await expect(page.getByText("MCP подключён")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("База 1С отвечает")).toBeVisible({ timeout: 10000 });
 
     const nextBtn = page.getByRole("button", { name: /Далее/ });
     await expect(nextBtn).not.toBeDisabled({ timeout: 10000 });
     await nextBtn.click();
 
     // Шаг 2: «Далее» изначально disabled (LLM не сохранён)
-    await expect(page.getByText("Настройте LLM")).toBeVisible();
+    await expect(page.getByText("Подключите модель ИИ")).toBeVisible();
     const nextBtn2 = page.getByRole("button", { name: /Далее/ });
     await expect(nextBtn2).toBeDisabled();
   });
@@ -220,10 +220,10 @@ test.describe("First-run onboarding", () => {
     await page.getByPlaceholder("Транзит").fill("Test");
     await page.getByPlaceholder("http://localhost:6010/mcp").fill("http://localhost:6010/mcp");
     await page.getByRole("button", { name: "Сохранить" }).click();
-    await expect(page.getByText("MCP подключён")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("База 1С отвечает")).toBeVisible({ timeout: 10000 });
 
     await page.getByRole("button", { name: /Далее/ }).click();
-    await expect(page.getByText("Настройте LLM")).toBeVisible();
+    await expect(page.getByText("Подключите модель ИИ")).toBeVisible();
 
     // Нажимаем «← Назад»
     await page.getByRole("button", { name: /Назад/ }).click();

@@ -124,19 +124,19 @@ test.describe("Design v2 — Onboarding 4-step (Phase 11.3)", () => {
     await page.getByPlaceholder("Транзит").fill("Local 1C");
     await page.getByPlaceholder("http://localhost:6010/mcp").fill("http://localhost:6010/mcp");
     await page.getByRole("button", { name: "Сохранить" }).click();
-    await expect(page.getByText("MCP подключён")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("База 1С отвечает")).toBeVisible({ timeout: 10000 });
 
     await page.getByRole("button", { name: /Далее/ }).click();
 
     // Шаг 2: LLM
-    await expect(page.getByText("Настройте LLM")).toBeVisible();
+    await expect(page.getByText("Подключите модель ИИ")).toBeVisible();
     await page.getByPlaceholder("http://localhost:1234/v1").fill("http://localhost:1234/v1");
     await page.getByPlaceholder("gpt-4o-mini").fill("gpt-4o-mini");
     await page.getByPlaceholder("sk-...").fill("sk-test-1234567890");
     await page.getByRole("button", { name: "Тест" }).click();
-    await expect(page.getByText(/LLM работает/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Модель отвечает/i)).toBeVisible({ timeout: 10000 });
     await page.getByRole("button", { name: "Сохранить" }).click();
-    await expect(page.getByText("LLM конфиг сохранён")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Настройки модели ИИ сохранены")).toBeVisible({ timeout: 10000 });
     await page.getByRole("button", { name: /Далее/ }).click();
 
     // Шаг 3 NEW: Learn opt-in
@@ -171,16 +171,16 @@ test.describe("Design v2 — Onboarding 4-step (Phase 11.3)", () => {
     await page.getByPlaceholder("Транзит").fill("Test");
     await page.getByPlaceholder("http://localhost:6010/mcp").fill("http://localhost:6010/mcp");
     await page.getByRole("button", { name: "Сохранить" }).click();
-    await expect(page.getByText("MCP подключён")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("База 1С отвечает")).toBeVisible({ timeout: 10000 });
     await page.getByRole("button", { name: /Далее/ }).click();
 
     await page.getByPlaceholder("http://localhost:1234/v1").fill("http://localhost:1234/v1");
     await page.getByPlaceholder("gpt-4o-mini").fill("gpt-4o-mini");
     await page.getByPlaceholder("sk-...").fill("sk-test-1234567890");
     await page.getByRole("button", { name: "Тест" }).click();
-    await expect(page.getByText(/LLM работает/i)).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText(/Модель отвечает/i)).toBeVisible({ timeout: 10000 });
     await page.getByRole("button", { name: "Сохранить" }).click();
-    await expect(page.getByText("LLM конфиг сохранён")).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText("Настройки модели ИИ сохранены")).toBeVisible({ timeout: 10000 });
     await page.getByRole("button", { name: /Далее/ }).click();
 
     // Шаг 3: Learn opt-in

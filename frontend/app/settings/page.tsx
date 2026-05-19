@@ -87,12 +87,15 @@ export default function SettingsPage() {
 
       {!loading && !error && (
         <>
-          {/* Секция MCP подключений */}
+          {/* Секция подключений 1С */}
           <section className="mb-6">
             <div className="border border-[var(--border)] rounded-lg p-5 bg-[var(--bg-elevated)]">
-              <h2 className="text-sm font-semibold text-[var(--fg)] mb-4">
-                Подключения 1С
+              <h2 className="text-sm font-semibold text-[var(--fg)] mb-1">
+                Базы 1С
               </h2>
+              <p className="text-xs text-[var(--fg-muted)] mb-4">
+                Адреса баз, к которым вы хотите задавать вопросы.
+              </p>
               <MCPConnectionList
                 initialConnections={connections}
                 onChanged={reloadConnections}
@@ -100,12 +103,15 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          {/* Секция LLM */}
+          {/* Секция модели ИИ (LLM) */}
           <section className="mb-6">
             <div className="border border-[var(--border)] rounded-lg p-5 bg-[var(--bg-elevated)]">
-              <h2 className="text-sm font-semibold text-[var(--fg)] mb-4">
-                LLM
+              <h2 className="text-sm font-semibold text-[var(--fg)] mb-1">
+                Модель ИИ
               </h2>
+              <p className="text-xs text-[var(--fg-muted)] mb-4">
+                Языковая модель, которая читает ваши вопросы и обращается к базе 1С.
+              </p>
               <LLMConfigForm initial={llmConfig} onSaved={reloadLLM} />
             </div>
           </section>

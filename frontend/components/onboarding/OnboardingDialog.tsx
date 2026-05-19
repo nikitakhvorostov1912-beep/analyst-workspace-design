@@ -24,7 +24,7 @@ interface OnboardingDialogProps {
 }
 
 type Step = 1 | 2 | 3 | 4;
-const STEP_LABELS = ["Подключение", "LLM", "Обучение", "Готово"];
+const STEP_LABELS = ["База 1С", "Модель ИИ", "Обучение", "Готово"];
 const LEARN_STORAGE_KEY = "analyst.learn_enabled";
 
 function clampStep(value: number): Step {
@@ -125,7 +125,7 @@ export function OnboardingDialog({
     try {
       await pingConnection(conn.id);
       setPingPassed(true);
-      publishToast({ type: "info", message: "MCP подключён" });
+      publishToast({ type: "info", message: "База 1С отвечает" });
     } catch (err) {
       const message =
         err instanceof Error ? err.message : "Не удалось подключиться";
@@ -155,9 +155,9 @@ export function OnboardingDialog({
                 Подключите вашу базу 1С
               </DialogTitle>
               <p className="text-sm text-[var(--fg-3)] mt-1">
-                Адрес MCP Toolkit (обычно{" "}
-                <code className="font-mono text-xs">http://localhost:6010/mcp</code>{" "}
-                или <code className="font-mono text-xs">:6003/mcp</code>)
+                В&nbsp;1С должна быть запущена обработка-обработчик от ИТ-отдела
+                (по&nbsp;умолчанию на порту 6010). Адрес и имя уже подставлены —
+                нажмите «Сохранить».
               </p>
             </div>
 
@@ -184,12 +184,12 @@ export function OnboardingDialog({
           <div className="space-y-4 animate-fade-up">
             <div>
               <DialogTitle className="text-lg font-semibold text-[var(--fg-1)]">
-                Настройте LLM
+                Подключите модель ИИ
               </DialogTitle>
               <p className="text-sm text-[var(--fg-3)] mt-1">
-                OpenAI-совместимый endpoint, например{" "}
-                <code className="font-mono text-xs">http://localhost:1234/v1</code>{" "}
-                для LM Studio. Нажмите «Тест», затем «Сохранить».
+                Введите API ключ от вашего поставщика (OpenAI, Aitunnel, Anthropic
+                или другой). Нажмите «Тест» — потом «Сохранить». Адрес и название
+                модели уже подставлены.
               </p>
             </div>
 
@@ -221,13 +221,13 @@ export function OnboardingDialog({
                 <BookOpen className="h-5 w-5" />
               </div>
               <DialogTitle className="text-lg font-semibold text-[var(--fg-1)]">
-                Обучение на ваших сессиях
+                Обучение на ваших чатах
                 <span className="ml-2 text-sm font-normal text-[var(--fg-3)]">
                   · опционально
                 </span>
               </DialogTitle>
               <p className="text-sm text-[var(--fg-3)] mt-1 leading-relaxed">
-                LLM сможет ссылаться на ваши прошлые ответы по этой базе. Полезно
+                Модель будет помнить ваши прошлые ответы по этой базе. Полезно
                 для повторяющихся задач: миграции, регулярные сверки, разбор
                 частых ошибок. Можно включить позже в Настройках.
               </p>
@@ -239,7 +239,7 @@ export function OnboardingDialog({
                   Включить обучение сейчас
                 </div>
                 <div className="text-xs text-[var(--fg-3)] mt-0.5">
-                  По умолчанию выключено · privacy-first
+                  По умолчанию выключено · приватно
                 </div>
               </div>
               <LearnSwitch
@@ -254,11 +254,12 @@ export function OnboardingDialog({
                 <Info className="h-4 w-4 text-[var(--accent)] flex-shrink-0 mt-0.5" />
                 <div className="min-w-0">
                   <div className="text-[13px] font-medium text-[var(--fg-1)]">
-                    Нужен отдельный API для embeddings
+                    Готовим функцию обучения
                   </div>
                   <div className="text-xs text-[var(--fg-3)] mt-0.5 leading-relaxed">
-                    Настроить можно позже в Настройках → Обучение. По умолчанию
-                    OpenAI text-embedding-3-small.
+                    Когда функция будет готова, ваши прошлые чаты будут использованы
+                    автоматически. Сейчас включение запомнит ваш выбор — настройка
+                    появится в Настройках → Обучение.
                   </div>
                 </div>
               </div>
@@ -293,14 +294,14 @@ export function OnboardingDialog({
                 Готово!
               </DialogTitle>
               <p className="text-sm text-[var(--fg-3)] mt-1 leading-relaxed">
-                Подключение настроено
+                База&nbsp;1С подключена
                 {createdConnection && (
                   <>
                     {" "}
                     (<span className="font-mono text-[var(--fg-2)]">{createdConnection.name}</span>),
                   </>
                 )}
-                {" "}LLM готов к работе
+                {" "}модель ИИ готова к работе
                 {learnOn && (
                   <>
                     , обучение{" "}

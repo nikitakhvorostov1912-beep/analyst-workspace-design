@@ -125,10 +125,36 @@ async def create_connection(
     body: MCPConnectionCreate,
     request: Request,
 ) -> MCPConnectionFull:
-    """Создаёт новое MCP-подключение."""
-    db = request.app.state.db
-    conn_id = str(uuid4())
+    """Создаёт новое MCP-подключение.
 
+    Проверяет uniqueness: одного и того же `endpoint` достаточно — UI не должен
+    создавать N копий «Транзит → http://localhost:6010/mcp». При совпадении —
+    возвращаем 409 Conflict с указанием уже существующей записи, чтобы клиент
+    мог предложить «Редактировать существующее» вместо «Создать ещё одно».
+    """
+    db = request.app.state.db
+    async with db.execute(
+        "SELECT id, name FROM mcp_connections WHERE endpoint = ? LIMIT 1",
+        (body.endpoint,),
+    ) as cursor:
+        clash = await cursor.fetchone()
+
+    if clash is not None:
+        existing_id, existing_name = clash[0], clash[1]
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error_code": "duplicate_endpoint",
+                "message": (
+                    f"Подключение с адресом {body.endpoint} уже существует "
+                    f"(«{existing_name}»). Откройте его на редактирование."
+                ),
+                "existing_id": existing_id,
+                "existing_name": existing_name,
+            },
+        )
+
+    conn_id = str(uuid4())
     await db.execute(
         "INSERT INTO mcp_connections (id, name, endpoint, channel, anon_enabled) "
         "VALUES (?, ?, ?, ?, ?)",

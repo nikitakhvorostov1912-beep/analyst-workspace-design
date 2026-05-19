@@ -75,8 +75,7 @@ export function LocalDataSection({ onReset }: LocalDataSectionProps = {}) {
             Локальные данные
           </h2>
           <p className="text-xs text-[var(--fg-3)] mt-1 leading-relaxed">
-            Удаляет все сессии чата, токены анонимизации, кеш метаданных и
-            состояния карточек. Настройки MCP и LLM сохраняются.
+            Удалит всю историю чатов и временные данные. Настройки подключения к&nbsp;1С и модели ИИ останутся.
           </p>
         </div>
       </div>
@@ -97,8 +96,7 @@ export function LocalDataSection({ onReset }: LocalDataSectionProps = {}) {
           <AlertDialogHeader>
             <AlertDialogTitle>Точно сбросить базу?</AlertDialogTitle>
             <AlertDialogDescription>
-              Действие необратимо. Все ваши сессии чата и токены анонимизации
-              будут удалены. Настройки MCP-подключений и LLM останутся.
+              Действие необратимо. Вся история чатов будет удалена. Настройки подключения к&nbsp;1С и модели ИИ останутся.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

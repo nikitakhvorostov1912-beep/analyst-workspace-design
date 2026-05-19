@@ -19,8 +19,14 @@ export function MCPConnectionForm({
   onSaved,
   onCancel,
 }: MCPConnectionFormProps) {
-  const [name, setName] = useState(initial?.name ?? "");
-  const [endpoint, setEndpoint] = useState(initial?.endpoint ?? "");
+  // Smart defaults для НОВОГО подключения (когда initial = null).
+  // Локальный MCP Toolkit EPF из обработки по умолчанию слушает порт 6010,
+  // полный URL формируется как http://localhost:<порт>/mcp. Аналитик в обработке
+  // вбивает только порт — пусть полный URL он не угадывает.
+  const [name, setName] = useState(initial?.name ?? "Транзит");
+  const [endpoint, setEndpoint] = useState(
+    initial?.endpoint ?? "http://localhost:6010/mcp",
+  );
   const [channel, setChannel] = useState(initial?.channel ?? "");
   const [anonEnabled, setAnonEnabled] = useState(
     initial?.anon_enabled ?? false,
@@ -75,7 +81,13 @@ export function MCPConnectionForm({
       publishToast({ type: "info", message: "Подключение сохранено" });
       onSaved(saved);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Ошибка сохранения";
+      // 409 Conflict: уже есть подключение с этим адресом — даём конкретный message
+      // вместо технического «Failed to fetch» / «duplicate_endpoint».
+      const raw = err instanceof Error ? err.message : "";
+      const isDup = raw.includes("409") || raw.toLowerCase().includes("duplicate");
+      const message = isDup
+        ? `Подключение с адресом ${endpoint} уже есть. Откройте его на редактирование вместо создания дубля.`
+        : raw || "Ошибка сохранения";
       publishToast({ type: "error", message });
     } finally {
       setLoading(false);
@@ -96,7 +108,7 @@ export function MCPConnectionForm({
       const result = await pingConnection(initial.id);
       publishToast({
         type: "info",
-        message: `MCP работает: ${result.tool_count} инструментов, ${result.duration_ms}мс`,
+        message: `База 1С отвечает · ${result.tool_count} инструментов · ${result.duration_ms} мс`,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Ошибка теста";
@@ -132,23 +144,12 @@ export function MCPConnectionForm({
           onChange={(e) => setEndpoint(e.target.value)}
           placeholder="http://localhost:6010/mcp"
         />
-        {errors.endpoint && (
+        {errors.endpoint ? (
           <p className="text-xs text-red-400 mt-1">{errors.endpoint}</p>
-        )}
-      </div>
-
-      <div>
-        <label className="block text-xs text-[var(--fg-muted)] mb-1">
-          Канал (необязательно)
-        </label>
-        <Input
-          value={channel}
-          onChange={(e) => setChannel(e.target.value)}
-          placeholder="default"
-          maxLength={30}
-        />
-        {errors.channel && (
-          <p className="text-xs text-red-400 mt-1">{errors.channel}</p>
+        ) : (
+          <p className="text-xs text-[var(--fg-3)] mt-1">
+            В обработке MCP_Toolkit вводится только порт (по умолчанию 6010). Полный URL: <span className="font-mono">http://localhost:&lt;порт&gt;/mcp</span>
+          </p>
         )}
       </div>
 
@@ -164,7 +165,7 @@ export function MCPConnectionForm({
           htmlFor="anon_enabled"
           className="text-sm text-[var(--fg-muted)] cursor-pointer"
         >
-          Анонимизация
+          Маскировка имён по умолчанию
         </label>
       </div>
 

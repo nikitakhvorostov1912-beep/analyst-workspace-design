@@ -52,7 +52,7 @@ describe("LocalDataSection", () => {
   it("рендерит заголовок и описание", () => {
     render(<LocalDataSection />);
     expect(screen.getByText("Локальные данные")).toBeInTheDocument();
-    expect(screen.getByText(/Удаляет все сессии/)).toBeInTheDocument();
+    expect(screen.getByText(/всю историю чатов/)).toBeInTheDocument();
   });
 
   it("показывает destructive кнопку с иконкой AlertTriangle", () => {
