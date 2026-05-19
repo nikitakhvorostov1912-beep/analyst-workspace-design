@@ -168,3 +168,172 @@ async def test_post_sessions_creates_session(client: AsyncClient):
     assert body["channel_id"] == "test-ch"
     assert body["title"] is None
     assert "created_at" in body
+
+
+# --- load_history_for_llm ---
+
+@pytest.mark.asyncio
+async def test_load_history_empty_session(mem_db):
+    """load_history_for_llm для пустой сессии возвращает []."""
+    from app.orchestrator.persistence import ensure_session, load_history_for_llm
+
+    sid = await ensure_session(mem_db, None, "ch1", "x")
+    history = await load_history_for_llm(mem_db, sid)
+    assert history == []
+
+
+@pytest.mark.asyncio
+async def test_load_history_simple_user_assistant(mem_db):
+    """user + assistant без tool_calls → 2 сообщения в OpenAI формате."""
+    from app.orchestrator.persistence import (
+        ensure_session,
+        load_history_for_llm,
+        save_assistant_message,
+        save_user_message,
+    )
+
+    sid = await ensure_session(mem_db, None, "ch1", "x")
+    await save_user_message(mem_db, sid, "Привет")
+    await save_assistant_message(mem_db, sid, "Здравствуйте", [], [], 100)
+
+    history = await load_history_for_llm(mem_db, sid)
+    # reasoning_content="" — для MiMo / R1 thinking mode (см. персистенция)
+    assert history == [
+        {"role": "user", "content": "Привет"},
+        {"role": "assistant", "content": "Здравствуйте", "reasoning_content": ""},
+    ]
+
+
+@pytest.mark.asyncio
+async def test_load_history_with_tool_calls(mem_db):
+    """assistant с tool_calls раскрывается в assistant + tool messages в OpenAI формате."""
+    from app.orchestrator.persistence import (
+        ensure_session,
+        load_history_for_llm,
+        save_assistant_message,
+        save_user_message,
+    )
+
+    sid = await ensure_session(mem_db, None, "ch1", "x")
+    await save_user_message(mem_db, sid, "Сколько констант?")
+    tool_calls = [
+        {
+            "id": "tc1",
+            "name": "execute_query",
+            "args": {"text": "SELECT 1"},
+            "result": {"rows": [[5]], "columns": ["c"]},
+            "duration_ms": 42,
+        }
+    ]
+    await save_assistant_message(mem_db, sid, "В базе 5 констант", tool_calls, [], 1234)
+
+    history = await load_history_for_llm(mem_db, sid)
+    # 3 сообщения: user + assistant(tool_calls) + tool result
+    assert len(history) == 3
+    assert history[0] == {"role": "user", "content": "Сколько констант?"}
+
+    asst = history[1]
+    assert asst["role"] == "assistant"
+    assert asst["content"] == "В базе 5 констант"
+    assert len(asst["tool_calls"]) == 1
+    tc = asst["tool_calls"][0]
+    assert tc["id"] == "tc1"
+    assert tc["type"] == "function"
+    assert tc["function"]["name"] == "execute_query"
+    assert json.loads(tc["function"]["arguments"]) == {"text": "SELECT 1"}
+
+    tool_msg = history[2]
+    assert tool_msg["role"] == "tool"
+    assert tool_msg["tool_call_id"] == "tc1"
+    assert json.loads(tool_msg["content"]) == {"rows": [[5]], "columns": ["c"]}
+
+
+@pytest.mark.asyncio
+async def test_load_history_tool_error_passed_as_content(mem_db):
+    """Если tool вернул error без result — error попадает в content tool-сообщения."""
+    from app.orchestrator.persistence import (
+        ensure_session,
+        load_history_for_llm,
+        save_assistant_message,
+        save_user_message,
+    )
+
+    sid = await ensure_session(mem_db, None, "ch1", "x")
+    await save_user_message(mem_db, sid, "?")
+    tool_calls = [
+        {"id": "tc1", "name": "execute_query", "args": {}, "result": None, "error": "Timeout"}
+    ]
+    await save_assistant_message(mem_db, sid, "", tool_calls, [], 100)
+
+    history = await load_history_for_llm(mem_db, sid)
+    tool_msg = next(m for m in history if m.get("role") == "tool")
+    assert tool_msg["content"] == "Timeout"
+
+
+@pytest.mark.asyncio
+async def test_load_history_caps_old_tool_content(mem_db):
+    """Старые тяжёлые результаты обрезаются до tool_content_cap."""
+    from app.orchestrator.persistence import (
+        ensure_session,
+        load_history_for_llm,
+        save_assistant_message,
+        save_user_message,
+    )
+
+    sid = await ensure_session(mem_db, None, "ch1", "x")
+    await save_user_message(mem_db, sid, "?")
+    big_result = {"big": "x" * 100_000}
+    tool_calls = [{"id": "tc1", "name": "q", "args": {}, "result": big_result}]
+    await save_assistant_message(mem_db, sid, "", tool_calls, [], 1)
+
+    history = await load_history_for_llm(mem_db, sid, tool_content_cap=500)
+    tool_msg = next(m for m in history if m.get("role") == "tool")
+    assert len(tool_msg["content"]) <= 500 + len("...truncated")
+    assert tool_msg["content"].endswith("...truncated")
+
+
+@pytest.mark.asyncio
+async def test_load_history_keeps_chronological_order_and_caps_count(mem_db):
+    """max_messages обрезает старые записи, оставляя последние."""
+    from app.orchestrator.persistence import (
+        ensure_session,
+        load_history_for_llm,
+        save_user_message,
+    )
+
+    sid = await ensure_session(mem_db, None, "ch1", "x")
+    for i in range(10):
+        await save_user_message(mem_db, sid, f"msg-{i}")
+
+    history = await load_history_for_llm(mem_db, sid, max_messages=3)
+    assert len(history) == 3
+    assert [m["content"] for m in history] == ["msg-7", "msg-8", "msg-9"]
+
+
+@pytest.mark.asyncio
+async def test_load_history_skips_tool_call_without_id(mem_db):
+    """tool_call без id пропускается (нельзя вернуть в LLM без id)."""
+    from app.orchestrator.persistence import (
+        ensure_session,
+        load_history_for_llm,
+        save_assistant_message,
+        save_user_message,
+    )
+
+    sid = await ensure_session(mem_db, None, "ch1", "x")
+    await save_user_message(mem_db, sid, "?")
+    tool_calls = [
+        {"id": "", "name": "x", "args": {}, "result": {"ok": True}},
+        {"id": "good", "name": "y", "args": {}, "result": {"ok": True}},
+    ]
+    await save_assistant_message(mem_db, sid, "ok", tool_calls, [], 1)
+
+    history = await load_history_for_llm(mem_db, sid)
+    asst = next(m for m in history if m.get("role") == "assistant")
+    # Только один tool_call с id
+    assert len(asst["tool_calls"]) == 1
+    assert asst["tool_calls"][0]["id"] == "good"
+    # И только один tool message
+    tool_msgs = [m for m in history if m.get("role") == "tool"]
+    assert len(tool_msgs) == 1
+    assert tool_msgs[0]["tool_call_id"] == "good"

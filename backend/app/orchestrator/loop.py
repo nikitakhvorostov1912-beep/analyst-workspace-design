@@ -28,6 +28,7 @@ from app.orchestrator.events import (
 from app.orchestrator.persistence import (
     count_session_messages,
     ensure_session,
+    load_history_for_llm,
     lookup_mcp_endpoint,
     save_assistant_message,
     save_card_state,
@@ -45,26 +46,133 @@ from app.orchestrator.title import generate_title
 
 logger = logging.getLogger(__name__)
 
-MAX_TOOL_ITERATIONS = 10
+MAX_TOOL_ITERATIONS = 15  # bumped с 10 — аналитические запросы часто требуют 10+ итераций (find_references, поиск по подсистемам)
 RETRY_DELAY_S = 0.2
 TOOL_CONTENT_CAP = 50_000  # байт — cap для payload в LLM context
 
-SYSTEM_PROMPT = (
-    "Ты аналитик 1С. У тебя есть MCP-инструменты для работы с базой данных 1С. "
-    "Отвечай по-русски, кратко и по делу. "
-    "Для получения данных всегда используй инструменты — не придумывай данные. "
-    "После получения результата инструмента дай краткий TL;DR на русском."
-)
+SYSTEM_PROMPT = """Ты — аналитик 1С. Работаешь ТОЛЬКО с живой базой клиента через MCP-инструменты. Отвечаешь по-русски.
+
+═══════ ЖЁСТКИЕ ПРАВИЛА ═══════
+
+1. НИКОГДА не отвечай по «общим знаниям» о 1С. У тебя НЕТ права упоминать «типовые документы», «обычные справочники», «стандартные регистры» — даже если уверен. Только то что вернул инструмент.
+
+2. Любой вопрос про КОНКРЕТНУЮ базу («какие документы», «сколько контрагентов», «есть ли регистр X», «покажи структуру», «найди в журнале», «когда было последнее проведение») = ОБЯЗАТЕЛЬНЫЙ вызов инструмента. Без исключений. Без «думаю что это…».
+
+3. Если вопрос неоднозначный (например «покажи последние документы» — каких? за какой период?) — задай 1 короткий уточняющий вопрос вместо угадывания. НЕ запускай tool на угадай.
+
+4. Если инструмент вернул пустой результат — так и пиши «не нашёл», не дополняй из «знаний».
+
+5. Если инструмент дал большой payload (>50 строк) — покажи срез (первые 20-30) + общее число + предложи уточнить.
+
+6. После каждого tool-вызова — короткий TL;DR на русском. Цифры из tool result, не из памяти.
+
+═══════ ИНСТРУМЕНТЫ И КОГДА ИХ ЗВАТЬ ═══════
+
+• get_metadata — структура конфигурации. Параметр meta_type ОБЯЗАТЕЛЕН для конкретики:
+    «какие документы» / «список документов»  → meta_type="Документ"
+    «справочники»                              → meta_type="Справочник"
+    «регистры сведений»                        → meta_type="РегистрСведений"
+    «регистры накопления»                      → meta_type="РегистрНакопления"
+    «отчёты»                                   → meta_type="Отчет"
+    «обработки»                                → meta_type="Обработка"
+    «перечисления»                             → meta_type="Перечисление"
+    «константы»                                → meta_type="Константа"
+    «роли»                                     → meta_type="Роль"
+    «подсистемы»                               → meta_type="Подсистема"
+    «общие модули»                             → meta_type="ОбщийМодуль"
+    «бизнес-процессы»                          → meta_type="БизнесПроцесс"
+  Для общего обзора («что в базе вообще») — вызывай ПОСЛЕДОВАТЕЛЬНО get_metadata для каждого ключевого meta_type (минимум: Справочник + Документ + РегистрНакопления + РегистрСведений).
+  name_mask — для поиска по подстроке имени (например, ИНН-документы → name_mask="Реализация").
+
+• execute_query — реальный 1С-запрос к данным. Использовать для: количество записей, выборка строк, агрегаты, поиск по реквизитам. ВСЕГДА с лимитом (ВЫБРАТЬ ПЕРВЫЕ 100 …).
+
+• execute_code — BSL-код для случаев которые нельзя выразить запросом. Опасные операции требуют подтверждения.
+
+• get_event_log — журнал регистрации. Фильтры: severity, even_name, user, time range, metadata, data. Для «что случилось вчера / есть ошибки» — обязательно с фильтром по периоду.
+
+• get_object_by_link — получить объект по навигационной ссылке (e:1cv8s://… или Документ.X:UUID).
+
+• get_link_of_object — обратное.
+
+• find_references_to_object — где используется объект метаданных (для рефакторинга / анализа зависимостей).
+
+• get_access_rights — права роли или пользователя на объект.
+
+• get_bsl_syntax_help — справочник встроенного языка / API платформы. Для вопросов «как вызвать», «какие параметры у X».
+
+• submit_for_deanonymization — раскрытие анонимизированных значений в режиме маскировки.
+
+═══════ ЭКСПЕРТНАЯ БАЗА ЗНАНИЙ 1С (ОБЯЗАТЕЛЬНО при составлении запросов и кода) ═══════
+
+ЗАПРОСЫ — антипаттерны (НЕ делай так):
+  ❌ Запрос в цикле — N+1 удар по БД. Используй пакетный запрос с «В (&Список)».
+  ❌ Подзапрос в SELECT — выполняется на каждую строку. Замени на ЛЕВОЕ СОЕДИНЕНИЕ + группировку.
+  ❌ Фильтр виртуальной таблицы в ГДЕ. Корректно — в параметрах ВТ:
+      ИЗ РегистрНакопления.ТоварыНаСкладах.Остатки(, Склад = &Склад) КАК Остатки
+  ❌ Точка к реквизитам ссылки (`Контрагент.ИНН`) — загружает весь объект. Используй
+      ОбщегоНазначения.ЗначениеРеквизитаОбъекта() / ЗначенияРеквизитовОбъекта().
+  ❌ Тернарный `?(условие, A, B)` — заменяй на ВЫБОР … КОГДА … ТОГДА … КОНЕЦ в запросе или Если…Иначе в BSL.
+  ❌ ВЫРАЗИТЬ слева от ГДЕ — отключает индексы.
+
+ЗАПРОСЫ — правила:
+  ✓ ВСЕГДА `ВЫБРАТЬ ПЕРВЫЕ <N>` для проверки существования / превью / отчёта с пагинацией.
+  ✓ Псевдонимы полей через `КАК`: `Контрагенты.ИНН КАК ИНН`.
+  ✓ Временные таблицы — обязательно префикс `ВТ_`: `ПОМЕСТИТЬ ВТ_Товары`.
+  ✓ Параметры через `&Имя`, передавай явно `Запрос.УстановитьПараметр("Имя", Значение)`.
+
+BSL — критические правила:
+  ❌ `ТекущаяДата()` — нарушает TZ. Используй `ТекущаяДатаСеанса()`.
+  ❌ `Сообщить("...")` — устаревший паттерн. Server: `ОбщегоНазначения.СообщитьПользователю()`. Client: `ОбщегоНазначенияКлиент.СообщитьПользователю()`.
+  ❌ `Если А = Истина Тогда` — пиши `Если А Тогда`.
+  ❌ Hardcoded пути/пароли. Используй `ПолучитьИмяВременногоФайла()` и константы.
+  ❌ `Выполнить(<строка>)` — запрещено в production.
+  ✓ `ЗначениеЗаполнено(X)` универсальная проверка пустоты (вместо `= Неопределено` / `= Null`).
+  ✓ Поиск в коллекции с >100 элементами — индекс через `Соответствие`, не `Найти()` в цикле.
+
+БСП (Библиотека стандартных подсистем) — упоминай когда уместно:
+  • Длительные операции — `ДлительныеОперации.ВыполнитьФункцию()` для фоновых задач.
+  • Безопасное хранилище — для паролей/токенов интеграций.
+  • Журнал регистрации — структурированные события через event_name «Подсистема.Операция.Исход».
+  • Подписки на события — предпочитай прямым модификациям типового кода.
+
+ТИПЫ МЕТАДАННЫХ — точные значения meta_type для get_metadata:
+  Документ, Справочник, РегистрСведений, РегистрНакопления, РегистрБухгалтерии, РегистрРасчета,
+  Отчет, Обработка, Перечисление, Константа, ОбщийМодуль, Подсистема, Роль, БизнесПроцесс,
+  ПланВидовХарактеристик, ПланСчетов, ПланВидовРасчета, Задача, Последовательность, ЖурналДокументов.
+
+═══════ ФОРМАТ ОТВЕТА ═══════
+
+— Markdown: заголовки H3 максимум, таблицы только когда строк <30, иначе списки.
+— Цитировать поля 1С как `Документ.РеализацияТоваровУслуг` (моно).
+— Никаких эмодзи в заголовках и таблицах.
+— TL;DR в 1 строке в конце ответа когда есть таблицы/списки.
+"""
+
+
+# Tools которые LLM НЕ ДОЛЖНА вызывать — destructive runtime management.
+# Аналитику не нужно перезапускать или закрывать 1С-сессию. Если потребуется —
+# это action пользователя через UI, не автоматическое решение модели.
+_DANGEROUS_MCP_TOOLS = frozenset({
+    "restart_1c_session",
+    "close_1c_session",
+})
 
 
 def _mcp_tools_to_openai(mcp_tools: list[dict]) -> list[dict]:
-    """Конвертирует MCP-схемы инструментов в OpenAI function format."""
+    """Конвертирует MCP-схемы инструментов в OpenAI function format.
+
+    Опасные runtime-tools (restart/close session) фильтруются — модель не должна
+    иметь возможность рубануть 1С-сессию пользователя.
+    """
     result = []
     for tool in mcp_tools:
+        name = tool.get("name", "")
+        if name in _DANGEROUS_MCP_TOOLS:
+            continue
         result.append({
             "type": "function",
             "function": {
-                "name": tool.get("name", ""),
+                "name": name,
                 "description": tool.get("description", ""),
                 "parameters": tool.get("inputSchema", {"type": "object", "properties": {}}),
             },
@@ -176,19 +284,13 @@ async def run_chat_loop(
         yield format_sse("error", ErrorEvent(message="Внутренняя ошибка", code="init_error"))
         return
 
-    # --- Auto-title background task для первого сообщения ---
-    if msg_count_before == 0:
-        # Первое user-сообщение в сессии — запускаем auto-title в фоне
-        async def _run_auto_title() -> None:
-            try:
-                llm = LLMClient(endpoint=llm_endpoint, model=llm_model)
-                new_title = await generate_title(request.message, llm, api_key)
-                await update_session_title(db, session_id, new_title)
-                await llm.aclose()
-            except Exception:
-                logger.warning("Auto-title background task failed for session %s", session_id)
-
-        asyncio.create_task(_run_auto_title())
+    # Auto-title scheduled flag — реальный планировщик задачи переехал
+    # в самый конец orchestrator-а (после yield done), чтобы:
+    # 1) не съедать первый LLM-stub в тестах (FakeLLM share counter между
+    #    auto-title и main loop) — async I/O ниже (load_history) даёт шанс
+    #    auto-title запуститься раньше;
+    # 2) UX: заголовок появляется уже после ответа модели — это даже логичнее.
+    schedule_auto_title = msg_count_before == 0
 
     if mcp_endpoint is None:
         yield format_sse("error", ErrorEvent(
@@ -213,14 +315,32 @@ async def run_chat_loop(
         await mcp.aclose()
         return
 
+    # Подгружаем историю сессии — текущий user-message уже сохранён в БД
+    # save_user_message() выше, поэтому войдёт в history. Модели нужно видеть
+    # предыдущие user/assistant/tool обмены, иначе follow-up («покажи подотчётника
+    # в них») теряет контекст.
+    try:
+        history_msgs = await load_history_for_llm(db, session_id)
+    except Exception:
+        logger.exception("Не удалось загрузить историю сессии %s — продолжаем без неё", session_id)
+        history_msgs = [{"role": "user", "content": request.message}]
+
+    if not history_msgs:
+        # Защита от пустой истории (например, save_user_message не успел зафиксироваться)
+        history_msgs = [{"role": "user", "content": request.message}]
+
     messages: list[dict] = [
         {"role": "system", "content": SYSTEM_PROMPT},
-        {"role": "user", "content": request.message},
+        *history_msgs,
     ]
 
     accumulated_content = ""
     accumulated_tool_calls: list[dict] = []
     accumulated_cards: list[dict] = []
+    # Reasoning из ПОСЛЕДНЕЙ итерации LLM. MiMo / R1 в thinking mode требуют
+    # вернуть reasoning_content при follow-up запросе с этим assistant
+    # сообщением в history, иначе 400 «must be passed back to the API».
+    final_reasoning_content: str = ""
 
     try:
         for _iteration in range(MAX_TOOL_ITERATIONS):
@@ -313,6 +433,11 @@ async def run_chat_loop(
                 return
 
             accumulated_content += chunk_content
+            # Сохраняем reasoning последней итерации (thinking-mode моделей).
+            # Перезаписывает значение из предыдущей итерации намеренно —
+            # для follow-up важен reasoning финального ответа, не промежуточных.
+            if chunk_reasoning:
+                final_reasoning_content = chunk_reasoning
 
             # Нет tool_calls — обычный финальный ответ
             if not chunk_tool_calls or finish_reason == "stop":
@@ -466,6 +591,7 @@ async def run_chat_loop(
             accumulated_tool_calls,
             accumulated_cards,
             total_duration_ms,
+            reasoning_content=final_reasoning_content or None,
         )
         await touch_session(db, session_id)
 
@@ -522,6 +648,23 @@ async def run_chat_loop(
     except Exception:
         logger.exception("Ошибка сохранения assistant message")
         message_id = "unknown"
+
+    # --- Auto-title background task для первого сообщения ---
+    # Шедулим здесь, а не на старте orchestrator-а: иначе async I/O ниже
+    # (load_history_for_llm) даёт auto-title шанс запуститься раньше и
+    # в тестах с FakeLLM (shared counter) съесть первый stub. После
+    # завершения основного цикла LLMClient уже не используется — безопасно.
+    if schedule_auto_title:
+        async def _run_auto_title() -> None:
+            try:
+                llm = LLMClient(endpoint=llm_endpoint, model=llm_model)
+                new_title = await generate_title(request.message, llm, api_key)
+                await update_session_title(db, session_id, new_title)
+                await llm.aclose()
+            except Exception:
+                logger.warning("Auto-title background task failed for session %s", session_id)
+
+        asyncio.create_task(_run_auto_title())
 
     yield format_sse("done", DoneEvent(
         message_id=message_id,

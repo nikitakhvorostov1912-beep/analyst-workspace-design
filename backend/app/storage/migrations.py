@@ -74,7 +74,7 @@ MIGRATIONS_V3 = [
     """,
 ]
 
-CURRENT_VERSION = 5
+CURRENT_VERSION = 6
 
 # Миграция v4: расширение card_states — добавление колонки anon_tokens JSON
 MIGRATIONS_V4 = [
@@ -119,6 +119,13 @@ MIGRATIONS_V5 = [
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_metadata_cache_channel_name ON metadata_cache(channel_id, name)",
+]
+
+# Миграция v6: reasoning_content для thinking-mode LLM (Xiaomi MiMo, DeepSeek R1)
+# Reasoning должен возвращаться в LLM в следующем round вместе с assistant message,
+# иначе MiMo возвращает 400 "reasoning_content in thinking mode must be passed back".
+MIGRATIONS_V6 = [
+    "ALTER TABLE messages ADD COLUMN reasoning_content TEXT",
 ]
 
 
@@ -186,5 +193,15 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
             (5,),
+        )
+        await db.commit()
+
+    if current < 6:
+        # Колонка reasoning_content для thinking-mode моделей (v6)
+        for stmt in MIGRATIONS_V6:
+            await db.execute(stmt)
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (6,),
         )
         await db.commit()

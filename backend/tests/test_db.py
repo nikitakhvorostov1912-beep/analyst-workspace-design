@@ -55,5 +55,7 @@ async def test_messages_table_has_correct_columns(db: aiosqlite.Connection):
     expected = {
         "id", "session_id", "role", "content", "tool_calls",
         "tool_call_id", "cards", "created_at", "duration_ms",
+        # v6: reasoning_content для thinking-mode моделей (MiMo, R1)
+        "reasoning_content",
     }
     assert expected == columns

@@ -72,8 +72,14 @@ async def save_assistant_message(
     tool_calls: list[dict],
     cards: list[dict],
     duration_ms: int,
+    reasoning_content: str | None = None,
 ) -> str:
     """Записывает assistant-сообщение со списком tool_calls и cards.
+
+    Args:
+        reasoning_content: цепь рассуждений thinking-модели (Xiaomi MiMo, DeepSeek R1).
+            Сохраняется чтобы при загрузке истории вернуть API — иначе MiMo
+            отдаёт 400 «reasoning_content in thinking mode must be passed back».
 
     Returns:
         message_id нового сообщения.
@@ -83,9 +89,9 @@ async def save_assistant_message(
     cards_json = json.dumps(cards, ensure_ascii=False)
     await db.execute(
         "INSERT INTO messages "
-        "(id, session_id, role, content, tool_calls, cards, duration_ms, created_at) "
-        "VALUES (?, ?, 'assistant', ?, ?, ?, ?, CURRENT_TIMESTAMP)",
-        (message_id, session_id, content, tool_calls_json, cards_json, duration_ms),
+        "(id, session_id, role, content, tool_calls, cards, duration_ms, reasoning_content, created_at) "
+        "VALUES (?, ?, 'assistant', ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)",
+        (message_id, session_id, content, tool_calls_json, cards_json, duration_ms, reasoning_content),
     )
     await db.commit()
     return message_id
@@ -310,6 +316,149 @@ async def count_session_messages(
         (session_id,),
     )
     return int(rows[0][0]) if rows else 0
+
+
+async def load_history_for_llm(
+    db: aiosqlite.Connection,
+    session_id: str,
+    *,
+    max_messages: int = 30,
+    tool_content_cap: int = 8000,
+) -> list[dict]:
+    """Возвращает историю сессии в OpenAI chat-completions формате.
+
+    Без системного промпта (его добавит вызывающая сторона).
+    Сохранённые в БД сообщения конвертируются обратно в формат:
+    - {role:'user', content:...}
+    - {role:'assistant', content:..., tool_calls:[{id,type,function:{name,arguments}}]}
+    - {role:'tool', tool_call_id:..., content:...} — генерируются из
+      assistant.tool_calls[].result/error (один tool message на каждый tool_call).
+
+    Аргументы:
+        session_id: ID сессии.
+        max_messages: оставить только последние N записей из таблицы messages
+            (по 1 user или 1 assistant). История tool-результатов раскрывается
+            из tool_calls assistant-сообщения и не считается в max_messages.
+        tool_content_cap: cap длины каждого tool-результата (байт).
+            Старые результаты обрезаются — экономим контекст LLM.
+
+    Returns:
+        Список сообщений в порядке возрастания времени.
+    """
+    # ORDER BY rowid вторичным ключом — гарантирует insertion-order при
+    # одинаковых created_at (SQLite TIMESTAMP с гранулярностью 1 секунда).
+    # UUID4 в id рандомные — на них полагаться нельзя.
+    rows = await db.execute_fetchall(
+        """
+        SELECT id, role, content, tool_calls, reasoning_content, created_at
+        FROM messages
+        WHERE session_id = ?
+        ORDER BY created_at ASC, rowid ASC
+        LIMIT 500
+        """,
+        (session_id,),
+    )
+
+    # Cap по количеству БД-записей. Берём последние max_messages — это сохраняет
+    # хронологию и срезает самые старые обмены.
+    raw_msgs = list(rows)
+    if len(raw_msgs) > max_messages:
+        raw_msgs = raw_msgs[-max_messages:]
+
+    out: list[dict] = []
+    for row in raw_msgs:
+        _msg_id, role, content, tool_calls_raw, reasoning_content, _created_at = row
+
+        if role == "user":
+            out.append({"role": "user", "content": content or ""})
+            continue
+
+        if role != "assistant":
+            # Прочие роли в БД не пишем; на всякий случай пропускаем.
+            continue
+
+        # Парсим tool_calls (наш кастомный формат: list[{id,name,args,result,error,duration_ms}])
+        tc_list: list[dict] = []
+        if tool_calls_raw:
+            try:
+                parsed = json.loads(tool_calls_raw)
+                if isinstance(parsed, list):
+                    tc_list = parsed
+            except (json.JSONDecodeError, TypeError):
+                tc_list = []
+
+        if not tc_list:
+            # Простой assistant-ответ без инструментов
+            simple_msg: dict = {
+                "role": "assistant",
+                "content": content or "",
+                # MiMo требует reasoning_content в каждом assistant сообщении
+                # для thinking-моделей. Пустая строка — для исторических данных.
+                "reasoning_content": reasoning_content or "",
+            }
+            out.append(simple_msg)
+            continue
+
+        # Assistant с tool_calls — OpenAI требует:
+        # 1) assistant message с tool_calls (function name + arguments JSON-string)
+        # 2) tool messages по каждому tool_call с tool_call_id + content
+        openai_tool_calls = []
+        for tc in tc_list:
+            tc_id = tc.get("id", "") or ""
+            if not tc_id:
+                # Без id вернуть в LLM нельзя — пропускаем
+                continue
+            openai_tool_calls.append({
+                "id": tc_id,
+                "type": "function",
+                "function": {
+                    "name": tc.get("name", ""),
+                    "arguments": json.dumps(tc.get("args", {}), ensure_ascii=False),
+                },
+            })
+
+        if not openai_tool_calls:
+            # Все tc_id потеряны — отдадим как обычный assistant без tools
+            fallback_msg: dict = {
+                "role": "assistant",
+                "content": content or "",
+                "reasoning_content": reasoning_content or "",
+            }
+            out.append(fallback_msg)
+            continue
+
+        assistant_msg: dict = {
+            "role": "assistant",
+            "content": content or None,
+            "tool_calls": openai_tool_calls,
+        }
+        # Thinking-модели (Xiaomi MiMo, DeepSeek R1) — reasoning_content
+        # обязательно возвращаем; иначе 400 «must be passed back to the API».
+        # Для исторических сообщений без сохранённого reasoning ставим пустую
+        # строку — MiMo принимает её как «не было размышлений в этом ходе».
+        assistant_msg["reasoning_content"] = reasoning_content or ""
+        out.append(assistant_msg)
+
+        # Tool messages — по каждому tool_call. Старые результаты сильно
+        # обрезаем (tool_content_cap), чтобы не раздувать контекст.
+        for tc in tc_list:
+            tc_id = tc.get("id", "") or ""
+            if not tc_id:
+                continue
+            result = tc.get("result")
+            if result is not None:
+                tool_content = json.dumps(result, ensure_ascii=False)
+            else:
+                tool_content = tc.get("error") or ""
+            if len(tool_content) > tool_content_cap:
+                tool_content = tool_content[:tool_content_cap] + "...truncated"
+            out.append({
+                "role": "tool",
+                "tool_call_id": tc_id,
+                "content": tool_content,
+            })
+
+    return out
 
 
 # --- Card state (Plan 03-04) ---
