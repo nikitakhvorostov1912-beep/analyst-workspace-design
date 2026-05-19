@@ -81,6 +81,24 @@ export type AuxDiagnosticsResponse = {
   aux: AuxMCPStatus[];
 };
 
+/**
+ * Sanitized снимок окружения backend для UI «Диагностика».
+ * Не содержит секретов. Аналитик видит все адреса, пути и версии — чтобы
+ * понимать к чему приложение подключено и куда смотреть когда не работает.
+ */
+export type EnvDiagnosticsResponse = {
+  app_version: string;
+  environment: "dev" | "prod";
+  default_llm_endpoint: string;
+  default_llm_model: string;
+  bsl_context_jar: string;
+  bsl_context_java: string;
+  bsl_context_platform_path: string;
+  cors_origins: string[];
+  sqlite_path: string;
+  env_var_names: Record<string, string>;
+};
+
 // Card payload schemas — зеркало backend orchestrator/cards.py
 
 export type ColumnSchema = {

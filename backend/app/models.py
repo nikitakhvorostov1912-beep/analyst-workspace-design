@@ -167,6 +167,33 @@ class AuxDiagnosticsResponse(BaseModel):
     aux: list[AuxMCPStatus] = Field(default_factory=list)
 
 
+class EnvDiagnosticsResponse(BaseModel):
+    """Sanitized снимок окружения backend для UI «Диагностика».
+
+    НЕ содержит секретов (API ключи, пароли). Аналитик видит:
+    - откуда читается LLM-дефолт (адрес + модель)
+    - какие пути к BSL-справочнику настроены (если есть)
+    - какие origins разрешены для CORS (что важно при «фронт не подключается»)
+    - какие переменные окружения backend ожидает но не получил
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    app_version: str
+    environment: Literal["dev", "prod"]
+    default_llm_endpoint: str
+    default_llm_model: str
+    # Aux MCP: bsl-context (см. config.bsl_context_*)
+    bsl_context_jar: str  # пустая строка = не настроено
+    bsl_context_java: str
+    bsl_context_platform_path: str
+    cors_origins: list[str]
+    # SQLite — только относительный путь, чтобы аналитик понимал где база
+    sqlite_path: str
+    # Имена переменных, которые backend читает — для подсказки «как настроить»
+    env_var_names: dict[str, str] = Field(default_factory=dict)
+
+
 # --- Sessions CRUD models (Plan 2.3) ---
 
 

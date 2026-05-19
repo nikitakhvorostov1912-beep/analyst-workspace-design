@@ -1,5 +1,6 @@
 import type {
   AuxDiagnosticsResponse,
+  EnvDiagnosticsResponse,
   ChatRequest,
   HealthResponse,
   LLMConfigCreate,
@@ -520,6 +521,25 @@ export async function fetchAuxDiagnostics(): Promise<AuxDiagnosticsResponse> {
   } catch {
     return { aux: [] };
   }
+}
+
+/**
+ * Запрашивает sanitized снимок окружения backend.
+ * На старом backend возвращает null — UI просто не показывает блок «Окружение».
+ */
+export async function fetchEnvDiagnostics(): Promise<EnvDiagnosticsResponse | null> {
+  try {
+    const response = await fetch(`${getBackend()}/diagnostics/env`);
+    if (!response.ok) return null;
+    return response.json() as Promise<EnvDiagnosticsResponse>;
+  } catch {
+    return null;
+  }
+}
+
+/** URL backend для UI — пригодится в блоке «Окружение» на /status. */
+export function getBackendUrl(): string {
+  return getBackend();
 }
 
 // ---------------------------------------------------------------------------

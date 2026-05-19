@@ -13,7 +13,11 @@ from fastapi import APIRouter, Depends
 
 from app.clients.mcp import MCPDisconnectedError
 from app.config import Settings, get_settings
-from app.models import AuxDiagnosticsResponse, AuxMCPStatus
+from app.models import (
+    AuxDiagnosticsResponse,
+    AuxMCPStatus,
+    EnvDiagnosticsResponse,
+)
 from app.orchestrator.mcp_pool import build_aux_clients
 
 logger = logging.getLogger(__name__)
@@ -101,3 +105,34 @@ async def aux_diagnostics(
                 pass
 
     return AuxDiagnosticsResponse(aux=results)
+
+
+@router.get("/env", response_model=EnvDiagnosticsResponse)
+async def env_diagnostics(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> EnvDiagnosticsResponse:
+    """Sanitized снимок окружения backend.
+
+    Содержит только то, что аналитик должен видеть для контроля среды:
+    адреса, пути, версии. API ключи и пароли НЕ включаются.
+    """
+    return EnvDiagnosticsResponse(
+        app_version=settings.app_version,
+        environment=settings.environment,
+        default_llm_endpoint=settings.default_llm_endpoint,
+        default_llm_model=settings.default_llm_model,
+        bsl_context_jar=settings.bsl_context_jar,
+        bsl_context_java=settings.bsl_context_java,
+        bsl_context_platform_path=settings.bsl_context_platform_path,
+        cors_origins=settings.cors_origins_list,
+        sqlite_path=settings.sqlite_path,
+        env_var_names={
+            "default_llm_endpoint": "DEFAULT_LLM_ENDPOINT",
+            "default_llm_model": "DEFAULT_LLM_MODEL",
+            "bsl_context_jar": "BSL_CONTEXT_JAR_PATH",
+            "bsl_context_java": "BSL_CONTEXT_JAVA",
+            "bsl_context_platform_path": "BSL_CONTEXT_PLATFORM_PATH",
+            "cors_origins": "BACKEND_ALLOWED_ORIGINS",
+            "environment": "ENVIRONMENT",
+        },
+    )

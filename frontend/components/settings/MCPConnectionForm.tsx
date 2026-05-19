@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { HelpCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { createConnection, updateConnection, pingConnection } from "@/lib/api";
@@ -294,24 +293,21 @@ export function MCPConnectionForm({
               </p>
             )}
           </div>
-          <details className="text-xs">
-            <summary className="cursor-pointer text-[var(--fg-3)] hover:text-[var(--fg-2)] inline-flex items-center gap-1">
-              <HelpCircle size={12} />
+          <div>
+            <label className="block text-xs text-[var(--fg-muted)] mb-1">
               Адрес прокси-сервера
-            </summary>
-            <div className="mt-2 pl-4">
-              <Input
-                value={proxyBase}
-                onChange={(e) => setProxyBase(e.target.value)}
-                placeholder={DEFAULT_PROXY_BASE}
-                className="font-mono text-[11px]"
-                data-testid="proxy-base-input"
-              />
-              <p className="text-xs text-[var(--fg-3)] mt-1">
-                По умолчанию — публичный прокси. Поменяйте, если у компании свой.
-              </p>
-            </div>
-          </details>
+            </label>
+            <Input
+              value={proxyBase}
+              onChange={(e) => setProxyBase(e.target.value)}
+              placeholder={DEFAULT_PROXY_BASE}
+              className="font-mono text-[11px]"
+              data-testid="proxy-base-input"
+            />
+            <p className="text-xs text-[var(--fg-3)] mt-1">
+              По умолчанию — публичный прокси <span className="font-mono">{DEFAULT_PROXY_BASE}</span>. Поменяйте, если у компании свой.
+            </p>
+          </div>
         </>
       )}
 
