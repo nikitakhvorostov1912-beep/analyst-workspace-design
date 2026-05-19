@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Activity, HelpCircle, PanelLeft, Search, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { BrandMark } from "./BrandMark";
 import { ChannelSelector } from "./ChannelSelector";
 import { ModelBadge } from "./ModelBadge";
 import { AnonymizationToggle } from "./AnonymizationToggle";
@@ -38,18 +39,13 @@ export function Header({
             <PanelLeft className="h-4 w-4" />
           </Button>
         )}
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div
-            className="h-7 w-7 rounded-md bg-[var(--accent-08)] text-[var(--accent)] border border-[var(--accent-20)] inline-flex items-center justify-center font-mono text-[11.5px] font-semibold flex-shrink-0"
-            aria-hidden="true"
-          >
-            1С
-          </div>
+        <div className="flex items-center gap-3 min-w-0">
+          <BrandMark size={40} />
           <div className="min-w-0">
-            <div className="font-semibold text-sm leading-tight text-[var(--fg-1)] truncate">
+            <div className="font-semibold text-[16px] leading-tight text-[var(--fg-1)] tracking-tight truncate">
               Аналитик
             </div>
-            <div className="font-mono text-[10.5px] text-[var(--fg-3)]">
+            <div className="font-mono text-[10.5px] text-[var(--fg-3)] mt-0.5 tabular-nums">
               v1.2.1
             </div>
           </div>
