@@ -99,6 +99,25 @@
   --accent-20: rgba(249, 115, 22, 0.20);
 }
 
+/* Stencil brand (2026-05-19) — официальный фирменный стиль «Аналитик».
+   Signal #FF6A3D — primary accent, IBM Plex Mono 700 uppercase для логотипа,
+   JetBrains Mono для служебного моно-текста.
+   Палитра 4 цвета: Signal (#FF6A3D) · Tint (#FFB38A) · Ink (#15161A) · Sand (#F3F1EC). */
+[data-accent="signal"] {
+  --accent: #ff6a3d;
+  --accent-08: rgba(255, 106, 61, 0.08);
+  --accent-12: rgba(255, 106, 61, 0.12);
+  --accent-20: rgba(255, 106, 61, 0.20);
+
+  /* Brand-extended tokens — Stencil фирменный набор */
+  --brand-signal: #ff6a3d;
+  --brand-signal-tint: #ffb38a;
+  --brand-signal-deep: #c84a23;
+  --brand-ink: #15161a;
+  --brand-sand: #f3f1ec;
+  --brand-sand-2: #e7e4dc;
+}
+
 /* ----------------------------------------------------------------------------
  * Density variants
  * ---------------------------------------------------------------------------- */

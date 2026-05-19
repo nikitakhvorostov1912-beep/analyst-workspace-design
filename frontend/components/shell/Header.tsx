@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Activity, HelpCircle, PanelLeft, Search, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BrandMark } from "./BrandMark";
+import { StencilLockup } from "./StencilLockup";
 import { ChannelSelector } from "./ChannelSelector";
 import { ModelBadge } from "./ModelBadge";
 import { AnonymizationToggle } from "./AnonymizationToggle";
@@ -39,16 +40,13 @@ export function Header({
             <PanelLeft className="h-4 w-4" />
           </Button>
         )}
-        <div className="flex items-center gap-3 min-w-0">
-          <BrandMark size={40} />
-          <div className="min-w-0">
-            <div className="font-semibold text-[16px] leading-tight text-[var(--fg-1)] tracking-tight truncate">
-              Аналитик
-            </div>
-            <div className="font-mono text-[10.5px] text-[var(--fg-3)] mt-0.5 tabular-nums">
-              v1.2.1
-            </div>
-          </div>
+        <div className="flex items-center gap-2.5 min-w-0">
+          <BrandMark size={36} />
+          <StencilLockup
+            version="1.2.1"
+            subtitle="Production · Stable"
+            fontSize={16}
+          />
         </div>
       </div>
 

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Sans, IBM_Plex_Mono } from "next/font/google";
+import { IBM_Plex_Sans, IBM_Plex_Mono, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/toast";
 import "./globals.css";
 import "./prism.css";
@@ -11,10 +11,19 @@ const plexSans = IBM_Plex_Sans({
   display: "swap",
 });
 
+// Plex Mono — для логотипа в Stencil (700 uppercase) + старого использования (400, 500)
 const plexMono = IBM_Plex_Mono({
   subsets: ["latin", "cyrillic"],
-  weight: ["400", "500"],
+  weight: ["400", "500", "600", "700"],
   variable: "--font-plex-mono",
+  display: "swap",
+});
+
+// JetBrains Mono — служебный технический текст (eyebrow, meta-строки, subtitle)
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ["latin", "cyrillic"],
+  weight: ["400", "500"],
+  variable: "--font-jb-mono",
   display: "swap",
 });
 
@@ -35,7 +44,7 @@ export default function RootLayout({
 }) {
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8010";
   return (
-    <html lang="ru" className={`dark ${plexSans.variable} ${plexMono.variable}`}>
+    <html lang="ru" className={`dark ${plexSans.variable} ${plexMono.variable} ${jetbrainsMono.variable}`} data-accent="signal">
       <head>
         <script
           dangerouslySetInnerHTML={{

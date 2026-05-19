@@ -1,0 +1,13 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "analyst-frontend",
+      "runtimeExecutable": "C:\\tools\\nodejs\\node-v22.14.0-win-x64\\node.exe",
+      "runtimeArgs": ["frontend\\node_modules\\next\\dist\\bin\\next", "dev", "--port", "3010"],
+      "port": 3010,
+      "autoPort": false,
+      "url": "http://localhost:3010"
+    }
+  ]
+}
