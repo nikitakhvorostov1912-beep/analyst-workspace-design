@@ -270,28 +270,7 @@ export default function HomePage() {
             + Новый чат
           </Button>
 
-          <div className="w-full pt-4 border-t border-[var(--border)] space-y-2 text-left">
-            <p className="text-xs text-[var(--fg-muted)] uppercase tracking-wide">
-              Попробуйте спросить
-            </p>
-            <div className="space-y-1.5">
-              {[
-                "Расскажи про базу — какие подсистемы, основные документы",
-                "Покажи последние 50 документов реализации",
-                "Что в журнале регистрации за сегодня — есть ошибки?",
-                "Сколько контрагентов в базе и сколько активных",
-                "Где используется справочник Номенклатура — какие документы",
-              ].map((q) => (
-                <button
-                  key={q}
-                  type="button"
-                  onClick={handleCreateNew}
-                  className="block w-full text-left text-sm text-[var(--fg-muted)] hover:text-[var(--fg)] hover:bg-[var(--bg-elevated)] rounded px-3 py-2 transition-colors border border-transparent hover:border-[var(--border)]"
-                >
-                  → {q}
-                </button>
-              ))}
-            </div>
+          <div className="w-full pt-4 border-t border-[var(--border)] text-center">
             <p className="text-xs text-[var(--fg-muted)] pt-2">
               <Link href="/about" className="text-blue-400 hover:underline">
                 Подробнее о приложении

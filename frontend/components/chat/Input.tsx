@@ -2,7 +2,6 @@
 
 import { useCallback, useRef, useState, type KeyboardEvent } from "react";
 import { Button } from "@/components/ui/button";
-import { QuickPrompts } from "@/components/chat/QuickPrompts";
 import { SlashPopover } from "@/components/chat/SlashPopover";
 import { MentionPopover } from "@/components/chat/MentionPopover";
 import { getLLMApiKey } from "@/lib/api-keys";
@@ -202,10 +201,6 @@ export function ChatInput({ onSubmit, disabled, disabledReason, channelId }: Cha
     }, 0);
   }
 
-  function handleQuickPromptSelect(prompt: string) {
-    setValue(prompt);
-    setTimeout(() => textareaRef.current?.focus(), 0);
-  }
 
 
   // Drag-and-drop handlers
@@ -305,12 +300,6 @@ export function ChatInput({ onSubmit, disabled, disabledReason, channelId }: Cha
           })}
         </div>
       )}
-
-      {/* Quick prompts: показываются только если textarea пустая И нет файлов */}
-      <QuickPrompts
-        onSelect={handleQuickPromptSelect}
-        hidden={value.trim().length > 0 || attachments.length > 0}
-      />
 
       {disabledReason === "banner" && (
         <p className="text-xs text-red-400 px-1">
