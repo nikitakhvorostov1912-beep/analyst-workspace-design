@@ -88,9 +88,28 @@ def _row_to_full(row: dict) -> MCPConnectionFull:
         endpoint=row["endpoint"],
         channel=row["channel"],
         anon_enabled=bool(row["anon_enabled"]),
+        kind=(row.get("kind") or "embedded"),  # backward compat для старых записей
         last_seen_at=row["last_seen_at"],
         created_at=row["created_at"],
     )
+
+
+# Колонки в фиксированном порядке для всех SELECT — гарантирует, что
+# _row_to_full получает одинаковую структуру независимо от cursor.
+_CONNECTION_COLUMNS = "id, name, endpoint, channel, anon_enabled, kind, last_seen_at, created_at"
+
+
+def _row_tuple_to_dict(row: tuple) -> dict:
+    return {
+        "id": row[0],
+        "name": row[1],
+        "endpoint": row[2],
+        "channel": row[3],
+        "anon_enabled": row[4],
+        "kind": row[5],
+        "last_seen_at": row[6],
+        "created_at": row[7],
+    }
 
 
 @router.get("", response_model=MCPConnectionList)
@@ -98,25 +117,11 @@ async def list_connections(request: Request) -> MCPConnectionList:
     """Возвращает все MCP-подключения из БД, сортировка по created_at DESC."""
     db = request.app.state.db
     async with db.execute(
-        "SELECT id, name, endpoint, channel, anon_enabled, last_seen_at, created_at "
-        "FROM mcp_connections ORDER BY created_at DESC"
+        f"SELECT {_CONNECTION_COLUMNS} FROM mcp_connections ORDER BY created_at DESC"
     ) as cursor:
         rows = await cursor.fetchall()
 
-    connections = [
-        _row_to_full(
-            {
-                "id": row[0],
-                "name": row[1],
-                "endpoint": row[2],
-                "channel": row[3],
-                "anon_enabled": row[4],
-                "last_seen_at": row[5],
-                "created_at": row[6],
-            }
-        )
-        for row in rows
-    ]
+    connections = [_row_to_full(_row_tuple_to_dict(row)) for row in rows]
     return MCPConnectionList(connections=connections)
 
 
@@ -156,15 +161,21 @@ async def create_connection(
 
     conn_id = str(uuid4())
     await db.execute(
-        "INSERT INTO mcp_connections (id, name, endpoint, channel, anon_enabled) "
-        "VALUES (?, ?, ?, ?, ?)",
-        (conn_id, body.name, body.endpoint, body.channel, int(body.anon_enabled)),
+        "INSERT INTO mcp_connections (id, name, endpoint, channel, anon_enabled, kind) "
+        "VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            conn_id,
+            body.name,
+            body.endpoint,
+            body.channel,
+            int(body.anon_enabled),
+            body.kind,
+        ),
     )
     await db.commit()
 
     async with db.execute(
-        "SELECT id, name, endpoint, channel, anon_enabled, last_seen_at, created_at "
-        "FROM mcp_connections WHERE id = ?",
+        f"SELECT {_CONNECTION_COLUMNS} FROM mcp_connections WHERE id = ?",
         (conn_id,),
     ) as cursor:
         row = await cursor.fetchone()
@@ -172,17 +183,7 @@ async def create_connection(
     if row is None:
         raise HTTPException(status_code=500, detail="Ошибка создания подключения")
 
-    return _row_to_full(
-        {
-            "id": row[0],
-            "name": row[1],
-            "endpoint": row[2],
-            "channel": row[3],
-            "anon_enabled": row[4],
-            "last_seen_at": row[5],
-            "created_at": row[6],
-        }
-    )
+    return _row_to_full(_row_tuple_to_dict(row))
 
 
 @router.put("/{conn_id}", response_model=MCPConnectionFull)
@@ -195,8 +196,7 @@ async def update_connection(
     db = request.app.state.db
 
     async with db.execute(
-        "SELECT id, name, endpoint, channel, anon_enabled, last_seen_at, created_at "
-        "FROM mcp_connections WHERE id = ?",
+        f"SELECT {_CONNECTION_COLUMNS} FROM mcp_connections WHERE id = ?",
         (conn_id,),
     ) as cursor:
         existing = await cursor.fetchone()
@@ -213,6 +213,8 @@ async def update_connection(
         updates["channel"] = body.channel
     if body.anon_enabled is not None:
         updates["anon_enabled"] = int(body.anon_enabled)
+    if body.kind is not None:
+        updates["kind"] = body.kind
 
     if updates:
         set_clause = ", ".join(f"{k} = ?" for k in updates)
@@ -224,23 +226,12 @@ async def update_connection(
         await db.commit()
 
     async with db.execute(
-        "SELECT id, name, endpoint, channel, anon_enabled, last_seen_at, created_at "
-        "FROM mcp_connections WHERE id = ?",
+        f"SELECT {_CONNECTION_COLUMNS} FROM mcp_connections WHERE id = ?",
         (conn_id,),
     ) as cursor:
         row = await cursor.fetchone()
 
-    return _row_to_full(
-        {
-            "id": row[0],
-            "name": row[1],
-            "endpoint": row[2],
-            "channel": row[3],
-            "anon_enabled": row[4],
-            "last_seen_at": row[5],
-            "created_at": row[6],
-        }
-    )
+    return _row_to_full(_row_tuple_to_dict(row))
 
 
 @router.delete("/{conn_id}", status_code=204)
@@ -264,16 +255,26 @@ async def delete_connection(
     await db.commit()
 
 
+# Кэп списка tool_names в ping response. 20 имён достаточно для UI-чипов на /status,
+# полный список (10-15 у 1C MCP, 5 у bsl-context) обычно умещается. Без кэпа большие
+# aux MCP могут раздуть payload.
+_PING_TOOLS_CAP = 20
+
+
 @router.post("/{conn_id}/ping", response_model=MCPPingWithTimestampResponse)
 async def ping_connection(
     conn_id: Annotated[str, Path(description="ID MCP-подключения")],
     request: Request,
 ) -> MCPPingWithTimestampResponse:
-    """Пингует MCP endpoint из БД, обновляет last_seen_at при успехе."""
+    """Пингует MCP endpoint из БД, обновляет last_seen_at при успехе.
+
+    Возвращает kind/server_name/tool_names — чтобы /status показал тип подключения,
+    название сервера (Native MCP / 1C MCP Toolkit / ...) и первые имена инструментов.
+    """
     db = request.app.state.db
 
     async with db.execute(
-        "SELECT endpoint FROM mcp_connections WHERE id = ?",
+        "SELECT endpoint, kind FROM mcp_connections WHERE id = ?",
         (conn_id,),
     ) as cursor:
         row = await cursor.fetchone()
@@ -282,6 +283,7 @@ async def ping_connection(
         raise HTTPException(status_code=404, detail=f"Подключение '{conn_id}' не найдено")
 
     endpoint = row[0]
+    kind = row[1] or "embedded"
     started_at = time.monotonic()
 
     try:
@@ -311,12 +313,17 @@ async def ping_connection(
         ts_row = await cursor.fetchone()
     last_seen = ts_row[0] if ts_row else None
 
+    tool_names = [str(t.get("name", "")) for t in tools[:_PING_TOOLS_CAP] if t.get("name")]
+
     return MCPPingWithTimestampResponse(
         mcp_version=session.mcp_version,
         tool_count=len(tools),
         session_id=session.session_id,
         duration_ms=duration_ms,
         last_seen_at=last_seen,
+        kind=kind,
+        server_name=session.server_name,
+        tool_names=tool_names,
     )
 
 

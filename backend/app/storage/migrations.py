@@ -74,7 +74,7 @@ MIGRATIONS_V3 = [
     """,
 ]
 
-CURRENT_VERSION = 6
+CURRENT_VERSION = 7
 
 # Миграция v4: расширение card_states — добавление колонки anon_tokens JSON
 MIGRATIONS_V4 = [
@@ -126,6 +126,23 @@ MIGRATIONS_V5 = [
 # иначе MiMo возвращает 400 "reasoning_content in thinking mode must be passed back".
 MIGRATIONS_V6 = [
     "ALTER TABLE messages ADD COLUMN reasoning_content TEXT",
+]
+
+# Миграция v7: тип подключения (embedded — локальный встроенный MCP сервер EPF,
+# proxy — через HF Spaces / Cloudflare Tunnel когда EPF на удалённом сервере).
+# Аналитик должен видеть тип в UI и не путать localhost EPF с прокси.
+# Backfill heuristic: endpoint содержит "?channel=" или "proxy" → proxy, иначе embedded.
+MIGRATIONS_V7 = [
+    "ALTER TABLE mcp_connections ADD COLUMN kind TEXT DEFAULT 'embedded'",
+    """
+    UPDATE mcp_connections
+    SET kind = 'proxy'
+    WHERE kind IS NULL
+       OR endpoint LIKE '%?channel=%'
+       OR endpoint LIKE '%proxy%'
+    """,
+    # Заполняем NULL для строк, которые backfill пропустил (endpoint без proxy-маркеров)
+    "UPDATE mcp_connections SET kind = 'embedded' WHERE kind IS NULL",
 ]
 
 
@@ -203,5 +220,15 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
             (6,),
+        )
+        await db.commit()
+
+    if current < 7:
+        # Колонка kind в mcp_connections + backfill (v7)
+        for stmt in MIGRATIONS_V7:
+            await db.execute(stmt)
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (7,),
         )
         await db.commit()

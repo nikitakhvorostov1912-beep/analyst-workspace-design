@@ -15,6 +15,7 @@ import {
   StatusDot,
   type ConnectionStatus,
 } from "@/components/ui/StatusDot";
+import { KindBadge } from "@/components/shell/KindBadge";
 import { fetchConnections, pingConnection } from "@/lib/api";
 import { getMCPConnections, setActiveChannelId, syncMCPConnections } from "@/lib/storage";
 import type { MCPConnection } from "@/lib/types";
@@ -188,6 +189,7 @@ export function ChannelSelector({ activeId, onChange }: Props) {
           <span className="flex-1 text-left truncate">
             {activeConn ? activeConn.name : "Выберите подключение"}
           </span>
+          {activeConn && <KindBadge kind={activeConn.kind} />}
           {activeConn && (
             <span
               className="font-mono text-[11px] text-[var(--fg-muted)] flex-none"
@@ -212,7 +214,10 @@ export function ChannelSelector({ activeId, onChange }: Props) {
             >
               <PingDot status={conn.ping} />
               <div className="flex-1 min-w-0">
-                <div className="truncate font-medium">{conn.name}</div>
+                <div className="flex items-center gap-1.5">
+                  <span className="truncate font-medium">{conn.name}</span>
+                  <KindBadge kind={conn.kind} />
+                </div>
                 <div
                   className="text-xs text-[var(--fg-muted)] truncate font-mono"
                   title={conn.endpoint}
@@ -220,10 +225,12 @@ export function ChannelSelector({ activeId, onChange }: Props) {
                   {extractHostPort(conn.endpoint) || conn.endpoint}
                 </div>
                 {conn.channel && (
-                  <div className="text-xs text-[var(--fg-muted)] truncate">{conn.channel}</div>
+                  <div className="text-xs text-[var(--fg-muted)] truncate">
+                    Канал: {conn.channel}
+                  </div>
                 )}
                 {conn.ping === "ok" && conn.tool_count !== undefined && (
-                  <div className="text-xs text-[var(--fg-muted)]">{conn.tool_count} tools</div>
+                  <div className="text-xs text-[var(--fg-muted)]">{conn.tool_count} инструментов</div>
                 )}
               </div>
               {conn.id === activeId && (

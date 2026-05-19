@@ -48,11 +48,37 @@ export type HealthResponse = {
   db: "ok" | "error";
 };
 
+/**
+ * Тип подключения к 1С MCP:
+ *   embedded — EPF MCP_Toolkit на машине аналитика (localhost:6010 и т.п.)
+ *   proxy    — EPF на сервере, доступ через HF Spaces / Cloudflare Tunnel
+ * Для аналитика это принципиально разные сценарии: embedded работает только
+ * пока его 1С открыта; proxy — пока обработка запущена на удалённом сервере.
+ */
+export type MCPKind = "embedded" | "proxy";
+
 export type MCPPingResponse = {
   mcp_version: string;
   tool_count: number;
   session_id: string;
   duration_ms: number;
+  /** Поля, появившиеся в backend Phase MCP-stack-visibility — могут отсутствовать на старом backend. */
+  kind?: MCPKind;
+  server_name?: string;
+  tool_names?: string[];
+  last_seen_at?: string | null;
+};
+
+export type AuxMCPStatus = {
+  name: string;
+  configured: boolean;
+  status: "ok" | "error" | "not_configured";
+  tool_count: number;
+  error_hint?: string | null;
+};
+
+export type AuxDiagnosticsResponse = {
+  aux: AuxMCPStatus[];
 };
 
 // Card payload schemas — зеркало backend orchestrator/cards.py
@@ -135,6 +161,8 @@ export type MCPConnection = {
   endpoint: string;        // "http://localhost:6010/mcp"
   channel: string | null;
   anon_enabled: boolean;
+  /** embedded (default) / proxy. Опционально для совместимости со старым backend. */
+  kind?: MCPKind;
   last_seen_at?: string | null;   // ISO timestamp последнего успешного пинга
   created_at?: string;
 };

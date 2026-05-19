@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, RefreshCw, CheckCircle2, XCircle, AlertCircle, HelpCircle } from "lucide-react";
 import {
+  fetchAuxDiagnostics,
   fetchHealth,
   fetchConnections,
   fetchLLMConfig,
@@ -11,7 +12,9 @@ import {
   testLLMConfig,
 } from "@/lib/api";
 import { getLLMApiKey } from "@/lib/api-keys";
+import { KindBadge } from "@/components/shell/KindBadge";
 import { Button } from "@/components/ui/button";
+import type { MCPKind } from "@/lib/types";
 
 type CheckStatus = "loading" | "ok" | "warn" | "error";
 
@@ -21,6 +24,9 @@ type Check = {
   status: CheckStatus;
   message: string;
   hint?: string;
+  /** Опциональные UI-расширения для конкретных строк диагностики. */
+  kind?: MCPKind;
+  tools?: string[];
 };
 
 export default function StatusPage() {
@@ -54,14 +60,14 @@ export default function StatusPage() {
       return;
     }
 
-    // 2. MCP connections
+    // 2. Базы 1С — основные MCP подключения
     let connections: Awaited<ReturnType<typeof fetchConnections>> = [];
     try {
       connections = await fetchConnections();
     } catch {
       results.push({
         id: "connections",
-        title: "MCP подключения",
+        title: "Базы 1С",
         status: "error",
         message: "Не удалось получить список",
       });
@@ -79,26 +85,71 @@ export default function StatusPage() {
       for (const conn of connections) {
         try {
           const ping = await pingConnection(conn.id);
-          const toolCount = (ping as { tool_count?: number }).tool_count;
+          const tools = ping.tool_names ?? [];
+          const kindLabel = conn.kind === "proxy" ? "Прокси" : "Локально";
+          const channelInfo =
+            conn.kind === "proxy" && conn.channel
+              ? ` · канал ${conn.channel}`
+              : "";
           results.push({
             id: `mcp-${conn.id}`,
             title: `База «${conn.name}»`,
             status: "ok",
-            message: `OK · ${toolCount ?? "?"} инструментов · ${conn.endpoint}`,
+            message: `OK · ${kindLabel}${channelInfo} · ${ping.tool_count} инструментов · ${conn.endpoint}`,
+            kind: conn.kind,
+            tools,
           });
         } catch (e) {
+          const hint =
+            conn.kind === "proxy"
+              ? `Проверьте, что обработка MCP_Toolkit запущена на сервере и канал «${conn.channel ?? "?"}» включён.`
+              : `В 1С на этом компьютере откройте обработку MCP_Toolkit и нажмите «Запустить». Адрес: ${conn.endpoint}`;
           results.push({
             id: `mcp-${conn.id}`,
             title: `База «${conn.name}»`,
             status: "error",
             message: e instanceof Error ? e.message : "Не отвечает",
-            hint: `Проверьте что в 1С запущена обработка-обработчик на адресе ${conn.endpoint}`,
+            hint,
+            kind: conn.kind,
           });
         }
       }
     }
 
-    // 3. LLM config
+    // 3. Aux MCP — справочник BSL и др.
+    try {
+      const aux = await fetchAuxDiagnostics();
+      for (const item of aux.aux) {
+        if (item.status === "ok") {
+          results.push({
+            id: `aux-${item.name}`,
+            title: titleForAux(item.name),
+            status: "ok",
+            message: `OK · ${item.tool_count} инструментов`,
+          });
+        } else if (item.status === "not_configured") {
+          results.push({
+            id: `aux-${item.name}`,
+            title: titleForAux(item.name),
+            status: "warn",
+            message: "Не подключён (опционально)",
+            hint: item.error_hint ?? undefined,
+          });
+        } else {
+          results.push({
+            id: `aux-${item.name}`,
+            title: titleForAux(item.name),
+            status: "error",
+            message: "Не запускается",
+            hint: item.error_hint ?? undefined,
+          });
+        }
+      }
+    } catch {
+      // Старый backend без /diagnostics/aux — секцию просто не показываем
+    }
+
+    // 4. LLM config
     let llmConfig: Awaited<ReturnType<typeof fetchLLMConfig>> = null;
     try {
       llmConfig = await fetchLLMConfig();
@@ -248,10 +299,15 @@ export default function StatusPage() {
         </p>
         <p>
           <strong>База 1С</strong> — ваша рабочая база. К ней приложение обращается через специальную
-          обработку, запущенную в самой 1С (ставит ИТ-отдел).
+          обработку, запущенную в самой 1С (ставит ИТ-отдел). Два режима: «Локально» — обработка
+          на вашем компьютере; «Прокси» — на сервере, доступ через интернет.
         </p>
         <p>
-          <strong>Модель ИИ</strong> — внешний сервис (OpenAI, Anthropic и т.п.), который читает
+          <strong>Справочник BSL</strong> — внутренний справочник по встроенным функциям 1С.
+          Опционально. Помогает модели точнее называть методы платформы.
+        </p>
+        <p>
+          <strong>Модель ИИ</strong> — внешний сервис (Xiaomi MiMo, OpenAI и т.п.), который читает
           ваши вопросы и решает, какие данные из 1С достать.
         </p>
       </div>
@@ -282,10 +338,30 @@ function CheckRow({ check }: { check: Check }) {
       <div className="flex items-start gap-3">
         <Icon className={`${iconColor} flex-none mt-0.5`} size={18} />
         <div className="flex-1 min-w-0">
-          <div className="font-medium text-sm text-[var(--fg)]">{check.title}</div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-medium text-sm text-[var(--fg)]">{check.title}</span>
+            {check.kind && <KindBadge kind={check.kind} />}
+          </div>
           <div className="text-xs text-[var(--fg-muted)] mt-1 font-mono break-words">
             {check.message}
           </div>
+          {check.tools && check.tools.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {check.tools.slice(0, 8).map((name) => (
+                <span
+                  key={name}
+                  className="text-[10px] font-mono px-1.5 py-px rounded border border-[var(--bd-2)] bg-[var(--bg-2)] text-[var(--fg-2)]"
+                >
+                  {name}
+                </span>
+              ))}
+              {check.tools.length > 8 && (
+                <span className="text-[10px] text-[var(--fg-3)] px-1">
+                  +{check.tools.length - 8}
+                </span>
+              )}
+            </div>
+          )}
           {check.hint && (
             <div className="text-xs text-blue-400 mt-2">→ {check.hint}</div>
           )}
@@ -293,6 +369,15 @@ function CheckRow({ check }: { check: Check }) {
       </div>
     </div>
   );
+}
+
+function titleForAux(name: string): string {
+  switch (name) {
+    case "bsl-context":
+      return "Справочник BSL";
+    default:
+      return name;
+  }
 }
 
 function placeholderRest(): Check[] {

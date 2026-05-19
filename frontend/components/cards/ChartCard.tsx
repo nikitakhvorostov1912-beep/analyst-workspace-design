@@ -172,9 +172,13 @@ export function ChartCard({ spec }: ChartCardProps) {
           cx="50%"
           cy="50%"
           outerRadius={90}
-          label={(entry: Record<string, unknown>) =>
-            String(entry[nameKey] ?? "")
-          }
+          // recharts v4 типизирует PieLabelRenderProps через Required<...> без index-signature,
+          // поэтому строгий Record<string, unknown> не подходит. Безопасно достаём поле по
+          // динамическому ключу через unknown-каст — runtime-форма та же.
+          label={(props) => {
+            const entry = props as unknown as Record<string, unknown>;
+            return String(entry[nameKey] ?? "");
+          }}
           labelLine={false}
           fontSize={11}
         >

@@ -51,6 +51,14 @@ class HealthResponse(BaseModel):
     db: Literal["ok", "error"]
 
 
+# Тип подключения к 1С MCP: "embedded" — EPF MCP_Toolkit на машине аналитика
+# слушает локально на http://localhost:<port>/mcp; "proxy" — EPF на сервере, доступ
+# через HF Spaces / Cloudflare Tunnel с channel-параметром.
+# Для аналитика два сценария принципиально разные: локальный embedded работает
+# только пока его 1С открыта, proxy — пока обработка запущена на удалённом сервере.
+MCPKind = Literal["embedded", "proxy"]
+
+
 class MCPConnection(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -59,6 +67,7 @@ class MCPConnection(BaseModel):
     endpoint: str
     channel: str | None = None
     anon_enabled: bool = False
+    kind: MCPKind = "embedded"
     last_seen_at: datetime | None = None
     created_at: datetime | None = None
 
@@ -70,6 +79,7 @@ class MCPConnectionCreate(BaseModel):
     endpoint: str = Field(min_length=1)
     channel: str | None = None
     anon_enabled: bool = False
+    kind: MCPKind = "embedded"
 
     @classmethod
     def validate_endpoint(cls, v: str) -> str:
@@ -79,6 +89,10 @@ class MCPConnectionCreate(BaseModel):
 
     def model_post_init(self, _context: object) -> None:
         self.validate_endpoint(self.endpoint)
+        if self.kind == "proxy" and not (self.channel and self.channel.strip()):
+            raise ValueError(
+                "Для прокси-подключения нужно указать канал — параметр channel пустой."
+            )
 
 
 class MCPConnectionUpdate(BaseModel):
@@ -88,6 +102,7 @@ class MCPConnectionUpdate(BaseModel):
     endpoint: str | None = None
     channel: str | None = None
     anon_enabled: bool | None = None
+    kind: MCPKind | None = None
 
     def model_post_init(self, _context: object) -> None:
         if self.endpoint is not None:
@@ -103,6 +118,7 @@ class MCPConnectionFull(BaseModel):
     endpoint: str
     channel: str | None = None
     anon_enabled: bool = False
+    kind: MCPKind = "embedded"
     last_seen_at: datetime | None = None
     created_at: datetime
 
@@ -121,6 +137,34 @@ class MCPPingWithTimestampResponse(BaseModel):
     session_id: str
     duration_ms: int
     last_seen_at: datetime | None = None
+    # Phase: видимость стека для аналитика. kind — embedded/proxy (echo из БД),
+    # server_name — название сервера из MCP initialize, tool_names — список первых
+    # 20 имён инструментов для UI-чипов в /status.
+    kind: MCPKind = "embedded"
+    server_name: str = ""
+    tool_names: list[str] = Field(default_factory=list)
+
+
+class AuxMCPStatus(BaseModel):
+    """Статус одного вспомогательного MCP-сервера (например bsl-context).
+
+    Используется в /diagnostics/aux чтобы /status видел весь стек, не только
+    основное подключение к 1С.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    name: str
+    configured: bool
+    status: Literal["ok", "error", "not_configured"]
+    tool_count: int = 0
+    error_hint: str | None = None
+
+
+class AuxDiagnosticsResponse(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    aux: list[AuxMCPStatus] = Field(default_factory=list)
 
 
 # --- Sessions CRUD models (Plan 2.3) ---

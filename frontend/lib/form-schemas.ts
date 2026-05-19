@@ -1,15 +1,26 @@
 import { z } from "zod";
 
-export const mcpConnectionSchema = z.object({
-  name: z
-    .string()
-    .trim()
-    .min(1, "Название обязательно")
-    .max(50, "Не больше 50 символов"),
-  endpoint: z.string().url("Должен быть валидный URL"),
-  channel: z.string().trim().max(30).optional().or(z.literal("")),
-  anon_enabled: z.boolean().default(false),
-});
+export const mcpConnectionSchema = z
+  .object({
+    name: z
+      .string()
+      .trim()
+      .min(1, "Название обязательно")
+      .max(50, "Не больше 50 символов"),
+    endpoint: z.string().url("Должен быть валидный URL"),
+    channel: z.string().trim().max(60).optional().or(z.literal("")),
+    anon_enabled: z.boolean().default(false),
+    kind: z.enum(["embedded", "proxy"]).default("embedded"),
+  })
+  .refine(
+    (data) => data.kind !== "proxy" || !!(data.channel && data.channel.trim()),
+    {
+      // При proxy-режиме канал обязателен — без него прокси-сервер не знает,
+      // к какой удалённой 1С базе пересылать запросы.
+      message: "Для прокси-подключения укажите канал",
+      path: ["channel"],
+    },
+  );
 
 export const llmConfigSchema = z.object({
   endpoint: z.string().url("Должен быть валидный URL"),

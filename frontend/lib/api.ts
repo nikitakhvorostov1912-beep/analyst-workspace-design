@@ -1,4 +1,5 @@
 import type {
+  AuxDiagnosticsResponse,
   ChatRequest,
   HealthResponse,
   LLMConfigCreate,
@@ -7,6 +8,7 @@ import type {
   LLMConfigUpdate,
   LogEntry,
   MCPConnection,
+  MCPKind,
   MCPPingResponse,
   MessageRow,
   MetadataSuggestResponse,
@@ -155,6 +157,7 @@ export async function createConnection(body: {
   endpoint: string;
   channel?: string;
   anon_enabled?: boolean;
+  kind?: MCPKind;
 }): Promise<MCPConnection> {
   const response = await fetch(`${getBackend()}/connections`, {
     method: "POST",
@@ -172,7 +175,7 @@ export async function createConnection(body: {
  */
 export async function updateConnection(
   id: string,
-  patch: Partial<{ name: string; endpoint: string; channel: string; anon_enabled: boolean }>,
+  patch: Partial<{ name: string; endpoint: string; channel: string; anon_enabled: boolean; kind: MCPKind }>,
 ): Promise<MCPConnection> {
   const response = await fetch(`${getBackend()}/connections/${id}`, {
     method: "PUT",
@@ -500,6 +503,23 @@ export async function testLLMConfig(
     throw new Error(`Ошибка test endpoint: ${response.status}`);
   }
   return response.json() as Promise<LLMConfigTestResponse>;
+}
+
+/**
+ * Запрашивает статус вспомогательных MCP-серверов (bsl-context и др.).
+ * Возвращает пустой aux=[] на старом backend, который ещё не имеет этого endpoint.
+ */
+export async function fetchAuxDiagnostics(): Promise<AuxDiagnosticsResponse> {
+  try {
+    const response = await fetch(`${getBackend()}/diagnostics/aux`);
+    if (!response.ok) {
+      // 404 на старом backend — норма, просто скрываем секцию aux в /status
+      return { aux: [] };
+    }
+    return response.json() as Promise<AuxDiagnosticsResponse>;
+  } catch {
+    return { aux: [] };
+  }
 }
 
 // ---------------------------------------------------------------------------

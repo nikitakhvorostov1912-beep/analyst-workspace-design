@@ -1,12 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { HelpCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { createConnection, updateConnection, pingConnection } from "@/lib/api";
 import { mcpConnectionSchema } from "@/lib/form-schemas";
 import { publishToast } from "@/lib/toast";
-import type { MCPConnection } from "@/lib/types";
+import { cn } from "@/lib/utils";
+import type { MCPConnection, MCPKind } from "@/lib/types";
 
 interface MCPConnectionFormProps {
   initial?: MCPConnection | null;
@@ -14,26 +16,116 @@ interface MCPConnectionFormProps {
   onCancel?: () => void;
 }
 
+// Дефолты, к которым аналитик не должен подходить руками.
+// Встроенный сервер EPF MCP_Toolkit по умолчанию слушает 6010 — это наш канон.
+const DEFAULT_EMBEDDED_HOST = "localhost";
+const DEFAULT_EMBEDDED_PORT = "6010";
+// Прокси-сервер user-specific (HF Spaces у Khvorostov). Аналитик может оставить
+// дефолт или подменить, если у конторы свой прокси.
+const DEFAULT_PROXY_BASE = "https://nikoiuy12-mcp-proxy.hf.space/mcp";
+
+/**
+ * Парсит существующий endpoint обратно в (kind, host, port, channel, proxyBase),
+ * чтобы при редактировании показать те же поля, которыми его создавали.
+ * Делает best-effort: если URL необычный — отдаёт дефолты + полный endpoint в advanced.
+ */
+function parseEndpoint(
+  endpoint: string,
+  kindHint: MCPKind | undefined,
+): { kind: MCPKind; host: string; port: string; channel: string; proxyBase: string } {
+  try {
+    const u = new URL(endpoint);
+    const channel = u.searchParams.get("channel") ?? "";
+    const isProxy =
+      kindHint === "proxy" ||
+      channel !== "" ||
+      u.hostname.includes("proxy") ||
+      u.protocol === "https:";
+    if (isProxy) {
+      const base = `${u.protocol}//${u.host}${u.pathname}`;
+      return {
+        kind: "proxy",
+        host: DEFAULT_EMBEDDED_HOST,
+        port: DEFAULT_EMBEDDED_PORT,
+        channel,
+        proxyBase: base,
+      };
+    }
+    return {
+      kind: "embedded",
+      host: u.hostname || DEFAULT_EMBEDDED_HOST,
+      port: u.port || DEFAULT_EMBEDDED_PORT,
+      channel: "",
+      proxyBase: DEFAULT_PROXY_BASE,
+    };
+  } catch {
+    return {
+      kind: kindHint ?? "embedded",
+      host: DEFAULT_EMBEDDED_HOST,
+      port: DEFAULT_EMBEDDED_PORT,
+      channel: "",
+      proxyBase: DEFAULT_PROXY_BASE,
+    };
+  }
+}
+
+function buildEndpoint(args: {
+  kind: MCPKind;
+  host: string;
+  port: string;
+  channel: string;
+  proxyBase: string;
+}): string {
+  if (args.kind === "embedded") {
+    const host = args.host.trim() || DEFAULT_EMBEDDED_HOST;
+    const port = args.port.trim() || DEFAULT_EMBEDDED_PORT;
+    return `http://${host}:${port}/mcp`;
+  }
+  const base = (args.proxyBase.trim() || DEFAULT_PROXY_BASE).replace(/\?.*$/, "");
+  const channel = encodeURIComponent(args.channel.trim());
+  return `${base}?channel=${channel}`;
+}
+
 export function MCPConnectionForm({
   initial,
   onSaved,
   onCancel,
 }: MCPConnectionFormProps) {
-  // Smart defaults для НОВОГО подключения (когда initial = null).
-  // Локальный MCP Toolkit EPF из обработки по умолчанию слушает порт 6010,
-  // полный URL формируется как http://localhost:<порт>/mcp. Аналитик в обработке
-  // вбивает только порт — пусть полный URL он не угадывает.
+  const parsed = useMemo(
+    () =>
+      initial
+        ? parseEndpoint(initial.endpoint, initial.kind)
+        : {
+            kind: "embedded" as MCPKind,
+            host: DEFAULT_EMBEDDED_HOST,
+            port: DEFAULT_EMBEDDED_PORT,
+            channel: "",
+            proxyBase: DEFAULT_PROXY_BASE,
+          },
+    [initial],
+  );
+
   const [name, setName] = useState(initial?.name ?? "Транзит");
-  const [endpoint, setEndpoint] = useState(
-    initial?.endpoint ?? "http://localhost:6010/mcp",
-  );
-  const [channel, setChannel] = useState(initial?.channel ?? "");
-  const [anonEnabled, setAnonEnabled] = useState(
-    initial?.anon_enabled ?? false,
-  );
+  const [kind, setKind] = useState<MCPKind>(parsed.kind);
+  const [port, setPort] = useState(parsed.port);
+  const [channel, setChannel] = useState(parsed.channel);
+  const [proxyBase, setProxyBase] = useState(parsed.proxyBase);
+  const [anonEnabled, setAnonEnabled] = useState(initial?.anon_enabled ?? false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
+
+  const computedEndpoint = useMemo(
+    () =>
+      buildEndpoint({
+        kind,
+        host: DEFAULT_EMBEDDED_HOST,
+        port,
+        channel,
+        proxyBase,
+      }),
+    [kind, port, channel, proxyBase],
+  );
 
   function isValidUrl(url: string): boolean {
     try {
@@ -47,9 +139,10 @@ export function MCPConnectionForm({
   async function handleSave() {
     const result = mcpConnectionSchema.safeParse({
       name,
-      endpoint,
-      channel: channel || undefined,
+      endpoint: computedEndpoint,
+      channel: kind === "proxy" ? channel : undefined,
       anon_enabled: anonEnabled,
+      kind,
     });
 
     if (!result.success) {
@@ -72,6 +165,7 @@ export function MCPConnectionForm({
         endpoint: result.data.endpoint,
         channel: result.data.channel || undefined,
         anon_enabled: result.data.anon_enabled,
+        kind: result.data.kind,
       };
 
       const saved = initial
@@ -81,12 +175,12 @@ export function MCPConnectionForm({
       publishToast({ type: "info", message: "Подключение сохранено" });
       onSaved(saved);
     } catch (err) {
-      // 409 Conflict: уже есть подключение с этим адресом — даём конкретный message
-      // вместо технического «Failed to fetch» / «duplicate_endpoint».
+      // 409 Conflict: уже есть подключение с этим адресом — конкретный message
+      // вместо технического "Failed to fetch" / "duplicate_endpoint".
       const raw = err instanceof Error ? err.message : "";
       const isDup = raw.includes("409") || raw.toLowerCase().includes("duplicate");
       const message = isDup
-        ? `Подключение с адресом ${endpoint} уже есть. Откройте его на редактирование вместо создания дубля.`
+        ? `Подключение с адресом ${computedEndpoint} уже есть. Откройте его на редактирование.`
         : raw || "Ошибка сохранения";
       publishToast({ type: "error", message });
     } finally {
@@ -120,6 +214,7 @@ export function MCPConnectionForm({
 
   return (
     <div className="space-y-4 p-4 border border-[var(--border)] rounded-md bg-[var(--bg)]">
+      {/* Название */}
       <div>
         <label className="block text-xs text-[var(--fg-muted)] mb-1">
           Название
@@ -135,24 +230,100 @@ export function MCPConnectionForm({
         )}
       </div>
 
+      {/* Тип подключения — radio */}
       <div>
-        <label className="block text-xs text-[var(--fg-muted)] mb-1">
-          Endpoint
+        <label className="block text-xs text-[var(--fg-muted)] mb-2">
+          Тип подключения
         </label>
-        <Input
-          value={endpoint}
-          onChange={(e) => setEndpoint(e.target.value)}
-          placeholder="http://localhost:6010/mcp"
-        />
-        {errors.endpoint ? (
-          <p className="text-xs text-red-400 mt-1">{errors.endpoint}</p>
-        ) : (
-          <p className="text-xs text-[var(--fg-3)] mt-1">
-            В обработке MCP_Toolkit вводится только порт (по умолчанию 6010). Полный URL: <span className="font-mono">http://localhost:&lt;порт&gt;/mcp</span>
-          </p>
-        )}
+        <div className="flex gap-2" role="radiogroup" aria-label="Тип подключения">
+          <KindCard
+            checked={kind === "embedded"}
+            title="Встроенный сервер"
+            description="Обработка MCP_Toolkit запущена на этом компьютере"
+            onSelect={() => setKind("embedded")}
+            data-testid="kind-embedded"
+          />
+          <KindCard
+            checked={kind === "proxy"}
+            title="Прокси"
+            description="Обработка на сервере, доступ через интернет"
+            onSelect={() => setKind("proxy")}
+            data-testid="kind-proxy"
+          />
+        </div>
       </div>
 
+      {/* Условные поля для embedded / proxy */}
+      {kind === "embedded" ? (
+        <div>
+          <label className="block text-xs text-[var(--fg-muted)] mb-1">
+            Порт
+          </label>
+          <Input
+            value={port}
+            onChange={(e) => setPort(e.target.value.replace(/[^0-9]/g, ""))}
+            placeholder="6010"
+            maxLength={5}
+            className="font-mono"
+            data-testid="port-input"
+            inputMode="numeric"
+          />
+          <p className="text-xs text-[var(--fg-3)] mt-1">
+            По умолчанию обработка слушает <span className="font-mono">6010</span>. Если в самой 1С выбран другой — введите его здесь.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div>
+            <label className="block text-xs text-[var(--fg-muted)] mb-1">
+              Канал
+            </label>
+            <Input
+              value={channel}
+              onChange={(e) => setChannel(e.target.value)}
+              placeholder="tranzit-prod"
+              maxLength={60}
+              className="font-mono"
+              data-testid="channel-input"
+            />
+            {errors.channel ? (
+              <p className="text-xs text-red-400 mt-1">{errors.channel}</p>
+            ) : (
+              <p className="text-xs text-[var(--fg-3)] mt-1">
+                Имя канала, которое введено в обработке MCP_Toolkit на сервере.
+              </p>
+            )}
+          </div>
+          <details className="text-xs">
+            <summary className="cursor-pointer text-[var(--fg-3)] hover:text-[var(--fg-2)] inline-flex items-center gap-1">
+              <HelpCircle size={12} />
+              Адрес прокси-сервера
+            </summary>
+            <div className="mt-2 pl-4">
+              <Input
+                value={proxyBase}
+                onChange={(e) => setProxyBase(e.target.value)}
+                placeholder={DEFAULT_PROXY_BASE}
+                className="font-mono text-[11px]"
+                data-testid="proxy-base-input"
+              />
+              <p className="text-xs text-[var(--fg-3)] mt-1">
+                По умолчанию — публичный прокси. Поменяйте, если у компании свой.
+              </p>
+            </div>
+          </details>
+        </>
+      )}
+
+      {/* Read-only preview итогового URL — для аналитика чтобы он видел что собрано */}
+      <div className="text-xs text-[var(--fg-3)] bg-[var(--bg-elevated)] border border-[var(--border)] rounded p-2 font-mono break-all">
+        Адрес: {computedEndpoint || "—"}
+      </div>
+      {errors.endpoint && (
+        <p className="text-xs text-red-400">{errors.endpoint}</p>
+      )}
+
+      {/* Маскировка */}
       <div className="flex items-center gap-2">
         <input
           type="checkbox"
@@ -174,7 +345,7 @@ export function MCPConnectionForm({
           variant="secondary"
           size="sm"
           onClick={handleTest}
-          disabled={!initial?.id || testing || !isValidUrl(endpoint)}
+          disabled={!initial?.id || testing || !isValidUrl(computedEndpoint)}
         >
           {testing ? "Тестирование..." : "Тест"}
         </Button>
@@ -188,5 +359,55 @@ export function MCPConnectionForm({
         )}
       </div>
     </div>
+  );
+}
+
+interface KindCardProps {
+  checked: boolean;
+  title: string;
+  description: string;
+  onSelect: () => void;
+  "data-testid"?: string;
+}
+
+function KindCard({
+  checked,
+  title,
+  description,
+  onSelect,
+  "data-testid": testId,
+}: KindCardProps) {
+  return (
+    <button
+      type="button"
+      role="radio"
+      aria-checked={checked}
+      onClick={onSelect}
+      data-testid={testId}
+      className={cn(
+        "flex-1 text-left p-3 rounded-md border transition-colors",
+        checked
+          ? "border-[var(--accent)] bg-[var(--accent-08)]"
+          : "border-[var(--border)] bg-[var(--bg)] hover:border-[var(--bd-3)]",
+      )}
+    >
+      <div className="flex items-start gap-2">
+        <div
+          className={cn(
+            "mt-0.5 h-4 w-4 rounded-full border-2 flex-none",
+            checked
+              ? "border-[var(--accent)] bg-[var(--accent)] ring-2 ring-[var(--accent-20)] ring-offset-0"
+              : "border-[var(--bd-3)]",
+          )}
+          aria-hidden="true"
+        />
+        <div className="min-w-0">
+          <div className="text-sm font-medium text-[var(--fg-1)]">{title}</div>
+          <div className="text-[11px] text-[var(--fg-3)] mt-0.5 leading-snug">
+            {description}
+          </div>
+        </div>
+      </div>
+    </button>
   );
 }

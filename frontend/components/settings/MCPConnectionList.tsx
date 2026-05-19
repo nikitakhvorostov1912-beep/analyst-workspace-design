@@ -13,6 +13,7 @@ import {
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
 import { MCPConnectionForm } from "./MCPConnectionForm";
+import { KindBadge } from "@/components/shell/KindBadge";
 import { deleteConnection, fetchConnections, pingConnection } from "@/lib/api";
 import { publishToast } from "@/lib/toast";
 import type { MCPConnection } from "@/lib/types";
@@ -99,12 +100,20 @@ export function MCPConnectionList({
                 className="flex items-center justify-between gap-3 p-3 border border-[var(--border)] rounded-md"
               >
                 <div className="min-w-0 flex-1">
-                  <span className="text-sm font-medium text-[var(--fg)]">
-                    {conn.name}
-                  </span>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-medium text-[var(--fg)]">
+                      {conn.name}
+                    </span>
+                    <KindBadge kind={conn.kind} />
+                  </div>
                   <p className="text-xs text-[var(--fg-muted)] font-mono truncate">
                     {conn.endpoint}
                   </p>
+                  {conn.kind === "proxy" && conn.channel && (
+                    <p className="text-xs text-[var(--fg-muted)] truncate">
+                      Канал: <span className="font-mono">{conn.channel}</span>
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-1 flex-none">
                   <Button

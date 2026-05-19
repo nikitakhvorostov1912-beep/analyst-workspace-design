@@ -23,6 +23,16 @@ const makeConn = (id = "c1"): MCPConnection => ({
   endpoint: "http://localhost:6010/mcp",
   channel: null,
   anon_enabled: false,
+  kind: "embedded",
+});
+
+const makeProxyConn = (id = "c2"): MCPConnection => ({
+  id,
+  name: "Прод сервер",
+  endpoint: "https://nikoiuy12-mcp-proxy.hf.space/mcp?channel=tranzit-prod",
+  channel: "tranzit-prod",
+  anon_enabled: false,
+  kind: "proxy",
 });
 
 describe("MCPConnectionForm", () => {
@@ -30,39 +40,40 @@ describe("MCPConnectionForm", () => {
     vi.clearAllMocks();
   });
 
-  it("рендерит поля name/endpoint без initial (поле channel убрано из UI)", () => {
+  it("рендерит дефолтную форму с типом 'Встроенный' и портом 6010", () => {
     render(<MCPConnectionForm onSaved={vi.fn()} />);
 
+    // Поле имени
     expect(screen.getByPlaceholderText("Транзит")).toBeInTheDocument();
-    expect(
-      screen.getByPlaceholderText("http://localhost:6010/mcp"),
-    ).toBeInTheDocument();
-    // Канал больше не отображается в UI (внутренний параметр, не для аналитика)
-    expect(screen.queryByPlaceholderText("default")).not.toBeInTheDocument();
+    // Radio embedded выбран по умолчанию
+    expect(screen.getByTestId("kind-embedded")).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByTestId("kind-proxy")).toHaveAttribute("aria-checked", "false");
+    // Поле порта с дефолтом 6010
+    const portInput = screen.getByTestId("port-input") as HTMLInputElement;
+    expect(portInput.value).toBe("6010");
+    // Превью URL содержит порт
+    expect(screen.getByText(/http:\/\/localhost:6010\/mcp/)).toBeInTheDocument();
   });
 
-  it("показывает ошибку валидации при невалидном endpoint", async () => {
+  it("показывает ошибку 'Для прокси-подключения укажите канал' если канал пустой", async () => {
     render(<MCPConnectionForm onSaved={vi.fn()} />);
 
-    // Ввести name и невалидный endpoint
-    fireEvent.change(screen.getByPlaceholderText("Транзит"), {
-      target: { value: "Мой сервер" },
-    });
-    fireEvent.change(
-      screen.getByPlaceholderText("http://localhost:6010/mcp"),
-      { target: { value: "не-урл" } },
-    );
+    // Переключаемся на прокси
+    fireEvent.click(screen.getByTestId("kind-proxy"));
 
-    fireEvent.click(screen.getByRole("button", { name: /сохранить/i }));
+    // Канал пустой → submit должен дать ошибку валидации
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /сохранить/i }));
+    });
 
     await waitFor(() => {
       expect(
-        screen.getByText("Должен быть валидный URL"),
+        screen.getByText("Для прокси-подключения укажите канал"),
       ).toBeInTheDocument();
     });
   });
 
-  it("вызывает createConnection с корректным payload при valid submit", async () => {
+  it("вызывает createConnection с embedded payload при valid submit", async () => {
     const saved = makeConn();
     vi.mocked(createConnection).mockResolvedValue(saved);
     const onSaved = vi.fn();
@@ -72,10 +83,9 @@ describe("MCPConnectionForm", () => {
     fireEvent.change(screen.getByPlaceholderText("Транзит"), {
       target: { value: "Тест" },
     });
-    fireEvent.change(
-      screen.getByPlaceholderText("http://localhost:6010/mcp"),
-      { target: { value: "http://localhost:6010/mcp" } },
-    );
+    fireEvent.change(screen.getByTestId("port-input"), {
+      target: { value: "6020" },
+    });
 
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /сохранить/i }));
@@ -85,11 +95,64 @@ describe("MCPConnectionForm", () => {
       expect(createConnection).toHaveBeenCalledWith(
         expect.objectContaining({
           name: "Тест",
-          endpoint: "http://localhost:6010/mcp",
+          endpoint: "http://localhost:6020/mcp",
+          kind: "embedded",
         }),
       );
       expect(onSaved).toHaveBeenCalledWith(saved);
     });
+  });
+
+  it("вызывает createConnection с proxy payload + channel", async () => {
+    const saved = makeProxyConn();
+    vi.mocked(createConnection).mockResolvedValue(saved);
+    const onSaved = vi.fn();
+
+    render(<MCPConnectionForm onSaved={onSaved} />);
+
+    fireEvent.change(screen.getByPlaceholderText("Транзит"), {
+      target: { value: "Прод сервер" },
+    });
+    fireEvent.click(screen.getByTestId("kind-proxy"));
+    fireEvent.change(screen.getByTestId("channel-input"), {
+      target: { value: "tranzit-prod" },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /сохранить/i }));
+    });
+
+    await waitFor(() => {
+      expect(createConnection).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: "Прод сервер",
+          kind: "proxy",
+          channel: "tranzit-prod",
+          endpoint: expect.stringContaining("?channel=tranzit-prod"),
+        }),
+      );
+      expect(onSaved).toHaveBeenCalledWith(saved);
+    });
+  });
+
+  it("при редактировании embedded подключения подставляет порт из endpoint", () => {
+    const conn = { ...makeConn(), endpoint: "http://localhost:6033/mcp" };
+
+    render(<MCPConnectionForm initial={conn} onSaved={vi.fn()} />);
+
+    const portInput = screen.getByTestId("port-input") as HTMLInputElement;
+    expect(portInput.value).toBe("6033");
+    expect(screen.getByTestId("kind-embedded")).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("при редактировании proxy подключения подставляет канал и проксу", () => {
+    const conn = makeProxyConn();
+
+    render(<MCPConnectionForm initial={conn} onSaved={vi.fn()} />);
+
+    expect(screen.getByTestId("kind-proxy")).toHaveAttribute("aria-checked", "true");
+    const channelInput = screen.getByTestId("channel-input") as HTMLInputElement;
+    expect(channelInput.value).toBe("tranzit-prod");
   });
 
   it("вызывает updateConnection когда initial задан", async () => {
@@ -100,11 +163,9 @@ describe("MCPConnectionForm", () => {
 
     render(<MCPConnectionForm initial={conn} onSaved={onSaved} />);
 
-    // Поля предзаполнены
     const nameInput = screen.getByPlaceholderText("Транзит") as HTMLInputElement;
     expect(nameInput.value).toBe("Транзит");
 
-    // Изменяем и сохраняем
     fireEvent.change(nameInput, { target: { value: "Изменённое" } });
 
     await act(async () => {
@@ -114,7 +175,7 @@ describe("MCPConnectionForm", () => {
     await waitFor(() => {
       expect(updateConnection).toHaveBeenCalledWith(
         "c1",
-        expect.objectContaining({ name: "Изменённое" }),
+        expect.objectContaining({ name: "Изменённое", kind: "embedded" }),
       );
       expect(onSaved).toHaveBeenCalledWith(updated);
     });
@@ -123,12 +184,11 @@ describe("MCPConnectionForm", () => {
   it("кнопка Тест отключена без сохранённого id (new form)", () => {
     render(<MCPConnectionForm onSaved={vi.fn()} />);
 
-    // Кнопка Тест видна
     const testBtn = screen.getByRole("button", { name: /тест/i });
     expect(testBtn).toBeDisabled();
   });
 
-  it("кнопка Тест вызывает pingConnection если initial существует и endpoint валидный", async () => {
+  it("кнопка Тест вызывает pingConnection если initial существует", async () => {
     const conn = makeConn();
     vi.mocked(pingConnection).mockResolvedValue({
       mcp_version: "2025-03-26",
