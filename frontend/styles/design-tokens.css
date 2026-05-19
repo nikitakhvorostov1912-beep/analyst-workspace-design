@@ -58,12 +58,66 @@
   /* Density */
   --row-h: 36px;
 
+  /* Stencil lockup tokens — приглушённый slash / version / subtitle.
+     Меняются в зависимости от темы (dark/light) — используются в StencilLockup. */
+  --lockup-slash: rgba(255, 255, 255, 0.22);
+  --lockup-version: rgba(255, 255, 255, 0.55);
+  --lockup-subtitle: rgba(255, 255, 255, 0.45);
+
   /* Backwards-compat aliases (старые токены, используются в существующем коде) */
   --bg: var(--bg-0);
   --bg-elevated: var(--bg-1);
   --fg: var(--fg-1);
   --fg-muted: var(--fg-3);
   --border: var(--bd-2);
+}
+
+/* ----------------------------------------------------------------------------
+ * Theme — Light (Sand) по brand guide Stencil/Mono (2026-05-19).
+ * Активируется через <html data-theme="light">.
+ *
+ * Палитра sand из лого-листа:
+ *   Sand #F3F1EC (основной фон) · Sand-2 #E7E4DC (surface) · Ink #15161A (текст).
+ *
+ * Только лого-зона + про-форс / печатные / about используют светлую.
+ * Чат всё ещё может работать в dark если пользователь предпочитает.
+ * ---------------------------------------------------------------------------- */
+
+[data-theme="light"] {
+  /* Background — Sand палитра */
+  --bg-0: #f3f1ec; /* основной фон — sand */
+  --bg-1: #ebe8e0; /* surface — карточки, header */
+  --bg-2: #e7e4dc; /* raised — popovers, hover */
+  --bg-3: #ddd9cf; /* deepest — code blocks */
+
+  /* Foreground — Ink с opacity */
+  --fg-1: #15161a; /* основной текст — ink */
+  --fg-2: rgba(21, 22, 26, 0.72); /* secondary — caption, meta */
+  --fg-3: rgba(21, 22, 26, 0.5); /* muted — placeholders, hints */
+  --fg-4: rgba(21, 22, 26, 0.32); /* subtle — disabled */
+
+  /* Borders — тонкие тёмные линии */
+  --bd-1: rgba(21, 22, 26, 0.06); /* subtle — divider */
+  --bd-2: rgba(21, 22, 26, 0.1); /* emphasis — card border */
+  --bd-3: rgba(21, 22, 26, 0.18); /* strong — focus, hover */
+
+  /* Stencil lockup tokens — на светлом фоне slash/version/subtitle тёмные */
+  --lockup-slash: rgba(0, 0, 0, 0.28);
+  --lockup-version: rgba(0, 0, 0, 0.55);
+  --lockup-subtitle: rgba(0, 0, 0, 0.45);
+
+  /* Semantic — приглушённые версии для светлого фона */
+  --success: #047857;
+  --success-12: rgba(4, 120, 87, 0.1);
+  --success-20: rgba(4, 120, 87, 0.18);
+
+  --warning: #a16207;
+  --warning-12: rgba(161, 98, 7, 0.1);
+  --warning-20: rgba(161, 98, 7, 0.18);
+
+  --error: #b91c1c;
+  --error-12: rgba(185, 28, 28, 0.1);
+  --error-20: rgba(185, 28, 28, 0.18);
 }
 
 /* ----------------------------------------------------------------------------

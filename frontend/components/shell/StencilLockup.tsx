@@ -66,7 +66,7 @@ export function StencilLockup({
             <span
               aria-hidden
               style={{
-                color: "rgba(255,255,255,0.22)",
+                color: "var(--lockup-slash)",
                 fontWeight: 600,
                 margin: "0 0.05em",
               }}
@@ -75,7 +75,7 @@ export function StencilLockup({
             </span>
             <span
               style={{
-                color: "rgba(255,255,255,0.55)",
+                color: "var(--lockup-version)",
                 fontWeight: 500,
                 letterSpacing: "0.02em",
               }}
@@ -96,7 +96,7 @@ export function StencilLockup({
             fontSize: `${Math.max(9, Math.round(fontSize * 0.42))}px`,
             letterSpacing: "0.18em",
             textTransform: "uppercase",
-            color: "rgba(255,255,255,0.45)",
+            color: "var(--lockup-subtitle)",
           }}
         >
           {subtitle}

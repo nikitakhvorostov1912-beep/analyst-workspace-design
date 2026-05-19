@@ -51,6 +51,12 @@ export default function RootLayout({
             __html: `window.__BACKEND_URL__ = ${JSON.stringify(backendUrl)};`,
           }}
         />
+        {/* Stencil brand — apply сохранённую тему ДО первого рендера чтобы не мигало */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{var t=localStorage.getItem('analyst-theme');if(t==='light')document.documentElement.setAttribute('data-theme','light');}catch(e){}`,
+          }}
+        />
       </head>
       <body>
         {children}

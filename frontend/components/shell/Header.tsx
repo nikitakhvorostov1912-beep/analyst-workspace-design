@@ -8,6 +8,7 @@ import { StencilLockup } from "./StencilLockup";
 import { ChannelSelector } from "./ChannelSelector";
 import { ModelBadge } from "./ModelBadge";
 import { AnonymizationToggle } from "./AnonymizationToggle";
+import { ThemeToggle } from "./ThemeToggle";
 
 export interface HeaderProps {
   activeChannelId: string | null;
@@ -102,6 +103,7 @@ export function Header({
             <HelpCircle className="h-[15px] w-[15px]" />
           </Link>
         </Button>
+        <ThemeToggle />
         <Button
           variant="ghost"
           size="icon"
