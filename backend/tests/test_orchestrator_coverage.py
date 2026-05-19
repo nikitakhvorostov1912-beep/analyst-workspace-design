@@ -70,11 +70,11 @@ def make_request(message: str = "тест", channel_id: str = "test-ch", session
 # ---------------------------------------------------------------------------
 
 @pytest.mark.asyncio
-async def test_loop_max_iterations_exit(mem_db, monkeypatch):
-    """LLM бесконечно возвращает tool_calls — loop останавливается после MAX_TOOL_ITERATIONS."""
+async def test_loop_duplicate_detector_exit(mem_db, monkeypatch):
+    """LLM бесконечно возвращает ОДИНАКОВЫЕ tool_calls — duplicate detector ловит после 5 раз."""
     import app.orchestrator.loop as loop_module
 
-    # Каждый вызов LLM возвращает один tool_call + finish_reason=tool_calls
+    # Каждый вызов LLM возвращает один tool_call с ОДИНАКОВЫМИ args
     tool_chunks = [
         make_tool_call_chunk(0, "tc1", "execute_query", '{"query":"SELECT 1"}'),
         make_tool_calls_finish_chunk(),
@@ -102,8 +102,9 @@ async def test_loop_max_iterations_exit(mem_db, monkeypatch):
 
     error_events = [e for e in events if e["event"] == "error"]
     assert len(error_events) == 1
-    assert error_events[0]["data"]["code"] == "tool_loop_limit"
-    assert "10" in error_events[0]["data"]["message"]
+    # Теперь срабатывает duplicate detector раньше чем MAX_TOOL_ITERATIONS
+    assert error_events[0]["data"]["code"] == "duplicate_tool_loop"
+    assert str(loop_module.DUPLICATE_TOOL_CALL_THRESHOLD) in error_events[0]["data"]["message"]
 
 
 # ---------------------------------------------------------------------------

@@ -228,8 +228,8 @@ async def test_loop_two_sequential_tools(mem_db, monkeypatch):
 # --- Тест 4: Лимит итераций ---
 
 @pytest.mark.asyncio
-async def test_loop_tool_loop_limit(mem_db, monkeypatch):
-    """LLM всегда возвращает tool_call. После 10 итераций → error code=tool_loop_limit."""
+async def test_loop_duplicate_tool_call_detector(mem_db, monkeypatch):
+    """LLM повторяет ОДИНАКОВЫЙ tool_call — duplicate detector ловит после 5 раз → code=duplicate_tool_loop."""
     import app.orchestrator.loop as loop_module
 
     counter = [0]
@@ -240,6 +240,7 @@ async def test_loop_tool_loop_limit(mem_db, monkeypatch):
         def stream_chat_completion(self, *a, **kw):
             counter[0] += 1
             return stub_llm_stream(
+                # Каждый раз tool_call с ОДИНАКОВЫМИ args — должен ловиться detector
                 make_tool_call_chunk(0, f"tc{counter[0]}", "execute_query", "{}"),
                 make_tool_calls_finish_chunk(),
             )
@@ -258,7 +259,46 @@ async def test_loop_tool_loop_limit(mem_db, monkeypatch):
 
     error_events = [e for e in events if e["event"] == "error"]
     assert error_events, "Должно быть event:error"
+    assert error_events[-1]["data"]["code"] == "duplicate_tool_loop"
+    # Не должны дойти до MAX_TOOL_ITERATIONS=100 — detector сработает на 5-м
+    assert counter[0] <= loop_module.DUPLICATE_TOOL_CALL_THRESHOLD + 1
+
+
+@pytest.mark.asyncio
+async def test_loop_tool_loop_limit_with_varying_args(mem_db, monkeypatch):
+    """LLM делает разные tool_call каждый раз — duplicate detector не сработает, упирается в MAX_TOOL_ITERATIONS."""
+    import app.orchestrator.loop as loop_module
+
+    counter = [0]
+
+    class FakeLLM:
+        def __init__(self, *a, **kw): pass
+
+        def stream_chat_completion(self, *a, **kw):
+            counter[0] += 1
+            # Каждый вызов с УНИКАЛЬНЫМИ args — detector обходится
+            return stub_llm_stream(
+                make_tool_call_chunk(0, f"tc{counter[0]}", "execute_query", f'{{"q": {counter[0]}}}'),
+                make_tool_calls_finish_chunk(),
+            )
+
+        async def aclose(self): pass
+
+    monkeypatch.setattr(loop_module, "LLMClient", FakeLLM)
+    monkeypatch.setattr(loop_module, "MCPClient", lambda *a, **kw: FakeMCPClient(
+        tool_map={"execute_query": {"columns": [], "rows": []}}
+    ))
+
+    request = make_request()
+    events = await collect_sse(loop_module.run_chat_loop(
+        mem_db, request, "api-key", "http://llm", "model"
+    ))
+
+    error_events = [e for e in events if e["event"] == "error"]
+    assert error_events, "Должно быть event:error"
     assert error_events[-1]["data"]["code"] == "tool_loop_limit"
+    # Дошло до safety net 100
+    assert counter[0] == loop_module.MAX_TOOL_ITERATIONS
 
 
 # --- Тест 5: MCPError ---

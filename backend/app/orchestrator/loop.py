@@ -12,6 +12,8 @@ import httpx
 
 from app.clients.llm import LLMClient, LLMRateLimitError
 from app.clients.mcp import MCPClient, MCPDisconnectedError, MCPError
+from app.orchestrator.mcp_pool import MCPPool, build_aux_clients
+from app.config import get_settings
 from app.models import ChatRequest
 from app.orchestrator.cards import _extract_anon_tokens_from_payload, build_card_from_tool_result
 from app.orchestrator.events import (
@@ -46,7 +48,14 @@ from app.orchestrator.title import generate_title
 
 logger = logging.getLogger(__name__)
 
-MAX_TOOL_ITERATIONS = 15  # bumped с 10 — аналитические запросы часто требуют 10+ итераций (find_references, поиск по подсистемам)
+# Tool iterations — фактически unlimited для аналитика.
+# 100 — soft safety net, обычно не достигается (сложные find_references
+# укладываются в 20-30). Главная защита — DUPLICATE_TOOL_CALL_THRESHOLD ниже.
+MAX_TOOL_ITERATIONS = 100
+
+# Если LLM подряд делает > N одинаковых tool_call (имя + args) — break:
+# это infinite loop, дальнейшие итерации не приблизят к ответу.
+DUPLICATE_TOOL_CALL_THRESHOLD = 5
 RETRY_DELAY_S = 0.2
 TOOL_CONTENT_CAP = 50_000  # байт — cap для payload в LLM context
 
@@ -199,7 +208,7 @@ def _safe_error_message(exc: Exception) -> str:
 
 
 async def _call_tool_with_retry(
-    mcp: MCPClient,
+    mcp,  # MCPClient | StdioMCPClient — единый интерфейс call_tool/aclose
     name: str,
     args: dict,
 ) -> tuple[bool, Any, str | None]:
@@ -299,20 +308,27 @@ async def run_chat_loop(
         ))
         return
 
-    # --- Получаем список инструментов ---
+    # --- Получаем список инструментов (primary + aux MCPs) ---
     anon_headers = {"X-Anon-Enabled": "true"} if x_anon_enabled else None
-    mcp = MCPClient(mcp_endpoint, headers=anon_headers)
+    primary_mcp = MCPClient(mcp_endpoint, headers=anon_headers)
+    settings = get_settings()
+    aux_clients = build_aux_clients(settings)
+    pool = MCPPool(primary_mcp, aux_clients)
+    # Алиас для совместимости с finally блоком ниже и code paths которые
+    # ссылаются на mcp напрямую (call_tool через router).
+    mcp = pool
+
     try:
-        await mcp.initialize()
-        mcp_tools = await mcp.list_tools()
+        await pool.initialize_all()
+        mcp_tools = await pool.list_all_tools()
         openai_tools = _mcp_tools_to_openai(mcp_tools)
     except Exception:
-        logger.exception("Ошибка инициализации MCP")
+        logger.exception("Ошибка инициализации MCP pool")
         yield format_sse("error", ErrorEvent(
             message="Не удалось подключиться к 1С MCP",
             code="mcp_disconnected",
         ))
-        await mcp.aclose()
+        await pool.aclose()
         return
 
     # Подгружаем историю сессии — текущий user-message уже сохранён в БД
@@ -341,6 +357,11 @@ async def run_chat_loop(
     # вернуть reasoning_content при follow-up запросе с этим assistant
     # сообщением в history, иначе 400 «must be passed back to the API».
     final_reasoning_content: str = ""
+
+    # Duplicate tool_call detector — защита от LLM-зацикливания на одном вызове.
+    # Храним сигнатуры (name + JSON args) последних вызовов и считаем подряд.
+    last_tool_signature: str | None = None
+    duplicate_count: int = 0
 
     try:
         for _iteration in range(MAX_TOOL_ITERATIONS):
@@ -458,6 +479,33 @@ async def run_chat_loop(
                     "args": args_dict,
                 })
 
+            # Duplicate detector: считаем подряд одинаковые вызовы (имя + args).
+            # >5 одинаковых = LLM зациклилась на одном tool, прерываем.
+            current_signature = json.dumps(
+                [(tc["name"], tc["args"]) for tc in finalized],
+                ensure_ascii=False,
+                sort_keys=True,
+            )
+            if current_signature == last_tool_signature:
+                duplicate_count += 1
+                if duplicate_count >= DUPLICATE_TOOL_CALL_THRESHOLD:
+                    logger.warning(
+                        "LLM зациклилась на одинаковом tool_call (%d подряд), прерываю",
+                        duplicate_count,
+                    )
+                    yield format_sse("error", ErrorEvent(
+                        message=(
+                            f"Модель повторяет один и тот же вызов "
+                            f"{DUPLICATE_TOOL_CALL_THRESHOLD} раз подряд. "
+                            "Похоже на зацикливание — уточните запрос."
+                        ),
+                        code="duplicate_tool_loop",
+                    ))
+                    return
+            else:
+                duplicate_count = 1
+                last_tool_signature = current_signature
+
             # Добавляем assistant-сообщение с tool_calls в историю
             assistant_tool_calls = [
                 {
@@ -517,8 +565,10 @@ async def run_chat_loop(
                         # approved is True — продолжаем как обычно
 
                 start_ts = time.monotonic()
+                # Маршрутизация tool_call → правильный MCP client (primary или aux).
+                tool_client = pool.client_for(tool_name)
                 try:
-                    ok, tool_result, tool_error = await _call_tool_with_retry(mcp, tool_name, tool_args)
+                    ok, tool_result, tool_error = await _call_tool_with_retry(tool_client, tool_name, tool_args)
                 except MCPDisconnectedError:
                     logger.warning("MCP disconnected during tool call: %s", tool_name)
                     yield format_sse("error", ErrorEvent(

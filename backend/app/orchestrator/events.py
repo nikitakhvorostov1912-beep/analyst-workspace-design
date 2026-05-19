@@ -15,6 +15,7 @@ ErrorCode = Literal[
     "mcp_disconnected",
     "mcp_connect_error",
     "tool_loop_limit",
+    "duplicate_tool_loop",
     "unknown_channel",
     "init_error",
     "internal_error",

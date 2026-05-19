@@ -21,6 +21,16 @@ class Settings(BaseSettings):
     # Среда — backend держит для будущих gates (фронтенд CSP читает NODE_ENV напрямую)
     environment: Literal["dev", "prod"] = "dev"
 
+    # === Aux MCP: bsl-context (справочник API платформы 1С) ===
+    # Если оба пути заданы, orchestrator подключит bsl-context как дополнительный
+    # источник tools (search/info/getMember/getMembers/getConstructors) поверх
+    # основного 1С MCP. LLM видит их в едином списке.
+    bsl_context_jar: str = Field(default="", validation_alias="BSL_CONTEXT_JAR_PATH")
+    bsl_context_java: str = Field(default="java", validation_alias="BSL_CONTEXT_JAVA")
+    bsl_context_platform_path: str = Field(
+        default="", validation_alias="BSL_CONTEXT_PLATFORM_PATH"
+    )
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
