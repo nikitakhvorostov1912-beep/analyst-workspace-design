@@ -8,6 +8,7 @@ import { ChatInput } from "@/components/chat/Input";
 import { CommandPalette } from "@/components/chat/CommandPalette";
 import { ConfirmExecuteDialog } from "@/components/chat/ConfirmExecuteDialog";
 import { ConnectionStatusBanner } from "@/components/chat/ConnectionStatusBanner";
+import { ExportSessionButton } from "@/components/chat/ExportSessionButton";
 import { useChatStream } from "@/components/chat/useChatStream";
 import { useSessionsStore } from "@/lib/sessions-store";
 import { fetchSessionDetail, fetchSessionMessages, fetchConnections, pingConnection } from "@/lib/api";
@@ -228,15 +229,22 @@ export default function SessionPage() {
           />
         }
       >
-        <Thread
-          messages={messages}
-          streamingStage={streamingStage}
-          currentToolName={currentToolName}
-          sessionId={id}
-        />
-        {error && (
-          <div className="px-4 pb-2 text-xs text-red-400">{error}</div>
-        )}
+        <div className="relative h-full">
+          <ExportSessionButton
+            detail={detail}
+            messages={messages}
+            className="absolute top-3 right-4 z-10 shadow-sm"
+          />
+          <Thread
+            messages={messages}
+            streamingStage={streamingStage}
+            currentToolName={currentToolName}
+            sessionId={id}
+          />
+          {error && (
+            <div className="px-4 pb-2 text-xs text-red-400">{error}</div>
+          )}
+        </div>
       </AppShell>
     </>
   );
