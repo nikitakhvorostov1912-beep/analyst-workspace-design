@@ -24,13 +24,36 @@ MAX_RAW_BYTES = 25 * 1024 * 1024  # 25 MB на файл (декодирован�
 
 @dataclass
 class ExtractedAttachment:
-    """Результат извлечения текста из одного файла."""
+    """Результат обработки одного прикреплённого файла.
+
+    Для текстовых документов — извлечённый текст в `text`.
+    Для изображений (PNG/JPG/WebP) — `is_image=True`, `image_data_url` содержит
+    data:URI для прямой подачи в multimodal LLM (mimo-v2-omni). `text` —
+    placeholder для сохранения в БД (что-то вроде "[Картинка: name.png]").
+    """
 
     name: str
     mime: str
     text: str
     truncated: bool
     error: str | None = None  # если не удалось извлечь
+    is_image: bool = False
+    image_data_url: str | None = None
+
+
+# Image MIME types — обрабатываем без text extraction, отдаём в LLM как
+# multimodal image_url. Требуется vision-модель (mimo-v2-omni / GPT-4V).
+_IMAGE_MIMES = {
+    "image/png": "png",
+    "image/jpeg": "jpg",
+    "image/jpg": "jpg",
+    "image/webp": "webp",
+    "image/gif": "gif",
+}
+
+
+def is_image_mime(mime: str) -> bool:
+    return (mime or "").lower() in _IMAGE_MIMES
 
 
 def _cap(text: str) -> tuple[str, bool]:
@@ -147,7 +170,7 @@ def extract_attachment(
 
     # Fuzzy mime detection по расширению — если MIME не известен
     mime_lower = (mime or "").lower()
-    if mime_lower not in _EXTRACTORS:
+    if mime_lower not in _EXTRACTORS and not is_image_mime(mime_lower):
         ext = name.rsplit(".", 1)[-1].lower() if "." in name else ""
         ext_map = {
             "pdf": "application/pdf",
@@ -158,9 +181,27 @@ def extract_attachment(
             "json": "application/json",
             "xml": "application/xml",
             "md": "text/markdown",
+            "png": "image/png",
+            "jpg": "image/jpeg",
+            "jpeg": "image/jpeg",
+            "webp": "image/webp",
+            "gif": "image/gif",
         }
         if ext in ext_map:
             mime_lower = ext_map[ext]
+
+    # Изображения — НЕ извлекаем текст, формируем data:URI для multimodal LLM.
+    if is_image_mime(mime_lower):
+        ext = _IMAGE_MIMES[mime_lower]
+        size_kb = len(data) // 1024
+        return ExtractedAttachment(
+            name=name,
+            mime=mime_lower,
+            text=f"[Картинка: {name}, {size_kb} КБ]",
+            truncated=False,
+            is_image=True,
+            image_data_url=f"data:{mime_lower};base64,{content_base64}",
+        )
 
     extractor = _EXTRACTORS.get(mime_lower)
     if extractor is None:
@@ -188,15 +229,19 @@ def extract_attachment(
 
 
 def format_attachments_for_llm(attachments: list[ExtractedAttachment]) -> str:
-    """Форматирует прикреплённые файлы для добавления к user message.
+    """Форматирует прикреплённые ТЕКСТОВЫЕ файлы для добавления к user message.
 
-    Каждый файл — отдельный блок с разделителем. Ошибки извлечения
-    тоже сообщаем модели (она объяснит пользователю).
+    Картинки (is_image=True) формируются отдельно в build_user_content() как
+    multimodal image_url. Здесь — только text-блоки.
     """
     if not attachments:
         return ""
     blocks: list[str] = []
     for att in attachments:
+        if att.is_image:
+            # Картинки идут в multimodal content, тут просто placeholder.
+            blocks.append(f"=== Прикреплена картинка: {att.name} (см. ниже) ===")
+            continue
         if att.error:
             blocks.append(
                 f"=== Прикреплён файл: {att.name} ({att.mime or '?'}) ===\n"
@@ -209,3 +254,47 @@ def format_attachments_for_llm(attachments: list[ExtractedAttachment]) -> str:
             f"{att.text}"
         )
     return "\n\n".join(blocks)
+
+
+def build_user_message_content(
+    text: str,
+    attachments: list[ExtractedAttachment],
+) -> tuple[str | list[dict], bool]:
+    """Строит content для user message в OpenAI chat-completions формате.
+
+    Returns:
+        (content, has_image):
+        - has_image=False → content — обычная строка (text + блоки текстовых файлов)
+        - has_image=True  → content — list[{type, text}|{type:image_url}], multimodal
+        Caller использует has_image для выбора модели (vision vs text-only).
+    """
+    image_atts = [a for a in attachments if a.is_image and a.image_data_url]
+    text_block = format_attachments_for_llm(attachments)
+    full_text = text + ("\n\n" + text_block if text_block else "")
+    full_text = full_text.strip()
+
+    if not image_atts:
+        return full_text, False
+
+    parts: list[dict] = []
+    if full_text:
+        parts.append({"type": "text", "text": full_text})
+    for img in image_atts:
+        parts.append({
+            "type": "image_url",
+            "image_url": {"url": img.image_data_url},
+        })
+    return parts, True
+
+
+def make_history_user_text(
+    text: str,
+    attachments: list[ExtractedAttachment],
+) -> str:
+    """Возвращает текст для сохранения в БД (history-friendly).
+
+    Для картинок — placeholder с именем + размером (base64 в БД не лежит).
+    Текстовое содержимое — полное (как в LLM).
+    """
+    block = format_attachments_for_llm(attachments)
+    return (text + "\n\n" + block).strip() if block else text

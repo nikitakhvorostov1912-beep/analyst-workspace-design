@@ -4,8 +4,9 @@
  */
 import type { ChatAttachment } from "./types";
 
-/** Поддерживаемые MIME типы (синхронно с backend _EXTRACTORS). */
+/** Поддерживаемые MIME типы (синхронно с backend _EXTRACTORS + _IMAGE_MIMES). */
 export const ACCEPTED_MIME = [
+  // Документы — текст извлекается на backend
   "application/pdf",
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -16,6 +17,11 @@ export const ACCEPTED_MIME = [
   "application/xml",
   "text/xml",
   "text/markdown",
+  // Картинки — передаются в multimodal LLM (mimo-v2-omni) как image_url
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/gif",
 ] as const;
 
 /** Расширения файлов (для accept attribute и fuzzy detection). */
@@ -29,7 +35,30 @@ export const ACCEPTED_EXTENSIONS = [
   ".json",
   ".xml",
   ".md",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".webp",
+  ".gif",
 ];
+
+/** Image MIME types — рендерить thumbnail в чипе. */
+const IMAGE_MIMES = new Set([
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+  "image/gif",
+]);
+
+export function isImageMime(mime: string): boolean {
+  return IMAGE_MIMES.has((mime || "").toLowerCase());
+}
+
+export function isImageExtension(name: string): boolean {
+  const ext = name.toLowerCase().split(".").pop() ?? "";
+  return ["png", "jpg", "jpeg", "webp", "gif"].includes(ext);
+}
 
 /** Соглашение по UI и backend: 25 MB на файл, 5 файлов на сообщение. */
 export const MAX_FILE_BYTES = 25 * 1024 * 1024;

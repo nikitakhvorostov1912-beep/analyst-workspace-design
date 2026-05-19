@@ -12,6 +12,8 @@ import {
   MAX_FILES_PER_MESSAGE,
   approximateSize,
   filesToAttachments,
+  isImageExtension,
+  isImageMime,
 } from "@/lib/attachments";
 import { publishToast } from "@/lib/toast";
 import type { ChatAttachment, MetadataSuggestItem } from "@/lib/types";
@@ -260,32 +262,47 @@ export function ChatInput({ onSubmit, disabled, disabledReason, channelId }: Cha
         </div>
       )}
 
-      {/* Прикреплённые файлы — чипы над textarea */}
+      {/* Прикреплённые файлы — чипы над textarea (с thumbnail для картинок) */}
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mb-1" data-testid="attachments-list">
-          {attachments.map((att, i) => (
-            <div
-              key={i}
-              className="inline-flex items-center gap-1.5 px-2 py-1 bg-[var(--bg-2)] border border-[var(--bd-2)] rounded text-xs"
-              data-testid="attachment-chip"
-            >
-              <FileIcon className="h-3 w-3 text-[var(--accent)]" />
-              <span className="font-medium text-[var(--fg-1)] max-w-[180px] truncate" title={att.name}>
-                {att.name}
-              </span>
-              <span className="font-mono text-[10.5px] text-[var(--fg-3)]">
-                {approximateSize(att.content_base64)}
-              </span>
-              <button
-                type="button"
-                onClick={() => handleRemoveAttachment(i)}
-                className="p-0.5 hover:bg-[var(--bg-3)] rounded text-[var(--fg-3)] hover:text-[var(--fg-1)]"
-                aria-label={`Убрать ${att.name}`}
+          {attachments.map((att, i) => {
+            const isImage = isImageMime(att.mime) || isImageExtension(att.name);
+            return (
+              <div
+                key={i}
+                className="inline-flex items-center gap-1.5 px-2 py-1 bg-[var(--bg-2)] border border-[var(--bd-2)] rounded text-xs"
+                data-testid="attachment-chip"
+                data-is-image={isImage ? "true" : "false"}
               >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          ))}
+                {isImage ? (
+                  <img
+                    src={`data:${att.mime || "image/png"};base64,${att.content_base64}`}
+                    alt={att.name}
+                    className="h-6 w-6 object-cover rounded border border-[var(--bd-2)]"
+                  />
+                ) : (
+                  <FileIcon className="h-3 w-3 text-[var(--accent)]" />
+                )}
+                <span
+                  className="font-medium text-[var(--fg-1)] max-w-[180px] truncate"
+                  title={att.name}
+                >
+                  {att.name}
+                </span>
+                <span className="font-mono text-[10.5px] text-[var(--fg-3)]">
+                  {approximateSize(att.content_base64)}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveAttachment(i)}
+                  className="p-0.5 hover:bg-[var(--bg-3)] rounded text-[var(--fg-3)] hover:text-[var(--fg-1)]"
+                  aria-label={`Убрать ${att.name}`}
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </div>
+            );
+          })}
         </div>
       )}
 
@@ -339,7 +356,23 @@ export function ChatInput({ onSubmit, disabled, disabledReason, channelId }: Cha
           onChange={(e) => handleChange(e.target.value)}
           onKeyDown={handleKeyDown}
           onInput={handleInput}
-          placeholder="Спросите про базу 1С или прикрепите документ..."
+          onPaste={(e) => {
+            // Ctrl/Cmd+V — если в буфере есть картинка (скрин), прикрепляем её.
+            // Текст вставится обычным образом, картинка попадает в attachments.
+            const items = Array.from(e.clipboardData?.items ?? []);
+            const imageFiles: File[] = [];
+            for (const item of items) {
+              if (item.kind === "file" && item.type.startsWith("image/")) {
+                const f = item.getAsFile();
+                if (f) imageFiles.push(f);
+              }
+            }
+            if (imageFiles.length > 0) {
+              e.preventDefault();
+              void handleFilesAdded(imageFiles);
+            }
+          }}
+          placeholder="Спросите про базу 1С или прикрепите документ / скрин..."
           rows={1}
           readOnly={disabled}
           autoComplete="off"

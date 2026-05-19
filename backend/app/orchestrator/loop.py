@@ -13,9 +13,16 @@ import httpx
 from app.clients.llm import LLMClient, LLMRateLimitError
 from app.clients.mcp import MCPClient, MCPDisconnectedError, MCPError
 from app.orchestrator.attachments import (
+    build_user_message_content,
     extract_attachment,
-    format_attachments_for_llm,
+    make_history_user_text,
 )
+
+# Модель которая поддерживает vision. Для Xiaomi MiMo — `mimo-v2-omni`.
+# Если активная модель — text-only, и пользователь прикрепил картинку,
+# orchestrator временно (для этого запроса) переключается на VISION_MODEL.
+# Эту константу можно вынести в Settings когда появятся другие провайдеры.
+VISION_MODEL = "mimo-v2-omni"
 from app.orchestrator.mcp_pool import MCPPool, build_aux_clients
 from app.config import get_settings
 from app.models import ChatRequest
@@ -345,21 +352,35 @@ async def run_chat_loop(
         # Считаем сообщения ДО сохранения нового — чтобы знать первое ли это
         msg_count_before = await count_session_messages(db, session_id)
 
-        # Извлекаем текст из прикреплённых файлов (PDF, DOCX, XLSX, …) и
-        # склеиваем с user message. LLM видит как обычный текст с разделителем.
-        user_message_for_llm = request.message
-        if request.attachments:
-            extracted = [
+        # Извлекаем содержимое прикреплённых файлов. Текстовые (PDF/DOCX/XLSX/...)
+        # склеиваются в string content. Изображения (PNG/JPG/...) — отдельные
+        # image_url parts для multimodal LLM (mimo-v2-omni).
+        extracted_attachments = (
+            [
                 extract_attachment(att.name, att.mime, att.content_base64)
                 for att in request.attachments
             ]
-            attachments_block = format_attachments_for_llm(extracted)
-            if attachments_block:
-                user_message_for_llm = f"{request.message}\n\n{attachments_block}".strip()
+            if request.attachments
+            else []
+        )
+        user_message_content, has_image = build_user_message_content(
+            request.message, extracted_attachments
+        )
 
-        # В БД сохраняем именно объединённый текст — иначе при load_history
-        # модель не увидит вложения, и follow-up «что было в файле?» не сработает.
-        await save_user_message(db, session_id, user_message_for_llm)
+        # В БД сохраняем history-friendly текст — для картинок placeholder
+        # (полное base64 в SQLite не нужно, follow-up видит «[Картинка: …]»).
+        history_text = make_history_user_text(request.message, extracted_attachments)
+        await save_user_message(db, session_id, history_text)
+
+        # Vision auto-switch: если есть картинка и активная модель — text-only,
+        # для текущего запроса используем VISION_MODEL. Конфиг backend не меняем.
+        effective_llm_model = llm_model
+        if has_image and llm_model != VISION_MODEL:
+            logger.info(
+                "Vision attachment detected — переключаю модель %s → %s для этого запроса",
+                llm_model, VISION_MODEL,
+            )
+            effective_llm_model = VISION_MODEL
 
         mcp_endpoint = await lookup_mcp_endpoint(db, request.channel_id)
     except Exception:
@@ -419,6 +440,13 @@ async def run_chat_loop(
         # Защита от пустой истории (например, save_user_message не успел зафиксироваться)
         history_msgs = [{"role": "user", "content": request.message}]
 
+    # Vision: history содержит placeholder «[Картинка: name.png]», но модель
+    # должна получить реальное изображение в image_url. Подменяем content
+    # ПОСЛЕДНЕГО user-сообщения (это текущий запрос) на multimodal parts.
+    if has_image and history_msgs and history_msgs[-1].get("role") == "user":
+        history_msgs = list(history_msgs)
+        history_msgs[-1] = {"role": "user", "content": user_message_content}
+
     messages: list[dict] = [
         {"role": "system", "content": SYSTEM_PROMPT},
         *history_msgs,
@@ -448,7 +476,7 @@ async def run_chat_loop(
             finish_reason: str | None = None
 
             try:
-                llm = LLMClient(endpoint=llm_endpoint, model=llm_model)
+                llm = LLMClient(endpoint=llm_endpoint, model=effective_llm_model)
                 try:
                     async for chunk in llm.stream_chat_completion(
                         messages=messages,
