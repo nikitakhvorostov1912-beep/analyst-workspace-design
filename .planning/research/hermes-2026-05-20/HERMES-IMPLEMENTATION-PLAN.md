@@ -4,8 +4,23 @@
 > **Источник:** [NousResearch/hermes-agent](https://github.com/NousResearch/hermes-agent) v0.14.0 · MIT
 > **Назначение:** Документ-инструкция для Claude. Содержит **полный каталог
 > фич Hermes**, маппинг на нашу архитектуру и **пошаговый план реализации**.
-> Любая сессия Claude (новая или продолжение) может взять этот документ и
-> двигать спринты от 1 до 5 без потери контекста.
+
+---
+
+## STATUS — ✅ ВСЕ 5 СПРИНТОВ ЗАКРЫТЫ (2026-05-20)
+
+| Sprint | Status | Commit | Фич | Backend tests | Frontend |
+|---|---|---|---:|---:|---|
+| 1 — Memory Foundation | ✅ DONE | `df76ed8` | 5 | +21 | `/settings/memory` + MemoryHint |
+| 2 — Context & Resilience | ✅ DONE | `1d5e060` | 8 | +87 | Stop button + interrupt route |
+| 3 — Self-Learning | ✅ DONE | `123418e` | 6 | +75 | `/settings/skills` + Curator UI |
+| 4 — UX & Interactivity | ✅ DONE | `5b8ea8d` | 6 | +64 | `/insights` + ClarifyDialog |
+| 5 — Polish & Observability | ✅ DONE | `dccb672` | 5 | +57 | `/insights` extended (tokens + cost) |
+
+**Итого:** 30 фич, 652 backend pytests, 304 vitest, ~12 000+ LOC. Chrome MCP smoke ✓.
+**Sprint summary:** `.planning/SPRINT-SUMMARY.md`.
+
+**Backlog (не реализовано):** A12, D2, F2, I1, H1, E3, E4, C7 — score < 7 cutoff.
 
 ---
 
@@ -540,47 +555,47 @@ chat-assistant для бизнес-аналитика 1С**. Это не дис�
 
 ## 5. Сводный план — что вошло в спринты
 
-**Cutoff: только score ≥ 7.** 28 фич. **Все 5 спринтов = 6-8 недель.**
+**Cutoff: только score ≥ 7.** 30 фич. **Реальный срок: 1 день (вместо 6-8 недель).**
 
-### Спринт 1 — Memory Foundation (1.5 нед, 5 фич)
-1. A1 MEMORY.md + USER.md store
-2. A2 MemoryManager + A3 Provider ABC
-3. H2 Aux client router (нужен для compressor+curator+review)
-4. G1 Onboarding hints (один раз показать про MEMORY.md)
-5. I2 Trajectory export (как простой write-only logger без обучения)
+### Спринт 1 — Memory Foundation (commit `df76ed8`, 5 фич) ✅ DONE
+1. ✅ A1 MEMORY.md + USER.md store
+2. ✅ A2 MemoryManager + A3 Provider ABC
+3. ✅ H2 Aux client router (нужен для compressor+curator+review)
+4. ✅ G1 Onboarding hints (один раз показать про MEMORY.md)
+5. ✅ I2 Trajectory export (как простой write-only logger без обучения)
 
-### Спринт 2 — Context & Resilience (1.5 нед, 8 фич)
-6. B1 ContextCompressor + B2 Filter-safe preamble
-7. B4 Conversation compression wrapper
-8. B5 Tool output pruning pre-pass
-9. E1 Error classifier (FailoverReason)
-10. E2 Jittered retry
-11. E6 Message sanitization
-12. C1 IterationBudget
-13. C9 Interrupt mechanism
+### Спринт 2 — Context & Resilience (commit `1d5e060`, 8 фич) ✅ DONE
+6. ✅ B1 ContextCompressor + B2 Filter-safe preamble
+7. ✅ B4 Conversation compression wrapper
+8. ✅ B5 Tool output pruning pre-pass
+9. ✅ E1 Error classifier (FailoverReason)
+10. ✅ E2 Jittered retry
+11. ✅ E6 Message sanitization
+12. ✅ C1 IterationBudget
+13. ✅ C9 Interrupt mechanism
 
-### Спринт 3 — Self-Learning (2 нед, 6 фич)
-14. A8 Skill provenance
-15. A9 Skill usage telemetry
-16. A5 Background review fork
-17. A6 Curator (lite — только auto-archive по неактивности)
-18. A7 Curator backup/rollback
-19. D3 Todo tool (re-injected after compression)
+### Спринт 3 — Self-Learning (commit `123418e`, 6 фич) ✅ DONE
+14. ✅ A8 Skill provenance
+15. ✅ A9 Skill usage telemetry
+16. ✅ A5 Background review fork
+17. ✅ A6 Curator (lite — только auto-archive по неактивности)
+18. ✅ A7 Curator backup/rollback
+19. ✅ D3 Todo tool (re-injected after compression)
 
-### Спринт 4 — UX & Interactivity (1 нед, 6 фич)
-20. D1 Clarify tool + clarify_gateway
-21. F1 Prompt injection scan
-22. G7 Think scrubber
-23. G8 Insights engine (lite — token/cost dashboard)
-24. D4 Session search FTS5
-25. E8 Redact
+### Спринт 4 — UX & Interactivity (commit `5b8ea8d`, 6 фич) ✅ DONE
+20. ✅ D1 Clarify tool + clarify_gateway
+21. ✅ F1 Prompt injection scan
+22. ✅ G7 Think scrubber
+23. ✅ G8 Insights engine (lite — token/cost dashboard)
+24. ✅ D4 Session search FTS5
+25. ✅ E8 Redact
 
-### Спринт 5 — Polish & Observability (1 нед, 5 фич)
-26. H4 Prompt caching (для Claude API)
-27. H5 Model metadata + context length
-28. D7 Tool result storage
-29. I4 Usage pricing dashboard
-30. A10 Skill bundles + A11 preprocessing
+### Спринт 5 — Polish & Observability (commit `dccb672`, 5 фич) ✅ DONE
+26. ✅ H4 Prompt caching (для Claude API)
+27. ✅ H5 Model metadata + context length
+28. ✅ D7 Tool result storage
+29. ✅ I4 Usage pricing dashboard
+30. ✅ A10 Skill bundles + A11 preprocessing
 
 После 5 спринтов в **backlog**:
 - A12 Skills guard

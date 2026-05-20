@@ -3,11 +3,14 @@ import { GuideLayout, type GuideSection } from "@/components/guide/GuideLayout";
 import {
   Activity,
   AlertTriangle,
+  BarChart3,
+  Brain,
   ClipboardCopy,
   Code2,
   Database,
   EyeOff,
   FileText,
+  HelpCircle,
   Info,
   KeyRound,
   Lightbulb,
@@ -15,6 +18,7 @@ import {
   Plug,
   Search,
   Sparkles,
+  Square,
   Sun,
   Table2,
   Target,
@@ -902,7 +906,126 @@ const SECTIONS: GuideSection[] = [
   },
 
   // ----------------------------------------------------------------------
-  // 7. Настройки
+  // 7. Память, навыки, аналитика (Hermes Integration — M6)
+  // ----------------------------------------------------------------------
+  {
+    id: "memory-skills",
+    title: "Память, навыки, аналитика",
+    content: (
+      <>
+        <Lead>
+          Приложение запоминает ваш контекст между сессиями, накапливает
+          подсказки и считает статистику запросов. Три инструмента работают
+          вместе: <strong className="text-[var(--fg-1)]">Постоянная память</strong>,{" "}
+          <strong className="text-[var(--fg-1)]">Skills и Curator</strong>,{" "}
+          <strong className="text-[var(--fg-1)]">Аналитика</strong>. Доступ — через{" "}
+          <em>Настройки</em>.
+        </Lead>
+
+        <H3 id="memory">
+          <Brain className="inline h-4 w-4 text-[var(--accent)] mr-1" /> Постоянная память
+        </H3>
+        <P>
+          Два файла, которые инжектятся в каждый запрос к модели:
+        </P>
+        <ul className="space-y-2 pl-5 list-disc text-[14px] text-[var(--fg-2)] leading-[1.6] mb-5">
+          <li>
+            <code className="px-1 py-0.5 rounded bg-[var(--bg-2)] text-[12px]">
+              MEMORY.md
+            </code>{" "}
+            — что ассистент знает о вашей базе: конвенции, переименования,
+            нестандартные поля, типовые паттерны запросов.
+          </li>
+          <li>
+            <code className="px-1 py-0.5 rounded bg-[var(--bg-2)] text-[12px]">
+              USER.md
+            </code>{" "}
+            — что он знает о вас: предпочтения по форматам, стиль ответов,
+            ваш домен (склад / зарплата / финансы).
+          </li>
+        </ul>
+        <P>
+          Память per-канал (каждая база — своя). Лимиты: MEMORY.md — 16 000 символов,
+          USER.md — 8 000. Сканер находит попытки prompt injection в содержимом
+          и помечает их в редакторе.
+        </P>
+        <Callout variant="tip">
+          Открыть редактор: <strong>Настройки → Постоянная память</strong>. Удобно
+          вписать «Мы используем имя НоменклатураИзделия вместо Номенклатура».
+        </Callout>
+
+        <H3 id="skills">
+          <Sparkles className="inline h-4 w-4 text-[var(--accent)] mr-1" /> Skills и Curator
+        </H3>
+        <P>
+          Skills — короткие инструкции «когда X — делай Y». Два источника:
+        </P>
+        <ul className="space-y-2 pl-5 list-disc text-[14px] text-[var(--fg-2)] leading-[1.6] mb-5">
+          <li>
+            <strong className="text-[var(--fg-1)]">Агент (provenance: agent)</strong> —
+            после каждого успешного диалога фоновая модель проверяет, есть ли
+            повторяемый паттерн, и сохраняет его сама. Не блокирует ваш ответ.
+          </li>
+          <li>
+            <strong className="text-[var(--fg-1)]">Вы (provenance: user)</strong> —
+            добавляете руками через форму на странице Skills. Например:
+            «Когда юзер просит остатки ТМЦ — execute_query с виртуальной
+            таблицей Регистр.Остатки и фильтром по складу».
+          </li>
+        </ul>
+        <P>
+          <strong className="text-[var(--fg-1)]">Curator</strong> — фоновая чистка.
+          Архивирует только agent-skills, которые не использовались N дней
+          (default 30). Pinned-skills неприкосновенны. Перед каждым прогоном
+          делается backup — можно откатить.
+        </P>
+        <Callout variant="info">
+          <strong>Dry run</strong> на странице Skills показывает, что бы Curator
+          архивировал, без реальных изменений. Безопасно проверить логику.
+        </Callout>
+
+        <H3 id="insights">
+          <BarChart3 className="inline h-4 w-4 text-[var(--accent)] mr-1" /> Аналитика
+        </H3>
+        <P>
+          Дашборд по сессиям: сколько диалогов, сколько сообщений, какие
+          инструменты вызывались чаще, средняя длительность tool call, ошибки.
+          Период: 24 часа / 7 дней / 30 дней / всё время. Плюс оценочные
+          токены и стоимость по текущей модели (приблизительно).
+        </P>
+        <P>
+          Открыть: <strong>Настройки → Аналитика</strong> или сразу{" "}
+          <code className="px-1 py-0.5 rounded bg-[var(--bg-2)] text-[12px]">
+            /insights
+          </code>
+          .
+        </P>
+
+        <H3 id="clarify">
+          <HelpCircle className="inline h-4 w-4 text-[var(--accent)] mr-1" /> Уточнения от агента
+        </H3>
+        <P>
+          Если ваш запрос неоднозначный («покажи последние документы» — каких?
+          за какой период?), ассистент не угадывает, а выводит компактный диалог
+          с 1–4 вариантами и кнопкой «Свой ответ». Радио — если ответ один,
+          чекбоксы — если можно выбрать несколько. Это быстрее, чем переписка
+          в свободной форме.
+        </P>
+
+        <H3 id="stop">
+          <Square className="inline h-3.5 w-3.5 text-[var(--accent)] mr-1" /> Кнопка «Стоп»
+        </H3>
+        <P>
+          Пока идёт стрим ответа, обычная кнопка Send заменяется на квадрат-стоп.
+          Нажатие — модель завершит текущий tool call gracefully, сохранит
+          частичный ответ. Не страшно нажать — данные не теряются.
+        </P>
+      </>
+    ),
+  },
+
+  // ----------------------------------------------------------------------
+  // 8. Настройки
   // ----------------------------------------------------------------------
   {
     id: "settings",
