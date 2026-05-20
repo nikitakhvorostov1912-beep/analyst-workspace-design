@@ -29,7 +29,7 @@ interface StencilLockupProps {
  *   xl 48px (hero) · lg 36px (about) · md 24px (titlebar) · sm 16px (inline) · xs 12px (meta).
  */
 export function StencilLockup({
-  version = "1.2.1",
+  version = "1.2.2",
   subtitle = "Production build · Stable",
   fontSize = 18,
   className,
