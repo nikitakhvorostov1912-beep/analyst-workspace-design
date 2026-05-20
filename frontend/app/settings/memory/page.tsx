@@ -239,7 +239,7 @@ function Editor({
           minHeight: "180px",
           maxHeight: "480px",
         }}
-        placeholder="### Дата\n— Факт 1\n— Факт 2"
+        placeholder={"### Дата\n— Факт 1\n— Факт 2"}
         maxLength={maxChars}
         spellCheck={false}
       />
