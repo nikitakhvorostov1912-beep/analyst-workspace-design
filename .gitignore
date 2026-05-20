@@ -137,3 +137,6 @@ desktop/build.log
 # Working artifacts (Claude Code session)
 .last-bundle-path.txt
 temp/
+
+# Electron resources .env — содержит зашитый ключ MiMo, в git не пушим
+desktop/resources/.env

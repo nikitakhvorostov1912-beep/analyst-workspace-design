@@ -81,11 +81,15 @@ app.whenReady().then(async () => {
   const dbUrl = `sqlite+aiosqlite:///${dbPath.replace(/\\/g, '/')}`;
 
   // 1. Spawn backend.exe
+  // cwd = resourcesDir, чтобы pydantic-settings нашёл `resources/.env` рядом
+  // с backend.exe и подхватил оттуда DEFAULT_LLM_API_KEY (зашитый при сборке)
+  // и другие seed-дефолты (DEFAULT_MCP_*, DEFAULT_LLM_*).
   const backendExe = path.join(resourcesDir, 'backend.exe');
   backendProc = spawn(
     backendExe,
     ['--port', String(backendPort)],
     {
+      cwd: resourcesDir,
       env: {
         ...process.env,
         DATABASE_URL: dbUrl,
