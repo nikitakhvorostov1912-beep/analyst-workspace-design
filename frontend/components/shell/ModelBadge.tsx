@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Sparkles } from "lucide-react";
+import { StatusDot } from "@/components/ui/StatusDot";
+import { StencilChip } from "@/components/ui/StencilChip";
 import { fetchLLMConfig } from "@/lib/api";
 
 interface ModelInfo {
@@ -66,28 +67,26 @@ export function ModelBadge() {
   const display = displayModelName(info.model);
   const isMapped = display !== info.model;
 
+  // Stencil/Mono redesign: модель показывается как muted-chip с success-dot
+  // (живая модель → зелёный pulse). Brand-стиль: всё mono uppercase ls .16em.
+  // Краткое имя модели в верхнем регистре: «MIMO-V2.5-PRO», «GPT-4O», «CLAUDE-SONNET-4.6».
+  const shortDisplay = display
+    .replace(/^Xiaomi /, "")
+    .replace(/^Claude /, "")
+    .toUpperCase();
+
   return (
-    <div
-      className="inline-flex items-center gap-1.5 px-2.5 h-[30px] rounded-md bg-[var(--bg-1)] border border-[var(--bd-2)] text-xs text-[var(--fg-2)] select-none"
-      data-testid="model-badge"
-      data-model={info.model}
-      title={isMapped ? `Модель: ${display} (${info.model})` : info.model}
-    >
-      <Sparkles className="h-3 w-3 text-[var(--accent)] flex-shrink-0" />
-      <span
-        className={
-          isMapped
-            ? "font-medium truncate max-w-[160px]"
-            : "font-mono truncate max-w-[160px]"
-        }
+    <span data-testid="model-badge" data-model={info.model}>
+      <StencilChip
+        tone="muted"
+        title={isMapped ? `Модель: ${display} (${info.model})` : info.model}
       >
-        {display}
-      </span>
-      {info.temperature !== null && (
-        <span className="font-mono text-[var(--fg-4)]">
-          · {info.temperature.toFixed(1)}
-        </span>
-      )}
-    </div>
+        <StatusDot status="online" size="sm" aria-label="модель активна" />
+        <span className="truncate max-w-[140px]">{shortDisplay}</span>
+        {info.temperature !== null && (
+          <span className="text-[var(--fg-4)]">· {info.temperature.toFixed(1)}</span>
+        )}
+      </StencilChip>
+    </span>
   );
 }

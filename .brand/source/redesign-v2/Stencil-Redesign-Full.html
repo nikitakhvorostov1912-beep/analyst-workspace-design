@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>Аналитик — Stencil Redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  html, body { margin: 0; padding: 0; background: #0a0a0a; color: #e5e5e5; font-family: 'IBM Plex Sans', sans-serif; }
+  * { box-sizing: border-box; }
+
+  /* ===== Stencil brand tokens ===== */
+  :root {
+    /* Brand */
+    --signal: #ff6a3d;
+    --signal-tint: #ffb38a;
+    --signal-deep: #c84a23;
+    --ink: #15161a;
+    --sand: #f3f1ec;
+    --sand-2: #e7e4dc;
+    --sand-3: #ddd9cf;
+
+    /* Dark surfaces */
+    --bg-0: #0a0a0a;
+    --bg-1: #141414;
+    --bg-2: #1a1a1a;
+    --bg-3: #202020;
+    --bg-4: #262626;
+
+    /* Foreground */
+    --fg-1: #e5e5e5;
+    --fg-2: #b3b3b3;
+    --fg-3: #8a8a8a;
+    --fg-4: #5c5c5c;
+
+    /* Borders */
+    --bd-1: #1f1f1f;
+    --bd-2: #2a2a2a;
+    --bd-3: #3a3a3a;
+
+    /* Semantic */
+    --success: #7cf0c4;
+    --success-12: rgba(124, 240, 196, 0.12);
+    --warning: #f7c948;
+    --warning-12: rgba(247, 201, 72, 0.12);
+    --error: #f87171;
+    --error-12: rgba(248, 113, 113, 0.12);
+
+    /* Type */
+    --f-sans: 'IBM Plex Sans', sans-serif;
+    --f-mono: 'IBM Plex Mono', ui-monospace, monospace;
+    --f-jbm: 'JetBrains Mono', ui-monospace, monospace;
+  }
+
+  /* Custom scrollbars for nested scroll regions in mockups */
+  .sb::-webkit-scrollbar { width: 8px; height: 8px; }
+  .sb::-webkit-scrollbar-track { background: transparent; }
+  .sb::-webkit-scrollbar-thumb { background: #262626; border-radius: 4px; }
+
+  /* Animations */
+  @keyframes blink { 50% { opacity: 0.35; } }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse-dot { 0%,100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.4); opacity: .5; } }
+  @keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+  @keyframes caret { 50% { opacity: 0; } }
+
+  .blink { animation: blink 1s steps(2) infinite; }
+  .spin  { animation: spin 1.2s linear infinite; }
+  .pulse-dot { animation: pulse-dot 1.6s ease-in-out infinite; }
+  .caret { animation: caret 1s steps(2) infinite; }
+  .shimmer-text {
+    background: linear-gradient(90deg, var(--fg-1) 0%, var(--fg-1) 40%, var(--fg-3) 50%, var(--fg-1) 60%, var(--fg-1) 100%);
+    background-size: 200% 100%;
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent;
+    animation: shimmer 1.8s linear infinite;
+  }
+</style>
+
+<!-- ext-resource-dependency: src/tokens.jsx -->
+<!-- ext-resource-dependency: src/primitives.jsx -->
+<!-- ext-resource-dependency: src/shell.jsx -->
+<!-- ext-resource-dependency: src/cards.jsx -->
+<!-- ext-resource-dependency: src/chat-screens.jsx -->
+<!-- ext-resource-dependency: src/dialog-screens.jsx -->
+<!-- ext-resource-dependency: src/intro.jsx -->
+<!-- ext-resource-dependency: src/diff.jsx -->
+<!-- ext-resource-dependency: src/app.jsx -->
+
+</head>
+<body>
+
+<template id="__bundler_thumbnail">
+<svg viewBox="0 0 200 140" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="140" fill="#f3f1ec"/>
+  <rect x="40" y="50" width="14" height="14" rx="2" fill="#ff6a3d"/>
+  <text x="60" y="64" font-family="'IBM Plex Mono',monospace" font-weight="700" font-size="18" fill="#15161a">АНАЛИТИК</text>
+  <text x="40" y="90" font-family="'JetBrains Mono',monospace" font-size="9" letter-spacing="2" fill="#15161a" opacity="0.5">STENCIL · REDESIGN</text>
+</svg>
+</template>
+
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="src/tokens.jsx"></script>
+<script type="text/babel" src="src/primitives.jsx"></script>
+<script type="text/babel" src="src/shell.jsx"></script>
+<script type="text/babel" src="src/cards.jsx"></script>
+<script type="text/babel" src="src/chat-screens.jsx"></script>
+<script type="text/babel" src="src/dialog-screens.jsx"></script>
+<script type="text/babel" src="src/intro.jsx"></script>
+<script type="text/babel" src="src/diff.jsx"></script>
+<script type="text/babel" src="src/app.jsx"></script>
+
+</body>
+</html>

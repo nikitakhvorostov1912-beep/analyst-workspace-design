@@ -69,9 +69,10 @@ describe("SessionList", () => {
       earlier: [makeItem("s4", "Чат-4", old)],
     };
     render(<SessionList grouped={grouped} activeId={null} onDelete={() => {}} />);
-    // Используем getAllByText т.к. заголовок группы и title сессии могут совпадать
-    expect(screen.getByText("Сегодня", { selector: "div.uppercase" })).toBeTruthy();
-    expect(screen.getByText("Вчера", { selector: "div.uppercase" })).toBeTruthy();
+    // Brand group headers — span с uppercase ls .22em. Тексты «Сегодня»/«Вчера»/etc.
+    // могут совпадать с title сессии, поэтому ищем по селектору span.uppercase.
+    expect(screen.getByText("Сегодня", { selector: "span.uppercase" })).toBeTruthy();
+    expect(screen.getByText("Вчера", { selector: "span.uppercase" })).toBeTruthy();
     expect(screen.getByText("На этой неделе")).toBeTruthy();
     expect(screen.getByText("Раньше")).toBeTruthy();
   });
@@ -90,7 +91,7 @@ describe("SessionList", () => {
     expect(el.className).toContain("italic");
   });
 
-  it("активная сессия получает border-l-2 класс", () => {
+  it("активная сессия подсвечена signal-bar слева (brand pattern)", () => {
     const grouped: SessionsGrouped = {
       today: [makeItem("s1", "Активная", NOW)],
       yesterday: [],
@@ -101,7 +102,11 @@ describe("SessionList", () => {
       <SessionList grouped={grouped} activeId="s1" onDelete={() => {}} />,
     );
     const link = container.querySelector("a[href='/sessions/s1']");
-    expect(link?.className).toContain("border-l-2");
+    // Stencil/Mono redesign: активный пункт = bg-2 + absolute span с signal-цветом
+    // слева. Раньше использовался border-l-2 класс, теперь через дочерний span.
+    expect(link?.className).toContain("bg-[var(--bg-2)]");
+    const signalBar = link?.querySelector("span[aria-hidden='true']");
+    expect(signalBar).not.toBeNull();
   });
 
   it("click на кнопку удаления вызывает onDelete после confirm", () => {

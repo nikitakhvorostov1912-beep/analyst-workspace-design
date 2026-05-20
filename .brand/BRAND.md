@@ -153,6 +153,55 @@
 
 | Дата | Версия | Изменение |
 |---|---|---|
-| 2026-05-19 | Stencil v2 | Текущий — IBM Plex Mono 700 uppercase + orange marker (direction 06) |
+| 2026-05-20 | Stencil/Mono Redesign | **Текущий** — расширение Stencil v2 на весь shell: chips, eyebrow, group headers, brand-tick на composer, mint success #7cf0c4, warm warning #f7c948 |
+| 2026-05-19 | Stencil v2 | IBM Plex Mono 700 uppercase + orange marker (direction 06) |
 | 2026-05-18 | Blue v1.2.0 | Blue `#3b82f6` accent (Phase 11 design v2) — отменён |
 | ~2026-05 | Orange legacy | `#f97316` (v1.0–v1.1.x) — отменён |
+
+## v1.2.x Stencil/Mono Redesign (2026-05-20)
+
+Расширение brand на весь интерфейс приложения, не только лого-зону.
+
+### Новые токены
+
+| Токен | Dark | Light | Назначение |
+|---|---|---|---|
+| `--bg-4` | `#262626` | `#cfcabd` | Strongest step — disabled inputs, send-rest |
+| `--code-bg` | `#0d0e11` | `#0d0e11` (same) | Code surface — всегда тёмная независимо от темы |
+| `--code-fg` | `#e5e5e5` | same | Текст в code blocks |
+| `--accent-32` | `rgba(255,106,61,.32)` | same | Border на signal chips |
+| `--success-40` | `rgba(124,240,196,.4)` | `rgba(45,185,140,.4)` | Border на success chips |
+| `--warning-40` | `rgba(247,201,72,.4)` | `rgba(198,147,20,.4)` | Border на warn chips |
+| `--error-40` | `rgba(248,113,113,.4)` | `rgba(220,38,38,.4)` | Border на error chips |
+
+### Обновлённая семантика
+
+- **Success**: `#7cf0c4` (мятный) — было `#4ade80`. Brand-friendly соседствует с signal.
+- **Warning**: `#f7c948` (тёплая охра) — было `#fbbf24`. Согласован с sand-палитрой.
+- **Light bg-1**: `#faf8f3` (почти белый sand) — было `#ebe8e0`. Для карточек/header нужен сильный контраст с основным sand-фоном.
+
+### Новые primitives (`components/ui/`)
+
+- **`StencilChip`** — фирменная капсула с 6 тонами: muted, signal, success, warn, error, solid. Шрифт — JetBrains Mono uppercase ls .16em.
+- **`Marker`** — оранжевый квадрат-якорь (по умолчанию 10×10, signal-цвет, border-radius 2). Ставится перед лого, разделами, кнопкой «Новый чат».
+- **`SectionHead`** — паттерн `01 · TITLE ──────── tag` для крупных секций.
+
+### Изменённые компоненты shell
+
+- **AnonymizationToggle** → StencilChip tone=warn/muted. «Аноним · ВКЛ» / «Аноним · ВЫКЛ».
+- **ModelBadge** → StencilChip tone=muted с success-dot. Модель показывается uppercase: «MIMO-V2.5-PRO», «GPT-4O».
+- **Search button в Header** → mono uppercase «SEARCH ⌘K».
+- **ChannelSelector** → eyebrow «БАЗА 1С» (Database icon в signal-цвете) + название Plex Mono 600 + статус-dot + chevron. Empty state — пунктирный warn-frame с уточнением «Настроить →».
+- **Sidebar** → группы дней с паттерном `СЕГОДНЯ ────── 03` (количество тонкой полосой + счётчик). Кнопка «Новый чат» с Marker слева.
+- **SessionItem** → brand-eyebrow `#A4F2 · 12 сооб. · 14:32`. Активная строка — signal-bar слева 2×16 px.
+- **ChatInput (composer)** → оранжевый brand-tick 22×2 сверху-слева, send button signal-фон при value, hint-row mono uppercase + token-counter справа.
+
+### Source-of-truth файлы (redesign-v2)
+
+- `.brand/source/redesign-v2/src/tokens.jsx` — полная палитра + `pal(theme)` helper
+- `.brand/source/redesign-v2/src/primitives.jsx` — StChip, StMarker, StLockup, StGlyph, StSectionHead, StDot, StButton, StIconBtn, Icon set
+- `.brand/source/redesign-v2/src/shell.jsx` — Header, Sidebar, ChannelSelector, Composer reference
+- `.brand/source/redesign-v2/src/cards.jsx` — Table, Object, Log, Metric, References, Code, Chart reference
+- `.brand/source/redesign-v2/src/dialog-screens.jsx` — Settings, About, Status, Guide экраны
+- `.brand/source/redesign-v2/src/intro.jsx` — Splash / Onboarding
+- `.brand/source/redesign-v2/Stencil-Redesign-Full.html` — собранный демо-стенд

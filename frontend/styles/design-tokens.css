@@ -13,11 +13,17 @@
  * ============================================================================ */
 
 :root {
-  /* Background levels — granular */
+  /* Background levels — granular (Stencil/Mono redesign 2026-05-20) */
   --bg-0: #0a0a0a; /* root background, app shell */
   --bg-1: #141414; /* surface — header, sidebar, cards */
   --bg-2: #1a1a1a; /* raised — popovers, hovered cards */
   --bg-3: #202020; /* deepest — code blocks, expanded states */
+  --bg-4: #262626; /* strongest dark step — disabled inputs, send-rest */
+
+  /* Code surface — всегда тёмная независимо от темы, фирменный «code ground» */
+  --code-bg: #0d0e11;
+  --code-fg: #e5e5e5;
+  --code-dim: #5c5c5c;
 
   /* Foreground levels — granular */
   --fg-1: #e5e5e5; /* primary text */
@@ -30,24 +36,28 @@
   --bd-2: #2a2a2a; /* emphasis — card borders, inputs */
   --bd-3: #3a3a3a; /* strong — hover borders, active focus */
 
-  /* Accent — primary action color (default: blue-500) */
-  --accent: #3b82f6;
-  --accent-08: rgba(59, 130, 246, 0.08);
-  --accent-12: rgba(59, 130, 246, 0.12);
-  --accent-20: rgba(59, 130, 246, 0.20);
+  /* Accent — primary action = Signal #FF6A3D (Stencil brand) */
+  --accent: #ff6a3d;
+  --accent-08: rgba(255, 106, 61, 0.08);
+  --accent-12: rgba(255, 106, 61, 0.12);
+  --accent-20: rgba(255, 106, 61, 0.20);
+  --accent-32: rgba(255, 106, 61, 0.32);
 
-  /* Semantic colors */
-  --success: #4ade80;
-  --success-12: rgba(74, 222, 128, 0.12);
-  --success-20: rgba(74, 222, 128, 0.20);
+  /* Semantic colors — Stencil palette (mint success, warm warning) */
+  --success: #7cf0c4;
+  --success-12: rgba(124, 240, 196, 0.12);
+  --success-20: rgba(124, 240, 196, 0.20);
+  --success-40: rgba(124, 240, 196, 0.40);
 
-  --warning: #fbbf24;
-  --warning-12: rgba(251, 191, 36, 0.12);
-  --warning-20: rgba(251, 191, 36, 0.20);
+  --warning: #f7c948;
+  --warning-12: rgba(247, 201, 72, 0.12);
+  --warning-20: rgba(247, 201, 72, 0.20);
+  --warning-40: rgba(247, 201, 72, 0.40);
 
   --error: #f87171;
   --error-12: rgba(248, 113, 113, 0.12);
   --error-20: rgba(248, 113, 113, 0.20);
+  --error-40: rgba(248, 113, 113, 0.40);
 
   /* Animation timing */
   --t-micro: 150ms;
@@ -84,17 +94,18 @@
  * ---------------------------------------------------------------------------- */
 
 [data-theme="light"] {
-  /* Background — Sand палитра */
+  /* Background — Sand палитра (Stencil/Mono redesign 2026-05-20) */
   --bg-0: #f3f1ec; /* основной фон — sand */
-  --bg-1: #ebe8e0; /* surface — карточки, header */
-  --bg-2: #e7e4dc; /* raised — popovers, hover */
-  --bg-3: #ddd9cf; /* deepest — code blocks */
+  --bg-1: #faf8f3; /* surface — карточки, header (почти белый sand для контраста) */
+  --bg-2: #e7e4dc; /* raised — popovers, hover (sand-2) */
+  --bg-3: #ddd9cf; /* deepest — sand-3 */
+  --bg-4: #cfcabd; /* strongest sand step — disabled inputs */
 
   /* Foreground — Ink с opacity */
   --fg-1: #15161a; /* основной текст — ink */
   --fg-2: rgba(21, 22, 26, 0.72); /* secondary — caption, meta */
-  --fg-3: rgba(21, 22, 26, 0.5); /* muted — placeholders, hints */
-  --fg-4: rgba(21, 22, 26, 0.32); /* subtle — disabled */
+  --fg-3: rgba(21, 22, 26, 0.55); /* muted — placeholders, hints */
+  --fg-4: rgba(21, 22, 26, 0.4); /* subtle — disabled */
 
   /* Borders — тонкие тёмные линии */
   --bd-1: rgba(21, 22, 26, 0.06); /* subtle — divider */
@@ -106,18 +117,27 @@
   --lockup-version: rgba(0, 0, 0, 0.55);
   --lockup-subtitle: rgba(0, 0, 0, 0.45);
 
-  /* Semantic — приглушённые версии для светлого фона */
-  --success: #047857;
-  --success-12: rgba(4, 120, 87, 0.1);
-  --success-20: rgba(4, 120, 87, 0.18);
+  /* Semantic — те же brand-цвета, но с подкорректированной прозрачностью для светлого фона.
+     Принцип: цвет signal/success/warning/error не меняется между темами — это часть brand.
+     Меняется только сила tint (alpha) для backgrounds. */
+  --success: #2db98c; /* mint, слегка темнее brand-success для контраста на sand */
+  --success-12: rgba(45, 185, 140, 0.12);
+  --success-20: rgba(45, 185, 140, 0.2);
+  --success-40: rgba(45, 185, 140, 0.4);
 
-  --warning: #a16207;
-  --warning-12: rgba(161, 98, 7, 0.1);
-  --warning-20: rgba(161, 98, 7, 0.18);
+  --warning: #c69314; /* охра, темнее brand-warning для контраста на sand */
+  --warning-12: rgba(198, 147, 20, 0.12);
+  --warning-20: rgba(198, 147, 20, 0.2);
+  --warning-40: rgba(198, 147, 20, 0.4);
 
-  --error: #b91c1c;
-  --error-12: rgba(185, 28, 28, 0.1);
-  --error-20: rgba(185, 28, 28, 0.18);
+  --error: #dc2626;
+  --error-12: rgba(220, 38, 38, 0.12);
+  --error-20: rgba(220, 38, 38, 0.2);
+  --error-40: rgba(220, 38, 38, 0.4);
+
+  /* Code surface на светлой теме всё равно тёмная — фирменный «code ground».
+     В Stencil-системе code blocks никогда не меняют цвет. */
+  /* (--code-bg / --code-fg / --code-dim наследуются из :root) */
 }
 
 /* ----------------------------------------------------------------------------

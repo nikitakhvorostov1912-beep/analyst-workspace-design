@@ -1,7 +1,7 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
+import { Marker } from "@/components/ui/Marker";
 import { SessionList } from "./SessionList";
 import type { SessionsGrouped } from "@/lib/types";
 
@@ -26,17 +26,23 @@ export function Sidebar({
   onDelete,
 }: SidebarProps) {
   return (
-    <aside className="flex flex-col h-full border-r border-[var(--border)] bg-[var(--bg)]">
-      {/* Кнопка нового чата */}
-      <div className="p-3 border-b border-[var(--border)]">
-        <Button
-          variant="secondary"
-          className="w-full justify-start gap-2 text-sm"
+    <aside className="flex flex-col h-full border-r border-[var(--bd-1)] bg-[var(--bg-0)]">
+      {/* Кнопка нового чата — brand pattern: marker + mono uppercase */}
+      <div className="p-3 border-b border-[var(--bd-1)]">
+        <button
+          type="button"
           onClick={onCreateNew}
+          className="w-full flex items-center gap-2 h-9 px-3 rounded-md bg-[var(--bg-2)] border border-[var(--bd-2)] hover:border-[var(--bd-3)] hover:bg-[var(--bg-3)] transition-colors text-[var(--fg-1)]"
         >
-          <Plus size={16} />
-          Новый чат
-        </Button>
+          <Marker size={10} />
+          <span
+            className="font-semibold text-[12px] tracking-[0.08em] uppercase"
+            style={{ fontFamily: "var(--font-plex-mono), ui-monospace, monospace" }}
+          >
+            Новый чат
+          </span>
+          <Plus className="h-3.5 w-3.5 ml-auto text-[var(--fg-3)]" />
+        </button>
       </div>
 
       {/* Список сессий с группировкой */}

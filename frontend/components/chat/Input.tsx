@@ -241,13 +241,24 @@ export function ChatInput({ onSubmit, disabled, disabledReason, channelId }: Cha
     setAttachments((prev) => prev.filter((_, i) => i !== idx));
   }
 
+  const hasValue = value.trim().length > 0 || attachments.length > 0;
+  const canSubmit = hasValue && !disabled && !loadingFiles;
+  // Грубая оценка токенов: 1 токен ≈ 4 символа. Для UI хватает.
+  const tokenEstimate = Math.ceil(value.length / 4);
+
   return (
     <div
-      className={`flex flex-col gap-1 p-3 relative ${isDragOver ? "ring-2 ring-[var(--accent)] ring-inset rounded-md bg-[var(--accent-08)]" : ""}`}
+      className={`relative flex flex-col gap-1.5 p-3 ${isDragOver ? "ring-2 ring-[var(--accent)] ring-inset rounded-md bg-[var(--accent-08)]" : ""}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {/* Brand-tick: оранжевая черта сверху-слева, brand-detail из лого-листа */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute top-0 left-6 h-[2px] w-[22px]"
+        style={{ background: "var(--accent)" }}
+      />
       {isDragOver && (
         <div
           className="pointer-events-none absolute inset-0 flex items-center justify-center text-sm text-[var(--accent)] font-medium z-10"
@@ -384,15 +395,35 @@ export function ChatInput({ onSubmit, disabled, disabledReason, channelId }: Cha
         >
           <Paperclip size={16} className={loadingFiles ? "animate-pulse" : ""} />
         </Button>
-        <Button
-          size="icon"
+        <button
+          type="button"
           onClick={handleSubmit}
-          disabled={(!value.trim() && attachments.length === 0) || disabled || loadingFiles}
+          disabled={!canSubmit}
           aria-label="Отправить"
-          className="flex-none mb-0.5"
+          className={`flex-none mb-0.5 inline-flex items-center justify-center h-9 w-9 rounded-md border transition-colors ${
+            canSubmit
+              ? "bg-[var(--accent)] border-[var(--accent)] text-[var(--brand-ink,#15161a)] hover:brightness-110"
+              : "bg-[var(--bg-3)] border-[var(--bd-2)] text-[var(--fg-3)] cursor-not-allowed"
+          }`}
+          data-testid="send-button"
         >
-          <Send size={16} />
-        </Button>
+          <Send size={15} />
+        </button>
+      </div>
+
+      {/* Hint-row под composer: brand mono uppercase + token counter */}
+      <div
+        className="flex items-center gap-3 px-1 text-[10px] tracking-[0.14em] uppercase text-[var(--fg-4)]"
+        style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
+      >
+        <span>
+          {disabledReason === "banner"
+            ? "Нет соединения — восстановите подключение"
+            : "Естественный язык · модель сама выберет инструменты"}
+        </span>
+        <span className="ml-auto tabular-nums">
+          {tokenEstimate.toLocaleString("ru-RU")} / 4 000 ТОКЕНОВ
+        </span>
       </div>
     </div>
   );

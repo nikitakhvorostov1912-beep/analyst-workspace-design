@@ -38,10 +38,27 @@ interface GroupSectionProps {
 function GroupSection({ label, items, activeId, onDelete }: GroupSectionProps) {
   if (items.length === 0) return null;
 
+  // Brand pattern: «СЕГОДНЯ ──────── 03»
   return (
-    <div className="mb-3">
-      <div className="px-2 py-1 text-xs font-medium text-[var(--fg-muted)] uppercase tracking-wide">
-        {label}
+    <div className="mb-4">
+      <div className="flex items-center gap-2 px-2.5 pt-1 pb-1.5">
+        <span
+          className="text-[9.5px] tracking-[0.22em] uppercase text-[var(--fg-4)] flex-none"
+          style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
+        >
+          {label}
+        </span>
+        <span
+          className="flex-1 h-px"
+          style={{ background: "var(--bd-1)" }}
+          aria-hidden="true"
+        />
+        <span
+          className="text-[9.5px] tracking-[0.12em] text-[var(--fg-4)] flex-none tabular-nums"
+          style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
+        >
+          {String(items.length).padStart(2, "0")}
+        </span>
       </div>
       {items.map((item) => (
         <SessionItem
@@ -70,30 +87,49 @@ function SessionItem({ item, isActive, onDelete }: SessionItemProps) {
     }
   }
 
+  // Короткий ID — первые 4 hex-символа UUID (для brand-eyebrow «#A4F2»)
+  const shortId = item.id.replace(/-/g, "").slice(0, 4).toUpperCase();
+
   return (
     <Link
       href={`/sessions/${item.id}`}
-      className={`group flex items-start gap-1 px-2 py-2 rounded text-sm transition-colors hover:bg-[var(--bg-elevated)] ${
-        isActive ? "border-l-2 border-[var(--accent)] bg-[var(--bg-elevated)] pl-[6px]" : ""
+      className={`group relative flex items-start gap-2 px-2.5 py-2 rounded-md mb-0.5 transition-colors ${
+        isActive
+          ? "bg-[var(--bg-2)] text-[var(--fg-1)]"
+          : "hover:bg-[var(--bg-2)] text-[var(--fg-2)] hover:text-[var(--fg-1)]"
       }`}
     >
+      {/* Active = signal bar slева (brand pattern) */}
+      {isActive && (
+        <span
+          aria-hidden="true"
+          className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full"
+          style={{ background: "var(--accent)" }}
+        />
+      )}
+
       <div className="flex-1 min-w-0">
+        {/* Brand eyebrow: #ID · time */}
         <div
-          className={`truncate text-sm ${
-            item.title === null
-              ? "text-[var(--fg-muted)] italic"
-              : "text-[var(--fg)]"
+          className="flex items-center gap-1.5 mb-0.5 text-[9px] tracking-[0.16em] uppercase text-[var(--fg-4)]"
+          style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
+        >
+          <span>#{shortId}</span>
+          <span className="text-[var(--fg-4)]">·</span>
+          <span className="text-[var(--fg-3)]">{item.message_count} сообщ.</span>
+          <span className="ml-auto">{formatRelative(item.updated_at)}</span>
+        </div>
+        <div
+          className={`truncate text-[13px] font-medium ${
+            item.title === null ? "text-[var(--fg-3)] italic" : ""
           }`}
         >
           {item.title ?? "Новый чат"}
         </div>
-        <div className="text-xs text-[var(--fg-muted)] mt-0.5">
-          {item.message_count} сообщ. · {formatRelative(item.updated_at)}
-        </div>
       </div>
       <button
         onClick={handleDelete}
-        className="flex-none opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:text-red-400 text-[var(--fg-muted)]"
+        className="flex-none opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:text-[var(--error)] text-[var(--fg-3)]"
         aria-label="Удалить сессию"
       >
         <Trash2 size={14} />

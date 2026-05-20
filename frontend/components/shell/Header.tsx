@@ -64,16 +64,19 @@ export function Header({
         <AnonymizationToggle />
         <ModelBadge />
         {onOpenCmdK && (
-          <Button
-            variant="ghost"
-            size="sm"
+          <button
+            type="button"
             onClick={onOpenCmdK}
-            className="h-[30px] px-2 gap-1.5 bg-[var(--bg-1)] border border-[var(--bd-2)]"
             aria-label="Командное меню"
+            className="inline-flex items-center gap-2 h-[30px] px-2.5 rounded-md bg-[var(--bg-2)] border border-[var(--bd-2)] text-[var(--fg-2)] hover:text-[var(--fg-1)] hover:border-[var(--bd-3)] transition-colors"
+            style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
           >
-            <Search className="h-3.5 w-3.5" />
-            <kbd className="text-[10px] text-[var(--fg-3)] font-mono">⌘K</kbd>
-          </Button>
+            <Search className="h-3 w-3" />
+            <span className="text-[10px] tracking-[0.16em] uppercase">Search</span>
+            <kbd className="text-[9px] tracking-[0.1em] px-1 py-0.5 rounded border border-[var(--bd-2)] text-[var(--fg-3)]">
+              ⌘K
+            </kbd>
+          </button>
         )}
         <Button
           variant="ghost"

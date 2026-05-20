@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { RefreshCw, Settings } from "lucide-react";
+import { ChevronDown, Database, RefreshCw, Settings } from "lucide-react";
 import Link from "next/link";
 import {
   DropdownMenu,
@@ -166,11 +166,21 @@ export function ChannelSelector({ activeId, onChange }: Props) {
   // Empty state — крупно, чтобы аналитик сразу заметил «надо настроить»
   if (connections.length === 0) {
     return (
-      <div className="flex items-center gap-2.5 h-10 px-3.5 rounded-md border-2 border-dashed border-[var(--warning-20)] bg-[var(--bg-2)] text-[13.5px] text-[var(--fg-2)] select-none min-w-[300px]">
-        <PingDot status="unknown" />
-        <span className="font-medium">Подключения не настроены</span>
-        <Link href="/settings" className="ml-auto text-[var(--accent)] hover:underline text-xs font-medium">
-          Настроить
+      <div className="flex items-center gap-3 h-9 px-3 rounded-md border border-dashed border-[var(--warning-40)] bg-[var(--warning-12)] text-[13px] text-[var(--fg-1)] select-none min-w-[320px]">
+        <Database className="h-3.5 w-3.5 text-[var(--warning)] flex-none" />
+        <span
+          className="text-[10px] tracking-[0.16em] uppercase text-[var(--warning)] flex-none"
+          style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
+        >
+          База 1С
+        </span>
+        <span className="flex-1 font-medium">Подключения не настроены</span>
+        <Link
+          href="/settings"
+          className="text-[10px] tracking-[0.16em] uppercase text-[var(--accent)] hover:underline flex-none"
+          style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
+        >
+          Настроить →
         </Link>
       </div>
     );
@@ -180,25 +190,40 @@ export function ChannelSelector({ activeId, onChange }: Props) {
     <DropdownMenu open={open} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
         <button
-          className="flex items-center gap-2.5 h-10 px-3.5 rounded-md border border-[var(--bd-2)] bg-[var(--bg-2)] text-[13.5px] text-[var(--fg-1)] hover:bg-[var(--bg-hover)] hover:border-[var(--accent-20)] transition-colors min-w-[300px] cursor-pointer shadow-sm focus:outline-none focus:ring-2 focus:ring-[var(--accent-20)]"
+          className="flex items-center gap-3 h-9 px-3 rounded-md border border-[var(--bd-2)] bg-[var(--bg-2)] hover:bg-[var(--bg-hover)] hover:border-[var(--bd-3)] transition-colors min-w-[320px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--accent-20)]"
           aria-label="Выбор канала"
           title={activeConn ? `${activeConn.name} — ${activeConn.endpoint}` : undefined}
           data-testid="channel-selector-button"
         >
-          <PingDot status={activeConn?.ping ?? "unknown"} />
-          <span className="flex-1 text-left truncate font-semibold">
+          {/* Brand-eyebrow: иконка + БАЗА 1С uppercase */}
+          <Database className="h-3.5 w-3.5 text-[var(--accent)] flex-none" />
+          <span
+            className="text-[10px] tracking-[0.16em] uppercase text-[var(--fg-3)] flex-none"
+            style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
+          >
+            База 1С
+          </span>
+
+          {/* Название канала — IBM Plex Mono 600 */}
+          <span
+            className="flex-1 text-left truncate text-[12.5px] font-semibold text-[var(--fg-1)]"
+            style={{ fontFamily: "var(--font-plex-mono), 'IBM Plex Mono', ui-monospace, monospace" }}
+          >
             {activeConn ? activeConn.name : "Выберите подключение"}
           </span>
+
           {activeConn && <KindBadge kind={activeConn.kind} size="md" />}
           {activeConn && (
             <span
-              className="font-mono text-[12px] text-[var(--fg-2)] flex-none tabular-nums"
+              className="font-mono text-[11px] text-[var(--fg-3)] flex-none tabular-nums"
               data-testid="channel-selector-port"
             >
               :{extractPort(activeConn.endpoint)}
             </span>
           )}
-          <span className="text-[var(--fg-3)] text-xs">▾</span>
+
+          <PingDot status={activeConn?.ping ?? "unknown"} />
+          <ChevronDown className="h-3.5 w-3.5 text-[var(--fg-3)] flex-none" />
         </button>
       </DropdownMenuTrigger>
 
