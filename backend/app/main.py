@@ -17,6 +17,7 @@ from app.routes import mcp as mcp_router
 from app.routes import memory as memory_router
 from app.routes import search as search_router
 from app.routes import sessions as sessions_router
+from app.routes import skills as skills_router
 from app.storage.db import close_db, init_db
 
 logging.basicConfig(
@@ -71,6 +72,7 @@ def create_app() -> FastAPI:
     app.include_router(admin_router.router)
     app.include_router(diagnostics_router.router)
     app.include_router(memory_router.router)
+    app.include_router(skills_router.router)
 
     return app
 

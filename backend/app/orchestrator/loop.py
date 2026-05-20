@@ -23,6 +23,9 @@ from app.orchestrator.attachments import (
 # orchestrator временно (для этого запроса) переключается на VISION_MODEL.
 # Эту константу можно вынести в Settings когда появятся другие провайдеры.
 VISION_MODEL = "mimo-v2-omni"
+from app.learning.background_review import schedule_review
+from app.learning.skill_store import SkillStore
+from app.learning.skill_usage import SkillUsageStore
 from app.orchestrator.auxiliary import AuxiliaryClient
 from app.orchestrator.compressor import (
     compress,
@@ -45,6 +48,12 @@ from app.orchestrator.memory_integration import (
 from app.orchestrator.sanitize import (
     repair_message_sequence,
     sanitize_messages,
+)
+from app.orchestrator.todo import (
+    TODO_TOOL_SCHEMAS,
+    dispatch_todo_tool,
+    is_todo_tool,
+    render_todos_for_prompt,
 )
 from app.config import get_settings
 from app.models import ChatRequest
@@ -445,6 +454,20 @@ async def run_chat_loop(
     memory_manager = build_memory_manager(settings, request.channel_id)
     trajectory_logger = build_trajectory_logger(settings)
 
+    # Sprint 3 (Hermes A8/A9/D3): skill store + usage telemetry per канал.
+    # Best-effort: при отсутствии настроек или ошибке init — продолжаем без skills.
+    skill_store: SkillStore | None = None
+    skill_usage: SkillUsageStore | None = None
+    if settings.memory_enabled:
+        try:
+            skills_root = settings.memory_root_path / "skills"
+            skill_store = SkillStore(skills_root, request.channel_id)
+            skill_usage = SkillUsageStore(skill_store.directory)
+        except Exception:
+            logger.warning("Не удалось инициализировать SkillStore — продолжаем без skills")
+            skill_store = None
+            skill_usage = None
+
     try:
         await pool.initialize_all()
         mcp_tools = await pool.list_all_tools()
@@ -452,6 +475,8 @@ async def run_chat_loop(
         # Добавляем memory tool schemas (memory_append, memory_remove) к OpenAI tools.
         # LLM видит их в едином списке вместе с MCP-инструментами.
         openai_tools = openai_tools + memory_tool_schemas(memory_manager)
+        # Sprint 3: todo_add / todo_complete / todo_list — internal tools.
+        openai_tools = openai_tools + TODO_TOOL_SCHEMAS
     except Exception:
         logger.exception("Ошибка инициализации MCP pool")
         yield format_sse("error", ErrorEvent(
@@ -482,11 +507,37 @@ async def run_chat_loop(
         history_msgs = list(history_msgs)
         history_msgs[-1] = {"role": "user", "content": user_message_content}
 
-    # Собираем system prompt — статичный SYSTEM_PROMPT + memory block (если есть).
-    # Memory block кладётся в КОНЕЦ system prompt — модель видит его последним,
-    # ближе к user message → лучше учитывает.
+    # Собираем system prompt — статичный SYSTEM_PROMPT + memory block (если есть)
+    # + skills block (Sprint 3) + todo block (Sprint 3).
+    # Порядок: статика → memory → skills → todo. Todo последний — самый свежий контекст.
     mem_block = memory_system_block(memory_manager)
-    full_system_prompt = SYSTEM_PROMPT + ("\n\n" + mem_block if mem_block else "")
+    skills_block = ""
+    if skill_store is not None:
+        try:
+            skills_block = skill_store.render_for_prompt(max_chars=4_000)
+            # Sprint 3 (A9): инкрементим usage для всех активных skills попавших в prompt.
+            if skills_block and skill_usage is not None:
+                for active_skill in skill_store.list_active():
+                    if active_skill.id in skills_block:
+                        try:
+                            skill_usage.increment(active_skill.id)
+                        except Exception:
+                            logger.debug("Skill usage increment failed for %s", active_skill.id)
+        except Exception:
+            logger.warning("Skill render failed", exc_info=True)
+            skills_block = ""
+
+    todos_block = render_todos_for_prompt(session_id)
+
+    prompt_parts = [SYSTEM_PROMPT]
+    if mem_block:
+        prompt_parts.append(mem_block)
+    if skills_block:
+        prompt_parts.append(skills_block)
+    if todos_block:
+        prompt_parts.append(todos_block)
+    full_system_prompt = "\n\n".join(prompt_parts)
+
     messages: list[dict] = [
         {"role": "system", "content": full_system_prompt},
         *history_msgs,
@@ -799,6 +850,35 @@ async def run_chat_loop(
                     })
                     continue
 
+                # Sprint 3 (Hermes D3): todo_* tools → TodoRegistry, не MCP.
+                if is_todo_tool(tool_name):
+                    ok, tool_result, tool_error = dispatch_todo_tool(
+                        session_id, tool_name, tool_args
+                    )
+                    duration_ms = int((time.monotonic() - start_ts) * 1000)
+                    yield format_sse("tool_result", ToolResultEvent(
+                        id=tool_id,
+                        ok=ok,
+                        result=tool_result if ok else None,
+                        error=tool_error,
+                        duration_ms=duration_ms,
+                    ))
+                    accumulated_tool_calls.append({
+                        "id": tool_id,
+                        "name": tool_name,
+                        "args": tool_args,
+                        "result": tool_result,
+                        "error": tool_error,
+                        "duration_ms": duration_ms,
+                    })
+                    tool_content = json.dumps(tool_result, ensure_ascii=False) if tool_result else (tool_error or "")
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tool_id,
+                        "content": _cap_content(tool_content),
+                    })
+                    continue
+
                 # Маршрутизация tool_call → правильный MCP client (primary или aux).
                 tool_client = pool.client_for(tool_name)
                 try:
@@ -957,6 +1037,26 @@ async def run_chat_loop(
         model=effective_llm_model,
         latency_ms=total_duration_ms,
     )
+
+    # Sprint 3 (Hermes A5): background review fork — fire-and-forget.
+    # Aux LLM решит, сохранить ли skill, не блокирует ответ пользователю.
+    # Skip если: interrupted (turn неполный), skill_store отсутствует, нет accumulated_content.
+    if (
+        not interrupted_by_user
+        and skill_store is not None
+        and aux_compressor_client is not None
+        and accumulated_content.strip()
+    ):
+        try:
+            schedule_review(
+                user_msg=request.message,
+                assistant_msg=accumulated_content,
+                tool_calls=accumulated_tool_calls,
+                skill_store=skill_store,
+                aux_client=aux_compressor_client,
+            )
+        except Exception:
+            logger.debug("schedule_review failed", exc_info=True)
 
     yield format_sse("done", DoneEvent(
         message_id=message_id,

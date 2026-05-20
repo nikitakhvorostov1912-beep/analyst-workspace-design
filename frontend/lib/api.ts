@@ -20,6 +20,11 @@ import type {
   SessionDetail,
   SessionsGrouped,
   SSEEvent,
+  SkillCreateRequest,
+  SkillDTO,
+  SkillListResponse,
+  CuratorReport,
+  TodoListResponse,
   TrajectoryStats,
 } from "./types";
 import { getLLMApiKey } from "./api-keys";
@@ -642,4 +647,115 @@ export async function fetchTrajectoryStats(): Promise<TrajectoryStats> {
     throw new Error(`fetchTrajectoryStats: HTTP ${response.status}`);
   }
   return response.json() as Promise<TrajectoryStats>;
+}
+
+// --- Sprint 3 (Hermes A8/A9/A6/D3): Skills + Curator + Todos ---
+
+/** Список skills для канала (активные + архив). */
+export async function fetchSkills(channelId: string): Promise<SkillListResponse> {
+  const response = await fetch(
+    `${getBackend()}/skills/${encodeURIComponent(channelId)}`,
+  );
+  if (!response.ok) {
+    throw new Error(`fetchSkills: HTTP ${response.status}`);
+  }
+  return response.json() as Promise<SkillListResponse>;
+}
+
+/** Создать пользовательский skill. */
+export async function createSkill(
+  channelId: string,
+  body: SkillCreateRequest,
+): Promise<SkillDTO> {
+  const response = await fetch(
+    `${getBackend()}/skills/${encodeURIComponent(channelId)}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+  if (response.status === 201) {
+    return response.json() as Promise<SkillDTO>;
+  }
+  if (response.status === 400) {
+    const data = (await response.json().catch(() => ({}))) as { detail?: string };
+    throw new Error(data.detail || "Невалидный skill");
+  }
+  throw new Error(`createSkill: HTTP ${response.status}`);
+}
+
+/** Архивировать skill (не удаляется, можно вернуть). */
+export async function archiveSkill(channelId: string, skillId: string): Promise<void> {
+  const response = await fetch(
+    `${getBackend()}/skills/${encodeURIComponent(channelId)}/${encodeURIComponent(skillId)}/archive`,
+    { method: "POST" },
+  );
+  if (response.status === 204) return;
+  if (response.status === 409) {
+    throw new Error("Pinned skill нельзя архивировать");
+  }
+  if (response.status === 404) {
+    throw new Error("Skill не найден");
+  }
+  throw new Error(`archiveSkill: HTTP ${response.status}`);
+}
+
+/** Вернуть skill из архива. */
+export async function unarchiveSkill(channelId: string, skillId: string): Promise<void> {
+  const response = await fetch(
+    `${getBackend()}/skills/${encodeURIComponent(channelId)}/${encodeURIComponent(skillId)}/unarchive`,
+    { method: "POST" },
+  );
+  if (response.status === 204) return;
+  if (response.status === 404) {
+    throw new Error("Skill в архиве не найден");
+  }
+  throw new Error(`unarchiveSkill: HTTP ${response.status}`);
+}
+
+/** Удалить skill безвозвратно. */
+export async function deleteSkill(channelId: string, skillId: string): Promise<void> {
+  const response = await fetch(
+    `${getBackend()}/skills/${encodeURIComponent(channelId)}/${encodeURIComponent(skillId)}`,
+    { method: "DELETE" },
+  );
+  if (response.status === 204) return;
+  if (response.status === 409) {
+    throw new Error("Pinned skill нельзя удалить");
+  }
+  if (response.status === 404) {
+    throw new Error("Skill не найден");
+  }
+  throw new Error(`deleteSkill: HTTP ${response.status}`);
+}
+
+/** Запустить Curator (auto-archive). dry_run=true — только показать кандидатов. */
+export async function runCurator(
+  channelId: string,
+  dryRun: boolean = false,
+): Promise<CuratorReport> {
+  const response = await fetch(
+    `${getBackend()}/skills/${encodeURIComponent(channelId)}/curator/run`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ dry_run: dryRun }),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`runCurator: HTTP ${response.status}`);
+  }
+  return response.json() as Promise<CuratorReport>;
+}
+
+/** Список todo задач сессии. */
+export async function fetchTodos(sessionId: string): Promise<TodoListResponse> {
+  const response = await fetch(
+    `${getBackend()}/todos/${encodeURIComponent(sessionId)}`,
+  );
+  if (!response.ok) {
+    throw new Error(`fetchTodos: HTTP ${response.status}`);
+  }
+  return response.json() as Promise<TodoListResponse>;
 }

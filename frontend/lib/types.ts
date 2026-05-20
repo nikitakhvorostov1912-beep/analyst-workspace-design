@@ -384,6 +384,58 @@ export type MemoryUpdateResponse = {
   threats_found: string[];
 };
 
+// Sprint 3 (Hermes A8/A9/A6/D3): Skills + Curator + Todos.
+
+export type SkillDTO = {
+  id: string;
+  body: string;
+  provenance: "agent" | "user";
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+  pinned: boolean;
+  archived: boolean;
+  chars: number;
+  usage_count: number;
+  last_used_iso: string | null;
+};
+
+export type SkillListResponse = {
+  channel_id: string;
+  active: SkillDTO[];
+  archived: SkillDTO[];
+};
+
+export type SkillCreateRequest = {
+  id?: string;
+  body: string;
+  tags?: string[];
+  pinned?: boolean;
+};
+
+export type CuratorReport = {
+  inspected: number;
+  archived: string[];
+  skipped_pinned: string[];
+  skipped_user: string[];
+  skipped_recent: string[];
+  backup_label: string | null;
+};
+
+export type TodoDTO = {
+  id: string;
+  text: string;
+  status: "pending" | "in_progress" | "completed" | "cancelled";
+  created_at: string;
+  completed_at: string | null;
+};
+
+export type TodoListResponse = {
+  session_id: string;
+  items: TodoDTO[];
+  active_count: number;
+};
+
 export type TrajectoryStats = {
   enabled: boolean;
   root: string;

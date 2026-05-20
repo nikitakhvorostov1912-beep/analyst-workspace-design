@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Brain, ChevronRight } from "lucide-react";
+import { ArrowLeft, Brain, ChevronRight, Sparkles } from "lucide-react";
 import { fetchConnections, fetchLLMConfig } from "@/lib/api";
 import { MCPConnectionList } from "@/components/settings/MCPConnectionList";
 import { LLMConfigForm } from "@/components/settings/LLMConfigForm";
@@ -131,6 +131,27 @@ export default function SettingsPage() {
                 </div>
                 <div className="text-[12.5px] text-[var(--fg-3)]">
                   MEMORY.md и USER.md — заметки между сессиями
+                </div>
+              </div>
+              <ChevronRight className="h-4 w-4 text-[var(--fg-3)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-all" />
+            </Link>
+          </section>
+
+          {/* Sprint 3 (Hermes): Skills + Curator */}
+          <section>
+            <Link
+              href="/settings/skills"
+              className="flex items-center gap-3 p-4 rounded-lg border border-[var(--bd-2)] bg-[var(--bg-1)] hover:bg-[var(--bg-2)] hover:border-[var(--bd-3)] transition-colors group"
+            >
+              <div className="h-9 w-9 rounded-md bg-[var(--accent-12)] flex items-center justify-center flex-shrink-0">
+                <Sparkles className="h-4 w-4 text-[var(--accent)]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-[14px] font-semibold text-[var(--fg-1)]">
+                  Skills и Curator
+                </div>
+                <div className="text-[12.5px] text-[var(--fg-3)]">
+                  Накопленные подсказки агента + автоматическая архивация
                 </div>
               </div>
               <ChevronRight className="h-4 w-4 text-[var(--fg-3)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-all" />
