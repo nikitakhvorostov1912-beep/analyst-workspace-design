@@ -66,6 +66,8 @@ class DoneEvent(BaseModel):
 
     message_id: str = Field(min_length=1)
     total_duration_ms: int
+    # Sprint 2 (Hermes C9): пользователь нажал «Стоп» — частичный ответ сохранён.
+    interrupted: bool = False
 
 
 class ErrorEvent(BaseModel):

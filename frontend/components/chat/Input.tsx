@@ -16,7 +16,7 @@ import {
 } from "@/lib/attachments";
 import { publishToast } from "@/lib/toast";
 import type { ChatAttachment, MetadataSuggestItem } from "@/lib/types";
-import { File as FileIcon, Paperclip, Send, X } from "lucide-react";
+import { File as FileIcon, Paperclip, Send, Square, X } from "lucide-react";
 
 interface ChatInputProps {
   onSubmit?: (message: string, attachments?: ChatAttachment[]) => void;
@@ -25,9 +25,20 @@ interface ChatInputProps {
   disabledReason?: "banner" | "streaming" | null;
   /** Channel ID для metadata suggest (@-mentions) */
   channelId?: string;
+  /** Sprint 2 (Hermes C9): true когда идёт стрим. Меняет кнопку Send → Stop. */
+  isStreaming?: boolean;
+  /** Sprint 2 (Hermes C9): прерывает текущий стрим. */
+  onInterrupt?: () => void;
 }
 
-export function ChatInput({ onSubmit, disabled, disabledReason, channelId }: ChatInputProps) {
+export function ChatInput({
+  onSubmit,
+  disabled,
+  disabledReason,
+  channelId,
+  isStreaming = false,
+  onInterrupt,
+}: ChatInputProps) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -395,20 +406,33 @@ export function ChatInput({ onSubmit, disabled, disabledReason, channelId }: Cha
         >
           <Paperclip size={16} className={loadingFiles ? "animate-pulse" : ""} />
         </Button>
-        <button
-          type="button"
-          onClick={handleSubmit}
-          disabled={!canSubmit}
-          aria-label="Отправить"
-          className={`flex-none mb-0.5 inline-flex items-center justify-center h-9 w-9 rounded-md border transition-colors ${
-            canSubmit
-              ? "bg-[var(--accent)] border-[var(--accent)] text-[var(--brand-ink,#15161a)] hover:brightness-110"
-              : "bg-[var(--bg-3)] border-[var(--bd-2)] text-[var(--fg-3)] cursor-not-allowed"
-          }`}
-          data-testid="send-button"
-        >
-          <Send size={15} />
-        </button>
+        {isStreaming && onInterrupt ? (
+          <button
+            type="button"
+            onClick={onInterrupt}
+            aria-label="Остановить"
+            title="Остановить генерацию (частичный ответ сохранится)"
+            className="flex-none mb-0.5 inline-flex items-center justify-center h-9 w-9 rounded-md border border-[var(--bd-2)] bg-[var(--bg-3)] text-[var(--fg-1)] hover:bg-[var(--bg-4)] transition-colors"
+            data-testid="interrupt-button"
+          >
+            <Square size={13} fill="currentColor" />
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={!canSubmit}
+            aria-label="Отправить"
+            className={`flex-none mb-0.5 inline-flex items-center justify-center h-9 w-9 rounded-md border transition-colors ${
+              canSubmit
+                ? "bg-[var(--accent)] border-[var(--accent)] text-[var(--brand-ink,#15161a)] hover:brightness-110"
+                : "bg-[var(--bg-3)] border-[var(--bd-2)] text-[var(--fg-3)] cursor-not-allowed"
+            }`}
+            data-testid="send-button"
+          >
+            <Send size={15} />
+          </button>
+        )}
       </div>
 
       {/* Hint-row под composer: brand mono uppercase + token counter */}

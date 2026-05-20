@@ -23,6 +23,14 @@ from app.orchestrator.attachments import (
 # orchestrator временно (для этого запроса) переключается на VISION_MODEL.
 # Эту константу можно вынести в Settings когда появятся другие провайдеры.
 VISION_MODEL = "mimo-v2-omni"
+from app.orchestrator.auxiliary import AuxiliaryClient
+from app.orchestrator.compressor import (
+    compress,
+    needs_compression,
+)
+from app.orchestrator.error_classifier import Action, classify
+from app.orchestrator.interrupt import INTERRUPTS
+from app.orchestrator.iteration_budget import BudgetExhausted, IterationBudget
 from app.orchestrator.mcp_pool import MCPPool, build_aux_clients
 from app.orchestrator.memory_integration import (
     build_memory_manager,
@@ -33,6 +41,10 @@ from app.orchestrator.memory_integration import (
     memory_system_block,
     memory_tool_schemas,
     sync_memory_post_turn,
+)
+from app.orchestrator.sanitize import (
+    repair_message_sequence,
+    sanitize_messages,
 )
 from app.config import get_settings
 from app.models import ChatRequest
@@ -72,6 +84,8 @@ logger = logging.getLogger(__name__)
 # Tool iterations — фактически unlimited для аналитика.
 # 100 — soft safety net, обычно не достигается (сложные find_references
 # укладываются в 20-30). Главная защита — DUPLICATE_TOOL_CALL_THRESHOLD ниже.
+# Sprint 2: используется IterationBudget из settings.iteration_budget,
+# константа оставлена для обратной совместимости с тестами.
 MAX_TOOL_ITERATIONS = 100
 
 # Если LLM подряд делает > N одинаковых tool_call (имя + args) — break:
@@ -79,6 +93,9 @@ MAX_TOOL_ITERATIONS = 100
 DUPLICATE_TOOL_CALL_THRESHOLD = 5
 RETRY_DELAY_S = 0.2
 TOOL_CONTENT_CAP = 50_000  # байт — cap для payload в LLM context
+
+# Sprint 2: максимум попыток recompress+retry при ошибке context_overflow от LLM.
+MAX_COMPRESS_RETRIES = 2
 
 SYSTEM_PROMPT = """Ты — аналитик 1С. Работаешь ТОЛЬКО с живой базой клиента через MCP-инструменты. Отвечаешь по-русски.
 
@@ -488,8 +505,70 @@ async def run_chat_loop(
     last_tool_signature: str | None = None
     duplicate_count: int = 0
 
+    # Sprint 2 (Hermes C1): thread-safe iteration budget вместо
+    # range(MAX_TOOL_ITERATIONS). Бюджет из настроек env.
+    budget = IterationBudget(total=max(1, settings.iteration_budget))
+
+    # Sprint 2 (Hermes C9): scope cleanup interrupt registry для этой сессии.
+    INTERRUPTS.clear(session_id)
+    interrupted_by_user = False
+
+    # Aux client для ContextCompressor — единая инстанция на loop.
+    aux_compressor_client: AuxiliaryClient | None = None
+    if settings.compression_enabled:
+        try:
+            aux_compressor_client = AuxiliaryClient(
+                base_url=llm_endpoint,
+                api_key=api_key,
+                model=settings.aux_model or effective_llm_model,
+                main_model=effective_llm_model,
+            )
+        except Exception:
+            logger.warning("Не удалось инициализировать aux client для компрессии — компрессия будет работать в fallback режиме")
+            aux_compressor_client = None
+
     try:
-        for _iteration in range(MAX_TOOL_ITERATIONS):
+        while True:
+            # --- Iteration budget gate ---
+            try:
+                budget.consume()
+            except BudgetExhausted:
+                logger.warning("Iteration budget exhausted (total=%d)", budget.total)
+                yield format_sse("error", ErrorEvent(
+                    message=f"Превышен бюджет итераций ({budget.total}). Уточните запрос.",
+                    code="tool_loop_limit",
+                ))
+                return
+
+            # --- User interrupt check (C9) ---
+            if INTERRUPTS.should_interrupt(session_id):
+                logger.info("Loop interrupted by user (session=%s)", session_id)
+                interrupted_by_user = True
+                break
+
+            # --- Context compression pre-pass (B1/B5) ---
+            if settings.compression_enabled and needs_compression(
+                messages,
+                max_context_tokens=settings.max_context_tokens,
+                threshold_ratio=settings.compression_threshold_ratio,
+            ):
+                try:
+                    comp = await compress(messages, aux_client=aux_compressor_client)
+                    logger.info(
+                        "Context compressed: %d→%d msgs, %d→%d tokens, pruned=%d",
+                        comp.stats.messages_before,
+                        comp.stats.messages_after,
+                        comp.stats.tokens_before,
+                        comp.stats.tokens_after,
+                        comp.stats.pruned_tool_calls,
+                    )
+                    messages = comp.new_messages
+                except Exception:
+                    logger.exception("Ошибка ContextCompressor — продолжаю без сжатия")
+
+            # --- Sanitize messages перед отправкой LLM (E6) ---
+            messages = repair_message_sequence(sanitize_messages(messages))
+
             yield format_sse("status", StatusEvent(stage="thinking"))
 
             # Накапливаем tool_calls из streaming chunks
@@ -768,14 +847,6 @@ async def run_chat_loop(
 
             yield format_sse("status", StatusEvent(stage="formatting"))
 
-        else:
-            # Вышли по лимиту итераций
-            yield format_sse("error", ErrorEvent(
-                message="Превышен лимит вызовов tools (10)",
-                code="tool_loop_limit",
-            ))
-            return
-
     except Exception as exc:
         logger.exception("Непредвиденная ошибка в tool-calling loop")
         yield format_sse("error", ErrorEvent(
@@ -784,6 +855,8 @@ async def run_chat_loop(
         ))
         return
     finally:
+        # Sprint 2 (C9): снимаем флаг interrupt — даже если loop завершился сам.
+        INTERRUPTS.clear(session_id)
         await mcp.aclose()
 
     # --- Сохраняем результат в БД ---
@@ -888,4 +961,5 @@ async def run_chat_loop(
     yield format_sse("done", DoneEvent(
         message_id=message_id,
         total_duration_ms=total_duration_ms,
+        interrupted=interrupted_by_user,
     ))

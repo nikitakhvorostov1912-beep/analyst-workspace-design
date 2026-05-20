@@ -131,7 +131,7 @@ export default function SessionPage() {
     }
   }
 
-  const { messages, isStreaming, error, streamingStage, currentToolName, pendingConfirm, resolveConfirm, send } = useChatStream({
+  const { messages, isStreaming, error, streamingStage, currentToolName, pendingConfirm, resolveConfirm, send, interrupt } = useChatStream({
     sessionId: id,
     channelId,
     initialMessages,
@@ -226,6 +226,8 @@ export default function SessionPage() {
             disabled={inputDisabled}
             disabledReason={inputDisabledReason}
             channelId={channelId}
+            isStreaming={isStreaming}
+            onInterrupt={interrupt}
           />
         }
       >

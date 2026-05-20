@@ -49,6 +49,23 @@ class Settings(BaseSettings):
     # Пустое = использовать main модель (нет экономии но работает).
     aux_model: str = Field(default="", validation_alias="AUX_MODEL")
 
+    # === Sprint 2 (Hermes Context & Resilience) ===
+    # Размер контекстного окна основной модели в токенах. Используется
+    # ContextCompressor для триггера автосжатия. MiMo v2.5-pro = 128k.
+    max_context_tokens: int = Field(default=128_000, validation_alias="MAX_CONTEXT_TOKENS")
+
+    # Порог автозапуска компрессии (доля от max_context_tokens).
+    # 0.75 = при заполнении 75% начинаем сжимать.
+    compression_threshold_ratio: float = Field(
+        default=0.75, validation_alias="COMPRESSION_THRESHOLD_RATIO"
+    )
+
+    # Включить ContextCompressor. False = no-op (для отладки / тестов).
+    compression_enabled: bool = Field(default=True, validation_alias="COMPRESSION_ENABLED")
+
+    # Бюджет итераций tool-calling loop. Прежняя константа MAX_TOOL_ITERATIONS=100.
+    iteration_budget: int = Field(default=100, validation_alias="ITERATION_BUDGET")
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

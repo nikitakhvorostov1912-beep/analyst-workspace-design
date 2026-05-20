@@ -11,6 +11,7 @@ from fastapi.responses import Response, StreamingResponse
 
 from app.config import get_settings
 from app.models import ChatRequest, ConfirmRequest
+from app.orchestrator.interrupt import INTERRUPTS
 from app.orchestrator.loop import run_chat_loop
 from app.orchestrator.safety import resolve_pending_confirmation
 from app.storage.db import get_db
@@ -73,3 +74,22 @@ async def confirm(request: ConfirmRequest) -> Response:
     if not resolved:
         raise HTTPException(status_code=404, detail="tool_call_id не найден или истёк")
     return Response(status_code=204)
+
+
+@router.post("/chat/{session_id}/interrupt", status_code=202)
+async def interrupt(session_id: str) -> dict:
+    """Sprint 2 (Hermes C9): запрос на прерывание активного tool-calling loop.
+
+    Loop проверяет флаг между LLM-вызовами и завершается gracefully — частичный
+    ответ + cards уже сохранены в БД, frontend получит done(interrupted=true).
+
+    Идемпотентен: повторный запрос на ту же сессию — то же что один.
+
+    Returns:
+        202 Accepted с {"session_id": str, "interrupted": true}.
+        Loop может уже завершиться к моменту получения — это OK, no-op.
+    """
+    if not session_id or not session_id.strip():
+        raise HTTPException(status_code=400, detail="session_id обязателен")
+    INTERRUPTS.request_interrupt(session_id)
+    return {"session_id": session_id, "interrupted": True}

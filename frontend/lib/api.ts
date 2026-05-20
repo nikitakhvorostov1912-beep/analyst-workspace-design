@@ -320,6 +320,28 @@ export async function postChatConfirm(body: {
   }
 }
 
+/**
+ * Sprint 2 (Hermes C9): запрашивает прерывание активного tool-calling loop сессии.
+ * Backend ставит флаг — loop проверит между LLM-вызовами и завершится gracefully
+ * с done(interrupted=true).
+ *
+ * Идемпотентен: повторный вызов на ту же сессию = no-op.
+ */
+export async function interruptChat(sessionId: string): Promise<void> {
+  if (!sessionId.trim()) return;
+  const response = await fetch(
+    `${getBackend()}/chat/${encodeURIComponent(sessionId)}/interrupt`,
+    { method: "POST" },
+  );
+  if (response.status === 202) return;
+  if (response.status === 400) {
+    throw new Error("session_id обязателен");
+  }
+  if (!response.ok) {
+    throw new Error(`Ошибка запроса прерывания: ${response.status}`);
+  }
+}
+
 // --- LogCard load-more API (Plan 03-04) ---
 
 /**

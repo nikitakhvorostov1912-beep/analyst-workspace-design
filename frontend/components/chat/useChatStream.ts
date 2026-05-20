@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchChat, fetchLLMConfig, postChatConfirm } from "@/lib/api";
+import { fetchChat, fetchLLMConfig, interruptChat, postChatConfirm } from "@/lib/api";
 import { publishToast } from "@/lib/toast";
 import { getAnonEnabled } from "@/lib/storage";
 import type {
@@ -35,6 +35,8 @@ export type UseChatStreamReturn = {
   /** Отвечает на pending confirm — POST /chat/confirm */
   resolveConfirm: (approved: boolean) => Promise<void>;
   send: (text: string, attachments?: ChatAttachment[]) => Promise<void>;
+  /** Sprint 2 (Hermes C9): прерывает текущий стрим. Backend сохранит частичный ответ. */
+  interrupt: () => Promise<void>;
 };
 
 /** Коды ошибок, которые маршрутизируются в ConnectionStatusBanner */
@@ -312,5 +314,28 @@ export function useChatStream({
     [pendingConfirm],
   );
 
-  return { messages, isStreaming, error, streamingStage, currentToolName, pendingConfirm, resolveConfirm, send };
+  const interrupt = useCallback(async (): Promise<void> => {
+    if (!sessionId || !isStreaming) return;
+    try {
+      await interruptChat(sessionId);
+    } catch (err) {
+      // Не падаем визуально — backend уже мог завершить loop сам.
+      publishToast({
+        type: "warning",
+        message: err instanceof Error ? err.message : "Не удалось остановить запрос",
+      });
+    }
+  }, [sessionId, isStreaming]);
+
+  return {
+    messages,
+    isStreaming,
+    error,
+    streamingStage,
+    currentToolName,
+    pendingConfirm,
+    resolveConfirm,
+    send,
+    interrupt,
+  };
 }
