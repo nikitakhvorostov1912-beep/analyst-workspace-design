@@ -6,12 +6,13 @@ from fastapi import Request
 
 from app.config import get_settings
 from app.storage.migrations import apply_migrations
+from app.storage.seed import seed_defaults
 
 logger = logging.getLogger(__name__)
 
 
 async def init_db(app: object) -> None:
-    """Открывает соединение с SQLite, включает WAL, прогоняет миграции."""
+    """Открывает соединение с SQLite, включает WAL, прогоняет миграции, сидит дефолты."""
     settings = get_settings()
     db_path = settings.sqlite_path
     logger.info("Открываем SQLite: %s", db_path)
@@ -23,6 +24,9 @@ async def init_db(app: object) -> None:
     await db.commit()
 
     await apply_migrations(db)
+
+    if settings.seed_on_startup:
+        await seed_defaults(db, settings)
 
     app.state.db = db  # type: ignore[attr-defined]
     logger.info("SQLite готова")

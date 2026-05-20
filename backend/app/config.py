@@ -14,9 +14,41 @@ class Settings(BaseSettings):
     cors_origins: str = Field(default="", validation_alias="BACKEND_ALLOWED_ORIGINS")
 
     log_level: str = "INFO"
-    default_llm_endpoint: str = "https://api.openai.com/v1"
-    default_llm_model: str = "gpt-4o-mini"
+    # Дефолтные параметры LLM — Xiaomi MiMo v2.5-pro (приоритетный провайдер по
+    # memory/llm-providers.md). При первом запуске сидятся в llm_settings,
+    # пользователю остаётся ввести только API-ключ через UI.
+    default_llm_endpoint: str = Field(
+        default="https://api.xiaomimimo.com/v1", validation_alias="DEFAULT_LLM_ENDPOINT"
+    )
+    default_llm_model: str = Field(
+        default="mimo-v2.5-pro", validation_alias="DEFAULT_LLM_MODEL"
+    )
+    default_llm_temperature: float = Field(
+        default=0.3, validation_alias="DEFAULT_LLM_TEMPERATURE"
+    )
     app_version: str = "0.1.0"
+
+    # Дефолтное MCP-подключение — встроенный сервер MCP_Toolkit EPF на :6010
+    # (см. memory/feedback_1c_transit_mcp_embedded_6010.md). Создаётся при первом
+    # запуске чтобы аналитик мог сразу зайти в чат без ручной настройки.
+    default_mcp_name: str = Field(default="Транзит", validation_alias="DEFAULT_MCP_NAME")
+    default_mcp_endpoint: str = Field(
+        default="http://localhost:6010/mcp", validation_alias="DEFAULT_MCP_ENDPOINT"
+    )
+    default_mcp_kind: Literal["embedded", "proxy"] = Field(
+        default="embedded", validation_alias="DEFAULT_MCP_KIND"
+    )
+    default_mcp_channel: str = Field(
+        default="", validation_alias="DEFAULT_MCP_CHANNEL"
+    )
+    default_mcp_anon_enabled: bool = Field(
+        default=False, validation_alias="DEFAULT_MCP_ANON_ENABLED"
+    )
+
+    # Сидирование дефолтов в БД при старте. True по умолчанию — Electron инсталлер
+    # должен создавать рабочий профиль из коробки. False — для unit-тестов, где
+    # нужна пустая БД (см. tests/conftest.py).
+    seed_on_startup: bool = Field(default=True, validation_alias="SEED_ON_STARTUP")
 
     # Среда — backend держит для будущих gates (фронтенд CSP читает NODE_ENV напрямую)
     environment: Literal["dev", "prod"] = "dev"

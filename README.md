@@ -101,9 +101,17 @@ Backend `.env`:
 ```env
 DATABASE_URL=sqlite+aiosqlite:///./data/app.db
 BACKEND_ALLOWED_ORIGINS=http://localhost:3010
-DEFAULT_LLM_ENDPOINT=https://api.mimo.example/v1
-DEFAULT_LLM_MODEL=mimo-32b
 LOG_LEVEL=INFO
+
+# Дефолты сидятся в БД при первом запуске — после установки можно сразу
+# зайти и протестировать, останется ввести только API-ключ через UI.
+DEFAULT_LLM_ENDPOINT=https://api.xiaomimimo.com/v1
+DEFAULT_LLM_MODEL=mimo-v2.5-pro
+DEFAULT_LLM_TEMPERATURE=0.3
+DEFAULT_MCP_NAME=Транзит
+DEFAULT_MCP_ENDPOINT=http://localhost:6010/mcp
+DEFAULT_MCP_KIND=embedded
+# SEED_ON_STARTUP=false  # выключить seed (для тестов)
 ```
 
 Frontend `.env.local`:

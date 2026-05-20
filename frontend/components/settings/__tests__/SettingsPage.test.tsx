@@ -110,8 +110,8 @@ describe("SettingsPage", () => {
     vi.mocked(fetchConnections).mockResolvedValue([]);
     const llm: LLMConfigResponse = {
       id: "default",
-      endpoint: "http://localhost:1234/v1",
-      model: "gpt-4o-mini",
+      endpoint: "https://api.xiaomimimo.com/v1",
+      model: "mimo-v2.5-pro",
       temperature: 0.3,
     };
     vi.mocked(fetchLLMConfig).mockResolvedValue(llm);
@@ -121,7 +121,7 @@ describe("SettingsPage", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByTestId("llm-model")).toHaveTextContent("gpt-4o-mini");
+      expect(screen.getByTestId("llm-model")).toHaveTextContent("mimo-v2.5-pro");
     });
   });
 

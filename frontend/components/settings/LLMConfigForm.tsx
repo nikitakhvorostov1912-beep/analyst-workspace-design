@@ -50,10 +50,16 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
   const storedKey = getLLMApiKey();
   const hasExisting = initial !== null;
 
+  // Дефолты — Xiaomi MiMo v2.5-pro (см. memory/llm-providers.md). На первом
+  // запуске инсталлятор сидит эту же пару в БД, чтобы аналитику оставалось
+  // ввести только API-ключ. Сменить можно через раздел «Расширенные настройки».
+  const DEFAULT_ENDPOINT = "https://api.xiaomimimo.com/v1";
+  const DEFAULT_MODEL = "mimo-v2.5-pro";
+
   const [endpoint, setEndpoint] = useState(
-    initial?.endpoint ?? "http://localhost:1234/v1",
+    initial?.endpoint ?? DEFAULT_ENDPOINT,
   );
-  const [model, setModel] = useState(initial?.model ?? "gpt-4o-mini");
+  const [model, setModel] = useState(initial?.model ?? DEFAULT_MODEL);
   const [temperature, setTemperature] = useState(
     initial?.temperature ?? 0.3,
   );
@@ -68,7 +74,6 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
   // Endpoint и Temperature скрыты под "Расширенные настройки" — аналитик их не должен знать.
   // Всегда свёрнуто по умолчанию: если есть существующий endpoint — пользователь сам раскроет
   // когда понадобится. Принцип: «по умолчанию минимум полей».
-  const DEFAULT_ENDPOINT = "http://localhost:1234/v1";
   const [advancedOpen, setAdvancedOpen] = useState(false);
 
   function getEffectiveApiKey(): string {
@@ -182,7 +187,7 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
         <Input
           value={model}
           onChange={(e) => setModel(e.target.value)}
-          placeholder="gpt-4o-mini"
+          placeholder={DEFAULT_MODEL}
           maxLength={100}
         />
         {errors.model && (
@@ -246,13 +251,13 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
               <Input
                 value={endpoint}
                 onChange={(e) => setEndpoint(e.target.value)}
-                placeholder="http://localhost:1234/v1"
+                placeholder={DEFAULT_ENDPOINT}
               />
               {errors.endpoint ? (
                 <p className="text-xs text-red-400 mt-1">{errors.endpoint}</p>
               ) : (
                 <p className="text-xs text-[var(--fg-3)] mt-1">
-                  OpenAI-совместимый URL. По умолчанию <span className="font-mono">{DEFAULT_ENDPOINT}</span> (LM&nbsp;Studio).
+                  OpenAI-совместимый URL. По умолчанию <span className="font-mono">{DEFAULT_ENDPOINT}</span> (Xiaomi&nbsp;MiMo).
                 </p>
               )}
             </div>

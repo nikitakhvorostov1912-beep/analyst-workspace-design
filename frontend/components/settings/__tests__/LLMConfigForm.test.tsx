@@ -90,8 +90,8 @@ import type { LLMConfigResponse } from "@/lib/types";
 
 const makeLLMConfig = (): LLMConfigResponse => ({
   id: "default",
-  endpoint: "http://localhost:1234/v1",
-  model: "gpt-4o-mini",
+  endpoint: "https://api.xiaomimimo.com/v1",
+  model: "mimo-v2.5-pro",
   temperature: 0.3,
 });
 
@@ -110,27 +110,27 @@ describe("LLMConfigForm", () => {
     render(<LLMConfigForm initial={null} />);
 
     // Модель и API ключ — основные видимые поля
-    expect(screen.getByPlaceholderText("gpt-4o-mini")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("mimo-v2.5-pro")).toBeInTheDocument();
     expect(screen.getByPlaceholderText("sk-...")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /сохранить/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /тест/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /удалить/i })).not.toBeInTheDocument();
 
     // Endpoint скрыт под Advanced; раскрываем — должен появиться
-    expect(screen.queryByPlaceholderText("http://localhost:1234/v1")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText("https://api.xiaomimimo.com/v1")).not.toBeInTheDocument();
     openAdvanced();
-    expect(screen.getByPlaceholderText("http://localhost:1234/v1")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("https://api.xiaomimimo.com/v1")).toBeInTheDocument();
   });
 
   it("показывает ошибку если api_key слишком короткий", async () => {
     render(<LLMConfigForm initial={null} />);
 
     openAdvanced();
-    fireEvent.change(screen.getByPlaceholderText("http://localhost:1234/v1"), {
-      target: { value: "http://localhost:1234/v1" },
+    fireEvent.change(screen.getByPlaceholderText("https://api.xiaomimimo.com/v1"), {
+      target: { value: "https://api.xiaomimimo.com/v1" },
     });
-    fireEvent.change(screen.getByPlaceholderText("gpt-4o-mini"), {
-      target: { value: "gpt-4o-mini" },
+    fireEvent.change(screen.getByPlaceholderText("mimo-v2.5-pro"), {
+      target: { value: "mimo-v2.5-pro" },
     });
     fireEvent.change(screen.getByPlaceholderText("sk-..."), {
       target: { value: "short" },
@@ -149,11 +149,11 @@ describe("LLMConfigForm", () => {
     render(<LLMConfigForm initial={null} />);
 
     openAdvanced();
-    fireEvent.change(screen.getByPlaceholderText("http://localhost:1234/v1"), {
-      target: { value: "http://localhost:1234/v1" },
+    fireEvent.change(screen.getByPlaceholderText("https://api.xiaomimimo.com/v1"), {
+      target: { value: "https://api.xiaomimimo.com/v1" },
     });
-    fireEvent.change(screen.getByPlaceholderText("gpt-4o-mini"), {
-      target: { value: "gpt-4o-mini" },
+    fireEvent.change(screen.getByPlaceholderText("mimo-v2.5-pro"), {
+      target: { value: "mimo-v2.5-pro" },
     });
     fireEvent.change(screen.getByPlaceholderText("sk-..."), {
       target: { value: "sk-test12345678" },
@@ -165,7 +165,7 @@ describe("LLMConfigForm", () => {
 
     await waitFor(() => {
       expect(testLLMConfig).toHaveBeenCalledWith(
-        expect.objectContaining({ endpoint: "http://localhost:1234/v1", model: "gpt-4o-mini" }),
+        expect.objectContaining({ endpoint: "https://api.xiaomimimo.com/v1", model: "mimo-v2.5-pro" }),
         "sk-test12345678",
       );
     });
@@ -180,11 +180,11 @@ describe("LLMConfigForm", () => {
     render(<LLMConfigForm initial={null} />);
 
     openAdvanced();
-    fireEvent.change(screen.getByPlaceholderText("http://localhost:1234/v1"), {
-      target: { value: "http://localhost:1234/v1" },
+    fireEvent.change(screen.getByPlaceholderText("https://api.xiaomimimo.com/v1"), {
+      target: { value: "https://api.xiaomimimo.com/v1" },
     });
-    fireEvent.change(screen.getByPlaceholderText("gpt-4o-mini"), {
-      target: { value: "gpt-4o-mini" },
+    fireEvent.change(screen.getByPlaceholderText("mimo-v2.5-pro"), {
+      target: { value: "mimo-v2.5-pro" },
     });
     fireEvent.change(screen.getByPlaceholderText("sk-..."), {
       target: { value: "sk-test12345678" },
@@ -254,11 +254,11 @@ describe("LLMConfigForm", () => {
     render(<LLMConfigForm initial={null} onSaved={onSaved} />);
 
     openAdvanced();
-    fireEvent.change(screen.getByPlaceholderText("http://localhost:1234/v1"), {
-      target: { value: "http://localhost:1234/v1" },
+    fireEvent.change(screen.getByPlaceholderText("https://api.xiaomimimo.com/v1"), {
+      target: { value: "https://api.xiaomimimo.com/v1" },
     });
-    fireEvent.change(screen.getByPlaceholderText("gpt-4o-mini"), {
-      target: { value: "gpt-4o-mini" },
+    fireEvent.change(screen.getByPlaceholderText("mimo-v2.5-pro"), {
+      target: { value: "mimo-v2.5-pro" },
     });
     fireEvent.change(screen.getByPlaceholderText("sk-..."), {
       target: { value: "sk-test12345678" },
@@ -270,7 +270,7 @@ describe("LLMConfigForm", () => {
 
     await waitFor(() => {
       expect(saveLLMConfig).toHaveBeenCalledWith(
-        expect.objectContaining({ endpoint: "http://localhost:1234/v1" }),
+        expect.objectContaining({ endpoint: "https://api.xiaomimimo.com/v1" }),
       );
       expect(onSaved).toHaveBeenCalled();
     });
