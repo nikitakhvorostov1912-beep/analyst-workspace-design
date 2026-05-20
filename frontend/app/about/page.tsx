@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight, BookOpen } from "lucide-react";
 
 export default function AboutPage() {
   return (
@@ -18,6 +18,25 @@ export default function AboutPage() {
       </div>
 
       <article className="space-y-8 text-[var(--fg)]">
+        {/* CTA: переход в полноценный гайд */}
+        <Link
+          href="/guide"
+          className="block rounded-md border border-[var(--accent-20)] bg-[var(--accent-08)] px-5 py-4 hover:bg-[var(--accent-12)] transition-colors group"
+        >
+          <div className="flex items-center gap-4">
+            <BookOpen className="h-6 w-6 text-[var(--accent)] flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <div className="text-[15px] font-semibold text-[var(--fg-1)]">
+                Полный гайд аналитика
+              </div>
+              <div className="text-[13px] text-[var(--fg-2)] mt-0.5">
+                9 разделов: подключения · инструменты MCP · карточки · сценарии · диагностика · безопасность
+              </div>
+            </div>
+            <ArrowRight className="h-4 w-4 text-[var(--fg-3)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+          </div>
+        </Link>
+
         <section className="space-y-3">
           <h2 className="text-2xl font-semibold">Что это?</h2>
           <p className="text-[var(--fg-muted)] leading-relaxed">

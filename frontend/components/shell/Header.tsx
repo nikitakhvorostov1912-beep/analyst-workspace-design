@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Activity, HelpCircle, PanelLeft, Search, Settings } from "lucide-react";
+import { Activity, BookOpen, HelpCircle, PanelLeft, Search, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BrandMark } from "./BrandMark";
 import { StencilLockup } from "./StencilLockup";
@@ -87,6 +87,20 @@ export function Header({
             title="Диагностика — проверить что всё работает"
           >
             <Activity className="h-[15px] w-[15px]" />
+          </Link>
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          asChild
+          className="h-[30px] w-[30px] text-[var(--fg-3)] hover:text-[var(--fg-1)]"
+        >
+          <Link
+            href="/guide"
+            aria-label="Гайд аналитика"
+            title="Гайд аналитика — как работать с приложением"
+          >
+            <BookOpen className="h-[15px] w-[15px]" />
           </Link>
         </Button>
         <Button
