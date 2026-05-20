@@ -452,3 +452,56 @@ class LLMConfigTestResponse(BaseModel):
     error_code: str | None = None
     error_message: str | None = None
     duration_ms: int | None = None
+
+
+# --- Sprint 1 (Hermes): Memory models ---
+
+
+class MemoryNamespacePayload(BaseModel):
+    """Один namespace (agent или user) в памяти."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    content: str = Field(default="", max_length=64_000)
+    chars: int = Field(default=0, ge=0)
+
+
+class MemoryDocument(BaseModel):
+    """Полный snapshot обоих namespace для одного канала."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    channel_id: str
+    agent: MemoryNamespacePayload
+    user: MemoryNamespacePayload
+    safe: bool = True  # False если в content нашлись injection patterns
+
+
+class MemoryUpdateRequest(BaseModel):
+    """Тело PUT /memory/{channel_id}."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    namespace: Literal["agent", "user"]
+    content: str = Field(max_length=64_000)
+
+
+class MemoryUpdateResponse(BaseModel):
+    """Ответ PUT /memory/{channel_id}."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    namespace: Literal["agent", "user"]
+    chars_written: int
+    threats_found: list[str] = Field(default_factory=list)  # sanitized labels
+
+
+class TrajectoryStatsResponse(BaseModel):
+    """Ответ GET /diagnostics/trajectory."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    enabled: bool
+    root: str
+    sample_count: int
+    failed_count: int

@@ -24,6 +24,16 @@ from app.orchestrator.attachments import (
 # Эту константу можно вынести в Settings когда появятся другие провайдеры.
 VISION_MODEL = "mimo-v2-omni"
 from app.orchestrator.mcp_pool import MCPPool, build_aux_clients
+from app.orchestrator.memory_integration import (
+    build_memory_manager,
+    build_trajectory_logger,
+    dispatch_memory_tool,
+    is_memory_tool,
+    log_trajectory,
+    memory_system_block,
+    memory_tool_schemas,
+    sync_memory_post_turn,
+)
 from app.config import get_settings
 from app.models import ChatRequest
 from app.orchestrator.cards import _extract_anon_tokens_from_payload, build_card_from_tool_result
@@ -413,10 +423,18 @@ async def run_chat_loop(
     # ссылаются на mcp напрямую (call_tool через router).
     mcp = pool
 
+    # Sprint 1 (Hermes): персистентная память + trajectory log.
+    # Failures здесь — best-effort: loop продолжается без memory если что-то ломается.
+    memory_manager = build_memory_manager(settings, request.channel_id)
+    trajectory_logger = build_trajectory_logger(settings)
+
     try:
         await pool.initialize_all()
         mcp_tools = await pool.list_all_tools()
         openai_tools = _mcp_tools_to_openai(mcp_tools)
+        # Добавляем memory tool schemas (memory_append, memory_remove) к OpenAI tools.
+        # LLM видит их в едином списке вместе с MCP-инструментами.
+        openai_tools = openai_tools + memory_tool_schemas(memory_manager)
     except Exception:
         logger.exception("Ошибка инициализации MCP pool")
         yield format_sse("error", ErrorEvent(
@@ -447,8 +465,13 @@ async def run_chat_loop(
         history_msgs = list(history_msgs)
         history_msgs[-1] = {"role": "user", "content": user_message_content}
 
+    # Собираем system prompt — статичный SYSTEM_PROMPT + memory block (если есть).
+    # Memory block кладётся в КОНЕЦ system prompt — модель видит его последним,
+    # ближе к user message → лучше учитывает.
+    mem_block = memory_system_block(memory_manager)
+    full_system_prompt = SYSTEM_PROMPT + ("\n\n" + mem_block if mem_block else "")
     messages: list[dict] = [
-        {"role": "system", "content": SYSTEM_PROMPT},
+        {"role": "system", "content": full_system_prompt},
         *history_msgs,
     ]
 
@@ -667,6 +690,36 @@ async def run_chat_loop(
                         # approved is True — продолжаем как обычно
 
                 start_ts = time.monotonic()
+                # Sprint 1 (Hermes): memory_* tools → MemoryManager, не MCP.
+                # Это internal tools — они не доходят до MCP-сервера.
+                if is_memory_tool(tool_name):
+                    ok, tool_result, tool_error = dispatch_memory_tool(
+                        memory_manager, tool_name, tool_args
+                    )
+                    duration_ms = int((time.monotonic() - start_ts) * 1000)
+                    yield format_sse("tool_result", ToolResultEvent(
+                        id=tool_id,
+                        ok=ok,
+                        result=tool_result if ok else None,
+                        error=tool_error,
+                        duration_ms=duration_ms,
+                    ))
+                    accumulated_tool_calls.append({
+                        "id": tool_id,
+                        "name": tool_name,
+                        "args": tool_args,
+                        "result": tool_result,
+                        "error": tool_error,
+                        "duration_ms": duration_ms,
+                    })
+                    tool_content = json.dumps(tool_result, ensure_ascii=False) if tool_result else (tool_error or "")
+                    messages.append({
+                        "role": "tool",
+                        "tool_call_id": tool_id,
+                        "content": _cap_content(tool_content),
+                    })
+                    continue
+
                 # Маршрутизация tool_call → правильный MCP client (primary или aux).
                 tool_client = pool.client_for(tool_name)
                 try:
@@ -817,6 +870,20 @@ async def run_chat_loop(
                 logger.warning("Auto-title background task failed for session %s", session_id)
 
         asyncio.create_task(_run_auto_title())
+
+    # Sprint 1 (Hermes): post-turn memory sync + trajectory log.
+    # Best-effort — exceptions logged, не roняют ответ пользователю.
+    sync_memory_post_turn(memory_manager, request.message, accumulated_content)
+    log_trajectory(
+        trajectory_logger,
+        session_id=session_id,
+        channel_id=request.channel_id,
+        messages=messages,
+        tool_calls=accumulated_tool_calls,
+        completed=True,
+        model=effective_llm_model,
+        latency_ms=total_duration_ms,
+    )
 
     yield format_sse("done", DoneEvent(
         message_id=message_id,

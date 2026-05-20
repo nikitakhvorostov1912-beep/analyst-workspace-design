@@ -7,6 +7,7 @@ import { AppShell } from "@/components/shell/AppShell";
 import { CommandPalette } from "@/components/chat/CommandPalette";
 import { Button } from "@/components/ui/button";
 import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog";
+import { MemoryHint } from "@/components/memory/MemoryHint";
 import { fetchHealth, fetchConnections, fetchLLMConfig } from "@/lib/api";
 import { migrateLegacyApiKey } from "@/lib/api-keys";
 import { useSessionsStore } from "@/lib/sessions-store";
@@ -238,6 +239,12 @@ export default function HomePage() {
   // Основной layout — AppShell с welcome screen (нет активной сессии).
   // Важно: не рендерить здесь пустой <Thread /> рядом с welcome — оба имеют h-full,
   // main:overflow-y-auto скроллит вниз из-за Thread auto-scrollIntoView, welcome уходит выше viewport.
+  const totalSessionCount =
+    (store.grouped?.today.length ?? 0) +
+    (store.grouped?.yesterday.length ?? 0) +
+    (store.grouped?.this_week.length ?? 0) +
+    (store.grouped?.earlier.length ?? 0);
+
   return (
     <>
       <CommandPalette
@@ -245,6 +252,7 @@ export default function HomePage() {
         onClose={() => setCmdPaletteOpen(false)}
         channelId={activeChannelId ?? undefined}
       />
+      <MemoryHint sessionCount={totalSessionCount} />
       <AppShell
         grouped={store.grouped}
         activeId={null}

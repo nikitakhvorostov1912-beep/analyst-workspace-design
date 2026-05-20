@@ -358,3 +358,35 @@ export type LLMConfigTestResponse = {
   error_message?: string | null;
   duration_ms?: number | null;
 };
+
+// --- Sprint 1 (Hermes): Memory ---
+
+export type MemoryNamespacePayload = {
+  content: string;
+  chars: number;
+};
+
+export type MemoryDocument = {
+  channel_id: string;
+  agent: MemoryNamespacePayload;
+  user: MemoryNamespacePayload;
+  safe: boolean;
+};
+
+export type MemoryUpdateRequest = {
+  namespace: "agent" | "user";
+  content: string;
+};
+
+export type MemoryUpdateResponse = {
+  namespace: "agent" | "user";
+  chars_written: number;
+  threats_found: string[];
+};
+
+export type TrajectoryStats = {
+  enabled: boolean;
+  root: string;
+  sample_count: number;
+  failed_count: number;
+};

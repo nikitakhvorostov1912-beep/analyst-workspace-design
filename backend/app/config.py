@@ -31,6 +31,24 @@ class Settings(BaseSettings):
         default="", validation_alias="BSL_CONTEXT_PLATFORM_PATH"
     )
 
+    # === Sprint 1 (Hermes integration) — Memory / Learning / Aux ===
+    # Корень для MEMORY.md / USER.md. Per-channel поддиректории создаются автоматически.
+    # Если не задано — используется <home>/.analyst-1c/memory.
+    memory_root: str = Field(default="", validation_alias="MEMORY_ROOT")
+
+    # Корень для trajectory JSONL логов (будущий fine-tuning датасет).
+    trajectory_dir: str = Field(default="", validation_alias="TRAJECTORY_DIR")
+
+    # Включить background trajectory logging. False = no-op.
+    learning_enabled: bool = Field(default=True, validation_alias="LEARNING_ENABLED")
+
+    # Включить MemoryManager. False = система памяти полностью отключена.
+    memory_enabled: bool = Field(default=True, validation_alias="MEMORY_ENABLED")
+
+    # Дешёвая aux модель для будущих compressor/curator/review (Sprint 2/3).
+    # Пустое = использовать main модель (нет экономии но работает).
+    aux_model: str = Field(default="", validation_alias="AUX_MODEL")
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",
@@ -52,6 +70,24 @@ class Settings(BaseSettings):
         if self.environment == "dev":
             return ["http://localhost:3010", "http://127.0.0.1:3010"]
         return []
+
+    @property
+    def memory_root_path(self) -> "Path":
+        """Resolve MEMORY.md/USER.md root. Defaults to <home>/.analyst-1c/memory."""
+        from pathlib import Path
+
+        if self.memory_root:
+            return Path(self.memory_root).expanduser()
+        return Path.home() / ".analyst-1c" / "memory"
+
+    @property
+    def trajectory_dir_path(self) -> "Path":
+        """Resolve trajectory JSONL root. Defaults to <home>/.analyst-1c/trajectories."""
+        from pathlib import Path
+
+        if self.trajectory_dir:
+            return Path(self.trajectory_dir).expanduser()
+        return Path.home() / ".analyst-1c" / "trajectories"
 
     @property
     def sqlite_path(self) -> str:

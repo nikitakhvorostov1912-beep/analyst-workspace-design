@@ -14,6 +14,7 @@ from app.routes import health as health_router
 from app.routes import llm_config as llm_config_router
 from app.routes import log_cards as log_cards_router
 from app.routes import mcp as mcp_router
+from app.routes import memory as memory_router
 from app.routes import search as search_router
 from app.routes import sessions as sessions_router
 from app.storage.db import close_db, init_db
@@ -69,6 +70,7 @@ def create_app() -> FastAPI:
     app.include_router(search_router.router)
     app.include_router(admin_router.router)
     app.include_router(diagnostics_router.router)
+    app.include_router(memory_router.router)
 
     return app
 

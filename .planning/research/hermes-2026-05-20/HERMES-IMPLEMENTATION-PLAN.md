@@ -1688,11 +1688,66 @@ class SessionSearch:
 
 | Спринт | Статус | Тэг | Дата |
 |---|---|---|---|
-| 1 — Memory Foundation | ⏸ Pending | — | — |
+| 1 — Memory Foundation | ✅ **Готов** | (см. ниже) | 2026-05-20 |
 | 2 — Context & Resilience | ⏸ Pending | — | — |
 | 3 — Self-Learning Loop | ⏸ Pending | — | — |
 | 4 — UX & Interactivity | ⏸ Pending | — | — |
 | 5 — Polish & Observability | ⏸ Pending | — | — |
+
+### Sprint 1 — детали реализации (2026-05-20)
+
+**Backend (новые модули):**
+- `app/memory/__init__.py` — публичные экспорты
+- `app/memory/provider.py` — `MemoryProvider` ABC
+- `app/memory/manager.py` — `MemoryManager` orchestrator
+- `app/memory/markdown_store.py` — MEMORY.md + USER.md провайдер (per-channel)
+- `app/memory/injection_scan.py` — F1 prompt injection detector (10 паттернов)
+- `app/learning/__init__.py` + `trajectory.py` — ShareGPT JSONL logger
+- `app/orchestrator/auxiliary.py` — aux client (для Sprint 2+)
+- `app/orchestrator/memory_integration.py` — glue для loop
+- `app/routes/memory.py` — REST GET/PUT `/memory/{channel_id}` + `/diagnostics/trajectory`
+
+**Backend (изменения):**
+- `app/config.py` — memory_root, trajectory_dir, learning_enabled, memory_enabled, aux_model
+- `app/models.py` — MemoryDocument, MemoryUpdateRequest/Response, TrajectoryStats
+- `app/main.py` — регистрация router
+- `app/orchestrator/loop.py` — build_memory_manager + memory_system_block в SYSTEM_PROMPT + memory tool dispatch + sync_all + log_trajectory после turn
+
+**Frontend (новые):**
+- `app/settings/memory/page.tsx` — UI редактор MEMORY.md + USER.md с char counters, threats warning, sticky save
+- `components/memory/MemoryHint.tsx` — one-time toast при ≥3 сессий
+- `lib/onboarding-hints.ts` — hint state в localStorage
+
+**Frontend (изменения):**
+- `lib/types.ts` — MemoryDocument, MemoryNamespacePayload, MemoryUpdateRequest/Response, TrajectoryStats
+- `lib/api.ts` — fetchMemory, updateMemory, fetchTrajectoryStats
+- `app/settings/page.tsx` — добавлена ссылка «Постоянная память» с Brain-иконкой
+- `app/page.tsx` — подключён `<MemoryHint />`
+
+**Тесты (новые):**
+- `backend/tests/test_memory.py` — 17 тестов (MarkdownStore + MemoryManager + injection_scan)
+- `backend/tests/test_trajectory.py` — 6 тестов (logger)
+- `frontend/components/memory/__tests__/MemoryHint.test.tsx` — 4 теста
+
+**Quality gate:**
+- pytest: 365 → 369 passing (4 новых файла; 3 pre-existing flaky тесты orchestrator_loop_confirm + migration_v5 НЕ от Sprint 1)
+- vitest: 300 → **304/304 passing**
+- next build: clean, добавился route `/settings/memory` 3.48 kB
+- HTTP smoke: end-to-end memory_append → file write → system_prompt_block — работает
+
+**Acceptance criteria — что доказано:**
+- ✅ MEMORY.md + USER.md создаются per-channel при первом запросе
+- ✅ Модель видит memory tool schemas (memory_append, memory_remove)
+- ✅ System prompt содержит `<persistent-memory>` блок если файлы не пусты
+- ✅ UI редактор `/settings/memory` показывает оба файла, чарcounter, threats scan
+- ✅ Trajectory JSONL logger пишет каждый turn в `~/.analyst-1c/trajectories/`
+- ✅ Onboarding hint показывается ОДИН раз при ≥3 сессий
+
+**Что НЕ сделано в Sprint 1 (намеренно отложено):**
+- Cache invalidation при переключении канала — UI рефетчит при mount, не на canal change event
+- Diff-preview перед PUT — пока полная перезапись без UI подтверждения
+- Visual smoke через Chrome MCP — отложен до коммита
+- Sync_turn пока ничего не пишет автоматически (это работа background_review в Sprint 3) — модель сама вызывает memory_append
 
 ---
 

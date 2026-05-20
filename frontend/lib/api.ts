@@ -11,12 +11,16 @@ import type {
   MCPConnection,
   MCPKind,
   MCPPingResponse,
+  MemoryDocument,
+  MemoryUpdateRequest,
+  MemoryUpdateResponse,
   MessageRow,
   MetadataSuggestResponse,
   SearchResponse,
   SessionDetail,
   SessionsGrouped,
   SSEEvent,
+  TrajectoryStats,
 } from "./types";
 import { getLLMApiKey } from "./api-keys";
 import { parseSSEStream } from "./sse";
@@ -575,4 +579,45 @@ export async function resetLocalDb(): Promise<ResetLocalDbResult> {
       error: err instanceof Error ? err.message : "Network error",
     };
   }
+}
+
+// --- Sprint 1 (Hermes): Memory API ---
+
+/** Получить snapshot MEMORY.md + USER.md для канала. */
+export async function fetchMemory(channelId: string): Promise<MemoryDocument> {
+  const response = await fetch(
+    `${getBackend()}/memory/${encodeURIComponent(channelId)}`,
+  );
+  if (!response.ok) {
+    throw new Error(`fetchMemory: HTTP ${response.status}`);
+  }
+  return response.json() as Promise<MemoryDocument>;
+}
+
+/** Перезаписать один namespace целиком. */
+export async function updateMemory(
+  channelId: string,
+  body: MemoryUpdateRequest,
+): Promise<MemoryUpdateResponse> {
+  const response = await fetch(
+    `${getBackend()}/memory/${encodeURIComponent(channelId)}`,
+    {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    },
+  );
+  if (!response.ok) {
+    throw new Error(`updateMemory: HTTP ${response.status}`);
+  }
+  return response.json() as Promise<MemoryUpdateResponse>;
+}
+
+/** Trajectory stats — кол-во JSONL записей для будущего fine-tuning. */
+export async function fetchTrajectoryStats(): Promise<TrajectoryStats> {
+  const response = await fetch(`${getBackend()}/diagnostics/trajectory`);
+  if (!response.ok) {
+    throw new Error(`fetchTrajectoryStats: HTTP ${response.status}`);
+  }
+  return response.json() as Promise<TrajectoryStats>;
 }
