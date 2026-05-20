@@ -20,11 +20,16 @@ BORDER = (255, 255, 255, int(0.08 * 255))
 
 SIZES = [16, 24, 32, 48, 64, 128, 256]
 
-# Fallback ladder: ищем bold mono шрифт системы
+_HERE = Path(__file__).resolve().parent
+
+# Fallback ladder: первым проектный IBM Plex Mono Bold (конвертирован из woff2
+# через fonttools), потом системные fallback'и. Plex Mono — каноничный brand
+# шрифт (см. .brand/BRAND.md), Consolas даёт визуально близкий результат.
 FONT_CANDIDATES = [
-    r"C:\Windows\Fonts\consolab.ttf",  # Consolas Bold — основной fallback
-    r"C:\Windows\Fonts\courbd.ttf",    # Courier New Bold
-    r"C:\Windows\Fonts\arialbd.ttf",   # Arial Bold — крайний случай
+    str(_HERE / "fonts" / "IBMPlexMono-Bold.ttf"),  # Project-vendored Plex Mono 700
+    r"C:\Windows\Fonts\consolab.ttf",                # Consolas Bold
+    r"C:\Windows\Fonts\courbd.ttf",                  # Courier New Bold
+    r"C:\Windows\Fonts\arialbd.ttf",                 # Arial Bold — крайний случай
 ]
 
 
