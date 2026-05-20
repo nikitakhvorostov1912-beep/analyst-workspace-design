@@ -26,6 +26,8 @@ import type {
   CuratorReport,
   TodoListResponse,
   TrajectoryStats,
+  InsightsResponse,
+  InsightsPeriod,
 } from "./types";
 import { getLLMApiKey } from "./api-keys";
 import { parseSSEStream } from "./sse";
@@ -758,4 +760,39 @@ export async function fetchTodos(sessionId: string): Promise<TodoListResponse> {
     throw new Error(`fetchTodos: HTTP ${response.status}`);
   }
   return response.json() as Promise<TodoListResponse>;
+}
+
+// Sprint 4 (Hermes D1/G8): Clarify + Insights API.
+
+/** Отправляет ответ пользователя на clarify_question (Hermes D1). */
+export async function postChatClarify(body: {
+  clarify_id: string;
+  answer: string | string[];
+}): Promise<void> {
+  const response = await fetch(`${getBackend()}/chat/clarify`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (response.status === 204) return;
+  if (response.status === 404) {
+    throw new Error("clarify_id не найден или истёк");
+  }
+  if (!response.ok) {
+    throw new Error(`postChatClarify: HTTP ${response.status}`);
+  }
+}
+
+/** Получает агрегированную аналитику сессий за период. */
+export async function fetchInsights(
+  period: InsightsPeriod = "7d",
+  topN: number = 10,
+): Promise<InsightsResponse> {
+  const response = await fetch(
+    `${getBackend()}/insights?period=${period}&top_n=${topN}`,
+  );
+  if (!response.ok) {
+    throw new Error(`fetchInsights: HTTP ${response.status}`);
+  }
+  return response.json() as Promise<InsightsResponse>;
 }

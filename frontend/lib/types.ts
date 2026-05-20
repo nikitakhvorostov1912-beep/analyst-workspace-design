@@ -18,6 +18,7 @@ export type ErrorCode =
   | "internal_error"
   | "user_declined"
   | "dangerous_keyword_blocked"
+  | "clarify_timeout"
   // Frontend-only коды (не от backend)
   | "no_api_key"
   | "network_error"
@@ -160,9 +161,10 @@ export type SSEEvent =
   | { event: "tool_call"; data: { id: string; name: string; args: Record<string, unknown> } }
   | { event: "tool_result"; data: { id: string; ok: boolean; result: unknown; error: string | null; duration_ms: number } }
   | { event: "card"; data: CardEnvelope }
-  | { event: "done"; data: { message_id: string; total_duration_ms: number } }
+  | { event: "done"; data: { message_id: string; total_duration_ms: number; interrupted?: boolean } }
   | { event: "error"; data: { message: string; code: ErrorCode; retry_after_s?: number | null } }
-  | { event: "confirm_required"; data: ConfirmRequiredPayload };
+  | { event: "confirm_required"; data: ConfirmRequiredPayload }
+  | { event: "clarify_required"; data: ClarifyRequiredPayload };
 
 // LLM config — только в localStorage, никогда на backend
 export type LLMConfig = {
@@ -434,6 +436,43 @@ export type TodoListResponse = {
   session_id: string;
   items: TodoDTO[];
   active_count: number;
+};
+
+// Sprint 4 (Hermes D1/G8): Clarify + Insights.
+
+export type ClarifyRequiredPayload = {
+  clarify_id: string;
+  question: string;
+  options: string[];
+  multi: boolean;
+  allow_custom: boolean;
+};
+
+export type InsightsPeriod = "24h" | "7d" | "30d" | "all";
+
+export type InsightsToolStat = {
+  name: string;
+  calls: number;
+  errors: number;
+  error_rate: number;
+};
+
+export type InsightsChannelStat = {
+  channel_id: string;
+  sessions: number;
+  messages: number;
+};
+
+export type InsightsResponse = {
+  period: string;
+  generated_at: string;
+  sessions: number;
+  messages: number;
+  tool_calls_total: number;
+  tool_errors_total: number;
+  avg_duration_ms: number | null;
+  top_channels: InsightsChannelStat[];
+  top_tools: InsightsToolStat[];
 };
 
 export type TrajectoryStats = {

@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchChat, fetchLLMConfig, interruptChat, postChatConfirm } from "@/lib/api";
+import { fetchChat, fetchLLMConfig, interruptChat, postChatClarify, postChatConfirm } from "@/lib/api";
 import { publishToast } from "@/lib/toast";
 import { getAnonEnabled } from "@/lib/storage";
 import type {
   CardEnvelope,
   ChatAttachment,
   ChatMessage,
+  ClarifyRequiredPayload,
   ConfirmRequiredPayload,
   ErrorCode,
   ToolCallRecord,
@@ -34,6 +35,10 @@ export type UseChatStreamReturn = {
   pendingConfirm: ConfirmRequiredPayload | null;
   /** Отвечает на pending confirm — POST /chat/confirm */
   resolveConfirm: (approved: boolean) => Promise<void>;
+  /** Sprint 4 (D1): Pending clarify — backend ждёт ответ на clarify_question. */
+  pendingClarify: ClarifyRequiredPayload | null;
+  /** Отвечает на pending clarify — POST /chat/clarify. */
+  resolveClarify: (answer: string | string[]) => Promise<void>;
   send: (text: string, attachments?: ChatAttachment[]) => Promise<void>;
   /** Sprint 2 (Hermes C9): прерывает текущий стрим. Backend сохранит частичный ответ. */
   interrupt: () => Promise<void>;
@@ -69,6 +74,7 @@ export function useChatStream({
   const [streamingStage, setStreamingStage] = useState<StreamingStage | null>(null);
   const [currentToolName, setCurrentToolName] = useState<string | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<ConfirmRequiredPayload | null>(null);
+  const [pendingClarify, setPendingClarify] = useState<ClarifyRequiredPayload | null>(null);
 
   // Сброс state при смене сессии. Без этого Next.js не размонтирует страницу
   // [id] при навигации между /sessions/A → /sessions/B — useChatStream
@@ -228,6 +234,9 @@ export function useChatStream({
             // SEC-01: backend ждёт подтверждения опасного execute_code
             setPendingConfirm(event.data);
             // Цикл продолжается — SSE-стрим живёт, backend ждёт POST /chat/confirm
+          } else if (event.event === "clarify_required") {
+            // Sprint 4 (D1): LLM попросила уточнение
+            setPendingClarify(event.data);
           } else if (event.event === "done") {
             const { message_id, total_duration_ms } = event.data;
             setMessages((prev) => {
@@ -314,6 +323,19 @@ export function useChatStream({
     [pendingConfirm],
   );
 
+  const resolveClarify = useCallback(
+    async (answer: string | string[]): Promise<void> => {
+      if (!pendingClarify) return;
+      const { clarify_id } = pendingClarify;
+      try {
+        await postChatClarify({ clarify_id, answer });
+      } finally {
+        setPendingClarify(null);
+      }
+    },
+    [pendingClarify],
+  );
+
   const interrupt = useCallback(async (): Promise<void> => {
     if (!sessionId || !isStreaming) return;
     try {
@@ -335,6 +357,8 @@ export function useChatStream({
     currentToolName,
     pendingConfirm,
     resolveConfirm,
+    pendingClarify,
+    resolveClarify,
     send,
     interrupt,
   };

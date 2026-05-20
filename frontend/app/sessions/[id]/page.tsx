@@ -7,6 +7,7 @@ import { Thread } from "@/components/chat/Thread";
 import { ChatInput } from "@/components/chat/Input";
 import { CommandPalette } from "@/components/chat/CommandPalette";
 import { ConfirmExecuteDialog } from "@/components/chat/ConfirmExecuteDialog";
+import { ClarifyDialog } from "@/components/chat/ClarifyDialog";
 import { ConnectionStatusBanner } from "@/components/chat/ConnectionStatusBanner";
 import { ExportSessionButton } from "@/components/chat/ExportSessionButton";
 import { useChatStream } from "@/components/chat/useChatStream";
@@ -131,7 +132,7 @@ export default function SessionPage() {
     }
   }
 
-  const { messages, isStreaming, error, streamingStage, currentToolName, pendingConfirm, resolveConfirm, send, interrupt } = useChatStream({
+  const { messages, isStreaming, error, streamingStage, currentToolName, pendingConfirm, resolveConfirm, pendingClarify, resolveClarify, send, interrupt } = useChatStream({
     sessionId: id,
     channelId,
     initialMessages,
@@ -243,6 +244,11 @@ export default function SessionPage() {
             currentToolName={currentToolName}
             sessionId={id}
           />
+          {pendingClarify && (
+            <div className="px-4 max-w-3xl mx-auto">
+              <ClarifyDialog payload={pendingClarify} onResolve={resolveClarify} />
+            </div>
+          )}
           {error && (
             <div className="px-4 pb-2 text-xs text-red-400">{error}</div>
           )}

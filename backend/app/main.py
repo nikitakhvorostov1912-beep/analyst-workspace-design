@@ -8,9 +8,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.routes import admin as admin_router
 from app.routes import chat as chat_router
+from app.routes import clarify as clarify_router
 from app.routes import connections as connections_router
 from app.routes import diagnostics as diagnostics_router
 from app.routes import health as health_router
+from app.routes import insights as insights_router
 from app.routes import llm_config as llm_config_router
 from app.routes import log_cards as log_cards_router
 from app.routes import mcp as mcp_router
@@ -73,6 +75,8 @@ def create_app() -> FastAPI:
     app.include_router(diagnostics_router.router)
     app.include_router(memory_router.router)
     app.include_router(skills_router.router)
+    app.include_router(clarify_router.router)
+    app.include_router(insights_router.router)
 
     return app
 

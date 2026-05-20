@@ -26,7 +26,16 @@ VISION_MODEL = "mimo-v2-omni"
 from app.learning.background_review import schedule_review
 from app.learning.skill_store import SkillStore
 from app.learning.skill_usage import SkillUsageStore
+from app.memory.injection_scan import sanitize_for_prompt as scan_sanitize_for_prompt
 from app.orchestrator.auxiliary import AuxiliaryClient
+from app.orchestrator.clarify import (
+    CLARIFY,
+    CLARIFY_TIMEOUT_S,
+    CLARIFY_TOOL_SCHEMA,
+    is_clarify_tool,
+    new_clarify_id,
+    validate_args as validate_clarify_args,
+)
 from app.orchestrator.compressor import (
     compress,
     needs_compression,
@@ -49,6 +58,7 @@ from app.orchestrator.sanitize import (
     repair_message_sequence,
     sanitize_messages,
 )
+from app.orchestrator.think_scrubber import ThinkScrubber
 from app.orchestrator.todo import (
     TODO_TOOL_SCHEMAS,
     dispatch_todo_tool,
@@ -60,6 +70,7 @@ from app.models import ChatRequest
 from app.orchestrator.cards import _extract_anon_tokens_from_payload, build_card_from_tool_result
 from app.orchestrator.events import (
     CardEvent,
+    ClarifyRequiredEvent,
     ConfirmRequiredEvent,
     DeltaEvent,
     DoneEvent,
@@ -477,6 +488,8 @@ async def run_chat_loop(
         openai_tools = openai_tools + memory_tool_schemas(memory_manager)
         # Sprint 3: todo_add / todo_complete / todo_list — internal tools.
         openai_tools = openai_tools + TODO_TOOL_SCHEMAS
+        # Sprint 4: clarify_question — структурированные уточнения вместо free-text.
+        openai_tools = openai_tools + [CLARIFY_TOOL_SCHEMA]
     except Exception:
         logger.exception("Ошибка инициализации MCP pool")
         yield format_sse("error", ErrorEvent(
@@ -627,6 +640,8 @@ async def run_chat_loop(
             chunk_content = ""
             chunk_reasoning = ""  # reasoning-content (Xiaomi MiMo, DeepSeek R1 и др.)
             finish_reason: str | None = None
+            # Sprint 4 (G7): thinking-tag scrubber для streamed content.
+            think_scrubber = ThinkScrubber()
 
             try:
                 llm = LLMClient(endpoint=llm_endpoint, model=effective_llm_model)
@@ -641,8 +656,12 @@ async def run_chat_loop(
                         # Накапливаем текстовый контент
                         content_piece = delta.get("content")
                         if content_piece:
-                            chunk_content += content_piece
-                            yield format_sse("delta", DeltaEvent(content=content_piece))
+                            # Sprint 4 (G7): прячем <think>/<thinking>/<reasoning> теги
+                            # из streamed view; в accumulated_content тоже идёт уже clean.
+                            safe_piece = think_scrubber.feed(content_piece)
+                            chunk_content += safe_piece
+                            if safe_piece:
+                                yield format_sse("delta", DeltaEvent(content=safe_piece))
 
                         # Reasoning-content (Xiaomi MiMo, DeepSeek R1) — для thinking mode:
                         # модель требует вернуть свой reasoning обратно в следующем round
@@ -707,6 +726,13 @@ async def run_chat_loop(
                     code="llm_network_error",
                 ))
                 return
+
+            # Sprint 4 (G7): финальный flush — если поток оборвался не в think,
+            # подбираем хвост; внутри think — отбрасываем.
+            tail = think_scrubber.flush()
+            if tail:
+                chunk_content += tail
+                yield format_sse("delta", DeltaEvent(content=tail))
 
             accumulated_content += chunk_content
             # Сохраняем reasoning последней итерации (thinking-mode моделей).
@@ -850,6 +876,69 @@ async def run_chat_loop(
                     })
                     continue
 
+                # Sprint 4 (Hermes D1): clarify_question — диалог с пользователем
+                # через SSE clarify_required. Loop ждёт ответ через future,
+                # затем возвращает в LLM как tool result.
+                if is_clarify_tool(tool_name):
+                    try:
+                        question, options, multi = validate_clarify_args(tool_args)
+                    except ValueError as exc:
+                        duration_ms = int((time.monotonic() - start_ts) * 1000)
+                        yield format_sse("tool_result", ToolResultEvent(
+                            id=tool_id, ok=False, error=str(exc), duration_ms=duration_ms,
+                        ))
+                        messages.append({
+                            "role": "tool", "tool_call_id": tool_id,
+                            "content": f"Невалидные args clarify_question: {exc}",
+                        })
+                        continue
+
+                    clarify_id = new_clarify_id()
+                    pending = CLARIFY.register(
+                        clarify_id, question, options, multi=multi, allow_custom=True,
+                    )
+                    yield format_sse("clarify_required", ClarifyRequiredEvent(
+                        clarify_id=clarify_id,
+                        question=question,
+                        options=options,
+                        multi=multi,
+                        allow_custom=True,
+                    ))
+                    try:
+                        answer = await asyncio.wait_for(
+                            pending.future, timeout=CLARIFY_TIMEOUT_S
+                        )
+                    except (asyncio.TimeoutError, asyncio.CancelledError):
+                        CLARIFY.cancel(clarify_id)
+                        yield format_sse("error", ErrorEvent(
+                            message=(
+                                f"Уточнение не получено за "
+                                f"{int(CLARIFY_TIMEOUT_S / 60)} минут."
+                            ),
+                            code="clarify_timeout",
+                        ))
+                        return
+
+                    duration_ms = int((time.monotonic() - start_ts) * 1000)
+                    answer_str = (
+                        ", ".join(answer) if isinstance(answer, list) else str(answer)
+                    )
+                    yield format_sse("tool_result", ToolResultEvent(
+                        id=tool_id, ok=True,
+                        result={"answer": answer_str},
+                        duration_ms=duration_ms,
+                    ))
+                    accumulated_tool_calls.append({
+                        "id": tool_id, "name": tool_name, "args": tool_args,
+                        "result": {"answer": answer_str}, "error": None,
+                        "duration_ms": duration_ms,
+                    })
+                    messages.append({
+                        "role": "tool", "tool_call_id": tool_id,
+                        "content": f"Пользователь выбрал: {answer_str}",
+                    })
+                    continue
+
                 # Sprint 3 (Hermes D3): todo_* tools → TodoRegistry, не MCP.
                 if is_todo_tool(tool_name):
                     ok, tool_result, tool_error = dispatch_todo_tool(
@@ -917,8 +1006,11 @@ async def run_chat_loop(
                     "duration_ms": duration_ms,
                 })
 
-                # Добавляем tool-результат в историю для LLM
+                # Добавляем tool-результат в историю для LLM.
+                # Sprint 4 (F1): tool output sanitize — данные из 1С могут содержать
+                # prompt injection patterns (например, в Комментарии документа).
                 tool_content = json.dumps(tool_result, ensure_ascii=False) if tool_result else (tool_error or "")
+                tool_content = scan_sanitize_for_prompt(tool_content)
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tool_id,

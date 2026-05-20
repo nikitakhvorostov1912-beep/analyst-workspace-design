@@ -21,6 +21,7 @@ ErrorCode = Literal[
     "internal_error",
     "user_declined",
     "dangerous_keyword_blocked",
+    "clarify_timeout",
 ]
 
 
@@ -87,6 +88,23 @@ class ConfirmRequiredEvent(BaseModel):
     name: str = Field(min_length=1)
     args: dict[str, Any]
     reason: str = Field(min_length=1)
+
+
+class ClarifyRequiredEvent(BaseModel):
+    """Sprint 4 (Hermes D1): SSE-событие clarify_required — LLM просит уточнения.
+
+    Frontend рисует radio (если multi=false) или checkbox-список (multi=true),
+    дополнительно кнопку «Свой ответ». Юзер выбирает → POST /chat/clarify
+    с {clarify_id, answer}. Loop получает ответ и возвращает в LLM как tool result.
+    """
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+    clarify_id: str = Field(min_length=1)
+    question: str = Field(min_length=1)
+    options: list[str]
+    multi: bool = False
+    allow_custom: bool = True
 
 
 def format_sse(event_name: str, data: BaseModel | dict) -> str:
