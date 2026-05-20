@@ -98,6 +98,26 @@ export default function InsightsPage() {
             />
           </div>
 
+          {/* Sprint 5 (I4): Token + cost KPI */}
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <KpiText
+              label="Токенов (оценка)"
+              value={
+                data.estimated_tokens > 0
+                  ? data.estimated_tokens.toLocaleString("ru-RU")
+                  : "—"
+              }
+            />
+            <KpiText
+              label="Стоимость, USD (оценка)"
+              value={
+                data.estimated_cost_usd > 0
+                  ? "$" + data.estimated_cost_usd.toFixed(4)
+                  : "—"
+              }
+            />
+          </div>
+
           {data.avg_duration_ms !== null && (
             <div className="mt-3 p-3 rounded-md border border-[var(--bd-2)] bg-[var(--bg-1)]">
               <span className="text-[12px] text-[var(--fg-3)] uppercase tracking-[0.1em]">
@@ -247,6 +267,22 @@ function Header() {
         <BarChart3 className="h-5 w-5 text-[var(--accent)]" />
         Аналитика
       </h1>
+    </div>
+  );
+}
+
+function KpiText({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="p-4 rounded-md border border-[var(--bd-2)] bg-[var(--bg-1)]">
+      <div className="text-[10.5px] uppercase tracking-[0.14em] text-[var(--fg-3)]">
+        {label}
+      </div>
+      <div
+        className="mt-2 text-[20px] font-semibold text-[var(--fg-1)] tabular-nums"
+        style={{ fontFamily: "var(--font-jb-mono), monospace" }}
+      >
+        {value}
+      </div>
     </div>
   );
 }

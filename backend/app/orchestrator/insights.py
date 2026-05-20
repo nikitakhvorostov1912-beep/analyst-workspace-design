@@ -59,6 +59,9 @@ class InsightsReport:
     avg_duration_ms: int | None
     top_channels: list[ChannelStat]
     top_tools: list[ToolStat]
+    # Sprint 5 (I4): оценочные токены и стоимость (estimated, не от LLM provider).
+    estimated_tokens: int = 0
+    estimated_cost_usd: float = 0.0
 
 
 def _period_cutoff(period: Period) -> str | None:
@@ -197,6 +200,12 @@ async def collect_insights(
     if duration_samples:
         avg_duration = int(sum(duration_samples) / len(duration_samples))
 
+    # Sprint 5 (I4): estimated tokens + cost.
+    # Очень грубая оценка: содержимое messages.content + tool_calls.
+    # Реальные usage tokens хотелось бы брать из LLM provider response —
+    # но MiMo/OpenAI-compat не всегда возвращают usage в SSE, поэтому считаем сами.
+    estimated_tokens, estimated_cost = await _estimate_tokens_and_cost(db, cutoff)
+
     return InsightsReport(
         period=period,
         generated_at=datetime.now(UTC).isoformat(),
@@ -207,4 +216,58 @@ async def collect_insights(
         avg_duration_ms=avg_duration,
         top_channels=channels,
         top_tools=top_tools,
+        estimated_tokens=estimated_tokens,
+        estimated_cost_usd=round(estimated_cost, 4),
     )
+
+
+async def _estimate_tokens_and_cost(
+    db: aiosqlite.Connection, cutoff: str | None
+) -> tuple[int, float]:
+    """Грубая оценка токенов + стоимости по содержимому messages.
+
+    Берём суммарную длину content + tool_calls, делим на 3.5 (chars per token),
+    оцениваем как input для активной модели (используем дефолтную из настроек).
+    """
+    from app.config import get_settings
+    from app.orchestrator.usage_pricing import compute_turn_cost
+
+    where_clause = ""
+    params: tuple = ()
+    if cutoff is not None:
+        where_clause = "WHERE created_at >= ?"
+        params = (cutoff,)
+
+    total_chars = 0
+    output_chars = 0
+    async with db.execute(
+        f"""
+        SELECT role, content, tool_calls FROM messages
+        {where_clause}
+        ORDER BY id DESC LIMIT 10000
+        """,
+        params,
+    ) as cur:
+        async for r in cur:
+            role = r[0]
+            content = r[1] or ""
+            tool_calls = r[2] or ""
+            chars = len(content) + len(tool_calls)
+            total_chars += chars
+            if role == "assistant":
+                output_chars += chars
+
+    if total_chars == 0:
+        return 0, 0.0
+
+    input_chars = total_chars - output_chars
+    input_tokens = int(input_chars / 3.5)
+    output_tokens = int(output_chars / 3.5)
+
+    settings = get_settings()
+    cost = compute_turn_cost(
+        model=settings.default_llm_model,
+        input_tokens=input_tokens,
+        output_tokens=output_tokens,
+    )
+    return (input_tokens + output_tokens), cost.total_cost_usd

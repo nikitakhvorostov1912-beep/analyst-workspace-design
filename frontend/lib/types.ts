@@ -473,6 +473,9 @@ export type InsightsResponse = {
   avg_duration_ms: number | null;
   top_channels: InsightsChannelStat[];
   top_tools: InsightsToolStat[];
+  // Sprint 5 (I4): estimated tokens + cost.
+  estimated_tokens: number;
+  estimated_cost_usd: number;
 };
 
 export type TrajectoryStats = {

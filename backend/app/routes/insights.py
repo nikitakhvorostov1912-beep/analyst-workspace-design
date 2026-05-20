@@ -50,6 +50,9 @@ class InsightsResponse(BaseModel):
     avg_duration_ms: int | None
     top_channels: list[ChannelStatDTO]
     top_tools: list[ToolStatDTO]
+    # Sprint 5 (I4): estimated токены и стоимость.
+    estimated_tokens: int = 0
+    estimated_cost_usd: float = 0.0
 
 
 @router.get("/insights", response_model=InsightsResponse)
@@ -75,4 +78,6 @@ async def insights_endpoint(
             ToolStatDTO(name=t.name, calls=t.calls, errors=t.errors, error_rate=t.error_rate)
             for t in report.top_tools
         ],
+        estimated_tokens=report.estimated_tokens,
+        estimated_cost_usd=report.estimated_cost_usd,
     )
