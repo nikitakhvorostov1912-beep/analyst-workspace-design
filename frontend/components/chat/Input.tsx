@@ -29,6 +29,12 @@ interface ChatInputProps {
   isStreaming?: boolean;
   /** Sprint 2 (Hermes C9): прерывает текущий стрим. */
   onInterrupt?: () => void;
+  /**
+   * True, если backend получит ключ из env (DEFAULT_LLM_API_KEY). Тогда отправка
+   * разрешена даже при пустом localStorage. Если false и ключа в браузере нет —
+   * показываем toast «введите ключ» вместо отправки.
+   */
+  hasEnvApiKey?: boolean;
 }
 
 export function ChatInput({
@@ -38,6 +44,7 @@ export function ChatInput({
   channelId,
   isStreaming = false,
   onInterrupt,
+  hasEnvApiKey = false,
 }: ChatInputProps) {
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -92,10 +99,15 @@ export function ChatInput({
     // Разрешаем отправку с пустым text если есть файлы — модель сама поймёт
     if (!text && attachments.length === 0) return;
 
-    // Проверяем наличие api_key в sessionStorage — быстрый UX disabled-state check (Plan 5.4)
+    // Проверяем наличие api_key. Если в localStorage пусто И backend не сообщил
+    // о env-ключе (DEFAULT_LLM_API_KEY) — отправлять нечего, показываем toast.
+    // Раньше тут был window.alert() — заменён на toast для нормального UX.
     const apiKey = getLLMApiKey();
-    if (!apiKey) {
-      alert("Введите API ключ в разделе Настройки");
+    if (!apiKey && !hasEnvApiKey) {
+      publishToast({
+        type: "warning",
+        message: "Введите API ключ в разделе Настройки или пропишите DEFAULT_LLM_API_KEY в backend/.env",
+      });
       return;
     }
 

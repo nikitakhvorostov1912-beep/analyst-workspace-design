@@ -12,7 +12,7 @@ import { ConnectionStatusBanner } from "@/components/chat/ConnectionStatusBanner
 import { ExportSessionButton } from "@/components/chat/ExportSessionButton";
 import { useChatStream } from "@/components/chat/useChatStream";
 import { useSessionsStore } from "@/lib/sessions-store";
-import { fetchSessionDetail, fetchSessionMessages, fetchConnections, pingConnection } from "@/lib/api";
+import { fetchSessionDetail, fetchSessionMessages, fetchConnections, fetchLLMConfig, pingConnection } from "@/lib/api";
 import { getActiveChannelId, setActiveChannelId } from "@/lib/storage";
 import { publishToast } from "@/lib/toast";
 import type { ChatMessage, SessionDetail } from "@/lib/types";
@@ -48,6 +48,19 @@ export default function SessionPage() {
   const [ready, setReady] = useState(false);
   const [activeChannelId, setLocalActiveChannelId] = useState<string | null>(null);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
+  // Кешируем флаг наличия env-ключа в backend. ChatInput использует его чтобы
+  // не показывать toast «введите ключ», когда backend подставит ключ из .env.
+  const [hasEnvApiKey, setHasEnvApiKey] = useState(false);
+
+  useEffect(() => {
+    fetchLLMConfig()
+      .then((cfg) => {
+        if (cfg) setHasEnvApiKey(Boolean(cfg.has_env_api_key));
+      })
+      .catch(() => {
+        // Тихо игнорим — флаг останется false (старое поведение)
+      });
+  }, []);
 
   // Banner state — STATE-02
   const [bannerVisible, setBannerVisible] = useState(false);
@@ -229,6 +242,7 @@ export default function SessionPage() {
             channelId={channelId}
             isStreaming={isStreaming}
             onInterrupt={interrupt}
+            hasEnvApiKey={hasEnvApiKey}
           />
         }
       >
