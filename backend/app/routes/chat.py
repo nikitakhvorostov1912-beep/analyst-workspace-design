@@ -32,7 +32,9 @@ async def chat(
     """Принимает сообщение и стримит SSE-ответ от LLM через tool-calling loop.
 
     Headers:
-        X-LLM-API-Key (required): API ключ провайдера.
+        X-LLM-API-Key (optional): API ключ провайдера. Если пуст — backend
+            берёт ключ из env DEFAULT_LLM_API_KEY (settings.default_llm_api_key).
+            Если и env пуст — 400.
         X-LLM-Endpoint (optional): URL endpoint (default из Settings).
         X-LLM-Model (optional): модель (default из Settings).
         X-Anon-Enabled (optional): "true" → анонимизация включена.
@@ -40,16 +42,19 @@ async def chat(
     Body:
         channel_id (required): идентификатор MCP-подключения.
     """
-    if not x_llm_api_key:
+    settings = get_settings()
+    # Env-fallback: пользователь может прописать ключ один раз в backend/.env
+    # и больше не вводить его через UI. Header выигрывает только если не пустой.
+    effective_api_key = (x_llm_api_key or "").strip() or settings.default_llm_api_key
+    if not effective_api_key:
         raise HTTPException(status_code=400, detail="missing api key")
 
-    settings = get_settings()
     llm_endpoint = x_llm_endpoint or settings.default_llm_endpoint
     llm_model = x_llm_model or settings.default_llm_model
     anon_enabled = (x_anon_enabled or "").strip().lower() == "true"
 
     return StreamingResponse(
-        run_chat_loop(db, request, x_llm_api_key, llm_endpoint, llm_model, x_anon_enabled=anon_enabled),
+        run_chat_loop(db, request, effective_api_key, llm_endpoint, llm_model, x_anon_enabled=anon_enabled),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

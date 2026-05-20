@@ -108,6 +108,12 @@ LOG_LEVEL=INFO
 DEFAULT_LLM_ENDPOINT=https://api.xiaomimimo.com/v1
 DEFAULT_LLM_MODEL=mimo-v2.5-pro
 DEFAULT_LLM_TEMPERATURE=0.3
+
+# Если задать — backend сам подставит ключ в LLM-вызовы как fallback, когда
+# frontend не передал свой. UI узнаёт по флагу has_env_api_key и не требует
+# ввода ключа в форме («прописал один раз — забыл навсегда»).
+DEFAULT_LLM_API_KEY=sk-your-mimo-key
+
 DEFAULT_MCP_NAME=Транзит
 DEFAULT_MCP_ENDPOINT=http://localhost:6010/mcp
 DEFAULT_MCP_KIND=embedded

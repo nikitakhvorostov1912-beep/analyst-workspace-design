@@ -7,6 +7,7 @@ from typing import Annotated
 import httpx
 from fastapi import APIRouter, Header, HTTPException, Request
 
+from app.config import get_settings
 from app.models import (
     LLMConfigCreate,
     LLMConfigResponse,
@@ -34,6 +35,11 @@ def _get_db(request: Request):
     return request.app.state.db
 
 
+def _has_env_api_key() -> bool:
+    """True если backend получит ключ из env (DEFAULT_LLM_API_KEY)."""
+    return bool(get_settings().default_llm_api_key)
+
+
 def _row_to_response(row: tuple) -> LLMConfigResponse:
     """Конвертирует строку SQLite (id, endpoint, model, temperature, updated_at) в LLMConfigResponse."""
     return LLMConfigResponse(
@@ -42,6 +48,7 @@ def _row_to_response(row: tuple) -> LLMConfigResponse:
         model=row[2],
         temperature=row[3],
         updated_at=row[4],
+        has_env_api_key=_has_env_api_key(),
     )
 
 

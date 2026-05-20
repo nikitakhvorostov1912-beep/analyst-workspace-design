@@ -82,18 +82,23 @@ export async function fetchMCPPing(
 
 /**
  * Отправляет сообщение в /chat и возвращает AsyncIterable<SSEEvent>.
- * api_key читается из sessionStorage (getLLMApiKey) и передаётся ТОЛЬКО через header X-LLM-API-Key.
+ * api_key читается из localStorage (getLLMApiKey) и передаётся ТОЛЬКО через header X-LLM-API-Key.
  * endpoint + model передаются вызывающим через llm-параметр (source-of-truth = backend, Plan 5.4 UX-04).
  * Никогда не кладём api_key в body (NFR-6, ARCHITECTURE Key Decision #1, T-01-12).
+ *
+ * llm.hasEnvKey=true → backend получит ключ из env DEFAULT_LLM_API_KEY если
+ * локального ключа нет. Это даёт «прописал один раз в .env — забыл навсегда».
  */
 export async function* fetchChat(
   req: ChatRequest,
-  llm: { endpoint: string; model: string },
+  llm: { endpoint: string; model: string; hasEnvKey?: boolean },
   signal?: AbortSignal,
   extraHeaders?: Record<string, string>,
 ): AsyncIterable<SSEEvent> {
   const apiKey = getLLMApiKey();
-  if (!apiKey) {
+  // Если ключа нет в браузере И backend не пометил env-ключ — фронт сразу
+  // ругается. Иначе отправляем запрос, и backend подставит env-ключ сам.
+  if (!apiKey && !llm.hasEnvKey) {
     yield {
       event: "error",
       data: { message: "API ключ не задан. Откройте Настройки.", code: "no_api_key" },
@@ -101,18 +106,24 @@ export async function* fetchChat(
     return;
   }
 
+  const requestHeaders: Record<string, string> = {
+    "Content-Type": "application/json",
+    "Accept": "text/event-stream",
+    "X-LLM-Endpoint": llm.endpoint,
+    "X-LLM-Model": llm.model,
+    ...extraHeaders,
+  };
+  // Header отправляем ТОЛЬКО если есть локальный ключ — иначе пусть backend
+  // решает env-fallback'ом (chat.py использует settings.default_llm_api_key).
+  if (apiKey) {
+    requestHeaders["X-LLM-API-Key"] = apiKey;
+  }
+
   let response: Response;
   try {
     response = await fetch(`${getBackend()}/chat`, {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Accept": "text/event-stream",
-        "X-LLM-API-Key": apiKey,
-        "X-LLM-Endpoint": llm.endpoint,
-        "X-LLM-Model": llm.model,
-        ...extraHeaders,
-      },
+      headers: requestHeaders,
       body: JSON.stringify(req),
       signal,
     });

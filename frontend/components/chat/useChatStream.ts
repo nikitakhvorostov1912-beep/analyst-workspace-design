@@ -173,7 +173,13 @@ export function useChatStream({
             channel_id: channelId,
             attachments: attachments && attachments.length > 0 ? attachments : undefined,
           },
-          { endpoint: llmConfig.endpoint, model: llmConfig.model },
+          {
+            endpoint: llmConfig.endpoint,
+            model: llmConfig.model,
+            // Если backend получит ключ из env — фронт не должен ругаться при
+            // пустом localStorage и должен слать запрос без X-LLM-API-Key.
+            hasEnvKey: Boolean(llmConfig.has_env_api_key),
+          },
           undefined,
           anonHeaders,
         );

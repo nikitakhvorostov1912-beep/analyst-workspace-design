@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     default_llm_temperature: float = Field(
         default=0.3, validation_alias="DEFAULT_LLM_TEMPERATURE"
     )
+    # API-ключ дефолтного провайдера. Хранится только в env (не в git, не в БД).
+    # Если задан — backend подставляет его в LLM-вызовы как fallback, когда
+    # frontend не передал X-LLM-API-Key. UI узнаёт о наличии через флаг
+    # has_env_api_key в GET /llm-config (значение НЕ раскрывается клиенту).
+    default_llm_api_key: str = Field(default="", validation_alias="DEFAULT_LLM_API_KEY")
     app_version: str = "0.1.0"
 
     # Дефолтное MCP-подключение — встроенный сервер MCP_Toolkit EPF на :6010

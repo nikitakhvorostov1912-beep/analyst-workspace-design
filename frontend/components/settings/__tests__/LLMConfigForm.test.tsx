@@ -83,9 +83,14 @@ vi.mock("@/components/ui/slider", () => ({
 }));
 
 import { LLMConfigForm } from "../LLMConfigForm";
-import { saveLLMConfig, testLLMConfig, deleteLLMConfig } from "@/lib/api";
+import {
+  saveLLMConfig,
+  testLLMConfig,
+  deleteLLMConfig,
+  updateLLMConfig,
+} from "@/lib/api";
 import { publishToast } from "@/lib/toast";
-import { clearLLMApiKey, getLLMApiKey } from "@/lib/api-keys";
+import { clearLLMApiKey, getLLMApiKey, setLLMApiKey } from "@/lib/api-keys";
 import type { LLMConfigResponse } from "@/lib/types";
 
 const makeLLMConfig = (): LLMConfigResponse => ({
@@ -93,6 +98,11 @@ const makeLLMConfig = (): LLMConfigResponse => ({
   endpoint: "https://api.xiaomimimo.com/v1",
   model: "mimo-v2.5-pro",
   temperature: 0.3,
+});
+
+const makeLLMConfigWithEnvKey = (): LLMConfigResponse => ({
+  ...makeLLMConfig(),
+  has_env_api_key: true,
 });
 
 /** Раскрыть свёрнутую секцию «Расширенные настройки» — endpoint и temperature теперь там. */
@@ -272,6 +282,32 @@ describe("LLMConfigForm", () => {
       expect(saveLLMConfig).toHaveBeenCalledWith(
         expect.objectContaining({ endpoint: "https://api.xiaomimimo.com/v1" }),
       );
+      expect(onSaved).toHaveBeenCalled();
+    });
+  });
+
+  it("когда has_env_api_key=true и localStorage пуст — поле ключа не показывается, форма сохраняется без ввода ключа", async () => {
+    vi.mocked(getLLMApiKey).mockReturnValue(null);
+    vi.mocked(updateLLMConfig).mockResolvedValue(makeLLMConfigWithEnvKey());
+    const onSaved = vi.fn();
+
+    render(<LLMConfigForm initial={makeLLMConfigWithEnvKey()} onSaved={onSaved} />);
+
+    // Поле ввода скрыто, видна табличка «ключ из окружения»
+    expect(screen.queryByPlaceholderText(/sk-/)).not.toBeInTheDocument();
+    expect(
+      screen.getByText(/Ключ задан в окружении сервера/i),
+    ).toBeInTheDocument();
+
+    // Сохраняем без ввода ключа — должно сработать (env-fallback)
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /сохранить/i }));
+    });
+
+    await waitFor(() => {
+      expect(updateLLMConfig).toHaveBeenCalled();
+      // setLLMApiKey НЕ должен быть вызван — ключа пользователь не вводил
+      expect(setLLMApiKey).not.toHaveBeenCalled();
       expect(onSaved).toHaveBeenCalled();
     });
   });

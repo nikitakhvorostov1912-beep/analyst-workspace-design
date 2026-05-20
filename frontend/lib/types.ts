@@ -340,6 +340,13 @@ export type LLMConfigResponse = {
   model: string;
   temperature: number;
   updated_at?: string | null;
+  /**
+   * True если backend получит API-ключ из env DEFAULT_LLM_API_KEY когда
+   * frontend его не передаст. UI на основании этого флага не требует ввода
+   * ключа в форме настроек и в /chat (один раз прописал в .env — больше
+   * не возвращаешься).
+   */
+  has_env_api_key?: boolean;
 };
 
 export type LLMConfigCreate = {

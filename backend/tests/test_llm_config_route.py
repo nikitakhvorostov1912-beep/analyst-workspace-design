@@ -29,7 +29,10 @@ async def test_get_empty_returns_null(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_post_creates_returns_response_without_api_key(client: AsyncClient):
-    """POST /llm-config → 201, id='default', без поля api_key (T-05-01)."""
+    """POST /llm-config → 201, id='default', без поля api_key (T-05-01).
+
+    has_env_api_key=False — в тестах env DEFAULT_LLM_API_KEY не задан.
+    """
     response = await client.post("/llm-config", json=_BASE_BODY)
     assert response.status_code == 201
     data = response.json()
@@ -38,6 +41,27 @@ async def test_post_creates_returns_response_without_api_key(client: AsyncClient
     assert data["model"] == _BASE_BODY["model"]
     assert data["temperature"] == _BASE_BODY["temperature"]
     assert "api_key" not in data
+    assert data["has_env_api_key"] is False
+
+
+@pytest.mark.asyncio
+async def test_get_reports_has_env_api_key_true_when_env_set(
+    client: AsyncClient, monkeypatch
+):
+    """Если DEFAULT_LLM_API_KEY задан в env — GET /llm-config возвращает has_env_api_key=True."""
+    from app.config import get_settings
+
+    monkeypatch.setenv("DEFAULT_LLM_API_KEY", "sk-from-env-12345")
+    get_settings.cache_clear()
+    try:
+        # Создаём запись чтобы GET вернул объект, а не None
+        await client.post("/llm-config", json=_BASE_BODY)
+        response = await client.get("/llm-config")
+        assert response.status_code == 200
+        data = response.json()
+        assert data["has_env_api_key"] is True
+    finally:
+        get_settings.cache_clear()
 
 
 @pytest.mark.asyncio

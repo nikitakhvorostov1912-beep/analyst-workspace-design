@@ -21,7 +21,7 @@ import {
   deleteLLMConfig,
   testLLMConfig,
 } from "@/lib/api";
-import { llmConfigSchema } from "@/lib/form-schemas";
+import { llmConfigSchema, llmConfigUpdateSchema } from "@/lib/form-schemas";
 import { getLLMApiKey, setLLMApiKey, clearLLMApiKey } from "@/lib/api-keys";
 import { publishToast } from "@/lib/toast";
 import type { LLMConfigResponse } from "@/lib/types";
@@ -49,6 +49,9 @@ function translateErrorCode(code: string | null | undefined): string {
 export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
   const storedKey = getLLMApiKey();
   const hasExisting = initial !== null;
+  // True если backend получит ключ из env DEFAULT_LLM_API_KEY. Тогда форма
+  // не требует ввода ключа: «прописал один раз в .env — забыл навсегда».
+  const hasEnvApiKey = Boolean(initial?.has_env_api_key);
 
   // Дефолты — Xiaomi MiMo v2.5-pro (см. memory/llm-providers.md). На первом
   // запуске инсталлятор сидит эту же пару в БД, чтобы аналитику оставалось
@@ -65,7 +68,9 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
   );
   const [apiKey, setApiKey] = useState("");
   const [showKeyInput, setShowKeyInput] = useState(
-    !(hasExisting && storedKey),
+    // Скрываем поле ввода ключа когда либо локальный storedKey есть, либо
+    // backend знает env-ключ — пользователю нечего вводить.
+    !(hasExisting && storedKey) && !hasEnvApiKey,
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -83,11 +88,15 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
 
   function validate() {
     const effectiveKey = getEffectiveApiKey();
-    const result = llmConfigSchema.safeParse({
+    // Когда backend получает ключ из env и пользователь не вводит свой —
+    // валидация api_key пропускается. Иначе обычная схема.
+    const skipKeyCheck = hasEnvApiKey && !effectiveKey;
+    const schema = skipKeyCheck ? llmConfigUpdateSchema : llmConfigSchema;
+    const result = schema.safeParse({
       endpoint,
       model,
       temperature,
-      api_key: effectiveKey,
+      ...(skipKeyCheck ? {} : { api_key: effectiveKey }),
     });
 
     if (!result.success) {
@@ -102,7 +111,7 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
       return null;
     }
     setErrors({});
-    return result.data;
+    return { ...result.data, api_key: effectiveKey };
   }
 
   async function handleTest() {
@@ -141,7 +150,12 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
 
     setLoading(true);
     try {
-      setLLMApiKey(data.api_key);
+      // Ключ кладём в localStorage только если пользователь его реально ввёл.
+      // При env-fallback (data.api_key пустой) — оставляем localStorage пустым,
+      // backend подставит ключ из DEFAULT_LLM_API_KEY.
+      if (data.api_key) {
+        setLLMApiKey(data.api_key);
+      }
 
       const configPayload = {
         endpoint: data.endpoint,
@@ -198,7 +212,7 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
       <div>
         <div className="flex items-center justify-between mb-1">
           <label className="text-xs text-[var(--fg-muted)]">API ключ</label>
-          {hasExisting && storedKey && (
+          {(storedKey || hasEnvApiKey) && (
             <button
               type="button"
               className="text-xs text-[var(--accent)] hover:underline"
@@ -214,8 +228,12 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
             autoComplete="off"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            placeholder="sk-..."
+            placeholder={hasEnvApiKey ? "Оставьте пустым — будет использован ключ из .env" : "sk-..."}
           />
+        ) : hasEnvApiKey && !storedKey ? (
+          <div className="flex h-9 items-center px-3 rounded-md border border-[var(--success-40)] bg-[var(--success-12)] text-sm text-[var(--success)] font-mono">
+            ✓ Ключ задан в окружении сервера (.env)
+          </div>
         ) : (
           <div className="flex h-9 items-center px-3 rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] text-sm text-[var(--fg-muted)] font-mono">
             ••••••••

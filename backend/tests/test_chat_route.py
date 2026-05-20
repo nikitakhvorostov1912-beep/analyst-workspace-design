@@ -46,12 +46,39 @@ async def db_with_channel(db: aiosqlite.Connection):
 
 @pytest.mark.asyncio
 async def test_chat_missing_api_key_returns_400(client: AsyncClient):
-    """POST /chat без X-LLM-API-Key → 400."""
+    """POST /chat без X-LLM-API-Key и без env-ключа → 400 (missing api key)."""
     response = await client.post(
         "/chat",
         json={"message": "hello", "channel_id": "x"},
     )
     assert response.status_code == 400
+
+
+@pytest.mark.asyncio
+async def test_chat_falls_back_to_env_api_key(
+    client: AsyncClient, monkeypatch, db_with_channel
+):
+    """Если X-LLM-API-Key пуст, backend берёт ключ из env DEFAULT_LLM_API_KEY.
+
+    Без env → 400. С env → не 400 (доходит до бизнес-логики; пройдёт ли —
+    зависит от LLM-моков, нам важен только пропуск гейта аутентификации).
+    """
+    from app.config import get_settings
+
+    monkeypatch.setenv("DEFAULT_LLM_API_KEY", "sk-from-env-12345")
+    get_settings.cache_clear()
+    try:
+        response = await client.post(
+            "/chat",
+            json={"message": "hi", "channel_id": "test-ch"},
+            # Намеренно НЕ передаём X-LLM-API-Key — backend должен взять из env
+        )
+        # 400 = missing api key (то что мы НЕ хотим — env подставился)
+        assert response.status_code != 400, (
+            f"env-fallback не сработал, ответ {response.status_code}: {response.text[:200]}"
+        )
+    finally:
+        get_settings.cache_clear()
 
 
 @pytest.mark.asyncio

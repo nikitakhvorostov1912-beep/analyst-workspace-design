@@ -414,7 +414,13 @@ class LLMConfigUpdate(BaseModel):
 
 
 class LLMConfigResponse(BaseModel):
-    """Ответ /llm-config. API ключ ОТСУТСТВУЕТ (T-05-01)."""
+    """Ответ /llm-config. API ключ ОТСУТСТВУЕТ (T-05-01).
+
+    has_env_api_key — сигнал клиенту, что backend получит ключ из env
+    DEFAULT_LLM_API_KEY если frontend его не передаст. UI на основании этого
+    флага не требует ввод ключа в форме (UX: вводишь ключ один раз в .env
+    и больше не возвращаешься).
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -423,6 +429,7 @@ class LLMConfigResponse(BaseModel):
     model: str
     temperature: float
     updated_at: datetime | None = None
+    has_env_api_key: bool = False
 
 
 class LLMConfigTestRequest(BaseModel):
