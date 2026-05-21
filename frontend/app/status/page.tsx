@@ -17,12 +17,16 @@ import {
   fetchConnections,
   fetchEnvDiagnostics,
   fetchLLMConfig,
+  fetchLogPath,
   getBackendUrl,
   pingConnection,
   testLLMConfig,
 } from "@/lib/api";
+import type { LogPathResponse } from "@/lib/api";
+import { publishToast } from "@/lib/toast";
 import { getLLMApiKey } from "@/lib/api-keys";
 import { KindBadge } from "@/components/shell/KindBadge";
+import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { cn } from "@/lib/utils";
@@ -62,6 +66,7 @@ interface Check {
 export default function StatusPage() {
   const [checks, setChecks] = useState<Check[]>([]);
   const [env, setEnv] = useState<EnvDiagnosticsResponse | null>(null);
+  const [logInfo, setLogInfo] = useState<LogPathResponse | null>(null);
   const [running, setRunning] = useState(false);
 
   async function runChecks() {
@@ -92,6 +97,16 @@ export default function StatusPage() {
       envInfo = null;
     }
     setEnv(envInfo);
+
+    // Лог-файл — для кнопки «Открыть папку с логами». На старом backend
+    // (< v1.2.13) endpoint отсутствует → просто не показываем секцию.
+    let logResp: LogPathResponse | null = null;
+    try {
+      logResp = await fetchLogPath();
+    } catch {
+      logResp = null;
+    }
+    setLogInfo(logResp);
 
     results.push(backendCheck(health, envInfo));
 
@@ -164,7 +179,7 @@ export default function StatusPage() {
           На главную
         </Link>
         <h1 className="text-lg font-semibold text-[var(--fg)]">Диагностика</h1>
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
           <Button
             onClick={() => void runChecks()}
             variant="secondary"
@@ -174,6 +189,7 @@ export default function StatusPage() {
             <RefreshCw size={14} className={running ? "animate-spin" : ""} />
             {running ? "Проверяем..." : "Обновить"}
           </Button>
+          <ThemeToggle />
         </div>
       </div>
 
@@ -181,25 +197,25 @@ export default function StatusPage() {
         <div
           className={`mb-6 p-4 rounded-lg border ${
             allOk
-              ? "border-green-800 bg-green-950/30"
+              ? "border-[var(--success-40)] bg-[var(--success-12)]"
               : anyError
-                ? "border-red-800 bg-red-950/30"
-                : "border-yellow-800 bg-yellow-950/30"
+                ? "border-[var(--error-40)] bg-[var(--error-12)]"
+                : "border-[var(--warning-40)] bg-[var(--warning-12)]"
           }`}
         >
           <p className="text-sm">
             {allOk && (
-              <span className="text-green-400">
+              <span className="text-[var(--success)]">
                 ✓ Всё работает. Можно задавать вопросы на главной странице.
               </span>
             )}
             {anyError && (
-              <span className="text-red-400">
+              <span className="text-[var(--error)]">
                 ✗ Найдены проблемы. Раскройте строки ниже — там детали и подсказки по исправлению.
               </span>
             )}
             {!allOk && !anyError && (
-              <span className="text-yellow-400">
+              <span className="text-[var(--warning)]">
                 ⚠ Есть незавершённые настройки. Раскройте строки ниже.
               </span>
             )}
@@ -221,6 +237,12 @@ export default function StatusPage() {
       {env && (
         <div className="mt-6">
           <EnvSection env={env} />
+        </div>
+      )}
+
+      {logInfo && (
+        <div className="mt-6">
+          <LogSection info={logInfo} />
         </div>
       )}
 
@@ -343,9 +365,9 @@ async function mcpConnectionCheck(conn: MCPConnection): Promise<Check> {
 
   if (ping) {
     fields.push(
-      { label: "Версия MCP", value: ping.mcp_version, mono: true },
-      { label: "Сервер MCP", value: ping.server_name || "—" },
-      { label: "Количество инструментов", value: String(ping.tool_count) },
+      { label: "Версия протокола", value: ping.mcp_version, mono: true },
+      { label: "Обработка 1С", value: ping.server_name || "—" },
+      { label: "Доступно операций", value: String(ping.tool_count) },
       { label: "Ответ за", value: `${ping.duration_ms} мс` },
     );
   }
@@ -353,8 +375,8 @@ async function mcpConnectionCheck(conn: MCPConnection): Promise<Check> {
   if (errorMsg) {
     const hint =
       conn.kind === "proxy"
-        ? `Проверьте, что обработка MCP_Toolkit запущена на сервере и канал «${channel || "?"}» включён.`
-        : `В 1С на этом компьютере откройте обработку MCP_Toolkit и нажмите «Запустить». Адрес: ${conn.endpoint}`;
+        ? `Проверьте, что обработка-мост запущена на сервере и канал «${channel || "?"}» включён.`
+        : `В 1С на этом компьютере откройте обработку-мост и нажмите «Запустить». Адрес: ${conn.endpoint}`;
     return {
       id: `mcp-${conn.id}`,
       title: `База «${conn.name}»`,
@@ -372,7 +394,7 @@ async function mcpConnectionCheck(conn: MCPConnection): Promise<Check> {
     id: `mcp-${conn.id}`,
     title: `База «${conn.name}»`,
     status: "ok",
-    summary: `OK · ${kindLabel}${channelInfo} · ${ping?.tool_count ?? 0} инструментов · ${conn.endpoint}`,
+    summary: `OK · ${kindLabel}${channelInfo} · ${ping?.tool_count ?? 0} инструментов`,
     kind: conn.kind,
     fields,
     chips: ping?.tool_names ?? [],
@@ -440,6 +462,11 @@ function auxCheck(item: AuxMCPStatus, env: EnvDiagnosticsResponse | null): Check
 
 async function llmCheck(llmConfig: LLMConfigResponse | null): Promise<Check> {
   const apiKey = getLLMApiKey();
+  // env-fallback: backend получает ключ из .env (зашит в дистрибутиве для MiMo).
+  // Если has_env_api_key=true — у нас есть рабочий ключ, даже если localStorage пуст.
+  const hasEnvKey = Boolean(llmConfig?.has_env_api_key);
+  const hasKey = Boolean(apiKey) || hasEnvKey;
+
   if (!llmConfig) {
     return {
       id: "llm-config",
@@ -450,26 +477,41 @@ async function llmCheck(llmConfig: LLMConfigResponse | null): Promise<Check> {
     };
   }
 
+  const keyDescription = apiKey
+    ? "Введён · хранится локально, по сети не передаётся"
+    : hasEnvKey
+      ? "Задан в .env сервера · зашит в дистрибутиве"
+      : "Не введён";
+
   const fields: FieldRow[] = [
-    { label: "Адрес сервиса", value: llmConfig.endpoint, copy: true, mono: true },
     { label: "Модель", value: llmConfig.model, copy: true, mono: true },
     { label: "Температура", value: String(llmConfig.temperature) },
-    {
-      label: "API-ключ",
-      value: apiKey ? "Введён · хранится локально, по сети не передаётся" : "Не введён",
-    },
+    { label: "API-ключ", value: keyDescription },
   ];
   if (llmConfig.updated_at) {
     fields.push({ label: "Обновлён", value: formatDate(llmConfig.updated_at) });
   }
 
-  if (!apiKey) {
+  if (!hasKey) {
     return {
       id: "llm-config",
       title: "Модель ИИ",
       status: "warn",
-      summary: `Адрес настроен (${llmConfig.endpoint}), но API ключ не введён`,
+      summary: "API ключ не введён",
       hint: "Введите API ключ в Настройках — ключ хранится локально, по сети не передаётся.",
+      fields,
+    };
+  }
+
+  // Если ключ только из .env (не от пользователя) — пропускаем real test (backend
+  // /llm-config/test ждёт ключ в header, env-fallback там нет). Чат всё равно
+  // отработает через /chat/stream который умеет env-fallback.
+  if (!apiKey && hasEnvKey) {
+    return {
+      id: "llm-config",
+      title: "Модель ИИ",
+      status: "ok",
+      summary: `OK · модель ${llmConfig.model} · ключ из .env`,
       fields,
     };
   }
@@ -481,7 +523,7 @@ async function llmCheck(llmConfig: LLMConfigResponse | null): Promise<Check> {
         model: llmConfig.model,
         temperature: llmConfig.temperature,
       },
-      apiKey,
+      apiKey ?? "",
     );
     if (t.ok) {
       fields.push({ label: "Последний тест", value: `Успешно · ${t.duration_ms ?? 0} мс` });
@@ -489,7 +531,7 @@ async function llmCheck(llmConfig: LLMConfigResponse | null): Promise<Check> {
         id: "llm-config",
         title: "Модель ИИ",
         status: "ok",
-        summary: `OK · ${llmConfig.endpoint} · модель ${llmConfig.model}`,
+        summary: `OK · модель ${llmConfig.model}`,
         fields,
       };
     }
@@ -522,11 +564,11 @@ function CheckRow({ check }: { check: Check }) {
         ? AlertCircle
         : HelpCircle;
   const iconColor = check.status === "ok"
-    ? "text-green-500"
+    ? "text-[var(--success)]"
     : check.status === "error"
-      ? "text-red-500"
+      ? "text-[var(--error)]"
       : check.status === "warn"
-        ? "text-yellow-500"
+        ? "text-[var(--warning)]"
         : "text-[var(--fg-muted)]";
 
   const hasDetails = (check.fields && check.fields.length > 0) || (check.chips && check.chips.length > 0);
@@ -553,7 +595,7 @@ function CheckRow({ check }: { check: Check }) {
             {check.summary}
           </div>
           {check.hint && (
-            <div className="text-xs text-blue-400 mt-2">→ {check.hint}</div>
+            <div className="text-xs text-[var(--accent)] mt-2">→ {check.hint}</div>
           )}
         </div>
         {hasDetails && (
@@ -696,6 +738,91 @@ function EnvSection({ env }: { env: EnvDiagnosticsResponse }) {
           {fields.map((f) => (
             <FieldKV key={f.label} field={f} />
           ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Блок «Лог-файл» — путь к backend.log + кнопка «Открыть папку». Самый
+ * частый use-case: коллега ловит баг, мы просим прислать backend.log.
+ * Без кнопки путь в %LOCALAPPDATA% коллеге найти трудно — отсюда IPC
+ * в Electron (preload: window.electronAPI.openPath).
+ */
+function LogSection({ info }: { info: LogPathResponse }) {
+  const [open, setOpen] = useState(false);
+
+  // window.electronAPI пробрасывается через preload.js. В браузерном dev-режиме
+  // его нет — кнопка просто не рендерится, остаётся только путь с copy.
+  type ElectronAPI = { openPath?: (target: string) => Promise<string> };
+  const electronAPI =
+    typeof window !== "undefined"
+      ? ((window as unknown as { electronAPI?: ElectronAPI }).electronAPI ?? null)
+      : null;
+
+  async function handleOpen() {
+    if (!electronAPI?.openPath) return;
+    const result = await electronAPI.openPath(info.log_dir);
+    if (result) {
+      publishToast({
+        type: "error",
+        message: `Не удалось открыть папку: ${result}`,
+      });
+    }
+  }
+
+  return (
+    <div className="border border-[var(--border)] rounded-md bg-[var(--bg-elevated)]">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full p-4 flex items-start gap-3 text-left cursor-pointer hover:bg-[var(--bg-hover)]"
+        aria-expanded={open}
+      >
+        <HelpCircle className="text-[var(--fg-3)] flex-none mt-0.5" size={18} />
+        <div className="flex-1 min-w-0">
+          <div className="font-medium text-sm text-[var(--fg)]">Лог-файл backend</div>
+          <div className="text-xs text-[var(--fg-muted)] mt-1">
+            {info.exists
+              ? "Журнал работы приложения. Пришли этот файл если что-то сломалось — поможет разобраться."
+              : "Логи будут писаться сюда — файл появится после первой записи."}
+          </div>
+        </div>
+        <ChevronRight
+          size={16}
+          className={cn(
+            "flex-none mt-1 text-[var(--fg-3)] transition-transform",
+            open && "rotate-90",
+          )}
+        />
+      </button>
+      {open && (
+        <div className="border-t border-[var(--border)] px-4 py-3 space-y-3">
+          <FieldKV
+            field={{
+              label: "Папка",
+              value: info.log_dir,
+              copy: true,
+              mono: true,
+            }}
+          />
+          <FieldKV
+            field={{
+              label: "Файл",
+              value: info.log_file,
+              copy: true,
+              mono: true,
+              hint: info.exists
+                ? "Существует — можно открыть и прислать"
+                : "Пока пустой — будет создан при следующей записи",
+            }}
+          />
+          {electronAPI?.openPath && (
+            <Button size="sm" variant="secondary" onClick={() => void handleOpen()}>
+              Открыть папку
+            </Button>
+          )}
         </div>
       )}
     </div>

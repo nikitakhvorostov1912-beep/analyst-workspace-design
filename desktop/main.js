@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, dialog } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
 const { spawn } = require('child_process');
 const net = require('net');
 const path = require('path');
@@ -162,6 +162,24 @@ app.whenReady().then(async () => {
 
   mainWindow.removeMenu();
   mainWindow.loadURL(`http://127.0.0.1:${frontendPort}`);
+});
+
+// ------------------------------------------------------------
+// IPC: открыть путь в Проводнике
+// ------------------------------------------------------------
+// Используется из /status — кнопка «Открыть папку с логами», чтобы коллега
+// при репорте бага мог одним кликом достать backend.log. shell.openPath
+// валидирует путь сам — переданный из renderer случайный путь не сломает
+// контейнер (открывает максимум папку, которая не существует).
+ipcMain.handle('shell:open-path', async (_event, targetPath) => {
+  if (typeof targetPath !== 'string' || targetPath.length === 0) {
+    return 'invalid path';
+  }
+  try {
+    return await shell.openPath(targetPath);
+  } catch (err) {
+    return err && err.message ? err.message : 'open failed';
+  }
 });
 
 // ------------------------------------------------------------

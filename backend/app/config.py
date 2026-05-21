@@ -26,17 +26,34 @@ class Settings(BaseSettings):
     default_llm_temperature: float = Field(
         default=0.3, validation_alias="DEFAULT_LLM_TEMPERATURE"
     )
-    # API-ключ дефолтного провайдера. Хранится только в env (не в git, не в БД).
-    # Если задан — backend подставляет его в LLM-вызовы как fallback, когда
-    # frontend не передал X-LLM-API-Key. UI узнаёт о наличии через флаг
-    # has_env_api_key в GET /llm-config (значение НЕ раскрывается клиенту).
+    # API-ключи. Хранятся только в env (не в git, не в БД). Если для текущего
+    # endpoint найден соответствующий ключ — backend подставляет его как fallback,
+    # когда frontend не передал X-LLM-API-Key. UI узнаёт о наличии через флаг
+    # has_env_api_key в GET /llm-config (значения НЕ раскрываются клиенту).
+    #
+    # Универсальный (MiMo / любой OpenAI-совместимый endpoint без специализированного ключа):
     default_llm_api_key: str = Field(default="", validation_alias="DEFAULT_LLM_API_KEY")
+    # Per-provider ключи — подбираются по endpoint URL.
+    # Добавлены 2026-05-21 для коллег пользователя (NVIDIA NIM ключ зашит в дистрибутиве).
+    default_llm_api_key_nvidia: str = Field(
+        default="", validation_alias="DEFAULT_LLM_API_KEY_NVIDIA"
+    )
+    default_llm_api_key_openai: str = Field(
+        default="", validation_alias="DEFAULT_LLM_API_KEY_OPENAI"
+    )
+    default_llm_api_key_openrouter: str = Field(
+        default="", validation_alias="DEFAULT_LLM_API_KEY_OPENROUTER"
+    )
+
     app_version: str = "0.1.0"
 
     # Дефолтное MCP-подключение — встроенный сервер MCP_Toolkit EPF на :6010
     # (см. memory/feedback_1c_transit_mcp_embedded_6010.md). Создаётся при первом
     # запуске чтобы аналитик мог сразу зайти в чат без ручной настройки.
-    default_mcp_name: str = Field(default="Транзит", validation_alias="DEFAULT_MCP_NAME")
+    # Имя дефолтного подключения — нейтральное «Моя база 1С», чтобы коллегам
+    # сразу было понятно «это моя локальная база, нужно проверить порт».
+    # Раньше было «Транзит» / «КА Демо» — оба сбивали с толку («что это? нужно?»).
+    default_mcp_name: str = Field(default="Моя база 1С", validation_alias="DEFAULT_MCP_NAME")
     default_mcp_endpoint: str = Field(
         default="http://localhost:6010/mcp", validation_alias="DEFAULT_MCP_ENDPOINT"
     )
@@ -108,6 +125,29 @@ class Settings(BaseSettings):
         "env_file_encoding": "utf-8",
         "populate_by_name": True,  # позволяет использовать и поле-имя и alias
     }
+
+    def resolve_default_api_key(self, endpoint: str) -> str:
+        """Подбирает env-ключ для конкретного провайдера по endpoint URL.
+
+        Возвращает пустую строку если для endpoint нет зашитого ключа —
+        тогда backend должен потребовать X-LLM-API-Key от клиента.
+
+        Логика проверки совпадает с UI (lib/llm-providers.ts):
+        - integrate.api.nvidia.com → NVIDIA ключ
+        - api.openai.com → OpenAI ключ
+        - openrouter.ai → OpenRouter ключ
+        - api.xiaomimimo.com / прочее → универсальный (исторически MiMo)
+        """
+        if not endpoint:
+            return self.default_llm_api_key
+        url = endpoint.lower()
+        if "nvidia.com" in url and self.default_llm_api_key_nvidia:
+            return self.default_llm_api_key_nvidia
+        if "api.openai.com" in url and self.default_llm_api_key_openai:
+            return self.default_llm_api_key_openai
+        if "openrouter.ai" in url and self.default_llm_api_key_openrouter:
+            return self.default_llm_api_key_openrouter
+        return self.default_llm_api_key
 
     @property
     def cors_origins_list(self) -> list[str]:

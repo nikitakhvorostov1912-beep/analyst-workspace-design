@@ -91,6 +91,7 @@ desktop.ini
 # Logs / runtime
 # ============================================
 *.log
+*.err
 logs/
 *.pid
 *.seed

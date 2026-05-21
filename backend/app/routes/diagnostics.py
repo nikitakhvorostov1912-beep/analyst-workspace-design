@@ -11,14 +11,25 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 
+from pydantic import BaseModel
+
 from app.clients.mcp import MCPDisconnectedError
 from app.config import Settings, get_settings
+from app.log_setup import get_log_dir, get_log_file_path
 from app.models import (
     AuxDiagnosticsResponse,
     AuxMCPStatus,
     EnvDiagnosticsResponse,
 )
 from app.orchestrator.mcp_pool import build_aux_clients
+
+
+class LogPathResponse(BaseModel):
+    """Путь к логам backend для UI «Открыть папку с логами»."""
+
+    log_dir: str
+    log_file: str
+    exists: bool
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/diagnostics", tags=["diagnostics"])
@@ -135,4 +146,21 @@ async def env_diagnostics(
             "cors_origins": "BACKEND_ALLOWED_ORIGINS",
             "environment": "ENVIRONMENT",
         },
+    )
+
+
+@router.get("/log-path", response_model=LogPathResponse)
+async def log_path() -> LogPathResponse:
+    """Путь к файлу логов backend для UI «Открыть папку с логами».
+
+    Используется коллегами при репорте багов: открыть папку, приложить
+    последний backend.log. Файл может ещё не существовать если backend
+    только что стартанул и не успел ничего записать — поле exists об этом
+    сигнализирует.
+    """
+    file_path = get_log_file_path()
+    return LogPathResponse(
+        log_dir=str(get_log_dir()),
+        log_file=str(file_path),
+        exists=file_path.exists(),
     )

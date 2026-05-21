@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import get_settings
+from app.log_setup import setup_file_logging
 from app.routes import admin as admin_router
 from app.routes import chat as chat_router
 from app.routes import clarify as clarify_router
@@ -33,6 +34,11 @@ logger = logging.getLogger(__name__)
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     logging.getLogger().setLevel(settings.log_level)
+    # Подключаем файловый логгер для диагностики на машине пользователя
+    # (stdout backend.exe из Electron уходит в никуда). См. log_setup.py.
+    log_path = setup_file_logging()
+    if log_path:
+        logger.info("Лог-файл: %s", log_path)
     logger.info("Запуск 1С Аналитик backend v%s", settings.app_version)
     # SEC-04: предупреждение если production без CORS origins
     if settings.environment == "prod" and not settings.cors_origins_list:

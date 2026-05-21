@@ -236,7 +236,18 @@ export async function pingConnection(
     signal,
   });
   if (!response.ok) {
-    throw new Error(`MCP ping вернул ${response.status}`);
+    // Извлекаем detail из backend — для 502 это «MCP не отвечает: …», что
+    // понятнее аналитику чем сырое «MCP ping вернул 502». До 2026-05-21 мы
+    // показывали raw status code → пользователи писали «не работает» без
+    // деталей.
+    let detail = "";
+    try {
+      const body = await response.json();
+      detail = typeof body?.detail === "string" ? body.detail : "";
+    } catch {
+      /* not json */
+    }
+    throw new Error(detail || `Сервер ответил ${response.status}`);
   }
   return response.json() as Promise<MCPPingResponse>;
 }
@@ -584,6 +595,27 @@ export async function fetchEnvDiagnostics(): Promise<EnvDiagnosticsResponse | nu
 /** URL backend для UI — пригодится в блоке «Окружение» на /status. */
 export function getBackendUrl(): string {
   return getBackend();
+}
+
+export interface LogPathResponse {
+  log_dir: string;
+  log_file: string;
+  exists: boolean;
+}
+
+/**
+ * Путь к логам backend. Используется в /status для кнопки «Открыть папку
+ * с логами» — чтобы коллеги при репорте бага могли быстро приложить
+ * файл. На старом backend (< v1.2.13) endpoint отсутствует → null.
+ */
+export async function fetchLogPath(): Promise<LogPathResponse | null> {
+  try {
+    const response = await fetch(`${getBackend()}/diagnostics/log-path`);
+    if (!response.ok) return null;
+    return response.json() as Promise<LogPathResponse>;
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------------------
