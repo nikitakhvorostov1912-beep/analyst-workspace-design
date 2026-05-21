@@ -1,6 +1,6 @@
 {
   "name": "analyst-desktop",
-  "version": "1.2.11",
+  "version": "1.2.12",
   "productName": "1С Аналитик",
   "description": "1С Аналитик — Desktop приложение",
   "main": "main.js",

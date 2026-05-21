@@ -13,6 +13,7 @@ import { migrateLegacyApiKey } from "@/lib/api-keys";
 import { useSessionsStore } from "@/lib/sessions-store";
 import { getActiveChannelId, setActiveChannelId } from "@/lib/storage";
 import { getOnboardingCompleted, setOnboardingCompleted } from "@/lib/onboarding-flag";
+import { publishToast } from "@/lib/toast";
 import type { HealthResponse } from "@/lib/types";
 
 type BackendStatus = "loading" | "ok" | "unavailable";
@@ -39,8 +40,8 @@ function BackendIndicator() {
       <span
         className={`text-xs px-2 py-1 rounded border ${
           status === "ok"
-            ? "text-green-400 border-green-800 bg-green-950"
-            : "text-red-400 border-red-800 bg-red-950"
+            ? "text-[var(--success)] border-[var(--success-40)] bg-[var(--success-12)]"
+            : "text-[var(--error)] border-[var(--error-40)] bg-[var(--error-12)]"
         }`}
       >
         {status === "ok"
@@ -227,8 +228,15 @@ export default function HomePage() {
     try {
       const newSession = await store.createNew(ch);
       router.push(`/sessions/${newSession.id}`);
-    } catch {
-      // Если создание не удалось — остаёмся на главной
+    } catch (err) {
+      // Раньше catch был пустой — кнопка кликалась, ничего не происходило,
+      // пользователь думал что приложение зависло. Теперь явно сообщаем
+      // причину (типичная — backend не отвечает, см. BackendIndicator).
+      const message = err instanceof Error ? err.message : "Не удалось создать чат";
+      publishToast({
+        type: "error",
+        message: `Не удалось создать чат: ${message}. Проверь связь с backend (индикатор справа внизу).`,
+      });
     }
   }
 

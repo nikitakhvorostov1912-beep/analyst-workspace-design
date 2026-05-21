@@ -1,7 +1,7 @@
 "use client";
 
 import { useParams, useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { Thread } from "@/components/chat/Thread";
 import { ChatInput } from "@/components/chat/Input";
@@ -84,7 +84,13 @@ export default function SessionPage() {
         ]);
 
         if (sessionDetail === null) {
-          router.replace("/");
+          // Раньше тихо редиректили на /. Это маскировало BUG #2:
+          // когда «+ Новый чат» создаёт сессию и push'ит сюда,
+          // но backend ещё не успел закоммитить (race) — юзер
+          // отскакивал на main без объяснений. Теперь показываем
+          // явную ошибку с кнопкой «Открыть заново».
+          setLoadError("Сессия не найдена. Попробуй открыть её из списка слева или создать новую.");
+          setReady(true);
           return;
         }
 
@@ -92,8 +98,9 @@ export default function SessionPage() {
         setLocalActiveChannelId(sessionDetail.channel_id ?? getActiveChannelId());
         setInitialMessages(messages.map(messageRowToChat));
         setReady(true);
-      } catch {
-        setLoadError("Ошибка загрузки сессии");
+      } catch (err) {
+        const reason = err instanceof Error ? err.message : "неизвестная ошибка";
+        setLoadError(`Ошибка загрузки сессии: ${reason}`);
         setReady(true);
       }
     }
@@ -153,12 +160,34 @@ export default function SessionPage() {
     onBannerHide: handleBannerHide,
   });
 
+  // BUG #5: после завершения SSE backend проставляет title сессии
+  // (auto-titling из первой реплики) и обновляет счётчик сообщений.
+  // Sidebar этого не видел — store.grouped не рефрешился, оставался
+  // старый «Новый чат» и старый счётчик до ручного обновления страницы.
+  // Слушаем переход isStreaming true→false и тянем свежий список.
+  const prevStreamingRef = useRef(false);
+  useEffect(() => {
+    if (prevStreamingRef.current && !isStreaming) {
+      // Был streaming, теперь нет → ответ собран → обновить sidebar.
+      void store.refresh();
+    }
+    prevStreamingRef.current = isStreaming;
+  }, [isStreaming, store]);
+
   async function handleCreateNew() {
     const ch = getActiveChannelId() ?? "default";
     try {
       const newSession = await store.createNew(ch);
       router.push(`/sessions/${newSession.id}`);
-    } catch {
+    } catch (err) {
+      // Раньше catch только тихо ререшил sidebar — кнопка кликалась,
+      // ничего не происходило, юзер думал «зависло». Теперь явно
+      // сообщаем причину (обычно backend недоступен).
+      const message = err instanceof Error ? err.message : "Не удалось создать чат";
+      publishToast({
+        type: "error",
+        message: `Не удалось создать чат: ${message}. Проверь связь с backend.`,
+      });
       await store.refresh();
     }
   }
@@ -192,14 +221,30 @@ export default function SessionPage() {
 
   if (loadError) {
     return (
-      <div className="h-screen flex flex-col items-center justify-center gap-4 bg-[var(--bg)]">
-        <p className="text-red-400 text-sm">{loadError}</p>
-        <button
-          className="text-sm text-[var(--accent)] underline"
-          onClick={() => router.push("/")}
-        >
-          На главную
-        </button>
+      <div className="h-screen flex flex-col items-center justify-center gap-5 bg-[var(--bg)] px-6">
+        <div className="max-w-md text-center space-y-2">
+          <h2 className="text-lg font-semibold text-[var(--fg-1)]">
+            Не удалось открыть чат
+          </h2>
+          <p className="text-sm text-[var(--fg-3)] leading-relaxed">
+            {loadError}
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            className="text-sm text-[var(--accent)] hover:underline"
+            onClick={() => router.push("/")}
+          >
+            На главную
+          </button>
+          <span className="text-[var(--fg-4)]">·</span>
+          <button
+            className="text-sm text-[var(--accent)] hover:underline"
+            onClick={() => void handleCreateNew()}
+          >
+            Создать новый чат
+          </button>
+        </div>
       </div>
     );
   }
@@ -264,7 +309,7 @@ export default function SessionPage() {
             </div>
           )}
           {error && (
-            <div className="px-4 pb-2 text-xs text-red-400">{error}</div>
+            <div className="px-4 pb-2 text-xs text-[var(--error)]">{error}</div>
           )}
         </div>
       </AppShell>

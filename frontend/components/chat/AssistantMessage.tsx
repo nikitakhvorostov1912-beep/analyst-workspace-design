@@ -61,7 +61,7 @@ export function AssistantMessage({
 
         {/* Inline error — красный border, иконка ⚠, без stack trace */}
         {message.error && (
-          <div className="border border-red-700 bg-red-950/30 rounded-md px-3 py-2 text-sm text-red-300 mb-2">
+          <div className="border border-[var(--error-40)] bg-[var(--error-12)] rounded-md px-3 py-2 text-sm text-[var(--error)] mb-2">
             ⚠ {message.error.message}
           </div>
         )}

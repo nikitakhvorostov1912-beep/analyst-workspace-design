@@ -176,7 +176,11 @@ export function ChatInput({
       }
     }
 
-    if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+    // Enter без модификаторов → отправка (chat-app паттерн как у ChatGPT/Claude).
+    // Shift+Enter → перенос строки. Ctrl/Cmd+Enter тоже отправляет (для пользователей
+    // привыкших к старому поведению). До 2026-05-21 без модификаторов был newline,
+    // что противоречило гайду «Enter (или Ctrl+Enter)».
+    if (e.key === "Enter" && !e.shiftKey && !e.altKey && !e.nativeEvent.isComposing) {
       e.preventDefault();
       handleSubmit();
     }
@@ -336,7 +340,7 @@ export function ChatInput({
       )}
 
       {disabledReason === "banner" && (
-        <p className="text-xs text-red-400 px-1">
+        <p className="text-xs text-[var(--error)] px-1">
           Нет соединения с базой. Восстановите подключение для отправки.
         </p>
       )}

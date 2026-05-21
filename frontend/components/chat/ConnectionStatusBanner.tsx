@@ -29,7 +29,7 @@ export function ConnectionStatusBanner({
 
   return (
     <div
-      className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between gap-3 px-4 py-3 bg-red-950 border-b border-red-700 text-red-200 text-sm"
+      className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between gap-3 px-4 py-3 bg-[var(--error-12)] border-b border-[var(--error-40)] text-[var(--error)] text-sm"
       role="alert"
     >
       <span>{text}</span>
@@ -38,7 +38,7 @@ export function ConnectionStatusBanner({
         variant="secondary"
         onClick={onRetry}
         disabled={retrying}
-        className="flex items-center gap-1.5 border-red-600 text-red-200 hover:bg-red-900"
+        className="flex items-center gap-1.5 border-[var(--error-40)] text-[var(--error)] hover:bg-[var(--error-20)]"
       >
         {retrying ? (
           <>
