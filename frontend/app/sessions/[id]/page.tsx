@@ -69,17 +69,21 @@ export default function SessionPage() {
 
   const store = useSessionsStore();
 
-  // Активный channelId — из сессии или из localStorage
-  const channelId = detail?.channel_id ?? getActiveChannelId() ?? "default";
+  // Активный channelId для chat-request. Используем activeChannelId
+  // (он установлен в load() с fallback на первое рабочее подключение
+  // если detail.channel_id битый — например «?1» от v1.2.10).
+  // Раньше брался сырой detail.channel_id и backend ловил «канал не найден».
+  const channelId = activeChannelId ?? detail?.channel_id ?? getActiveChannelId() ?? "default";
 
   useEffect(() => {
     setLocalActiveChannelId(getActiveChannelId());
 
     async function load() {
       try {
-        const [sessionDetail, messages] = await Promise.all([
+        const [sessionDetail, messages, connections] = await Promise.all([
           fetchSessionDetail(id),
           fetchSessionMessages(id),
+          fetchConnections().catch(() => [] as MCPConnection[]),
           store.refresh(),
         ]);
 
@@ -94,8 +98,29 @@ export default function SessionPage() {
           return;
         }
 
+        // Защита от битого channel_id (типично: «?1» от старой версии БД
+        // v1.2.10, когда seed мог писать SQL placeholder вместо UUID).
+        // Если канал не существует в текущих подключениях — fallback
+        // на первое рабочее и явный toast, чтобы юзер не недоумевал
+        // «почему написано "Выберите подключение" если у меня есть база».
+        const sessionChannelId = sessionDetail.channel_id;
+        const channelExists = sessionChannelId
+          ? connections.some((c) => c.id === sessionChannelId)
+          : false;
+        let effectiveChannelId: string | null = sessionChannelId ?? null;
+        if (sessionChannelId && !channelExists && connections.length > 0) {
+          effectiveChannelId = connections[0].id;
+          setActiveChannelId(effectiveChannelId);
+          publishToast({
+            type: "warning",
+            message: `Подключение этой сессии не найдено (вероятно, удалено). Переключил на «${connections[0].name}».`,
+          });
+        } else if (!sessionChannelId && connections.length > 0) {
+          effectiveChannelId = getActiveChannelId() ?? connections[0].id;
+        }
+
         setDetail(sessionDetail);
-        setLocalActiveChannelId(sessionDetail.channel_id ?? getActiveChannelId());
+        setLocalActiveChannelId(effectiveChannelId);
         setInitialMessages(messages.map(messageRowToChat));
         setReady(true);
       } catch (err) {
