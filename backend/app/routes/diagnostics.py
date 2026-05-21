@@ -127,14 +127,18 @@ async def env_diagnostics(
     Содержит только то, что аналитик должен видеть для контроля среды:
     адреса, пути, версии. API ключи и пароли НЕ включаются.
     """
+    # Возвращаем resolved_* (с учётом bundled JAR + auto-detected Java/платформы)
+    # чтобы пользователь видел что РЕАЛЬНО будет использовано, а не только
+    # explicit env vars. Если env пустые и auto-detect ничего не нашёл — будут
+    # пустые строки (UI показывает «не задан»).
     return EnvDiagnosticsResponse(
         app_version=settings.app_version,
         environment=settings.environment,
         default_llm_endpoint=settings.default_llm_endpoint,
         default_llm_model=settings.default_llm_model,
-        bsl_context_jar=settings.bsl_context_jar,
-        bsl_context_java=settings.bsl_context_java,
-        bsl_context_platform_path=settings.bsl_context_platform_path,
+        bsl_context_jar=settings.resolved_bsl_jar,
+        bsl_context_java=settings.resolved_bsl_java,
+        bsl_context_platform_path=settings.resolved_bsl_platform_path,
         cors_origins=settings.cors_origins_list,
         sqlite_path=settings.sqlite_path,
         env_var_names={

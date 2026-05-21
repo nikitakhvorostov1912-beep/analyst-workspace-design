@@ -8,4 +8,4 @@
  * Связано с desktop/package.json — должно совпадать. Не автоматизировано,
  * чтобы не тащить runtime fs-чтение в браузер.
  */
-export const APP_VERSION = "1.2.14";
+export const APP_VERSION = "1.2.15";

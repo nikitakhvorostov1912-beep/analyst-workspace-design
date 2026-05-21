@@ -1,8 +1,122 @@
+from __future__ import annotations
+
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import Field
 from pydantic_settings import BaseSettings
+
+
+# ---------------------------------------------------------------------------
+# Auto-detect для bsl-context (JAR + Java + платформа 1С)
+# ---------------------------------------------------------------------------
+# Хелперы вне класса Settings — чтобы их можно было дешёво вызывать из @property
+# (Settings кеширован lru_cache, но resolve может зависеть от свежего sys.path
+# и FS-состояния, например JAR недавно положен Electron'ом).
+
+
+def _bundle_search_dirs() -> list[Path]:
+    """Каталоги где ищем bundled artefacts (JAR-ы, скрипты).
+
+    Покрывает два сценария:
+    - PyInstaller frozen: backend.exe в `<exe-dir>` → ищем `<exe-dir>/bsl/`
+      и `_MEIPASS/bsl/` (если кто-то положил внутрь архива).
+    - Dev-режим: `backend/app/config.py` → ищем `<repo>/desktop/resources/bsl/`.
+    """
+    import sys
+
+    dirs: list[Path] = []
+    if getattr(sys, "frozen", False):
+        # PyInstaller onefile: sys.executable = backend.exe в Programs/.../resources/
+        exe_dir = Path(sys.executable).resolve().parent
+        dirs.append(exe_dir)
+        meipass = getattr(sys, "_MEIPASS", None)
+        if meipass:
+            dirs.append(Path(meipass))
+    else:
+        # Dev: app/config.py → backend/ → repo-root → desktop/resources/
+        here = Path(__file__).resolve()
+        repo_root = here.parent.parent.parent  # app/ → backend/ → repo
+        dirs.append(repo_root / "desktop" / "resources")
+    return dirs
+
+
+def _find_bundled_bsl_jar() -> str:
+    """Ищет `bsl/mcp-bsl-context-*.jar` в bundle-каталогах. Самый свежий по версии."""
+    candidates: list[Path] = []
+    for base in _bundle_search_dirs():
+        bsl_dir = base / "bsl"
+        if bsl_dir.is_dir():
+            candidates.extend(sorted(bsl_dir.glob("mcp-bsl-context-*.jar")))
+    if not candidates:
+        return ""
+    # Берём последний — sorted даёт лексикографический порядок, что для
+    # "mcp-bsl-context-0.3.2.jar" совпадает с возрастанием версий.
+    return str(candidates[-1])
+
+
+def _find_system_java() -> str:
+    """Возвращает путь к java.exe.
+
+    Порядок поиска:
+      1) bundled JRE в `<exe-dir>/jre/bin/java.exe` (Electron кладёт minimal JRE
+         собранный через jlink — ~54 MB). Это гарантия что у коллег без
+         установленной Java справочник BSL всё равно работает.
+      2) системный java из PATH через `shutil.which("java")`.
+      3) пустая строка — справочник BSL не подключится, в /status будет
+         подсказка установить Java.
+    """
+    import shutil
+    import sys
+
+    # 1) Bundled JRE
+    for base in _bundle_search_dirs():
+        candidate = base / "jre" / "bin" / ("java.exe" if sys.platform == "win32" else "java")
+        if candidate.is_file():
+            return str(candidate)
+
+    # 2) Системный java
+    found = shutil.which("java")
+    return found or ""
+
+
+def _find_latest_1c_platform() -> str:
+    """Ищет самую свежую установленную платформу 1С в стандартных каталогах.
+
+    Перебираем `C:\\Program Files\\1cv8\\*` (и x86) + `~/AppData/Local/Programs/
+    1cv8/*` (некоторые ставят в user-scope). Сортируем по имени-версии (для
+    "8.3.27.1719" работает лексикографически) и берём последнюю.
+    """
+    import os
+    import sys
+
+    if sys.platform != "win32":
+        return ""
+
+    roots: list[Path] = []
+    for env_var in ("ProgramFiles", "ProgramFiles(x86)", "ProgramW6432"):
+        p = os.environ.get(env_var)
+        if p:
+            roots.append(Path(p) / "1cv8")
+    local = os.environ.get("LOCALAPPDATA")
+    if local:
+        roots.append(Path(local) / "Programs" / "1cv8")
+
+    versions: list[Path] = []
+    for root in roots:
+        if not root.is_dir():
+            continue
+        for child in root.iterdir():
+            # 1С каталоги — вида "8.3.27.1719"
+            if child.is_dir() and child.name.startswith("8."):
+                if (child / "bin" / "1cv8.exe").is_file():
+                    versions.append(child)
+
+    if not versions:
+        return ""
+    versions.sort(key=lambda p: p.name)
+    return str(versions[-1])
 
 
 class Settings(BaseSettings):
@@ -76,11 +190,17 @@ class Settings(BaseSettings):
     environment: Literal["dev", "prod"] = "dev"
 
     # === Aux MCP: bsl-context (справочник API платформы 1С) ===
-    # Если оба пути заданы, orchestrator подключит bsl-context как дополнительный
-    # источник tools (search/info/getMember/getMembers/getConstructors) поверх
-    # основного 1С MCP. LLM видит их в едином списке.
+    # Если все три пути доступны (JAR, Java, платформа 1С), orchestrator подключит
+    # bsl-context как дополнительный источник tools (search/info/getMember/
+    # getMembers/getConstructors) поверх основного 1С MCP. LLM видит их в едином
+    # списке.
+    #
+    # Resolve-стратегия (см. resolved_bsl_* ниже):
+    #   1) env var (BSL_CONTEXT_*) — если пользователь задал
+    #   2) bundled путь из Electron (resources/bsl/, передаётся через env)
+    #   3) auto-detect (системный java, типовой путь к платформе)
     bsl_context_jar: str = Field(default="", validation_alias="BSL_CONTEXT_JAR_PATH")
-    bsl_context_java: str = Field(default="java", validation_alias="BSL_CONTEXT_JAVA")
+    bsl_context_java: str = Field(default="", validation_alias="BSL_CONTEXT_JAVA")
     bsl_context_platform_path: str = Field(
         default="", validation_alias="BSL_CONTEXT_PLATFORM_PATH"
     )
@@ -166,22 +286,51 @@ class Settings(BaseSettings):
         return []
 
     @property
-    def memory_root_path(self) -> "Path":
+    def memory_root_path(self) -> Path:
         """Resolve MEMORY.md/USER.md root. Defaults to <home>/.analyst-1c/memory."""
-        from pathlib import Path
-
         if self.memory_root:
             return Path(self.memory_root).expanduser()
         return Path.home() / ".analyst-1c" / "memory"
 
     @property
-    def trajectory_dir_path(self) -> "Path":
+    def trajectory_dir_path(self) -> Path:
         """Resolve trajectory JSONL root. Defaults to <home>/.analyst-1c/trajectories."""
-        from pathlib import Path
-
         if self.trajectory_dir:
             return Path(self.trajectory_dir).expanduser()
         return Path.home() / ".analyst-1c" / "trajectories"
+
+    # ---------------------------------------------------------------------
+    # BSL-context auto-detect: чтобы у коллег работало «из коробки»
+    # ---------------------------------------------------------------------
+    # Сценарий: на машине коллеги .env с BSL_CONTEXT_* НЕ заполнен. Раньше
+    # справочник просто не подключался. Теперь:
+    #   1) JAR — bundled в `<exe-dir>/bsl/mcp-bsl-context-*.jar` (Electron
+    #      кладёт его в resources). В dev — `<repo>/desktop/resources/bsl/`.
+    #   2) Java — системный `java.exe` из PATH (`shutil.which`).
+    #   3) Платформа 1С — самая свежая из `C:\Program Files\1cv8\*`.
+    # Все три источника опциональные. Если хоть один не найден — справочник
+    # не подключается и в /status показывается понятная подсказка.
+
+    @property
+    def resolved_bsl_jar(self) -> str:
+        """JAR справочника BSL. Env override → bundled → пусто."""
+        if self.bsl_context_jar:
+            return self.bsl_context_jar
+        return _find_bundled_bsl_jar()
+
+    @property
+    def resolved_bsl_java(self) -> str:
+        """Путь к java.exe. Env override → системный PATH → пусто."""
+        if self.bsl_context_java:
+            return self.bsl_context_java
+        return _find_system_java()
+
+    @property
+    def resolved_bsl_platform_path(self) -> str:
+        """Каталог платформы 1С. Env override → auto-detect → пусто."""
+        if self.bsl_context_platform_path:
+            return self.bsl_context_platform_path
+        return _find_latest_1c_platform()
 
     @property
     def sqlite_path(self) -> str:

@@ -118,21 +118,41 @@ def build_aux_clients(settings: Settings) -> list[StdioMCPClient]:
     """
     aux: list[StdioMCPClient] = []
 
-    if settings.bsl_context_jar and settings.bsl_context_platform_path:
+    # Используем resolved_* — они подставляют bundled JAR / системный java /
+    # auto-detected платформу 1С, если env vars не заданы. Только когда все
+    # три источника доступны, поднимаем aux. Иначе тихо пропускаем (а
+    # /diagnostics/aux отдельно покажет «не подключён» с подсказкой).
+    jar = settings.resolved_bsl_jar
+    java = settings.resolved_bsl_java
+    platform = settings.resolved_bsl_platform_path
+    if jar and java and platform:
         cfg = StdioMCPConfig(
             name="bsl-context",
-            command=settings.bsl_context_java,
+            command=java,
             args=[
                 "-Dfile.encoding=UTF-8",
                 "-jar",
-                settings.bsl_context_jar,
+                jar,
                 "--platform-path",
-                settings.bsl_context_platform_path,
+                platform,
                 "--mode",
                 "stdio",
             ],
         )
         aux.append(StdioMCPClient(cfg))
-        logger.info("Aux MCP bsl-context configured: %s", settings.bsl_context_jar)
+        logger.info(
+            "Aux MCP bsl-context configured: jar=%s java=%s platform=%s",
+            jar, java, platform,
+        )
+    else:
+        # Видимо в логе будет проще диагностировать у пользователя
+        missing = []
+        if not jar:
+            missing.append("JAR (resources/bsl/mcp-bsl-context-*.jar)")
+        if not java:
+            missing.append("Java (java.exe не найден в PATH)")
+        if not platform:
+            missing.append("платформа 1С (C:\\Program Files\\1cv8\\*)")
+        logger.info("Aux MCP bsl-context пропущен. Не найдено: %s", ", ".join(missing))
 
     return aux
