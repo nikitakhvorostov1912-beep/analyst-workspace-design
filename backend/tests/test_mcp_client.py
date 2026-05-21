@@ -5,7 +5,12 @@ import json
 import httpx
 import pytest
 
-from app.clients.mcp import MCPClient, MCPError
+from app.clients.mcp import (
+    MCPClient,
+    MCPError,
+    _is_local_endpoint,
+    _normalize_local_endpoint,
+)
 
 
 def _json_response(body: dict, headers: dict | None = None) -> httpx.Response:
@@ -128,3 +133,78 @@ async def test_call_tool_raises_on_jsonrpc_error():
     assert "method not found" in str(exc_info.value)
 
     await client.close()
+
+
+# ---------------------------------------------------------------------------
+# Локальные endpoints — нормализация + обход системного прокси (v1.2.11 fix)
+#
+# Кейс: у пользователя установлен Hiddify (HTTP_PROXY=http://127.0.0.1:12334).
+# До фикса httpx.AsyncClient наследовал системный прокси и пытался ходить
+# к localhost:6012 через прокси → прокси отдавал 502 Bad Gateway, в UI
+# светилось «MCP ping вернул 502». Фикс: для локальных endpoints
+# trust_env=False (прокси не наследуем) + localhost → 127.0.0.1
+# (надёжный резолв, обход IPv6 ::1 на Windows).
+# ---------------------------------------------------------------------------
+
+
+def test_normalize_local_endpoint_replaces_localhost():
+    assert _normalize_local_endpoint("http://localhost:6012/mcp") == "http://127.0.0.1:6012/mcp"
+    assert _normalize_local_endpoint("https://localhost/api") == "https://127.0.0.1/api"
+
+
+def test_normalize_local_endpoint_keeps_already_ipv4():
+    assert _normalize_local_endpoint("http://127.0.0.1:6012/mcp") == "http://127.0.0.1:6012/mcp"
+
+
+def test_normalize_local_endpoint_keeps_remote_untouched():
+    assert (
+        _normalize_local_endpoint("https://nikoiuy12-mcp-proxy.hf.space/mcp")
+        == "https://nikoiuy12-mcp-proxy.hf.space/mcp"
+    )
+
+
+def test_normalize_local_endpoint_empty():
+    assert _normalize_local_endpoint("") == ""
+
+
+@pytest.mark.parametrize(
+    "endpoint, expected",
+    [
+        ("http://localhost:6012/mcp", True),
+        ("http://127.0.0.1:6012/mcp", True),
+        ("http://0.0.0.0:6012/mcp", True),
+        ("http://[::1]:6012/mcp", True),
+        ("https://hf.space/mcp", False),
+        ("https://api.openai.com/v1", False),
+        ("", False),
+    ],
+)
+def test_is_local_endpoint(endpoint, expected):
+    assert _is_local_endpoint(endpoint) is expected
+
+
+def test_local_client_normalizes_endpoint_and_skips_proxy():
+    """Локальный MCP должен ходить мимо системного прокси."""
+    client = MCPClient("http://localhost:6012/mcp")
+    try:
+        # localhost заменён на 127.0.0.1 для надёжного резолва
+        assert client.endpoint == "http://127.0.0.1:6012/mcp"
+        # trust_env=False → системный HTTP_PROXY не наследуется
+        assert client._http.trust_env is False
+    finally:
+        # синхронное закрытие через event loop, чтобы избежать предупреждений
+        import asyncio
+
+        asyncio.get_event_loop().run_until_complete(client.close())
+
+
+def test_remote_client_keeps_endpoint_and_honors_proxy():
+    """Удалённый MCP (HF Spaces) может требовать прокси — оставляем trust_env."""
+    client = MCPClient("https://nikoiuy12-mcp-proxy.hf.space/mcp")
+    try:
+        assert client.endpoint == "https://nikoiuy12-mcp-proxy.hf.space/mcp"
+        assert client._http.trust_env is True
+    finally:
+        import asyncio
+
+        asyncio.get_event_loop().run_until_complete(client.close())

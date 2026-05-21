@@ -36,11 +36,43 @@ class MCPSession:
     tools: list[dict] = field(default_factory=list)
 
 
+_LOCAL_HOSTS = ("127.0.0.1", "localhost", "0.0.0.0", "::1")
+
+
+def _normalize_local_endpoint(endpoint: str) -> str:
+    """Приводит localhost к 127.0.0.1 для надёжности.
+
+    На Windows резолв `localhost` иногда уходит сначала в IPv6 (`::1`),
+    1С Native MCP слушает только IPv4 → connection refused. Также NO_PROXY
+    у пользователя часто содержит `127.*`, но не `localhost` — это вторая
+    причина по которой именно числовой адрес безопаснее.
+    """
+    if not endpoint:
+        return endpoint
+    if "://localhost" in endpoint or endpoint.startswith("localhost"):
+        return endpoint.replace("localhost", "127.0.0.1", 1)
+    return endpoint
+
+
+def _is_local_endpoint(endpoint: str) -> bool:
+    """True если endpoint обращается к этой же машине."""
+    if not endpoint:
+        return False
+    url = endpoint.lower()
+    return any(host in url for host in _LOCAL_HOSTS)
+
+
 class MCPClient:
     """MCP Streamable HTTP клиент.
 
     Поддерживает JSON и SSE ответы на initialize.
     Сохраняет Mcp-Session-Id после initialize и переиспользует его.
+
+    Для локального MCP (1С на той же машине) принудительно отключаем
+    `trust_env`, иначе httpx наследует системный прокси (Hiddify, корп.
+    прокси) и пытается ходить к localhost через него → прокси отдаёт
+    502 Bad Gateway. Удалённые MCP (HF Spaces proxy) — наоборот могут
+    требовать прокси, для них оставляем дефолтное поведение.
     """
 
     def __init__(
@@ -49,9 +81,13 @@ class MCPClient:
         headers: dict | None = None,
         timeout: float = 30.0,
     ) -> None:
-        self.endpoint = endpoint
+        self.endpoint = _normalize_local_endpoint(endpoint)
         self._extra_headers = headers or {}
-        self._http = httpx.AsyncClient(timeout=timeout)
+        is_local = _is_local_endpoint(self.endpoint)
+        self._http = httpx.AsyncClient(
+            timeout=timeout,
+            trust_env=not is_local,
+        )
         self._request_id = 0
         self.session_id: str | None = None
         self._tools_cache: list[dict] = []
