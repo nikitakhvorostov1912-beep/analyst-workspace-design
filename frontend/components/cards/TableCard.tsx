@@ -45,7 +45,7 @@ function formatCell(
   }
   if (typeof value === "boolean") {
     return (
-      <span className={value ? "text-green-400" : "text-[var(--fg-muted)]"}>
+      <span className={value ? "text-[var(--success)]" : "text-[var(--fg-muted)]"}>
         {value ? "✓" : "✗"}
       </span>
     );
@@ -148,7 +148,7 @@ export function TableCard({ payload, onDeanonymize }: TableCardProps) {
       </div>
 
       {showSortWarning && sortBy !== null && (
-        <div className="px-3 py-1 text-xs text-yellow-400 bg-yellow-950/30 border-b border-[var(--border)]">
+        <div className="px-3 py-1 text-xs text-[var(--warning)] bg-[var(--warning-12)] border-b border-[var(--border)]">
           Большой результат ({total} строк) — сортировка отключена. Скачайте CSV для полного анализа.
         </div>
       )}

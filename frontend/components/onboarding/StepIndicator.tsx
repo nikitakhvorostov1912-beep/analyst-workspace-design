@@ -25,8 +25,11 @@ export function StepIndicator({ current, total, labels }: StepIndicatorProps) {
                 data-state={isActive ? "active" : isDone ? "done" : "future"}
                 className={cn(
                   "flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-sm font-medium transition-colors duration-normal ease-design-ease",
+                  // accent = signal #FF6A3D (оранжевый) — на нём белый текст имеет
+                  // контраст ~3.0 (близко к WCAG-провалу). Тёмный --brand-ink
+                  // даёт ~6.5 и читается одинаково в обеих темах.
                   isActive &&
-                    "bg-[var(--accent)] text-white shadow-[0_0_0_3px_var(--accent-20)]",
+                    "bg-[var(--accent)] text-[var(--brand-ink,#15161a)] shadow-[0_0_0_3px_var(--accent-20)]",
                   isDone && "bg-[var(--accent-20)] text-[var(--accent)]",
                   !isActive &&
                     !isDone &&

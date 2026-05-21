@@ -8,16 +8,19 @@ const buttonVariants = cva(
   {
     variants: {
       variant: {
+        // accent — signal #FF6A3D (оранжевый). Белый текст на нём проседает по
+        // контрасту до ~3.0; --brand-ink даёт ~6.5 и одинаково читается в light/dark.
         default:
-          "bg-[var(--accent)] text-white shadow hover:opacity-90",
+          "bg-[var(--accent)] text-[var(--brand-ink,#15161a)] shadow hover:opacity-90",
         secondary:
           "bg-[var(--bg-elevated)] text-[var(--fg)] border border-[var(--border)] hover:border-[var(--fg-muted)]",
         ghost:
           "hover:bg-[var(--bg-elevated)] text-[var(--fg-muted)] hover:text-[var(--fg)]",
         link:
           "text-[var(--accent)] underline-offset-4 hover:underline",
+        // destructive — семантический --error, чтобы на light не висел tomato-bronze brick
         destructive:
-          "bg-red-800 text-white hover:bg-red-700",
+          "bg-[var(--error)] text-white hover:opacity-90",
       },
       size: {
         default: "h-9 px-4 py-2",

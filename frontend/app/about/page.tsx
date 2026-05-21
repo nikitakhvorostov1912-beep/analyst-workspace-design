@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, BookOpen } from "lucide-react";
+import { ThemeToggle } from "@/components/shell/ThemeToggle";
+import { APP_VERSION } from "@/lib/version";
 
 export default function AboutPage() {
   return (
@@ -15,6 +17,9 @@ export default function AboutPage() {
           На главную
         </Link>
         <h1 className="text-lg font-semibold text-[var(--fg)]">О приложении</h1>
+        <div className="ml-auto">
+          <ThemeToggle />
+        </div>
       </div>
 
       <article className="space-y-8 text-[var(--fg)]">
@@ -30,7 +35,7 @@ export default function AboutPage() {
                 Полный гайд аналитика
               </div>
               <div className="text-[13px] text-[var(--fg-2)] mt-0.5">
-                9 разделов: подключения · инструменты MCP · карточки · сценарии · диагностика · безопасность
+                9 разделов: подключение к 1С · операции в базе · карточки · сценарии · диагностика · безопасность
               </div>
             </div>
             <ArrowRight className="h-4 w-4 text-[var(--fg-3)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-all flex-shrink-0" />
@@ -109,11 +114,9 @@ export default function AboutPage() {
           <ol className="space-y-2 text-[var(--fg-muted)] leading-relaxed pl-5 list-decimal">
             <li>
               <strong className="text-[var(--fg)]">Подключение к 1С</strong> — в вашей базе
-              запускается специальная обработка (EPF-файл, ставит ИТ-отдел) на порту 6010.
-              Приложение обращается к ней через адрес вида{" "}
-              <code className="font-mono text-xs px-1 bg-[var(--bg-elevated)] rounded">
-                http://localhost:6010/mcp
-              </code>.
+              запускается специальная обработка-мост (EPF-файл, ставит ИТ-отдел) и слушает
+              локальный порт (по умолчанию <span className="font-mono">6010</span>).
+              Приложение само находит её — техническая часть скрыта.
             </li>
             <li>
               <strong className="text-[var(--fg)]">Модель ИИ</strong> — введите API ключ
@@ -126,7 +129,7 @@ export default function AboutPage() {
           </ol>
           <p className="text-sm text-[var(--fg-muted)] italic mt-2">
             Откройте{" "}
-            <Link href="/settings" className="text-blue-400 hover:underline">
+            <Link href="/settings" className="text-[var(--accent)] hover:underline">
               Настройки
             </Link>{" "}
             и заполните 2 секции. При первом запуске показывается мастер настройки.
@@ -137,7 +140,7 @@ export default function AboutPage() {
           <h2 className="text-xl font-semibold">Проверить что всё работает</h2>
           <p className="text-[var(--fg-muted)] leading-relaxed">
             Откройте{" "}
-            <Link href="/status" className="text-blue-400 hover:underline">
+            <Link href="/status" className="text-[var(--accent)] hover:underline">
               страницу диагностики
             </Link>{" "}
             — там видно, доступна ли база 1С и модель ИИ. Зелёные галки = всё ок, оранжевый
@@ -171,12 +174,12 @@ export default function AboutPage() {
 
         <section className="pt-6 border-t border-[var(--border)]">
           <p className="text-xs text-[var(--fg-muted)]">
-            Версия 1.2.1 · MIT License ·{" "}
+            Версия {APP_VERSION} · MIT License ·{" "}
             <a
               href="https://github.com/nikitakhvorostov1912-beep/analyst-workspace-design"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-blue-400 hover:underline"
+              className="text-[var(--accent)] hover:underline"
             >
               GitHub
             </a>

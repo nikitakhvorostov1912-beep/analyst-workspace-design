@@ -7,6 +7,7 @@ import { fetchConnections, fetchLLMConfig } from "@/lib/api";
 import { MCPConnectionList } from "@/components/settings/MCPConnectionList";
 import { LLMConfigForm } from "@/components/settings/LLMConfigForm";
 import { LocalDataSection } from "@/components/settings/LocalDataSection";
+import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import type { LLMConfigResponse, MCPConnection } from "@/lib/types";
 
 export default function SettingsPage() {
@@ -71,6 +72,9 @@ export default function SettingsPage() {
           Назад
         </Link>
         <h1 className="text-lg font-semibold text-[var(--fg)]">Настройки</h1>
+        <div className="ml-auto">
+          <ThemeToggle />
+        </div>
       </div>
 
       {loading && (
@@ -81,7 +85,7 @@ export default function SettingsPage() {
 
       {!loading && error && (
         <div className="border border-red-800 rounded-lg p-5 bg-[var(--bg-elevated)]">
-          <p className="text-sm text-red-400">{error}</p>
+          <p className="text-sm text-[var(--error)]">{error}</p>
         </div>
       )}
 
@@ -130,7 +134,7 @@ export default function SettingsPage() {
                   Постоянная память
                 </div>
                 <div className="text-[12.5px] text-[var(--fg-3)]">
-                  MEMORY.md и USER.md — заметки между сессиями
+                  Заметки между сессиями — что ассистент помнит про базу и про вас
                 </div>
               </div>
               <ChevronRight className="h-4 w-4 text-[var(--fg-3)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-all" />
@@ -169,10 +173,10 @@ export default function SettingsPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-[14px] font-semibold text-[var(--fg-1)]">
-                  Skills и Curator
+                  Подсказки агента
                 </div>
                 <div className="text-[12.5px] text-[var(--fg-3)]">
-                  Накопленные подсказки агента + автоматическая архивация
+                  Накопленные шаблоны решений + автоматическая чистка устаревших
                 </div>
               </div>
               <ChevronRight className="h-4 w-4 text-[var(--fg-3)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-all" />

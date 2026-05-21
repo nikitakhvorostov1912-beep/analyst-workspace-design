@@ -7,12 +7,14 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
+        // accent = signal #FF6A3D (оранжевый), --brand-ink даёт контраст ~6.5 vs ~3.0 у white
         default:
-          "border-transparent bg-[var(--accent)] text-white",
+          "border-transparent bg-[var(--accent)] text-[var(--brand-ink,#15161a)]",
         secondary:
           "border-transparent bg-[var(--bg-elevated)] text-[var(--fg)] border-[var(--border)]",
+        // destructive — семантический --error, работает в обеих темах
         destructive:
-          "border-transparent bg-red-900 text-red-200",
+          "border-transparent bg-[var(--error-20)] text-[var(--error)]",
         outline:
           "text-[var(--fg)] border-[var(--border)]",
       },

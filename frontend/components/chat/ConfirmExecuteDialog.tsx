@@ -39,7 +39,7 @@ export function ConfirmExecuteDialog({ open, payload, onResolve, loading }: Prop
 
           {/* Reason — почему сработал триггер */}
           <div className="rounded border border-yellow-700/40 bg-yellow-950/30 px-3 py-2">
-            <span className="font-mono text-sm text-yellow-300">{payload.reason}</span>
+            <span className="font-mono text-sm text-[var(--warning)]">{payload.reason}</span>
           </div>
 
           {/* Args JSON */}

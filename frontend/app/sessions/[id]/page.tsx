@@ -15,7 +15,7 @@ import { useSessionsStore } from "@/lib/sessions-store";
 import { fetchSessionDetail, fetchSessionMessages, fetchConnections, fetchLLMConfig, pingConnection } from "@/lib/api";
 import { getActiveChannelId, setActiveChannelId } from "@/lib/storage";
 import { publishToast } from "@/lib/toast";
-import type { ChatMessage, SessionDetail } from "@/lib/types";
+import type { ChatMessage, MCPConnection, SessionDetail } from "@/lib/types";
 
 function messageRowToChat(row: {
   id: string;
@@ -108,15 +108,18 @@ export default function SessionPage() {
           ? connections.some((c) => c.id === sessionChannelId)
           : false;
         let effectiveChannelId: string | null = sessionChannelId ?? null;
+        // connections.length > 0 уже гарантирует connections[0], но strict TS
+        // не выводит это автоматически — non-null assertion безопасен.
         if (sessionChannelId && !channelExists && connections.length > 0) {
-          effectiveChannelId = connections[0].id;
+          const fallback = connections[0]!;
+          effectiveChannelId = fallback.id;
           setActiveChannelId(effectiveChannelId);
           publishToast({
             type: "warning",
-            message: `Подключение этой сессии не найдено (вероятно, удалено). Переключил на «${connections[0].name}».`,
+            message: `Подключение этой сессии не найдено (вероятно, удалено). Переключил на «${fallback.name}».`,
           });
         } else if (!sessionChannelId && connections.length > 0) {
-          effectiveChannelId = getActiveChannelId() ?? connections[0].id;
+          effectiveChannelId = getActiveChannelId() ?? connections[0]!.id;
         }
 
         setDetail(sessionDetail);

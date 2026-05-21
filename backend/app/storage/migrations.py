@@ -74,7 +74,7 @@ MIGRATIONS_V3 = [
     """,
 ]
 
-CURRENT_VERSION = 7
+CURRENT_VERSION = 8
 
 # Миграция v4: расширение card_states — добавление колонки anon_tokens JSON
 MIGRATIONS_V4 = [
@@ -143,6 +143,34 @@ MIGRATIONS_V7 = [
     """,
     # Заполняем NULL для строк, которые backfill пропустил (endpoint без proxy-маркеров)
     "UPDATE mcp_connections SET kind = 'embedded' WHERE kind IS NULL",
+]
+
+# Миграция v8: backfill sessions с битым channel_id.
+# Эра v1.2.10 (seed-bug) могла записать SQL placeholder '?1' вместо UUID —
+# такие сессии при открытии падали в 404 «Канал не найден». Фронтенд v1.2.16
+# уже обрабатывает fallback на лету, но в БД эти строки остаются «грязными»:
+# дропдаун подключений вкладки показывает «Выберите подключение» вместо имени.
+# Миграция чинит БД разово, при последующих запусках бездействует (идемпотентна).
+#
+# Логика: любой sessions.channel_id, которого нет в mcp_connections.id,
+# заменяется на самое старое подключение. Если mcp_connections пуст —
+# миграция ничего не трогает (некуда переключать).
+MIGRATIONS_V8 = [
+    """
+    UPDATE sessions
+    SET channel_id = (
+        SELECT id FROM mcp_connections
+        ORDER BY created_at ASC
+        LIMIT 1
+    )
+    WHERE EXISTS (SELECT 1 FROM mcp_connections)
+      AND (
+        channel_id IS NULL
+        OR channel_id = ''
+        OR channel_id LIKE '?%'
+        OR channel_id NOT IN (SELECT id FROM mcp_connections)
+      )
+    """,
 ]
 
 
@@ -230,5 +258,15 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
             (7,),
+        )
+        await db.commit()
+
+    if current < 8:
+        # Backfill sessions с битым channel_id ('?1' / NULL / удалённое подключение) (v8)
+        for stmt in MIGRATIONS_V8:
+            await db.execute(stmt)
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (8,),
         )
         await db.commit()

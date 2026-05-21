@@ -79,7 +79,7 @@ export function ExportSessionButton({
       data-testid="export-session-button"
     >
       {copied ? (
-        <Check size={14} className="text-green-500" />
+        <Check size={14} className="text-[var(--success)]" />
       ) : (
         <Download size={14} />
       )}

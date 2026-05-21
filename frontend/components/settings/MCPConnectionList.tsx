@@ -23,6 +23,26 @@ interface MCPConnectionListProps {
   onChanged?: () => void;
 }
 
+/** Короткое описание подключения без технического URL — рядом с KindBadge.
+ *  embedded → `:6010` (mono); proxy с каналом → `канал «X»`; proxy без — `—`. */
+function ConnectionSummary({ conn }: { conn: MCPConnection }) {
+  if (conn.kind === "proxy") {
+    if (!conn.channel) return null;
+    return (
+      <>
+        канал <span className="font-mono">«{conn.channel}»</span>
+      </>
+    );
+  }
+  try {
+    const u = new URL(conn.endpoint);
+    const port = u.port || (u.protocol === "https:" ? "443" : "80");
+    return <span className="font-mono">:{port}</span>;
+  } catch {
+    return null;
+  }
+}
+
 export function MCPConnectionList({
   initialConnections,
   onChanged,
@@ -46,6 +66,7 @@ export function MCPConnectionList({
 
   async function handlePing(id: string) {
     setPingingId(id);
+    const conn = connections.find((c) => c.id === id);
     try {
       const result = await pingConnection(id);
       publishToast({
@@ -53,8 +74,22 @@ export function MCPConnectionList({
         message: `База 1С отвечает · ${result.tool_count} инструментов · ${result.duration_ms} мс`,
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Ошибка пинга";
-      publishToast({ type: "error", message });
+      const detail = err instanceof Error ? err.message : "не отвечает";
+      // Достаём порт из endpoint чтобы аналитик сразу увидел куда мы пытались
+      // подключиться (типичная ошибка — порт в 1С отличается от настроенного).
+      let portHint = "";
+      try {
+        if (conn) {
+          const u = new URL(conn.endpoint);
+          portHint = u.port ? ` (порт :${u.port})` : "";
+        }
+      } catch {
+        /* malformed url */
+      }
+      publishToast({
+        type: "error",
+        message: `База «${conn?.name ?? "?"}» не отвечает${portHint}. Проверьте что в 1С запущен встроенный сервер MCP_Toolkit на том же порту. ${detail}`,
+      });
     } finally {
       setPingingId(null);
     }
@@ -106,14 +141,12 @@ export function MCPConnectionList({
                     </span>
                     <KindBadge kind={conn.kind} />
                   </div>
-                  <p className="text-xs text-[var(--fg-muted)] font-mono truncate">
-                    {conn.endpoint}
+                  {/* Технический URL не показываем аналитику. Embedded — порт mono,
+                      proxy — имя канала. Полный endpoint виден в форме редактирования
+                      под «Расширенные настройки». */}
+                  <p className="text-xs text-[var(--fg-muted)] truncate">
+                    <ConnectionSummary conn={conn} />
                   </p>
-                  {conn.kind === "proxy" && conn.channel && (
-                    <p className="text-xs text-[var(--fg-muted)] truncate">
-                      Канал: <span className="font-mono">{conn.channel}</span>
-                    </p>
-                  )}
                 </div>
                 <div className="flex items-center gap-1 flex-none">
                   <Button
@@ -134,7 +167,7 @@ export function MCPConnectionList({
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="text-red-400 hover:text-red-300"
+                    className="text-[var(--error)] hover:text-[var(--error)]"
                     onClick={() => setDeleteId(conn.id)}
                   >
                     Удалить
@@ -180,7 +213,7 @@ export function MCPConnectionList({
               Отмена
             </AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-800 hover:bg-red-700"
+              className="bg-[var(--error)] hover:opacity-90"
               onClick={() => deleteId && handleDelete(deleteId)}
             >
               Удалить

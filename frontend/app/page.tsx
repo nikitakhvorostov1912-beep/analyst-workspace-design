@@ -288,11 +288,11 @@ export default function HomePage() {
 
           <div className="w-full pt-4 border-t border-[var(--border)] text-center">
             <p className="text-xs text-[var(--fg-muted)] pt-2">
-              <Link href="/about" className="text-blue-400 hover:underline">
+              <Link href="/about" className="text-[var(--accent)] hover:underline">
                 Подробнее о приложении
               </Link>
               {" · "}
-              <Link href="/status" className="text-blue-400 hover:underline">
+              <Link href="/status" className="text-[var(--accent)] hover:underline">
                 Проверить диагностику
               </Link>
             </p>

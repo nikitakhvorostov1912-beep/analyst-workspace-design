@@ -13,18 +13,21 @@ import { CardHeader } from "./CardHeader";
 
 type LogLevel = LogEntry["level"];
 
+// Семантические токены вместо tailwind yellow-*/red-* — работают на light и dark теме.
+// До: yellow-950 bg на light выглядит как чёрная плашка с тёмно-зелёным текстом.
+// После: --warning-12/20/40 авто-подстраивается под текущую тему (sand/ink).
 const LEVEL_CLASSES: Record<LogLevel, string> = {
   Info: "text-[var(--fg-muted)] bg-[var(--bg-elevated)] border-[var(--border)]",
-  Warning: "text-yellow-300 bg-yellow-950 border-yellow-800",
-  Error: "text-red-300 bg-red-950 border-red-800",
-  Critical: "text-red-200 bg-red-900 border-red-700 font-semibold",
+  Warning: "text-[var(--warning)] bg-[var(--warning-12)] border-[var(--warning-40)]",
+  Error: "text-[var(--error)] bg-[var(--error-12)] border-[var(--error-40)]",
+  Critical: "text-[var(--error)] bg-[var(--error-20)] border-[var(--error-40)] font-semibold",
 };
 
 const LEVEL_ROW_CLASSES: Record<LogLevel, string> = {
   Info: "",
-  Warning: "border-l-2 border-l-yellow-600",
-  Error: "border-l-2 border-l-red-600",
-  Critical: "border-l-2 border-l-red-400 bg-red-950/20",
+  Warning: "border-l-2 border-l-[var(--warning)]",
+  Error: "border-l-2 border-l-[var(--error)]",
+  Critical: "border-l-2 border-l-[var(--error)] bg-[var(--error-12)]",
 };
 
 function LogEntryRow({

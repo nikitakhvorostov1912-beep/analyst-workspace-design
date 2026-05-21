@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { createConnection, updateConnection, pingConnection } from "@/lib/api";
@@ -26,7 +27,6 @@ const DEFAULT_PROXY_BASE = "https://nikoiuy12-mcp-proxy.hf.space/mcp";
 /**
  * Парсит существующий endpoint обратно в (kind, host, port, channel, proxyBase),
  * чтобы при редактировании показать те же поля, которыми его создавали.
- * Делает best-effort: если URL необычный — отдаёт дефолты + полный endpoint в advanced.
  */
 function parseEndpoint(
   endpoint: string,
@@ -113,6 +113,9 @@ export function MCPConnectionForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
+  // Advanced раскрывается автоматически, если редактируется proxy-подключение —
+  // там поля для канала и адреса прокси.
+  const [advancedOpen, setAdvancedOpen] = useState(parsed.kind === "proxy");
 
   const computedEndpoint = useMemo(
     () =>
@@ -153,6 +156,10 @@ export function MCPConnectionForm({
         }
       }
       setErrors(fieldErrors);
+      // Если ошибка в полях канала / прокси — раскрываем advanced чтобы пользователь увидел
+      if (fieldErrors.channel || fieldErrors.endpoint) {
+        setAdvancedOpen(true);
+      }
       return;
     }
 
@@ -174,8 +181,6 @@ export function MCPConnectionForm({
       publishToast({ type: "info", message: "Подключение сохранено" });
       onSaved(saved);
     } catch (err) {
-      // 409 Conflict: уже есть подключение с этим адресом — конкретный message
-      // вместо технического "Failed to fetch" / "duplicate_endpoint".
       const raw = err instanceof Error ? err.message : "";
       const isDup = raw.includes("409") || raw.toLowerCase().includes("duplicate");
       const message = isDup
@@ -213,7 +218,7 @@ export function MCPConnectionForm({
 
   return (
     <div className="space-y-4 p-4 border border-[var(--border)] rounded-md bg-[var(--bg)]">
-      {/* Название */}
+      {/* Название — единственное обязательное текстовое поле верхнего уровня. */}
       <div>
         <label className="block text-xs text-[var(--fg-muted)] mb-1">
           Название
@@ -225,38 +230,16 @@ export function MCPConnectionForm({
           maxLength={50}
         />
         {errors.name && (
-          <p className="text-xs text-red-400 mt-1">{errors.name}</p>
+          <p className="text-xs text-[var(--error)] mt-1">{errors.name}</p>
         )}
       </div>
 
-      {/* Тип подключения — radio */}
-      <div>
-        <label className="block text-xs text-[var(--fg-muted)] mb-2">
-          Тип подключения
-        </label>
-        <div className="flex gap-2" role="radiogroup" aria-label="Тип подключения">
-          <KindCard
-            checked={kind === "embedded"}
-            title="Встроенный сервер"
-            description="Обработка MCP_Toolkit запущена на этом компьютере"
-            onSelect={() => setKind("embedded")}
-            data-testid="kind-embedded"
-          />
-          <KindCard
-            checked={kind === "proxy"}
-            title="Прокси"
-            description="Обработка на сервере, доступ через интернет"
-            onSelect={() => setKind("proxy")}
-            data-testid="kind-proxy"
-          />
-        </div>
-      </div>
-
-      {/* Условные поля для embedded / proxy */}
-      {kind === "embedded" ? (
+      {/* Порт встроенного сервера — главное что аналитик настраивает.
+          Тип подключения по умолчанию embedded. Прокси/канал — за advanced. */}
+      {kind === "embedded" && (
         <div>
           <label className="block text-xs text-[var(--fg-muted)] mb-1">
-            Порт
+            Порт обработки в 1С
           </label>
           <Input
             value={port}
@@ -268,58 +251,12 @@ export function MCPConnectionForm({
             inputMode="numeric"
           />
           <p className="text-xs text-[var(--fg-3)] mt-1">
-            По умолчанию обработка слушает <span className="font-mono">6010</span>. Если в самой 1С выбран другой — введите его здесь.
+            Тот же номер, что введён в MCP_Toolkit на вкладке «Встроенный сервер». По умолчанию <span className="font-mono">6010</span>.
           </p>
         </div>
-      ) : (
-        <>
-          <div>
-            <label className="block text-xs text-[var(--fg-muted)] mb-1">
-              Канал
-            </label>
-            <Input
-              value={channel}
-              onChange={(e) => setChannel(e.target.value)}
-              placeholder="tranzit-prod"
-              maxLength={60}
-              className="font-mono"
-              data-testid="channel-input"
-            />
-            {errors.channel ? (
-              <p className="text-xs text-red-400 mt-1">{errors.channel}</p>
-            ) : (
-              <p className="text-xs text-[var(--fg-3)] mt-1">
-                Имя канала, которое введено в обработке MCP_Toolkit на сервере.
-              </p>
-            )}
-          </div>
-          <div>
-            <label className="block text-xs text-[var(--fg-muted)] mb-1">
-              Адрес прокси-сервера
-            </label>
-            <Input
-              value={proxyBase}
-              onChange={(e) => setProxyBase(e.target.value)}
-              placeholder={DEFAULT_PROXY_BASE}
-              className="font-mono text-[11px]"
-              data-testid="proxy-base-input"
-            />
-            <p className="text-xs text-[var(--fg-3)] mt-1">
-              По умолчанию — публичный прокси <span className="font-mono">{DEFAULT_PROXY_BASE}</span>. Поменяйте, если у компании свой.
-            </p>
-          </div>
-        </>
       )}
 
-      {/* Read-only preview итогового URL — для аналитика чтобы он видел что собрано */}
-      <div className="text-xs text-[var(--fg-3)] bg-[var(--bg-elevated)] border border-[var(--border)] rounded p-2 font-mono break-all">
-        Адрес: {computedEndpoint || "—"}
-      </div>
-      {errors.endpoint && (
-        <p className="text-xs text-red-400">{errors.endpoint}</p>
-      )}
-
-      {/* Маскировка */}
+      {/* Маскировка имён — частая настройка, оставляем наверху. */}
       <div className="flex items-center gap-2">
         <input
           type="checkbox"
@@ -334,6 +271,101 @@ export function MCPConnectionForm({
         >
           Маскировка имён по умолчанию
         </label>
+      </div>
+
+      {/* Расширенные — тип подключения, прокси, базовый адрес. */}
+      <div className="border-t border-[var(--bd-1)] pt-3">
+        <button
+          type="button"
+          onClick={() => setAdvancedOpen((v) => !v)}
+          className="flex items-center gap-1.5 text-xs text-[var(--fg-3)] hover:text-[var(--fg-1)] transition-colors"
+          aria-expanded={advancedOpen}
+        >
+          {advancedOpen ? (
+            <ChevronDown className="h-3 w-3" />
+          ) : (
+            <ChevronRight className="h-3 w-3" />
+          )}
+          <span>Расширенные настройки</span>
+        </button>
+
+        {advancedOpen && (
+          <div className="space-y-4 mt-3 pl-4 border-l border-[var(--bd-1)]">
+            <div>
+              <label className="block text-xs text-[var(--fg-muted)] mb-2">
+                Тип подключения
+              </label>
+              <div
+                className="flex gap-2"
+                role="radiogroup"
+                aria-label="Тип подключения"
+              >
+                <KindCard
+                  checked={kind === "embedded"}
+                  title="Встроенный сервер"
+                  description="Обработка MCP_Toolkit запущена на этом компьютере"
+                  onSelect={() => setKind("embedded")}
+                  data-testid="kind-embedded"
+                />
+                <KindCard
+                  checked={kind === "proxy"}
+                  title="Прокси"
+                  description="Обработка на сервере, доступ через интернет"
+                  onSelect={() => setKind("proxy")}
+                  data-testid="kind-proxy"
+                />
+              </div>
+            </div>
+
+            {kind === "proxy" && (
+              <>
+                <div>
+                  <label className="block text-xs text-[var(--fg-muted)] mb-1">
+                    Канал
+                  </label>
+                  <Input
+                    value={channel}
+                    onChange={(e) => setChannel(e.target.value)}
+                    placeholder="tranzit-prod"
+                    maxLength={60}
+                    className="font-mono"
+                    data-testid="channel-input"
+                  />
+                  {errors.channel ? (
+                    <p className="text-xs text-[var(--error)] mt-1">{errors.channel}</p>
+                  ) : (
+                    <p className="text-xs text-[var(--fg-3)] mt-1">
+                      Имя канала, которое введено в обработке MCP_Toolkit на сервере.
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs text-[var(--fg-muted)] mb-1">
+                    Адрес прокси-сервера
+                  </label>
+                  <Input
+                    value={proxyBase}
+                    onChange={(e) => setProxyBase(e.target.value)}
+                    placeholder={DEFAULT_PROXY_BASE}
+                    className="font-mono text-[11px]"
+                    data-testid="proxy-base-input"
+                  />
+                  <p className="text-xs text-[var(--fg-3)] mt-1">
+                    По умолчанию — публичный прокси. Поменяйте, если у компании свой.
+                  </p>
+                </div>
+              </>
+            )}
+
+            {/* Превью URL — только в advanced. На основном экране техника не нужна. */}
+            <div className="text-xs text-[var(--fg-3)] bg-[var(--bg-elevated)] border border-[var(--border)] rounded p-2 font-mono break-all">
+              Адрес: {computedEndpoint || "—"}
+            </div>
+            {errors.endpoint && (
+              <p className="text-xs text-[var(--error)]">{errors.endpoint}</p>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="flex items-center gap-2 pt-1">

@@ -1,10 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectSeparator,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -23,6 +33,12 @@ import {
 } from "@/lib/api";
 import { llmConfigSchema, llmConfigUpdateSchema } from "@/lib/form-schemas";
 import { getLLMApiKey, setLLMApiKey, clearLLMApiKey } from "@/lib/api-keys";
+import {
+  CUSTOM_MODEL_ID,
+  DEFAULT_PRESET_ID,
+  PROVIDERS,
+  resolveProviderAndModel,
+} from "@/lib/llm-providers";
 import { publishToast } from "@/lib/toast";
 import type { LLMConfigResponse } from "@/lib/types";
 
@@ -30,6 +46,11 @@ interface LLMConfigFormProps {
   initial: LLMConfigResponse | null;
   onSaved?: () => void;
 }
+
+/**
+ * Каталог провайдеров вынесен в `lib/llm-providers.ts` — переиспользуется
+ * ModelBadge popover'ом в шапке для быстрого переключения модели.
+ */
 
 function translateErrorCode(code: string | null | undefined): string {
   switch (code) {
@@ -49,37 +70,48 @@ function translateErrorCode(code: string | null | undefined): string {
 export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
   const storedKey = getLLMApiKey();
   const hasExisting = initial !== null;
-  // True если backend получит ключ из env DEFAULT_LLM_API_KEY. Тогда форма
-  // не требует ввода ключа: «прописал один раз в .env — забыл навсегда».
+  // Backend получит ключ из env DEFAULT_LLM_API_KEY (зашитый при сборке инсталлятора —
+  // обычно MiMo). Для других провайдеров ключ не подойдёт, поэтому UI показывает env-плашку
+  // только когда выбран MiMo. Если пользователь сменил провайдера — попросим ввести свой.
   const hasEnvApiKey = Boolean(initial?.has_env_api_key);
 
-  // Дефолты — Xiaomi MiMo v2.5-pro (см. memory/llm-providers.md). На первом
-  // запуске инсталлятор сидит эту же пару в БД, чтобы аналитику оставалось
-  // ввести только API-ключ. Сменить можно через раздел «Расширенные настройки».
-  const DEFAULT_ENDPOINT = "https://api.xiaomimimo.com/v1";
-  const DEFAULT_MODEL = "mimo-v2.5-pro";
+  const initialId = initial ? initial.model : DEFAULT_PRESET_ID;
+  const initialMatch = resolveProviderAndModel(initialId);
+  const initialPresetId = initialMatch ? initialId : CUSTOM_MODEL_ID;
 
-  const [endpoint, setEndpoint] = useState(
-    initial?.endpoint ?? DEFAULT_ENDPOINT,
-  );
-  const [model, setModel] = useState(initial?.model ?? DEFAULT_MODEL);
-  const [temperature, setTemperature] = useState(
-    initial?.temperature ?? 0.3,
-  );
+  const [presetId, setPresetId] = useState<string>(initialPresetId);
+  const [customModel, setCustomModel] = useState(initial?.model ?? "");
+  const [customEndpoint, setCustomEndpoint] = useState(initial?.endpoint ?? "");
+  const [temperature, setTemperature] = useState(initial?.temperature ?? 0.3);
   const [apiKey, setApiKey] = useState("");
   const [showKeyInput, setShowKeyInput] = useState(
-    // Скрываем поле ввода ключа когда либо локальный storedKey есть, либо
-    // backend знает env-ключ — пользователю нечего вводить.
     !(hasExisting && storedKey) && !hasEnvApiKey,
   );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  // Endpoint и Temperature скрыты под "Расширенные настройки" — аналитик их не должен знать.
-  // Всегда свёрнуто по умолчанию: если есть существующий endpoint — пользователь сам раскроет
-  // когда понадобится. Принцип: «по умолчанию минимум полей».
-  const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(initialPresetId === CUSTOM_MODEL_ID);
+
+  // activePreset = текущий выбор (плоский preset или null если custom).
+  const activePreset = useMemo(() => {
+    if (presetId === CUSTOM_MODEL_ID) return null;
+    return resolveProviderAndModel(presetId);
+  }, [presetId]);
+
+  const isCustom = presetId === CUSTOM_MODEL_ID;
+
+  // Эффективные значения для отправки в backend.
+  const effectiveModel = isCustom ? customModel : presetId;
+  const effectiveEndpoint = isCustom
+    ? customEndpoint
+    : activePreset?.provider.endpoint ?? "";
+
+  // Env-ключ применим ТОЛЬКО к встроенному провайдеру MiMo. Для остальных провайдеров
+  // backend всё равно пошлёт env-ключ — но удалённый сервер вернёт 401, что собьёт пользователя.
+  // Поэтому UI явно показывает env-плашку только для MiMo, иначе требует ввод.
+  const envKeyApplies =
+    hasEnvApiKey && Boolean(activePreset?.provider.embedKeyAvailable);
 
   function getEffectiveApiKey(): string {
     if (showKeyInput) return apiKey;
@@ -88,13 +120,11 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
 
   function validate() {
     const effectiveKey = getEffectiveApiKey();
-    // Когда backend получает ключ из env и пользователь не вводит свой —
-    // валидация api_key пропускается. Иначе обычная схема.
-    const skipKeyCheck = hasEnvApiKey && !effectiveKey;
+    const skipKeyCheck = envKeyApplies && !effectiveKey;
     const schema = skipKeyCheck ? llmConfigUpdateSchema : llmConfigSchema;
     const result = schema.safeParse({
-      endpoint,
-      model,
+      endpoint: effectiveEndpoint,
+      model: effectiveModel,
       temperature,
       ...(skipKeyCheck ? {} : { api_key: effectiveKey }),
     });
@@ -150,9 +180,6 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
 
     setLoading(true);
     try {
-      // Ключ кладём в localStorage только если пользователь его реально ввёл.
-      // При env-fallback (data.api_key пустой) — оставляем localStorage пустым,
-      // backend подставит ключ из DEFAULT_LLM_API_KEY.
       if (data.api_key) {
         setLLMApiKey(data.api_key);
       }
@@ -192,27 +219,98 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
     }
   }
 
+  function handlePresetChange(next: string) {
+    setPresetId(next);
+    if (next === CUSTOM_MODEL_ID) {
+      setAdvancedOpen(true);
+      // Если custom-поля пусты — подставим заготовки из initial либо предыдущего preset.
+      if (!customModel && initial?.model) setCustomModel(initial.model);
+      if (!customEndpoint) {
+        setCustomEndpoint(initial?.endpoint ?? "https://api.openai.com/v1");
+      }
+    }
+    // Сменился провайдер → возможно изменилась применимость env-ключа.
+    // Если переключились с MiMo (env-applies) на другого провайдера и нет
+    // локального ключа — показать поле ввода.
+    const newMatch = next === CUSTOM_MODEL_ID ? null : resolveProviderAndModel(next);
+    const newEnvApplies = hasEnvApiKey && Boolean(newMatch?.provider.embedKeyAvailable);
+    if (!newEnvApplies && !storedKey) {
+      setShowKeyInput(true);
+    }
+  }
+
   return (
     <div className="space-y-4">
+      {/* Выбор модели. Заголовок «Модель ИИ» + описание уже стоит в шапке секции
+          SettingsPage — здесь не дублируем. SelectValue рендерит ТОЛЬКО короткое
+          название (например «MiMo v2.5 Pro»), чтобы trigger остался однострочным
+          и текст не центрировался от двухстрочного SelectItem. */}
       <div>
-        <label className="block text-xs text-[var(--fg-muted)] mb-1">
-          Модель
-        </label>
-        <Input
-          value={model}
-          onChange={(e) => setModel(e.target.value)}
-          placeholder={DEFAULT_MODEL}
-          maxLength={100}
-        />
+        <Select value={presetId} onValueChange={handlePresetChange}>
+          <SelectTrigger
+            data-testid="model-preset-select"
+            aria-label="Модель ИИ"
+          >
+            <SelectValue>
+              {presetId === CUSTOM_MODEL_ID
+                ? "Произвольная модель"
+                : activePreset?.model.label ?? "Выберите модель"}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent className="max-h-[400px]">
+            {PROVIDERS.map((provider, idx) => (
+              <SelectGroup key={provider.id}>
+                {idx > 0 && <SelectSeparator />}
+                <SelectLabel>{provider.label}</SelectLabel>
+                {provider.models.map((preset) => (
+                  <SelectItem key={preset.id} value={preset.id}>
+                    <div className="flex flex-col">
+                      <span className="font-medium">{preset.label}</span>
+                      <span className="text-xs text-[var(--fg-muted)]">
+                        {preset.description}
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            ))}
+            <SelectSeparator />
+            <SelectGroup>
+              <SelectLabel>Другое</SelectLabel>
+              <SelectItem value={CUSTOM_MODEL_ID}>
+                <div className="flex flex-col">
+                  <span className="font-medium">Произвольная модель</span>
+                  <span className="text-xs text-[var(--fg-muted)]">
+                    Свой OpenAI-совместимый сервер
+                  </span>
+                </div>
+              </SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+        {/* Под dropdown — только короткое «откуда / на чём работает», без дублирования
+            description (он уже виден внутри открытого меню). */}
+        {activePreset && (
+          <p className="text-xs text-[var(--fg-3)] mt-1">
+            Провайдер:{" "}
+            <span className="font-mono text-[var(--fg-2)]">
+              {activePreset.provider.label}
+            </span>
+          </p>
+        )}
         {errors.model && (
-          <p className="text-xs text-red-400 mt-1">{errors.model}</p>
+          <p className="text-xs text-[var(--error)] mt-1">{errors.model}</p>
         )}
       </div>
 
+      {/* API ключ. Логика отображения:
+          - envKeyApplies (выбран MiMo + есть ключ в .env) → зелёная плашка
+          - storedKey есть → •••• с кнопкой «Изменить ключ»
+          - иначе → поле ввода */}
       <div>
         <div className="flex items-center justify-between mb-1">
           <label className="text-xs text-[var(--fg-muted)]">API ключ</label>
-          {(storedKey || hasEnvApiKey) && (
+          {(storedKey || envKeyApplies) && (
             <button
               type="button"
               className="text-xs text-[var(--accent)] hover:underline"
@@ -228,9 +326,13 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
             autoComplete="off"
             value={apiKey}
             onChange={(e) => setApiKey(e.target.value)}
-            placeholder={hasEnvApiKey ? "Оставьте пустым — будет использован ключ из .env" : "sk-..."}
+            placeholder={
+              envKeyApplies
+                ? "Оставьте пустым — будет использован ключ из .env"
+                : activePreset?.provider.keyHint ?? "sk-..."
+            }
           />
-        ) : hasEnvApiKey && !storedKey ? (
+        ) : envKeyApplies && !storedKey ? (
           <div className="flex h-9 items-center px-3 rounded-md border border-[var(--success-40)] bg-[var(--success-12)] text-sm text-[var(--success)] font-mono">
             ✓ Ключ задан в окружении сервера (.env)
           </div>
@@ -239,12 +341,32 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
             ••••••••
           </div>
         )}
+        {/* Если выбран НЕ-MiMo провайдер с env-ключом — предупредим пользователя */}
+        {hasEnvApiKey &&
+          activePreset &&
+          !activePreset.provider.embedKeyAvailable &&
+          !storedKey &&
+          showKeyInput &&
+          !apiKey && (
+            <p className="text-xs text-[var(--warning)] mt-1">
+              Зашитый в дистрибутиве ключ работает только для Xiaomi MiMo. Для{" "}
+              {activePreset.provider.label} введите свой ключ.
+            </p>
+          )}
+        {activePreset && !storedKey && showKeyInput && (
+          <p className="text-xs text-[var(--fg-3)] mt-1">
+            Где взять:{" "}
+            <span className="font-mono text-[var(--fg-2)]">
+              {activePreset.provider.keyDocsUrl}
+            </span>
+          </p>
+        )}
         {errors.api_key && (
-          <p className="text-xs text-red-400 mt-1">{errors.api_key}</p>
+          <p className="text-xs text-[var(--error)] mt-1">{errors.api_key}</p>
         )}
       </div>
 
-      {/* Расширенные настройки: endpoint + temperature */}
+      {/* Расширенные — кастомный preset + temperature. */}
       <div className="border-t border-[var(--bd-1)] pt-3">
         <button
           type="button"
@@ -262,27 +384,48 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
 
         {advancedOpen && (
           <div className="space-y-4 mt-3 pl-4 border-l border-[var(--bd-1)]">
-            <div>
-              <label className="block text-xs text-[var(--fg-muted)] mb-1">
-                Endpoint
-              </label>
-              <Input
-                value={endpoint}
-                onChange={(e) => setEndpoint(e.target.value)}
-                placeholder={DEFAULT_ENDPOINT}
-              />
-              {errors.endpoint ? (
-                <p className="text-xs text-red-400 mt-1">{errors.endpoint}</p>
-              ) : (
-                <p className="text-xs text-[var(--fg-3)] mt-1">
-                  OpenAI-совместимый URL. По умолчанию <span className="font-mono">{DEFAULT_ENDPOINT}</span> (Xiaomi&nbsp;MiMo).
-                </p>
-              )}
-            </div>
+            {isCustom && (
+              <>
+                <div>
+                  <label className="block text-xs text-[var(--fg-muted)] mb-1">
+                    Идентификатор модели
+                  </label>
+                  <Input
+                    value={customModel}
+                    onChange={(e) => setCustomModel(e.target.value)}
+                    placeholder="gpt-4o, claude-3-5-sonnet, ..."
+                    maxLength={100}
+                  />
+                  <p className="text-xs text-[var(--fg-3)] mt-1">
+                    Точный id модели как принимает OpenAI-совместимый API.
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-xs text-[var(--fg-muted)] mb-1">
+                    Адрес сервера
+                  </label>
+                  <Input
+                    value={customEndpoint}
+                    onChange={(e) => setCustomEndpoint(e.target.value)}
+                    placeholder="https://api.openai.com/v1"
+                  />
+                  {errors.endpoint ? (
+                    <p className="text-xs text-[var(--error)] mt-1">{errors.endpoint}</p>
+                  ) : (
+                    <p className="text-xs text-[var(--fg-3)] mt-1">
+                      Базовый URL OpenAI-совместимого API.
+                    </p>
+                  )}
+                </div>
+              </>
+            )}
 
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs text-[var(--fg-muted)]">Температура</label>
+                <label className="text-xs text-[var(--fg-muted)]">
+                  Температура
+                </label>
                 <span className="text-xs text-[var(--fg)] font-mono">
                   {temperature.toFixed(1)}
                 </span>
@@ -294,8 +437,11 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
                 max={2}
                 step={0.1}
               />
+              <p className="text-xs text-[var(--fg-3)] mt-1">
+                0 — строгие ответы, 1 — баланс, 2 — креативные. По умолчанию 0.3.
+              </p>
               {errors.temperature && (
-                <p className="text-xs text-red-400 mt-1">{errors.temperature}</p>
+                <p className="text-xs text-[var(--error)] mt-1">{errors.temperature}</p>
               )}
             </div>
           </div>
@@ -339,7 +485,7 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
               Отмена
             </AlertDialogCancel>
             <AlertDialogAction
-              className="bg-red-800 hover:bg-red-700"
+              className="bg-[var(--error)] hover:opacity-90"
               onClick={handleDelete}
             >
               Удалить

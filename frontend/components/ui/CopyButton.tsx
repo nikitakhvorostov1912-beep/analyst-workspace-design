@@ -68,7 +68,7 @@ export function CopyButton({
       )}
     >
       {copied ? (
-        <Check size={iconSize} className="text-green-500" />
+        <Check size={iconSize} className="text-[var(--success)]" />
       ) : (
         <Copy size={iconSize} />
       )}
