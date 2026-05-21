@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Trash2 } from "lucide-react";
 import type { SessionListItem, SessionsGrouped } from "@/lib/types";
+import { parseBackendDate } from "@/lib/utils";
 
 interface SessionListProps {
   grouped: SessionsGrouped;
@@ -10,9 +11,14 @@ interface SessionListProps {
   onDelete: (id: string) => void;
 }
 
-/** Форматирует relative время на русском. */
+/** Форматирует relative время на русском.
+ *
+ * `parseBackendDate` из lib/utils форсирует UTC для timezone-naive строк,
+ * иначе на машине пользователя в Москве (+3) свежесозданная сессия
+ * отображается как «3 часа назад» вместо «только что».
+ */
 function formatRelative(isoString: string): string {
-  const date = new Date(isoString);
+  const date = parseBackendDate(isoString);
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMin = Math.floor(diffMs / 60_000);
@@ -22,6 +28,10 @@ function formatRelative(isoString: string): string {
   if (diffMin < 1) return "только что";
   if (diffMin < 60) return `${diffMin} мин назад`;
   if (diffHr < 24) return `${diffHr} ч назад`;
+  if (diffDays < 0) {
+    // Часы из будущего (clock skew между backend и клиентом) — показываем как "только что"
+    return "только что";
+  }
   if (diffDays === 1) {
     return `вчера ${date.toLocaleTimeString("ru-RU", { hour: "2-digit", minute: "2-digit" })}`;
   }

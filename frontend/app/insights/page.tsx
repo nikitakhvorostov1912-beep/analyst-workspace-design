@@ -4,6 +4,8 @@ import { ArrowLeft, BarChart3, Loader2, RefreshCw } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { fetchInsights } from "@/lib/api";
+import { ThemeToggle } from "@/components/shell/ThemeToggle";
+import { parseBackendDate } from "@/lib/utils";
 import type { InsightsPeriod, InsightsResponse } from "@/lib/types";
 
 const PERIODS: { key: InsightsPeriod; label: string }[] = [
@@ -90,7 +92,7 @@ export default function InsightsPage() {
           <div className="mt-6 grid grid-cols-4 gap-3">
             <Kpi label="Сессий" value={data.sessions} />
             <Kpi label="Сообщений" value={data.messages} />
-            <Kpi label="Tool calls" value={data.tool_calls_total} />
+            <Kpi label="Запросов к 1С" value={data.tool_calls_total} />
             <Kpi
               label="Ошибок"
               value={data.tool_errors_total}
@@ -121,7 +123,7 @@ export default function InsightsPage() {
           {data.avg_duration_ms !== null && (
             <div className="mt-3 p-3 rounded-md border border-[var(--bd-2)] bg-[var(--bg-1)]">
               <span className="text-[12px] text-[var(--fg-3)] uppercase tracking-[0.1em]">
-                Среднее время tool вызова
+                Среднее время ответа 1С
               </span>{" "}
               <span
                 className="text-[14px] text-[var(--fg-1)] tabular-nums"
@@ -135,10 +137,10 @@ export default function InsightsPage() {
           {/* Top tools */}
           <section className="mt-8">
             <h2 className="text-[15px] font-semibold text-[var(--fg-1)] mb-3">
-              Топ инструментов
+              Топ операций с базой 1С
             </h2>
             {data.top_tools.length === 0 ? (
-              <EmptyState text="Пока нет данных по tool calls" />
+              <EmptyState text="Пока нет данных по обращениям к 1С" />
             ) : (
               <div className="rounded-md border border-[var(--bd-2)] bg-[var(--bg-1)] overflow-hidden">
                 <table
@@ -148,16 +150,16 @@ export default function InsightsPage() {
                   <thead>
                     <tr className="border-b border-[var(--bd-2)] text-[var(--fg-3)]">
                       <th className="text-left p-3 font-normal text-[11px] uppercase tracking-[0.12em]">
-                        Имя
+                        Операция
                       </th>
                       <th className="text-right p-3 font-normal text-[11px] uppercase tracking-[0.12em]">
-                        Calls
+                        Вызовов
                       </th>
                       <th className="text-right p-3 font-normal text-[11px] uppercase tracking-[0.12em]">
-                        Errors
+                        Ошибок
                       </th>
                       <th className="text-right p-3 font-normal text-[11px] uppercase tracking-[0.12em]">
-                        Rate
+                        Доля ошибок
                       </th>
                     </tr>
                   </thead>
@@ -242,7 +244,7 @@ export default function InsightsPage() {
 
           {/* Footer note */}
           <div className="mt-8 text-[11px] text-[var(--fg-4)]">
-            Сгенерировано: {new Date(data.generated_at).toLocaleString("ru-RU")}
+            Сгенерировано: {parseBackendDate(data.generated_at).toLocaleString("ru-RU")}
           </div>
         </>
       ) : null}
@@ -267,6 +269,9 @@ function Header() {
         <BarChart3 className="h-5 w-5 text-[var(--accent)]" />
         Аналитика
       </h1>
+      <div className="ml-auto">
+        <ThemeToggle />
+      </div>
     </div>
   );
 }
