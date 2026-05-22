@@ -3,8 +3,9 @@
   "configurations": [
     {
       "name": "analyst-frontend",
-      "runtimeExecutable": "npx",
-      "runtimeArgs": ["--prefix", "frontend", "next", "dev"],
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "cwd": "frontend",
       "port": 3010,
       "autoPort": true
     }
