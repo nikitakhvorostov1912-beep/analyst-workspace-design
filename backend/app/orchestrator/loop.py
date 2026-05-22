@@ -598,6 +598,19 @@ async def run_chat_loop(
             logger.warning("Не удалось инициализировать aux client для компрессии — компрессия будет работать в fallback режиме")
             aux_compressor_client = None
 
+    # W1.5 verified (2026-05-22): аудит подозревал утечку LLMClient при
+    # GeneratorExit (закрытие SSE — навигация / browser tab close / AbortController).
+    # Проверено:
+    # - LLMClient инстанцируется per-iteration (loop.py:654) и закрывается
+    #   в inner try/finally (loop.py:704-705) — даже при exception/cancel
+    #   соответствующий .aclose() гарантированно вызывается.
+    # - AuxiliaryClient (auxiliary.py:87) использует `async with httpx.AsyncClient`
+    #   per-call — state не хранит, утечки нет.
+    # - outer finally (loop.py:1056-1059) закрывает только mcp; этого достаточно
+    #   потому что LLMClient уже закрыт в inner блоке.
+    # Если в будущем AuxiliaryClient перейдёт на reuse httpx (W3.4 perf
+    # optimization) — обязательно добавить здесь outer finally блок для его
+    # aclose().
     try:
         while True:
             # --- Iteration budget gate ---
