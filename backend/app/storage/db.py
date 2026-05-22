@@ -20,7 +20,24 @@ async def init_db(app: object) -> None:
     db = await aiosqlite.connect(db_path)
     db.row_factory = aiosqlite.Row
 
+    # W3.3 (2026-05-22): SQLite PRAGMA tuning для production.
+    # - journal_mode=WAL — write-ahead logging, параллельные readers, минус
+    #   write-lock на reads (уже было).
+    # - synchronous=NORMAL — fsync только на checkpoint, не на каждой записи.
+    #   FULL (дефолт) даёт +20-40% устойчивости к crash'у системы, но мы и
+    #   так в Electron desktop и WAL покрывает большинство сценариев.
+    # - cache_size=-64000 — 64 MB страничного кеша (отрицательное число = KB).
+    #   По умолчанию 2 MB — слишком мало для realtime full-text search по
+    #   messages_fts при большой истории сессий.
+    # - temp_store=MEMORY — временные таблицы (для CTE/UNION) держим в RAM.
+    # - foreign_keys=ON — SQLite по умолчанию ИГНОРИРУЕТ FK constraints.
+    #   Без этого ON DELETE CASCADE не работает и при удалении сессий
+    #   могут оставаться orphan messages.
     await db.execute("PRAGMA journal_mode=WAL")
+    await db.execute("PRAGMA synchronous=NORMAL")
+    await db.execute("PRAGMA cache_size=-64000")
+    await db.execute("PRAGMA temp_store=MEMORY")
+    await db.execute("PRAGMA foreign_keys=ON")
     await db.commit()
 
     await apply_migrations(db)
