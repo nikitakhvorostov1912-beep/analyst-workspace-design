@@ -26,7 +26,12 @@ fs.mkdirSync(RES, { recursive: true });
 // === 1. Backend (PyInstaller) ===
 if (!skipBackend) {
   console.log('[1/3] Building backend.exe via PyInstaller...');
-  execSync('pyinstaller --clean --noconfirm build.spec', {
+  // W4.1 (2026-05-22): 'pyinstaller' shim не всегда в PATH у child_process на
+  // Windows (особенно когда Python через .pyz launcher). Вызываем как модуль
+  // через `python -m PyInstaller` — гарантированно находит установленный
+  // в текущем интерпретаторе.
+  const pyCmd = process.platform === 'win32' ? 'python' : 'python3';
+  execSync(`${pyCmd} -m PyInstaller --clean --noconfirm build.spec`, {
     cwd: path.join(ROOT, 'backend'),
     stdio: 'inherit',
   });
