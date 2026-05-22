@@ -83,11 +83,17 @@ def create_app() -> FastAPI:
             headers={"Retry-After": "60"},
         )
 
+    # W3.15 (2026-05-22): сузили allow_methods с "*" до явного списка
+    # фактически используемых: GET, POST, DELETE, OPTIONS. Раньше "*" с
+    # allow_credentials=True давало wider CSRF-surface (любой PUT/PATCH/HEAD/
+    # TRACE из браузера атакующего был бы пропущен через CORS). credentials
+    # нужны для localhost dev-режима (cookies для session, если включится),
+    # поэтому allow_credentials оставлен True.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
         allow_credentials=True,
-        allow_methods=["*"],
+        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
 
