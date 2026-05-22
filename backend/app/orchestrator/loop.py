@@ -584,9 +584,18 @@ async def run_chat_loop(
     INTERRUPTS.clear(session_id)
     interrupted_by_user = False
 
-    # Aux client для ContextCompressor — единая инстанция на loop.
+    # Aux client — единая инстанция на loop. Используется:
+    # - ContextCompressor (Sprint 2 / compression_enabled)
+    # - background_review (Sprint 3 / learning_enabled) — fire-and-forget после turn
+    #
+    # W1.8 fix (2026-05-22): раньше aux client создавался ТОЛЬКО при
+    # compression_enabled. Если compression выключена — schedule_review
+    # тихо skip'ался (нет aux), и Sprint 3 «самообучение» не работало.
+    # Теперь aux создаётся если включена ХОТЯ БЫ ОДНА из двух фич — это
+    # развязывает зависимость learning от compression.
     aux_compressor_client: AuxiliaryClient | None = None
-    if settings.compression_enabled:
+    needs_aux = settings.compression_enabled or settings.learning_enabled
+    if needs_aux:
         try:
             aux_compressor_client = AuxiliaryClient(
                 base_url=llm_endpoint,
@@ -595,7 +604,10 @@ async def run_chat_loop(
                 main_model=effective_llm_model,
             )
         except Exception:
-            logger.warning("Не удалось инициализировать aux client для компрессии — компрессия будет работать в fallback режиме")
+            logger.warning(
+                "Не удалось инициализировать aux client — compression "
+                "и background_review будут работать в fallback режиме"
+            )
             aux_compressor_client = None
 
     # W1.5 verified (2026-05-22): аудит подозревал утечку LLMClient при
