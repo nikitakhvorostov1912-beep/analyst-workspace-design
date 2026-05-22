@@ -31,17 +31,20 @@ LLM сама вызывает MCP-инструменты — аналитик т
 
 Для аналитиков, которым не нужно настраивать dev-окружение:
 
-1. Скачать `analyst-setup-v1.0.0.exe` из [GitHub Releases](https://github.com/nikitakhvorostov1912-beep/analyst-workspace-design/releases/latest) (~106 MB)
+1. Скачать `analyst-setup-vX.Y.Z.exe` из [GitHub Releases](https://github.com/nikitakhvorostov1912-beep/analyst-workspace-design/releases/latest) (~110 MB)
 2. Двойной клик → пройти мастер установки на русском (без админских прав)
 3. На Рабочем столе появится ярлык «1С Аналитик» → двойной клик запускает приложение
+4. При первом запуске откроется onboarding wizard — указать MCP подключение к базе 1С + ввести свой LLM API-ключ
 
 **Что внутри:** Electron + bundled Python backend (PyInstaller) + Next.js standalone frontend. Аналитику НЕ нужно ставить Python, Node.js, Docker, pnpm.
 
-**При первом запуске** Windows SmartScreen покажет предупреждение «Windows защитил ваш ПК». Это норма для приложений без code-signing certificate — нажмите «Подробнее» → «Выполнить в любом случае».
+**SmartScreen:**
+- v1.3.0+ установщики подписаны Code-Signing сертификатом — SmartScreen не должен ругаться.
+- На старых сборках (v1.2.x и раньше) Windows покажет предупреждение «Windows защитил ваш ПК». Нажмите «Подробнее» → «Выполнить в любом случае».
+
+**Auto-update:** v1.3.0+ проверяет наличие новых версий при старте и предлагает обновиться одним кликом (через electron-updater).
 
 **Поддерживаемые системы:** Windows 10/11 x64. macOS и Linux — в roadmap v2.
-
-> Нет публичного Release? Получите installer у разработчика через USB или shared folder.
 
 ---
 
