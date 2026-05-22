@@ -1,16 +1,22 @@
 ---
 gsd_state_version: 1.0
-milestone: M6
-milestone_name: "Hermes Integration — Memory + Context + Self-Learning + UX + Observability"
-status: hermes_integration_complete
-last_updated: "2026-05-20T15:30:00Z"
+milestone: M7
+milestone_name: "Commerce Readiness — Security + Stability + Distribution"
+status: in_progress
+last_updated: "2026-05-22T15:00:00Z"
 progress:
-  total_sprints: 5
-  completed_sprints: 5
-  total_features: 30
-  completed_features: 30
-  percent: 100
-note: "Все 5 спринтов Hermes integration закрыты (commits df76ed8 → dccb672). 30 фич, 652 backend pytests, 304 vitest, Chrome smoke по всем экранам. Backlog: A12/D2/F2/I1/H1/E3/E4/C7 + 3 pre-existing flaky."
+  wave_1_critical: 9
+  wave_1_done: 8
+  wave_2_total: 14
+  wave_2_done: 0
+  wave_3_total: 15
+  wave_3_done: 0
+  wave_4_total: 5
+  wave_4_done: 0
+  total_tickets: 43
+  done: 8
+  percent: 19
+note: "Wave 1 (CRITICAL): 8/9 — secrets+execute_query scan+tool budget+rate-limit+Prism XSS+SSE abort+LLM lifecycle verified. Остался W1.8 Sprint 3 wire-up (отложен в отдельную сессию из-за объёма ~6h). Wave 2-4 — впереди."
 ---
 
 # Project State
@@ -21,7 +27,20 @@ note: "Все 5 спринтов Hermes integration закрыты (commits df76
 
 **Core value:** Аналитик пишет вопрос на NL → LLM сама дёргает MCP → ответ с inline-карточкой за ≤30 сек
 
-**Current focus:** Post-Hermes — backlog или новый milestone
+**Current focus:** M7 Commerce Readiness — закрываем gap'ы из глубокого ревью 9 направлений (2026-05-22)
+
+---
+
+## Honesty gap — заявления M6 → реальность (2026-05-22)
+
+Прошлая запись STATE.md заявляла M6 «100% / 30/30 фич». Глубокое ревью 9 направлений (architecture/backend/frontend/security/tests/UX/perf/completeness/devops) вскрыло:
+
+- **Sprint 3 (Self-Learning) — code-only complete, НЕ wired в runtime.** `learning/*` файлы написаны, но `asyncio.create_task(background_review_fork(...))` НЕ вызывается из `loop.py`. Skills не инжектируются в system prompt. Usage telemetry закомментирована. См. `loop.py:468, 489, 524, 531`. → Тикет W1.8 в M7.
+- **«652 backend pytests passed»** — цифра близка к правде (681 collected / 672 passed), НО **общее coverage 26.58%, не 80%**. На критичных модулях: `loop.py` 11%, `persistence.py` 13%, `mcp_pool.py` 15%, `cards.py` 28%. → Wave 2.6 (test coverage 60% на критичных).
+- **«Chrome MCP smoke по всем экранам»** не покрывает SSE-стриминг — 3/5 Playwright spec'ов **skipped** (`setup-and-prompt`, `sessions-history`, `channel-switch`). Главный happy-path (отправить сообщение → SSE → карточка) не тестируется E2E. → Wave 2.5.
+- **«Multi-tenant через channel selector»** изоляция per-session, не per-channel. Глобальные dict'ы `INTERRUPTS`/`_pending`/`CLARIFY` в memory module-level. → Wave 2.2.
+
+Подробный отчёт ревью: ответ ассистента в сессии 2026-05-22 «Глубокое ревью приложения».
 
 ---
 
@@ -29,13 +48,57 @@ note: "Все 5 спринтов Hermes integration закрыты (commits df76
 
 | Aspect | Value |
 |--------|-------|
-| **Current Milestone** | M6 — Hermes Integration ✓ COMPLETE |
-| **Branch** | `main` |
+| **Current Milestone** | M7 — Commerce Readiness (in_progress) |
+| **Branch** | `feature/v1.3.0-commerce` |
 | **Latest tag** | v1.2.2 (2026-05-19, pre-Hermes) |
-| **Pending bump** | v1.3.0 — для Sprint 1-5 release |
-| **Last commit** | `dccb672` feat(sprint-5): Hermes Polish & Observability |
-| **Mode** | YOLO + atomic commits per sprint |
-| **Last Update** | 2026-05-20 (Sprint 5 закрыт + Chrome smoke + docs phase started) |
+| **Pending tag** | v1.3.0 — после Wave 1-4 |
+| **Last commit** | W1.5 verify LLMClient lifecycle |
+| **Mode** | Atomic commits per ticket, тесты обязательны |
+| **Last Update** | 2026-05-22 (Wave 1: 8/9 закрыты) |
+
+## Milestone M7 — Commerce Readiness (2026-05-22 в работе)
+
+Чек-лист: `.planning/CHECKLIST-COMMERCE-2026-05-22.md`. Baseline: `.planning/BASELINE-2026-05-22.md`.
+
+### Wave 1 — CRITICAL (pilot-blockers, 16h оценка)
+
+| # | Тикет | Статус | Тесты |
+|---|---|---|---|
+| W1.1 | LLM ключ из installer .env | ✓ Done | electron-builder filter |
+| W1.2 | Keyword-scanner на execute_query | ✓ Done | +9 pytest |
+| W1.3 | MAX_TOOL_CALLS_PER_TURN лимит | ✓ Done | +2 pytest |
+| W1.4 | Rate-limit /chat (slowapi) | ✓ Done | +2 pytest |
+| W1.5 | LLMClient leak verify | ✓ Done (false-positive) | n/a |
+| W1.6 | XSS Prism CodeCard (DOMPurify) | ✓ Done | +6 vitest |
+| W1.7 | AbortController useChatStream | ✓ Done | 15/15 useChatStream |
+| W1.8 | Sprint 3 Hermes wire-up | ⏸ Pending (~6h) | TBD |
+| W1.9 | STATE.md honesty gap update | ⏳ in_progress | n/a |
+
+### Wave 2 — HIGH (commerce-blockers, 55h)
+
+Code signing, auto-update, decompose loop.py (1157→400), test coverage 60%, E2E streaming, robust injection scan, Docker multi-stage, slash-команды.
+
+### Wave 3 — MEDIUM polish (12h)
+
+UI токены, tool name mapping, PRAGMA tuning, httpx reuse, lazy load, A11y.
+
+### Wave 4 — Release v1.3.0 (5h)
+
+Smoke, quality gate, build, release notes, tag.
+
+---
+
+## Milestone M6 — Hermes Integration (2026-05-20)
+
+| # | Sprint | Status | Фич | Commit | Tests |
+|---|---|---|---:|---|---:|
+| 1 | Memory Foundation | ✓ Done | 5 | `df76ed8` | +21 pytest |
+| 2 | Context & Resilience | ✓ Done | 8 | `1d5e060` | +87 pytest |
+| 3 | Self-Learning | ⚠ Code-only | 6 | `123418e` | +75 pytest, runtime НЕ wired |
+| 4 | UX & Interactivity | ✓ Done | 6 | `5b8ea8d` | +64 pytest |
+| 5 | Polish & Observability | ✓ Done | 5 | `dccb672` | +57 pytest |
+
+**Honesty update 2026-05-22:** Sprint 3 был помечен как Done без верификации в runtime. Тесты есть, файлы есть, но fire-and-forget вызов из `loop.py` НЕ активирован. Откатывать не имеет смысла — закроем через W1.8 wire-up.
 
 ## Milestone M6 — Hermes Integration (2026-05-20)
 
