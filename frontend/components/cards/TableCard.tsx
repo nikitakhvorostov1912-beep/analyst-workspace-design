@@ -153,6 +153,23 @@ export function TableCard({ payload, onDeanonymize }: TableCardProps) {
         </div>
       )}
 
+      {/* P2.2 ResultSizeGate banner: backend урезал результат до MAX_ROWS_FOR_LLM
+          (по умолчанию 500). Пользователь видит первые N строк, для полного
+          набора — скачать CSV (CSV содержит только видимые rows; для полного
+          датасета — переформулировать запрос с LIMIT/WHERE). */}
+      {truncated && total_available && total_available > total && (
+        <div
+          data-testid="result-truncated-banner"
+          className="px-3 py-2 text-xs text-[var(--warning)] bg-[var(--warning-12)] border-b border-[var(--border)] flex items-center gap-2"
+        >
+          <span className="font-semibold">⚠ Показаны первые {total} из {total_available} строк.</span>
+          <span className="text-[var(--fg-3)]">
+            Чтобы получить полный набор — сузьте запрос (WHERE / временной
+            диапазон) или попросите LLM добавить агрегацию.
+          </span>
+        </div>
+      )}
+
       {/* Таблица */}
       <Table>
         <TableHeader>

@@ -17,6 +17,35 @@ from app.orchestrator.interrupt import INTERRUPTS
 from app.orchestrator.loop import run_chat_loop
 from app.orchestrator.safety import resolve_pending_confirmation
 from app.storage.db import get_db
+from app.storage.user_secrets_store import get_secret as get_user_secret
+
+
+# P2.1 (2026-05-23): mapping endpoint → provider_id из frontend/lib/llm-providers.ts.
+# Используется для подъёма ключа из user_secrets (если frontend сохранял ключ
+# через POST /user-secrets). Не падает если endpoint не найден — fallback на
+# resolve_default_api_key из Settings.
+_ENDPOINT_TO_PROVIDER: dict[str, str] = {
+    "foundation-models.api.cloud.ru": "cloud-ru-qwen3",
+    "integrate.api.nvidia.com": "nvidia-nim",
+    "api.openai.com": "openai",
+    "openrouter.ai": "openrouter",  # совпадает с anthropic-or, но это OK — один ключ
+    "api.deepseek.com": "deepseek",
+    "api.xiaomimimo.com": "xiaomi-mimo",
+    "api.groq.com": "groq",
+    "api.mistral.ai": "mistral",
+    "api.x.ai": "xai",
+}
+
+
+def _detect_provider_id(endpoint: str) -> str | None:
+    """Возвращает provider_id из endpoint URL или None если домен не известен."""
+    if not endpoint:
+        return None
+    lower = endpoint.lower()
+    for host, provider_id in _ENDPOINT_TO_PROVIDER.items():
+        if host in lower:
+            return provider_id
+    return None
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -63,12 +92,30 @@ async def chat(
     settings = get_settings()
     llm_endpoint = x_llm_endpoint or settings.default_llm_endpoint
     llm_model = x_llm_model or settings.default_llm_model
-    # Env-fallback per-provider: пользователь / админ прописывает ключ один раз в
-    # backend/.env, ключ выбирается по endpoint (MiMo → DEFAULT_LLM_API_KEY,
-    # NVIDIA → DEFAULT_LLM_API_KEY_NVIDIA, и т.д.). Header выигрывает только
-    # если он не пустой — UI может сменить модель и backend сразу подхватит
-    # правильный зашитый ключ для нового провайдера.
-    effective_api_key = (x_llm_api_key or "").strip() or settings.resolve_default_api_key(llm_endpoint)
+
+    # P2.1 (2026-05-23): новая стратегия резолва ключа (приоритет сверху-вниз):
+    #
+    #   1. POST /user-secrets с provider_id — backend-only AES-GCM ключ из БД
+    #      (это рекомендованный путь, защищён от XSS в localStorage)
+    #   2. header X-LLM-API-Key — backward compat для frontend пока migration
+    #      идёт. После v1.4.0 этот путь будет удалён.
+    #   3. env DEFAULT_LLM_API_KEY_* — embed-ключ в installer (NVIDIA общий ключ)
+    #
+    # provider_id определяется из endpoint URL — если домен не известен,
+    # шаг 1 пропускается и мы идём сразу к header/env.
+    provider_id = _detect_provider_id(llm_endpoint)
+    stored_key: str | None = None
+    if provider_id is not None:
+        try:
+            stored_key = await get_user_secret(db, provider_id)
+        except Exception as exc:  # noqa: BLE001 — БД может быть недоступна на старте
+            logger.warning("get_user_secret(%s) failed: %s", provider_id, exc)
+
+    effective_api_key = (
+        stored_key
+        or (x_llm_api_key or "").strip()
+        or settings.resolve_default_api_key(llm_endpoint)
+    )
     if not effective_api_key:
         raise HTTPException(status_code=400, detail="missing api key")
 

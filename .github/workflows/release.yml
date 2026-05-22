@@ -1,0 +1,91 @@
+name: Release Desktop Installer
+
+# P1.4 (2026-05-23): triggered on `vX.Y.Z` tag — собирает signed installer и
+# заливает его в GitHub Release. Клиенты с прошлой версией автоматически
+# узнают про обновление через electron-updater (main.js → autoUpdater).
+#
+# Зависимости:
+#   - GitHub Secrets `CSC_LINK` (base64 EV/OV cert), `CSC_KEY_PASSWORD`
+#     (пароль PFX) — для подписи EXE. Если не заданы, build идёт без подписи
+#     и SmartScreen покажет warning при установке (см. P1.3).
+#   - Releases должны быть public — иначе нужен `GH_TOKEN` в env для
+#     electron-updater на стороне клиента.
+#
+# Не запускаем workflow на feature-ветках — только на тегах.
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write  # для создания GitHub Release
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22.14"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11
+
+      # 1. Frontend (Next.js standalone)
+      - name: Frontend deps
+        working-directory: frontend
+        run: pnpm install --frozen-lockfile
+
+      - name: Frontend build
+        working-directory: frontend
+        run: pnpm build
+
+      # 2. Backend (PyInstaller onefile)
+      - name: Backend deps
+        working-directory: backend
+        run: |
+          python -m venv .venv-build
+          .venv-build\Scripts\python.exe -m pip install --upgrade pip
+          .venv-build\Scripts\pip.exe install -e ".[build]"
+
+      - name: Backend pyinstaller
+        working-directory: backend
+        run: .venv-build\Scripts\pyinstaller.exe build.spec --clean --noconfirm
+
+      # 3. Desktop (Electron installer)
+      - name: Desktop deps
+        working-directory: desktop
+        run: npm ci
+
+      - name: Bundle artifacts
+        working-directory: desktop
+        run: npm run build:bundle
+
+      - name: Build installer
+        working-directory: desktop
+        env:
+          # P1.3: code signing — secrets подхватываются electron-builder автоматически
+          # из ENV CSC_LINK / CSC_KEY_PASSWORD когда они проставлены.
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # P1.4: GH_TOKEN нужен electron-builder для publish: github
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run build:installer -- --publish always
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: analyst-installer-${{ github.ref_name }}
+          path: |
+            desktop/dist/*.exe
+            desktop/dist/latest.yml
+          retention-days: 14

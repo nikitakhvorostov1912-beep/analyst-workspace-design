@@ -41,6 +41,50 @@ export function clearLLMApiKey(): void {
 }
 
 /**
+ * P2.1 (2026-05-23): backend-only API key storage.
+ *
+ * Сохраняет ключ через POST /user-secrets. Сервер шифрует AES-256 GCM и
+ * хранит локально. Frontend больше не видит ключ обратно (защита от XSS).
+ *
+ * provider_id определяется UI из выбранного провайдера (cloud-ru-qwen3,
+ * nvidia-nim, и т.д., см. lib/llm-providers.ts).
+ */
+export async function saveSecretToBackend(
+  provider_id: string,
+  api_key: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const backend = process.env.NEXT_PUBLIC_BACKEND_URL ?? "";
+    const response = await fetch(`${backend}/user-secrets`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ provider_id, api_key }),
+    });
+    if (response.status === 204) return { ok: true };
+    const text = await response.text();
+    return { ok: false, error: text || `HTTP ${response.status}` };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "network error" };
+  }
+}
+
+/**
+ * Возвращает список provider_id для которых на backend есть сохранённый ключ.
+ * Значения ключей НЕ возвращаются — только список. Это by design (XSS защита).
+ */
+export async function fetchSecretStatus(): Promise<string[]> {
+  try {
+    const backend = process.env.NEXT_PUBLIC_BACKEND_URL ?? "";
+    const response = await fetch(`${backend}/user-secrets/status`);
+    if (!response.ok) return [];
+    const data = (await response.json()) as { providers?: string[] };
+    return Array.isArray(data.providers) ? data.providers : [];
+  } catch {
+    return [];
+  }
+}
+
+/**
  * One-time migration:
  *  - Если ключ уже в localStorage (новая схема) — выходим.
  *  - Если есть sessionStorage[analyst.llm_api_key] — переносим в localStorage.

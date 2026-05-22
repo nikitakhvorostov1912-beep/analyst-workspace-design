@@ -37,6 +37,17 @@ win:
         - x64
   icon: icon.ico
   publisherName: analyst-workspace-design
+  # P1.3 (2026-05-23): code signing. CSC_LINK = base64-encoded EV/OV cert,
+  # CSC_KEY_PASSWORD = пароль PFX. В CI ставится через GitHub Secrets.
+  # При локальной сборке без secrets — electron-builder пропускает sign
+  # и предупреждает в stdout. Когда сертификат будет — раскомментируйте
+  # certificateFile/Password. По умолчанию electron-builder сам читает
+  # ENV CSC_LINK/CSC_KEY_PASSWORD когда они проставлены.
+  # certificateFile: "${env.CSC_LINK}"
+  # certificatePassword: "${env.CSC_KEY_PASSWORD}"
+  signingHashAlgorithms:
+    - sha256
+  # signtool verify запускается автоматически если код подписан.
 
 nsis:
   oneClick: false
@@ -49,3 +60,18 @@ nsis:
     - ru_RU
     - en_US
   language: 1049
+
+# P1.4 (2026-05-23): auto-update через electron-updater.
+# Когда сделан git tag vX.Y.Z и .github/workflows/release.yml зальёт installer
+# в GitHub Release — клиенты с предыдущей версией автоматически узнают про
+# обновление через checkForUpdatesAndNotify() в main.js.
+#
+# Provider github работает без токена для public репозиториев. Если репо
+# станет private — потребуется GH_TOKEN в env переменной.
+publish:
+  - provider: github
+    owner: nikitakhvorostov1912-beep
+    repo: analyst-workspace-design
+    # releaseType=release означает что только finalized releases видны клиентам,
+    # draft/prerelease не триггерят auto-update.
+    releaseType: release

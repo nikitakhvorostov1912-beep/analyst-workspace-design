@@ -9,6 +9,7 @@ import { ChannelSelector } from "./ChannelSelector";
 import { ModelBadge } from "./ModelBadge";
 import { AnonymizationToggle } from "./AnonymizationToggle";
 import { ThemeToggle } from "./ThemeToggle";
+import { UpdateBanner } from "./UpdateBanner";
 
 export interface HeaderProps {
   activeChannelId: string | null;
@@ -57,6 +58,8 @@ export function Header({
 
       {/* Right: anon + model + cmd-K + status icons */}
       <div className="flex items-center gap-1.5">
+        {/* P1.4: UpdateBanner появляется только в Electron когда есть обновление */}
+        <UpdateBanner />
         <AnonymizationToggle />
         <ModelBadge />
         {onOpenCmdK && (

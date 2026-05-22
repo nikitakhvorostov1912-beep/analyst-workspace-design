@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: M7
 milestone_name: "Commerce Readiness — Security + Stability + Distribution"
 status: in_progress
-last_updated: "2026-05-22T18:00:00Z"
+last_updated: "2026-05-23T18:00:00Z"
 progress:
   wave_1_critical: 9
   wave_1_done: 9
@@ -16,7 +16,17 @@ progress:
   total_tickets: 43
   done: 15
   percent: 35
-note: "Wave 1 (CRITICAL) ЗАКРЫТА 9/9 включая W1.8 Sprint 3 wire-up. End-to-end интеграционный тест подтверждает: turn → background_review → skill сохранён → следующий turn видит skill в system prompt. Найден и закрыт hidden dep-bug: aux client создавался только при compression_enabled (теперь — при learning_enabled тоже). Wave 2: 1/14 (README), Wave 3: 5/15 (UI tokens, tool labels, PRAGMA, httpx reuse, CORS, CHANGELOG)."
+  # COMMERCE-PLAN-2026-05-23 (Phase 1-4) поверх Wave 1-4. Прогресс отдельно:
+  commerce_plan:
+    phase_1_total: 4
+    phase_1_done: 3  # P1.1 verify, P1.3 scaffold, P1.4 code (P1.2 decompose pending)
+    phase_2_total: 3
+    phase_2_done: 3  # P2.1 backend-only key, P2.2 ResultSizeGate, P2.3 SQL AST
+    phase_3_total: 4
+    phase_3_done: 4  # P3.1 NVIDIA pivot + Cloud.ru, P3.2 endpoint tests, P3.3 badges, P3.4 docs
+    phase_4_total: 5
+    phase_4_done: 0  # smoke VM, quality gate, build, release, M7 close — manual
+note: "COMMERCE-PLAN-2026-05-23 Phase 1-3 в основном закрыты (10/11 тикетов). P1.2 decompose loop.py отложен до отдельной сессии — рискованный 10h рефактор. Wave 1 9/9 + 7 commerce-тикетов кодом готовы, ждут finalization: P1.3 нужен EV/OV cert (admin), P1.4 нужны GitHub Secrets (admin), P4 Phase 4 release — manual smoke на чистой VM + git tag v1.3.0."
 ---
 
 # Project State
@@ -51,10 +61,31 @@ note: "Wave 1 (CRITICAL) ЗАКРЫТА 9/9 включая W1.8 Sprint 3 wire-up
 | **Current Milestone** | M7 — Commerce Readiness (in_progress) |
 | **Branch** | `feature/v1.3.0-commerce` |
 | **Latest tag** | v1.2.2 (2026-05-19, pre-Hermes) |
-| **Pending tag** | v1.3.0 — после Wave 1-4 |
-| **Last commit** | W1.5 verify LLMClient lifecycle |
+| **Pending tag** | v1.3.0 — после Phase 4 (smoke + build + release) |
+| **Last commit** | P2.1+P2.2+P2.3+P3+P1.4 atomic commits |
 | **Mode** | Atomic commits per ticket, тесты обязательны |
-| **Last Update** | 2026-05-22 (Wave 1: 8/9 закрыты) |
+| **Last Update** | 2026-05-23 (COMMERCE-PLAN Phase 1-3: 10/11) |
+
+### Commerce Plan Phase 1-4 (2026-05-23, поверх Wave 1-4)
+
+| Тикет | Статус | Заметка |
+|---|---|---|
+| P1.1 | ✓ Done | Verification stamp: Sprint 3 уже wired |
+| P1.2 | ⏸ Pending | Decompose loop.py 1222→400 строк (10h, рискованный) |
+| P1.3 | ✓ Code ready | electron-builder.yml + GH workflow; ждёт EV/OV cert от admin |
+| P1.4 | ✓ Done | electron-updater интегрирован, UpdateBanner в Header |
+| P2.1 | ✓ Done | user_secrets таблица + AES-GCM + REST + chat.py priority |
+| P2.2 | ✓ Done | ResultSizeGate (500 row cap) + TableCard truncated banner |
+| P2.3 | ✓ Done | sql_validator.py через sqlparse + защита от bypass |
+| P3.1 | ✓ Done | NVIDIA NIM база, Cloud.ru 152-ФЗ альтернатива |
+| P3.2 | ✓ Done | resolve_default_api_key + endpoint detection tests |
+| P3.3 | ✓ Done | Compliance badges в LLMConfigForm |
+| P3.4 | ✓ Done | CHANGELOG + memory/llm-providers.md обновлены |
+| P4.1 | ⏸ Pending | Smoke на чистой Win11 VM — manual |
+| P4.2 | ⏸ Pending | Quality gate (pytest+vitest+build+playwright) |
+| P4.3 | ⏸ Pending | Build v1.3.0 final + sign + bundle |
+| P4.4 | ⏸ Pending | git tag v1.3.0 + GitHub Release |
+| P4.5 | ⏸ Pending | STATE.md M7 close + M8 open |
 
 ## Milestone M7 — Commerce Readiness (2026-05-22 в работе)
 

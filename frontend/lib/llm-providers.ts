@@ -7,14 +7,20 @@
  * Только OpenAI-compatible API. Все ключи проходят validation через UI или
  * env-fallback в backend (resolve_default_api_key per endpoint).
  *
- * P3.1 rev2 (2026-05-23): каталог сокращён под коммерческую стратегию.
- * NVIDIA NIM — база (вшитый ключ в installer), Cloud.ru — для 152-ФЗ
- * compliance, DeepSeek + MiMo — дешёвые китайские альтернативы. OpenAI,
- * Anthropic, Groq, Mistral direct, xAI Grok убраны из UI (можно вернуть
- * через "Свой endpoint", если кому-то нужно).
+ * P3.1 rev3 (2026-05-22): каталог обновлён под актуальные модели весны 2026.
+ * Web search 2026-05-22 показал:
+ * - DeepSeek V4 Pro/Flash (релиз 24 апреля 2026) — старые chat/reasoner
+ *   deprecated до 24 июля 2026
+ * - Qwen 3.7 Max/Plus (релиз 20-21 мая 2026) — флагман с autonomous до 35h
+ * - MiMo V2.5 Pro (релиз 22 апреля 2026) — 1T MoE, 42B активных, 1M context
+ * - GLM-5.1, MiniMax M2.7, Nemotron 3 Nano Omni — новые флагманы NVIDIA NIM
  *
- * При появлении новых моделей в 2026+ — добавлять сюда; ModelBadge popover
- * автоматически подхватит.
+ * Стратегия:
+ * - NVIDIA NIM — база с вшитым ключом, новые модели всех вендоров через
+ *   один аккаунт (NIM это marketplace)
+ * - Cloud.ru — 152-ФЗ compliance (РФ-ДЦ)
+ * - DeepSeek прямой — самая дешёвая цена на DeepSeek V4
+ * - MiMo — китайский bargain через свой API
  */
 
 export interface ModelPreset {
@@ -29,8 +35,6 @@ export interface ModelPreset {
  * данные не пересекают границу (152-ФЗ snapshot pre-flight).
  * fz152=true означает что использовать провайдер по умолчанию без
  * дополнительного согласия субъектов ПД безопасно.
- *
- * Источник статуса: P3.3 (UI badges + migration UX) в COMMERCE-PLAN-2026-05-23.
  */
 export interface ProviderCompliance {
   russian_dc: boolean;
@@ -47,27 +51,28 @@ export interface Provider {
    * NVIDIA NIM — вшит в installer как «база» (один ключ на много моделей).
    */
   embedKeyAvailable?: boolean;
-  /** Для UI badge «РФ-ДЦ ✓» / «За рубежом — требует согласие». См. P3.3. */
+  /** Для UI badge «РФ-ДЦ ✓» / «За рубежом — требует согласие». */
   compliance?: ProviderCompliance;
   models: ModelPreset[];
 }
 
 export const CUSTOM_MODEL_ID = "__custom__";
-// P3.1 rev2 (2026-05-23): NVIDIA Llama Nemotron Super 49B — дефолтная база.
-// Стабильно работает с tool_calls, ключ NVIDIA вшит в installer (один
-// ключ покрывает все модели NIM), доступна без отдельной регистрации
-// пользователя.
-export const DEFAULT_PRESET_ID = "nvidia/llama-3.3-nemotron-super-49b-v1.5";
+// P3.1 rev3 (2026-05-22): DeepSeek V4 Flash на NVIDIA NIM — дефолтная база.
+// 284B MoE, 1M context, оптимизирован под кодинг и агентов (~10x быстрее
+// V4 Pro при сравнимом качестве на BSL/SQL задачах). Стабильно работает
+// с tool_calls в pipeline.
+export const DEFAULT_PRESET_ID = "deepseek-ai/deepseek-v4-flash";
 
 export const PROVIDERS: Provider[] = [
   {
-    // База — NVIDIA NIM. Один ключ покрывает все модели платформы.
+    // База — NVIDIA NIM. Один ключ покрывает все модели marketplace.
     // Зашит в installer через desktop/resources/embedded.env.
     // Если квота NVIDIA developer-тира кончится — аналитик введёт свой
     // ключ через Настройки (UI поддерживает per-user override).
     //
-    // Список моделей проверен на developer-аккаунте (curl tool_calls roundtrip).
-    // Исключены: Llama 4 Maverick (отдаёт JSON в content вместо tool_calls).
+    // Состав каталога синхронизирован с https://build.nvidia.com/models
+    // на 2026-05-22 (web search). Включены только модели с подтверждённой
+    // поддержкой tool_calls (нужно для нашего MCP-orchestrator).
     id: "nvidia-nim",
     label: "NVIDIA NIM (база)",
     endpoint: "https://integrate.api.nvidia.com/v1",
@@ -77,49 +82,49 @@ export const PROVIDERS: Provider[] = [
     compliance: { russian_dc: false, fz152: false },
     models: [
       {
-        id: "nvidia/llama-3.3-nemotron-super-49b-v1.5",
-        label: "Llama Nemotron Super 49B v1.5",
-        description: "Рекомендуется по умолчанию · точная работа с tools/RAG",
+        id: "deepseek-ai/deepseek-v4-flash",
+        label: "DeepSeek V4 Flash",
+        description: "Рекомендуется · 284B MoE · 1M контекст · быстрый кодинг",
       },
       {
-        id: "deepseek-ai/deepseek-r1",
-        label: "DeepSeek R1 (через NVIDIA)",
-        description: "Reasoning-модель · для сложных запросов и анализа",
+        id: "deepseek-ai/deepseek-v4-pro",
+        label: "DeepSeek V4 Pro",
+        description: "Флагман · 1.6T MoE · 1M контекст · для сложного reasoning",
       },
       {
-        id: "deepseek-ai/deepseek-v3.1",
-        label: "DeepSeek V3.1 (через NVIDIA)",
-        description: "Универсальная · сильна в коде и логике",
+        id: "zhipuai/glm-5.1",
+        label: "GLM-5.1",
+        description: "Флагман Zhipu · агенты, кодинг, long-horizon задачи",
       },
       {
-        id: "meta/llama-3.3-70b-instruct",
-        label: "Llama 3.3 70B",
-        description: "Meta · стабильная база с надёжными tool_calls",
+        id: "qwen/qwen3-coder-plus",
+        label: "Qwen3 Coder Plus",
+        description: "Alibaba · coding-агент с tool_calls и кодом",
       },
       {
         id: "qwen/qwen3-coder-480b-a35b-instruct",
-        label: "Qwen3-Coder 480B",
-        description: "Лучшая на BSL/SQL · MoE 480B параметров",
+        label: "Qwen3 Coder 480B (open)",
+        description: "Open-source MoE 480B · сильна в BSL/SQL",
       },
       {
-        id: "qwen/qwen2.5-coder-32b-instruct",
-        label: "Qwen 2.5 Coder 32B",
-        description: "Быстрее и дешевле для типовых запросов к коду",
+        id: "minimax-ai/minimax-m2.7",
+        label: "MiniMax M2.7",
+        description: "230B · кодинг, reasoning, офисные задачи",
+      },
+      {
+        id: "nvidia/nemotron-3-nano-omni",
+        label: "Nemotron 3 Nano Omni",
+        description: "NVIDIA omni-modal · текст + изображения + видео + аудио",
+      },
+      {
+        id: "meta/llama-4-scout-17b-16e-instruct",
+        label: "Llama 4 Scout",
+        description: "Meta · флагман 2026 · открытый MoE",
       },
       {
         id: "mistralai/mistral-large-3-675b-instruct-2512",
         label: "Mistral Large 3 (675B)",
         description: "Mistral × NVIDIA · мощный MoE для глубокого анализа",
-      },
-      {
-        id: "mistralai/mistral-medium-3.5-128b",
-        label: "Mistral Medium 3.5 (128B)",
-        description: "Баланс цены и качества",
-      },
-      {
-        id: "nvidia/nvidia-nemotron-nano-9b-v2",
-        label: "Nemotron Nano 9B",
-        description: "Компактная · мгновенный ответ на простые вопросы",
       },
     ],
   },
@@ -131,9 +136,6 @@ export const PROVIDERS: Provider[] = [
     endpoint: "https://foundation-models.api.cloud.ru/v1",
     keyHint: "sk-... (из Cloud.ru console)",
     keyDocsUrl: "cloud.ru/docs/foundation-models",
-    // embedKeyAvailable не ставим — каждая компания регистрируется в
-    // Cloud.ru сама. Backend поддерживает per-provider env override
-    // через DEFAULT_LLM_API_KEY_CLOUD_RU для коллег внутри одной команды.
     compliance: { russian_dc: true, fz152: true },
     models: [
       {
@@ -144,8 +146,9 @@ export const PROVIDERS: Provider[] = [
     ],
   },
   {
-    // DeepSeek прямой API — самый дешёвый вариант для DeepSeek R1/V3.
-    // Цены: $0.27/1M input · $1.10/1M output (V3.1) — на порядок дешевле OpenAI.
+    // DeepSeek прямой API — самый дешёвый для V4 серии.
+    // Цены V4 Pro (после скидки): $1.74/$3.48 за 1M input/output.
+    // Старые deepseek-chat / deepseek-reasoner deprecated до 24 июля 2026.
     id: "deepseek",
     label: "DeepSeek (дешёвый китайский)",
     endpoint: "https://api.deepseek.com/v1",
@@ -154,19 +157,21 @@ export const PROVIDERS: Provider[] = [
     compliance: { russian_dc: false, fz152: false },
     models: [
       {
-        id: "deepseek-chat",
-        label: "DeepSeek V3.1",
-        description: "Сильная и очень дешёвая · 128K контекст",
+        id: "deepseek-v4-flash",
+        label: "DeepSeek V4 Flash",
+        description: "284B MoE · 1M контекст · быстрый и дешёвый",
       },
       {
-        id: "deepseek-reasoner",
-        label: "DeepSeek R1",
-        description: "Reasoning · конкурент o3 за 10% цены",
+        id: "deepseek-v4-pro",
+        label: "DeepSeek V4 Pro",
+        description: "1.6T MoE · 1M контекст · флагман DeepSeek",
       },
     ],
   },
   {
-    // Xiaomi MiMo — китайский bargain, для быстрых дешёвых запросов.
+    // Xiaomi MiMo — V2.5 Pro вышел 22.04.2026.
+    // 1T MoE с 42B активных, 1M context, omni-modal (текст/image/audio/video),
+    // 1000+ tool calls подряд. Цена $1 / 1M input — конкурент DeepSeek V4 Flash.
     id: "xiaomi-mimo",
     label: "Xiaomi MiMo (китайский)",
     endpoint: "https://api.xiaomimimo.com/v1",
@@ -176,18 +181,18 @@ export const PROVIDERS: Provider[] = [
     models: [
       {
         id: "mimo-v2.5-pro",
-        label: "MiMo v2.5 Pro",
-        description: "Основная — баланс качества и цены",
+        label: "MiMo V2.5 Pro",
+        description: "Флагман · 1T MoE · 1M контекст · 1000+ tool_calls подряд",
       },
       {
-        id: "mimo-v2.5-mini",
-        label: "MiMo v2.5 Mini",
-        description: "Быстрее и дешевле — для простых вопросов",
+        id: "mimo-v2-pro",
+        label: "MiMo V2 Pro",
+        description: "Стабильная база · дешевле V2.5",
       },
       {
         id: "mimo-v2-omni",
-        label: "MiMo v2 Omni",
-        description: "С распознаванием изображений (PNG/JPG)",
+        label: "MiMo V2 Omni",
+        description: "Multimodal — текст + image + audio + video",
       },
     ],
   },

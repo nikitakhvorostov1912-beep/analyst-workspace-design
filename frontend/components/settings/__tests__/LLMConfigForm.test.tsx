@@ -131,7 +131,7 @@ import type { LLMConfigResponse } from "@/lib/types";
 const makeLLMConfig = (): LLMConfigResponse => ({
   id: "default",
   endpoint: "https://integrate.api.nvidia.com/v1",
-  model: "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+  model: "deepseek-ai/deepseek-v4-flash",
   temperature: 0.3,
 });
 
@@ -150,7 +150,7 @@ describe("LLMConfigForm", () => {
     render(<LLMConfigForm initial={null} />);
 
     const select = screen.getByTestId("model-preset-select") as HTMLSelectElement;
-    expect(select.value).toBe("nvidia/llama-3.3-nemotron-super-49b-v1.5");
+    expect(select.value).toBe("deepseek-ai/deepseek-v4-flash");
     // NVIDIA keyHint содержит "nvapi-..." как substring.
     expect(screen.getByPlaceholderText(/nvapi-\.\.\./)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /сохранить/i })).toBeInTheDocument();
@@ -189,7 +189,7 @@ describe("LLMConfigForm", () => {
       expect(testLLMConfig).toHaveBeenCalledWith(
         expect.objectContaining({
           endpoint: "https://integrate.api.nvidia.com/v1",
-          model: "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+          model: "deepseek-ai/deepseek-v4-flash",
         }),
         "nvapi-test12345678",
       );
@@ -280,24 +280,26 @@ describe("LLMConfigForm", () => {
       expect(saveLLMConfig).toHaveBeenCalledWith(
         expect.objectContaining({
           endpoint: "https://integrate.api.nvidia.com/v1",
-          model: "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+          model: "deepseek-ai/deepseek-v4-flash",
         }),
       );
       expect(onSaved).toHaveBeenCalled();
     });
   });
 
-  it("смена preset на MiMo Mini сохраняет с тем же endpoint MiMo", async () => {
-    const saved = { ...makeLLMConfig(), model: "mimo-v2.5-mini" };
+  it("смена preset на MiMo V2 Pro сохраняет с тем же endpoint MiMo", async () => {
+    // P3.1 rev3: V2.5-mini удалён (его нет в портфеле Xiaomi V2.5).
+    // Каталог теперь: V2.5 Pro (флагман), V2 Pro (стабильная база), V2 Omni.
+    const saved = { ...makeLLMConfig(), model: "mimo-v2-pro" };
     vi.mocked(saveLLMConfig).mockResolvedValue(saved);
     const onSaved = vi.fn();
 
     render(<LLMConfigForm initial={null} onSaved={onSaved} />);
 
     fireEvent.change(screen.getByTestId("model-preset-select"), {
-      target: { value: "mimo-v2.5-mini" },
+      target: { value: "mimo-v2-pro" },
     });
-    // После смены на MiMo placeholder ключа должен стать "sk-..." (P3.1 rev2: NVIDIA по дефолту, MiMo требует свой sk-... ключ)
+    // После смены на MiMo placeholder ключа должен стать "sk-..."
     fireEvent.change(screen.getByPlaceholderText("sk-..."), {
       target: { value: "sk-test12345678" },
     });
@@ -310,20 +312,20 @@ describe("LLMConfigForm", () => {
       expect(saveLLMConfig).toHaveBeenCalledWith(
         expect.objectContaining({
           endpoint: "https://api.xiaomimimo.com/v1",
-          model: "mimo-v2.5-mini",
+          model: "mimo-v2-pro",
         }),
       );
       expect(onSaved).toHaveBeenCalled();
     });
   });
 
-  it("смена preset на deepseek-chat переключает endpoint на DeepSeek", async () => {
-    // P3.1 rev2 (2026-05-23): OpenAI / Anthropic убраны из дефолтного UI.
-    // Тестируем переключение на DeepSeek прямой API (дешёвый китайский).
+  it("смена preset на deepseek-v4-pro переключает endpoint на DeepSeek прямой", async () => {
+    // P3.1 rev3 (2026-05-22): DeepSeek V4 Pro/Flash через прямой API.
+    // Старые deepseek-chat/reasoner deprecated к 24 июля 2026.
     const saved = {
       ...makeLLMConfig(),
       endpoint: "https://api.deepseek.com/v1",
-      model: "deepseek-chat",
+      model: "deepseek-v4-pro",
     };
     vi.mocked(saveLLMConfig).mockResolvedValue(saved);
     const onSaved = vi.fn();
@@ -331,9 +333,8 @@ describe("LLMConfigForm", () => {
     render(<LLMConfigForm initial={null} onSaved={onSaved} />);
 
     fireEvent.change(screen.getByTestId("model-preset-select"), {
-      target: { value: "deepseek-chat" },
+      target: { value: "deepseek-v4-pro" },
     });
-    // Для DeepSeek хинт sk-...
     fireEvent.change(screen.getByPlaceholderText("sk-..."), {
       target: { value: "sk-deepseektest12345" },
     });
@@ -346,7 +347,7 @@ describe("LLMConfigForm", () => {
       expect(saveLLMConfig).toHaveBeenCalledWith(
         expect.objectContaining({
           endpoint: "https://api.deepseek.com/v1",
-          model: "deepseek-chat",
+          model: "deepseek-v4-pro",
         }),
       );
       expect(onSaved).toHaveBeenCalled();
@@ -417,7 +418,7 @@ describe("LLMConfigForm", () => {
 
     // Переключаемся на DeepSeek прямой API
     fireEvent.change(screen.getByTestId("model-preset-select"), {
-      target: { value: "deepseek-chat" },
+      target: { value: "deepseek-v4-pro" },
     });
 
     // Плашки больше нет — нужно ввести свой ключ

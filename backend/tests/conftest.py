@@ -22,6 +22,7 @@ for _provider_key in (
     "DEFAULT_LLM_API_KEY_NVIDIA",
     "DEFAULT_LLM_API_KEY_OPENAI",
     "DEFAULT_LLM_API_KEY_OPENROUTER",
+    "DEFAULT_LLM_API_KEY_CLOUD_RU",  # P2.1 (2026-05-23): Cloud.ru env-fallback
 ):
     os.environ.pop(_provider_key, None)
 # Также блокируем чтение backend/.env в тестах через config.py override.

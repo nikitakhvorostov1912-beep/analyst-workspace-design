@@ -10,6 +10,44 @@ M7 Commerce Readiness — переход от пилот-готового beta �
 распространяемой версии. Wave 1 закрывает CRITICAL уязвимости, Wave 2-3
 готовят к публичному релизу.
 
+### Phase 2 — Critical P0 (2026-05-23)
+
+- **P2.1 Backend-only API key (XSS защита, P0-2)** — раньше LLM API-ключи
+  жили в `localStorage` и передавались в header `X-LLM-API-Key`. XSS через
+  одно прорванное Markdown/Prism тегирование выносил ключи всех пользователей.
+  Теперь — на backend в SQLite таблице `user_secrets` с AES-256 GCM
+  шифрованием (`cryptography` lib). `app_secret` 32-байтовый ключ генерируется
+  при первом запуске backend, лежит в `<userData>/.app-secret`. Новые REST
+  endpoints `/user-secrets` (POST/DELETE/GET status). Frontend сохраняет
+  через `saveSecretToBackend(provider_id, key)`. Header `X-LLM-API-Key`
+  остаётся как backward compat для legacy клиентов, deprecated в v1.4.0.
+- **P2.2 ResultSizeGate (P0-3)** — раньше `execute_query` мог вернуть 100k+
+  строк → LLM захлёбывалась контекстом + frontend виснул. Теперь модуль
+  `result_gate.py` урезает до `MAX_ROWS_FOR_LLM=500` ДО передачи в LLM и UI.
+  TableCardPayload расширен полями `truncated: bool` + `total_available: int`.
+  UI показывает баннер «Показаны первые 500 из N, сузьте запрос (WHERE /
+  временной диапазон) или попросите LLM добавить агрегацию».
+- **P2.3 SQL AST validator (P0-4)** — defence-in-depth поверх keyword-scan.
+  Новый модуль `sql_validator.py` парсит запрос через `sqlparse` и блокирует
+  всё что НЕ `SELECT/ВЫБРАТЬ/WITH/EXPLAIN/SHOW`. Также убирает SQL-комментарии
+  ДО парсинга (`-- DELETE FROM users` → strip → второй statement BLOCKED).
+  20+ тестов на bypass attempts: encoded payload, multi-statement, inline
+  DML в CTE/subquery. Активируется через `pip install sqlparse>=0.5`,
+  graceful degrade без зависимости (keyword-scan продолжает работать).
+
+### Auto-update & Code signing (P1.3 / P1.4, 2026-05-23)
+
+- **electron-updater** интегрирован в main.js — после загрузки окна
+  проверяет GitHub Releases на новую версию, скачивает в фоне, показывает
+  UI баннер `UpdateBanner` в Header с кнопкой «Перезапустить».
+- **publish: github** добавлен в `electron-builder.yml` — `git tag vX.Y.Z`
+  триггерит `.github/workflows/release.yml`, который собирает Signed
+  installer и заливает в GitHub Releases.
+- **Code signing scaffold** — `electron-builder.yml` готов принять
+  `CSC_LINK` (base64 PFX) и `CSC_KEY_PASSWORD` из GitHub Secrets. Когда
+  EV/OV сертификат куплен — SmartScreen warning исчезает. Stamp:
+  `signingHashAlgorithms: [sha256]`.
+
 ### LLM Providers (P3.1 / P3.3, 2026-05-23)
 
 - **NVIDIA NIM (база)** теперь дефолтный провайдер — ключ вшит в installer,

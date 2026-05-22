@@ -6,6 +6,16 @@ const net = require('net');
 const path = require('path');
 const fs = require('fs');
 
+// P1.4 (2026-05-23): electron-updater для auto-update.
+// Опциональный require: если модуль не установлен (dev environment без npm i),
+// auto-update просто не работает, остальное приложение функционирует.
+let autoUpdater = null;
+try {
+  autoUpdater = require('electron-updater').autoUpdater;
+} catch (err) {
+  console.warn('[updater] electron-updater не установлен, auto-update отключён');
+}
+
 let backendProc = null;
 let frontendProc = null;
 let mainWindow = null;
@@ -162,6 +172,61 @@ app.whenReady().then(async () => {
 
   mainWindow.removeMenu();
   mainWindow.loadURL(`http://127.0.0.1:${frontendPort}`);
+
+  // P1.4 (2026-05-23): запускаем проверку обновлений через ~5 сек после
+  // окна (даём UI прогреться). Не блокируем main flow если updater отсутствует
+  // или GitHub недоступен — auto-update fallthrough.
+  if (autoUpdater && app.isPackaged) {
+    setTimeout(() => {
+      try {
+        // Логи updater'а в %APPDATA%/<productName>/logs/main.log для дебага.
+        autoUpdater.logger = console;
+        autoUpdater.autoDownload = true;
+        autoUpdater.autoInstallOnAppQuit = true;
+
+        autoUpdater.on('update-available', (info) => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('updater:available', {
+              version: info && info.version,
+              releaseDate: info && info.releaseDate,
+            });
+          }
+        });
+        autoUpdater.on('update-downloaded', (info) => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('updater:downloaded', {
+              version: info && info.version,
+            });
+          }
+        });
+        autoUpdater.on('error', (err) => {
+          console.warn('[updater] error:', err && err.message);
+        });
+
+        autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+          console.warn('[updater] check failed:', err && err.message);
+        });
+      } catch (err) {
+        console.warn('[updater] init failed:', err && err.message);
+      }
+    }, 5000);
+  }
+});
+
+// P1.4: renderer triggers quit & install через preload IPC bridge.
+// UI shows banner «Обновление готово — перезапустить», клик → этот хендлер
+// → electron-updater закрывает приложение, ставит новую версию и
+// автоматически запускает её.
+ipcMain.handle('updater:install', () => {
+  if (autoUpdater) {
+    try {
+      autoUpdater.quitAndInstall();
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: err && err.message };
+    }
+  }
+  return { ok: false, error: 'updater not available' };
 });
 
 // ------------------------------------------------------------

@@ -169,8 +169,10 @@ class Settings(BaseSettings):
         default="https://integrate.api.nvidia.com/v1",
         validation_alias="DEFAULT_LLM_ENDPOINT",
     )
+    # P3.1 rev3 (2026-05-22): DeepSeek V4 Flash через NVIDIA NIM —
+    # самая свежая coding-модель (релиз 24.04.2026), 284B MoE, 1M контекст.
     default_llm_model: str = Field(
-        default="nvidia/llama-3.3-nemotron-super-49b-v1.5",
+        default="deepseek-ai/deepseek-v4-flash",
         validation_alias="DEFAULT_LLM_MODEL",
     )
     default_llm_temperature: float = Field(

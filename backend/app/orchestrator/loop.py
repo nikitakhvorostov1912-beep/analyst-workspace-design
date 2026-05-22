@@ -1,4 +1,40 @@
-"""Главный tool-calling loop: NL → LLM → MCP → LLM → done."""
+"""Главный tool-calling loop: NL → LLM → MCP → LLM → done.
+
+КАРТА ФУНКЦИИ `run_chat_loop` (для будущей декомпозиции P1.2, отложен v1.4.0):
+
+    1. Инициализация контекста (мог бы стать `_initialize_loop_context`):
+       - settings + endpoint resolution
+       - session ensure + history load
+       - MCP pool + aux clients
+       - SkillStore / SkillUsageStore / TodoRegistry
+       - MemoryManager
+       - LLMClient lifecycle
+
+    2. System prompt сборка (`_build_system_prompt_with_context`):
+       - memory_system_block
+       - skills_block = skill_store.render_for_prompt
+       - todos_block = render_todos_for_prompt
+       - инжектится в messages[0]
+
+    3. Main while loop — iteration budget + interrupt check:
+       - LLM stream chunk-by-chunk → assistant message
+       - если tool_calls — обрабатываем последовательно (`_handle_tool_call`):
+         a. safety scan (dangerous keywords + SQL AST) → confirm_required
+         b. routing memory/clarify/todo/MCP
+         c. result_gate cap для больших results
+         d. card building + accumulated_tool_calls + sanitize for prompt
+       - если нет tool_calls → выход из loop
+
+    4. Финализация (`_finalize_turn`):
+       - save_assistant_message + accumulated_cards
+       - persist card_states для load-more
+       - generate_title (первое сообщение)
+       - schedule_review fire-and-forget (Sprint 3 Hermes)
+       - cleanup: mcp.aclose, aux_compressor_client.aclose, INTERRUPTS.clear
+
+P1.2 — извлечь 4 функции и LoopContext dataclass.
+Текущий размер: 1230+ строк. Цель: ≤400 строк в run_chat_loop.
+"""
 
 import asyncio
 import json

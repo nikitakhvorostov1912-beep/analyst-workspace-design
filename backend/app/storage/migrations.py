@@ -74,7 +74,7 @@ MIGRATIONS_V3 = [
     """,
 ]
 
-CURRENT_VERSION = 8
+CURRENT_VERSION = 9
 
 # Миграция v4: расширение card_states — добавление колонки anon_tokens JSON
 MIGRATIONS_V4 = [
@@ -173,6 +173,32 @@ MIGRATIONS_V8 = [
     """,
 ]
 
+# P2.1 (2026-05-23): backend-only API key storage.
+# Раньше LLM API ключ хранился в browser localStorage и передавался в header
+# X-LLM-API-Key для каждого /chat запроса. XSS через render Prism / Markdown
+# мог вынести ключи всех пользователей. Теперь — на сервере, AES-256 GCM,
+# в локальной SQLite + Electron user data dir.
+#
+# Шифрование: app_secret генерируется при первом запуске и сохраняется в
+# system keyring через user_secrets_crypto.py. Без app_secret БД нельзя
+# прочитать.
+#
+# Provider_id — короткий идентификатор каталога (cloud-ru-qwen3, nvidia-nim,
+# xiaomi-mimo, deepseek). UNIQUE INDEX гарантирует один ключ на провайдера.
+MIGRATIONS_V9 = [
+    """
+    CREATE TABLE IF NOT EXISTS user_secrets (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        provider_id TEXT NOT NULL,
+        api_key_encrypted BLOB NOT NULL,
+        nonce BLOB NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+    """,
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_user_secrets_provider ON user_secrets(provider_id)",
+]
+
 
 async def apply_migrations(db: aiosqlite.Connection) -> None:
     """Идемпотентно применяет миграции схемы БД."""
@@ -268,5 +294,15 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
             (8,),
+        )
+        await db.commit()
+
+    if current < 9:
+        # user_secrets для backend-only API key storage (v9, P2.1)
+        for stmt in MIGRATIONS_V9:
+            await db.execute(stmt)
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (9,),
         )
         await db.commit()

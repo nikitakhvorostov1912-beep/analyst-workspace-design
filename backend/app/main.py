@@ -23,6 +23,7 @@ from app.routes import memory as memory_router
 from app.routes import search as search_router
 from app.routes import sessions as sessions_router
 from app.routes import skills as skills_router
+from app.routes import user_secrets as user_secrets_router
 from app.storage.db import close_db, init_db
 
 logging.basicConfig(
@@ -111,6 +112,8 @@ def create_app() -> FastAPI:
     app.include_router(skills_router.router)
     app.include_router(clarify_router.router)
     app.include_router(insights_router.router)
+    # P2.1 (2026-05-23): backend-only API key store
+    app.include_router(user_secrets_router.router)
 
     return app
 
