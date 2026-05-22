@@ -113,7 +113,8 @@ logs/
 1C-Analyst-v*/
 1C-Analyst-v*.zip
 distribution-for-analyst/
-desktop/resources/
+desktop/resources/*
+!desktop/resources/.env.example
 desktop/dist/
 desktop/build-*.log
 
