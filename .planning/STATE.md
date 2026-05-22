@@ -61,10 +61,25 @@ note: "COMMERCE-PLAN-2026-05-23 Phase 1-3 в основном закрыты (10
 | **Current Milestone** | M7 — Commerce Readiness (in_progress) |
 | **Branch** | `feature/v1.3.0-commerce` |
 | **Latest tag** | v1.2.2 (2026-05-19, pre-Hermes) |
-| **Pending tag** | v1.3.0 — после Phase 4 (smoke + build + release) |
-| **Last commit** | P2.1+P2.2+P2.3+P3+P1.4 atomic commits |
+| **Pending tag** | v1.3.0 — installer уже собран (a070b21), ждёт smoke + release |
+| **Last commit** | `1c1a646` test(P3.1 rev3) + `49492ba` fix(P2.1 unignore) |
 | **Mode** | Atomic commits per ticket, тесты обязательны |
-| **Last Update** | 2026-05-23 (COMMERCE-PLAN Phase 1-3: 10/11) |
+| **Last Update** | 2026-05-23 18:30 — backend 800/807 + frontend 323/323 |
+
+### Verification status (2026-05-23 18:30)
+
+- **Backend pytest:** 800 / 807 passed. 7 failed — pre-existing flaky:
+  - `test_markdown_store_*` (3) — Windows-1251 encoding
+  - `test_migrations_v5_backfill_messages_into_fts`
+  - `test_orchestrator_loop_confirm` (2) — pre-existing
+  - `test_trajectory_handles_multimodal_content` — Windows console unicode
+- **Backend новые тесты (P2.1 / P2.2 / P2.3 / P3.2):** 109 / 109 passed
+- **Frontend vitest:** 323 / 323 passed (43 файла)
+- **Установщик v1.3.0** уже собран в коммите `a070b21` (W4.1), оптимизирован
+  до 187 МБ в `6000fd6` (W4.2 clean-venv). **Проверено бинарным grep:**
+  `backend.exe` содержит `user_secrets` ✓ + `cryptography` ✓ + `sqlparse` ✓
+  — модули запакованы по фактическому диску, .gitignore при сборке не
+  играл роли. Ре-build НЕ нужен. Installer готов к смоку.
 
 ### Commerce Plan Phase 1-4 (2026-05-23, поверх Wave 1-4)
 
