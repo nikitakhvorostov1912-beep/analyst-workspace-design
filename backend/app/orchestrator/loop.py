@@ -93,6 +93,7 @@ from app.orchestrator.persistence import (
 )
 from app.orchestrator.safety import (
     CONFIRMATION_TIMEOUT_S,
+    is_dangerous_tool,
     register_pending_confirmation,
     scan_for_dangerous,
     wait_for_confirmation,
@@ -819,8 +820,11 @@ async def run_chat_loop(
                     id=tool_id, name=tool_name, args=tool_args
                 ))
 
-                # SEC-01: проверяем dangerous keywords для execute_code
-                if tool_name == "execute_code":
+                # SEC-01 / W1.2: проверяем dangerous keywords для опасных инструментов.
+                # Раньше — только execute_code. С 2026-05-22 распространено на
+                # execute_query (защита от SQL-DML инъекций через MCP Toolkit).
+                # См. is_dangerous_tool() / _DANGEROUS_TOOL_NAMES в safety.py.
+                if is_dangerous_tool(tool_name):
                     danger_reason = scan_for_dangerous(tool_args)
                     if danger_reason:
                         register_pending_confirmation(tool_id)

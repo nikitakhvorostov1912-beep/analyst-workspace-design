@@ -5,6 +5,7 @@ import asyncio
 import pytest
 
 from app.orchestrator.safety import (
+    is_dangerous_tool,
     register_pending_confirmation,
     resolve_pending_confirmation,
     scan_for_dangerous,
@@ -69,6 +70,81 @@ def test_scan_for_dangerous_word_boundary():
 
 def test_scan_for_dangerous_trucate():
     result = scan_for_dangerous({"code": "TRUNCATE users"})
+    assert result is not None
+
+
+# ===== W1.2: is_dangerous_tool + SQL DML расширение =====
+
+
+def test_is_dangerous_tool_execute_code():
+    """execute_code исторически опасен (W0) — должен сохранить статус."""
+    assert is_dangerous_tool("execute_code") is True
+
+
+def test_is_dangerous_tool_execute_query():
+    """W1.2: execute_query тоже опасен — DML может попасть через MCP Toolkit raw SQL."""
+    assert is_dangerous_tool("execute_query") is True
+
+
+def test_is_dangerous_tool_safe_tools():
+    """Read-only инструменты не должны блокироваться."""
+    assert is_dangerous_tool("get_metadata") is False
+    assert is_dangerous_tool("get_event_log") is False
+    assert is_dangerous_tool("get_object_by_link") is False
+    assert is_dangerous_tool("find_references_to_object") is False
+
+
+def test_scan_finds_sql_insert():
+    """W1.2: SQL DML — INSERT блокируется."""
+    result = scan_for_dangerous({"query": "INSERT INTO users VALUES (1, 'evil')"})
+    assert result is not None
+    assert "Insert" in result or "insert" in result.lower()
+
+
+def test_scan_finds_sql_update_set():
+    """W1.2: SQL UPDATE ... SET блокируется (но НЕ BSL `Установить()` сам по себе)."""
+    result = scan_for_dangerous({"query": "UPDATE users SET role='admin' WHERE id=1"})
+    assert result is not None
+
+
+def test_scan_finds_sql_alter():
+    """W1.2: DDL — ALTER блокируется."""
+    result = scan_for_dangerous({"query": "ALTER TABLE accounts ADD column hacked text"})
+    assert result is not None
+    assert "Alter" in result or "alter" in result.lower()
+
+
+def test_scan_finds_sql_grant():
+    """W1.2: Grant/Revoke (изменение прав в DB) блокируются."""
+    assert scan_for_dangerous({"query": "GRANT ALL ON users TO public"}) is not None
+    assert scan_for_dangerous({"query": "REVOKE SELECT ON sensitive FROM analyst"}) is not None
+
+
+def test_scan_finds_sql_exec_xp():
+    """W1.2: EXEC / sp_executesql (T-SQL вектор RCE) блокируются."""
+    assert scan_for_dangerous({"query": "EXEC sp_addsrvrolemember 'attacker'"}) is not None
+    assert scan_for_dangerous({"query": "sp_executesql N'DROP TABLE x'"}) is not None
+
+
+def test_scan_allows_normal_query_1c():
+    """W1.2: нормальный 1С-запрос (SELECT/UNION/ИЗ) не должен блокироваться."""
+    result = scan_for_dangerous({
+        "query": "ВЫБРАТЬ ПЕРВЫЕ 100 Ссылка ИЗ Документ.РеализацияТоваровУслуг ГДЕ Дата >= &Период"
+    })
+    assert result is None
+
+
+def test_scan_allows_normal_query_select():
+    """W1.2: чистый SELECT без DML — пропуск."""
+    result = scan_for_dangerous({"query": "SELECT id, name FROM users WHERE active=1 LIMIT 100"})
+    assert result is None
+
+
+def test_scan_sql_injection_via_query():
+    """W1.2: типичная SQL-inject полезная нагрузка — должна блокироваться."""
+    result = scan_for_dangerous({
+        "query": "SELECT * FROM users WHERE id=1; DROP TABLE users; --"
+    })
     assert result is not None
 
 

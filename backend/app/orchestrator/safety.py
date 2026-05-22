@@ -1,24 +1,56 @@
-"""Модуль безопасности: dangerous keywords + pending confirmation store (SEC-01)."""
+"""Модуль безопасности: dangerous keywords + pending confirmation store (SEC-01).
+
+W1.2 (2026-05-22): расширено покрытие на execute_query. Раньше сканировался
+только execute_code (BSL). Теперь оба MCP-инструмента проверяются на keywords,
+причём для execute_query добавлены SQL-DML слова (Insert/Update/Alter/Grant)
+— на случай если MCP Toolkit прокидывает запрос напрямую в DBMS минуя слой
+запросов 1С (read-only). Это закрывает CRITICAL-вектор «LLM вызывает
+execute_query с DML».
+"""
 
 import asyncio
 import os
 import re
 from typing import Any
 
+# Инструменты, args которых должны сканироваться на dangerous keywords.
+# Расширяется автоматически если новые MCP-сервера добавят опасные tools.
+_DANGEROUS_TOOL_NAMES: frozenset[str] = frozenset({"execute_code", "execute_query"})
+
+
 # ===== Dangerous keywords =====
 
-_DEFAULT_PATTERNS = [
+# BSL-keywords (применимы к execute_code в первую очередь, но и для execute_query
+# не помешает — комментарий в запросе может содержать BSL-вставку).
+_BSL_PATTERNS = [
     r"\bУдалить\b",
     r"\bЗаписать\(",
     r"\bНачатьТранзакцию\b",
     r"\bОчистить\b",
     r"\bУстановить\b",
+    r"\bОтменить\b",
+]
+
+# SQL DDL/DML keywords. Язык запросов 1С — read-only (SELECT/UNION/JOIN),
+# DML отсутствует. Но если LLM «придумает» SQL-инъекцию через MCP Toolkit
+# (`; DROP TABLE`, `; DELETE FROM`) — должны остановить ДО отправки в 1С.
+# Также защищает от ошибочного использования execute_query как escape hatch
+# для DBMS-уровня (некоторые MCP-серверы могут выполнить raw SQL).
+_SQL_PATTERNS = [
     r"\bDelete\b",
     r"\bDrop\b",
     r"\bTruncate\b",
-    r"\bОтменить\b",
     r"\bRemove\b",
+    r"\bInsert\b",
+    r"\bUpdate\s+\w+\s+set\b",  # «Update X set Y=...» — именно SQL UPDATE, не BSL
+    r"\bAlter\b",
+    r"\bGrant\b",
+    r"\bRevoke\b",
+    r"\bExec\b",
+    r"\bSp_executesql\b",
 ]
+
+_DEFAULT_PATTERNS = _BSL_PATTERNS + _SQL_PATTERNS
 
 
 def _build_patterns() -> list[re.Pattern]:
@@ -42,6 +74,16 @@ DANGEROUS_KEYWORDS: list[re.Pattern] = _build_patterns()
 
 # Timeout для ожидания подтверждения (конфигурируется через env)
 CONFIRMATION_TIMEOUT_S: float = float(os.environ.get("DANGEROUS_CONFIRM_TIMEOUT", "120.0"))
+
+
+def is_dangerous_tool(tool_name: str) -> bool:
+    """True если args этого MCP-инструмента нужно сканировать на dangerous keywords.
+
+    Используется в loop.py для решения "вызывать scan_for_dangerous или нет".
+    Сейчас покрывает execute_code (BSL) + execute_query (SQL-DML защита от
+    DBMS-инъекций через MCP Toolkit). Расширяется через _DANGEROUS_TOOL_NAMES.
+    """
+    return tool_name in _DANGEROUS_TOOL_NAMES
 
 
 def scan_for_dangerous(args: dict[str, Any]) -> str | None:
