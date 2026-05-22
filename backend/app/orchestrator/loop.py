@@ -468,6 +468,11 @@ async def run_chat_loop(
 
     # Sprint 3 (Hermes A8/A9/D3): skill store + usage telemetry per канал.
     # Best-effort: при отсутствии настроек или ошибке init — продолжаем без skills.
+    # P1.1 verified (2026-05-23): runtime wired через 3 точки:
+    #   - инициализация SkillStore/SkillUsageStore (этот блок)
+    #   - render_for_prompt + usage.increment ниже (build_system_prompt секция)
+    #   - schedule_review fire-and-forget после _finalize_turn
+    # См. .planning/COMMERCE-PLAN-2026-05-23.md → P1.1 verified false positive.
     skill_store: SkillStore | None = None
     skill_usage: SkillUsageStore | None = None
     if settings.memory_enabled:
