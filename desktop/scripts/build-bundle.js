@@ -26,13 +26,28 @@ fs.mkdirSync(RES, { recursive: true });
 // === 1. Backend (PyInstaller) ===
 if (!skipBackend) {
   console.log('[1/3] Building backend.exe via PyInstaller...');
-  // W4.1 (2026-05-22): 'pyinstaller' shim не всегда в PATH у child_process на
-  // Windows (особенно когда Python через .pyz launcher). Вызываем как модуль
-  // через `python -m PyInstaller` — гарантированно находит установленный
-  // в текущем интерпретаторе.
-  const pyCmd = process.platform === 'win32' ? 'python' : 'python3';
-  execSync(`${pyCmd} -m PyInstaller --clean --noconfirm build.spec`, {
-    cwd: path.join(ROOT, 'backend'),
+  // W4.1 fix (2026-05-22): используем ИЗОЛИРОВАННЫЙ build venv вместо
+  // системного Python. Иначе PyInstaller засасывает все системные пакеты
+  // (torch, langchain, pydub, transformers...) и дистрибутив вырастает с
+  // 190 МБ до 677 МБ. Venv `backend/.venv-build` создан с минимальным
+  // набором: только pyproject.toml [project.dependencies] + [build].
+  // Если venv нет — создаём на лету (idempotent).
+  const backendDir = path.join(ROOT, 'backend');
+  const venvDir = path.join(backendDir, '.venv-build');
+  const venvPy = process.platform === 'win32'
+    ? path.join(venvDir, 'Scripts', 'python.exe')
+    : path.join(venvDir, 'bin', 'python');
+
+  if (!fs.existsSync(venvPy)) {
+    console.log('    Создаём чистый build venv (.venv-build)...');
+    const sysPy = process.platform === 'win32' ? 'python' : 'python3';
+    execSync(`${sysPy} -m venv .venv-build`, { cwd: backendDir, stdio: 'inherit' });
+    execSync(`"${venvPy}" -m pip install --upgrade pip -q`, { cwd: backendDir, stdio: 'inherit' });
+    execSync(`"${venvPy}" -m pip install -e ".[build]" -q`, { cwd: backendDir, stdio: 'inherit' });
+  }
+
+  execSync(`"${venvPy}" -m PyInstaller --clean --noconfirm build.spec`, {
+    cwd: backendDir,
     stdio: 'inherit',
   });
   const src = path.join(ROOT, 'backend', 'dist', 'backend.exe');
