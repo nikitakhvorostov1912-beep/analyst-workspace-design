@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
+import { ThemeToggle } from "@/components/shell/ThemeToggle";
 
 export interface GuideSection {
   /** Якорь раздела — попадает в URL hash и в id заголовка. */
@@ -105,6 +106,9 @@ export function GuideLayout({ sections, title, subtitle }: GuideLayoutProps) {
               {title}
             </h1>
           )}
+          <div className="ml-auto">
+            <ThemeToggle />
+          </div>
         </div>
       </div>
 

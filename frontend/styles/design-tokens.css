@@ -25,11 +25,14 @@
   --code-fg: #e5e5e5;
   --code-dim: #5c5c5c;
 
-  /* Foreground levels — granular */
+  /* Foreground levels — granular.
+     2026-05-21 контраст-bump: --fg-3 был #8a8a8a (54%) → слишком блёкло на
+     тёмном фоне для длительного чтения (sidebar eyebrow, meta-чипы).
+     Подняли до #b0b0b0 (69%). --fg-4 для крайне subtle — тоже подняли. */
   --fg-1: #e5e5e5; /* primary text */
-  --fg-2: #b3b3b3; /* secondary — meta info, captions */
-  --fg-3: #8a8a8a; /* muted — placeholders, subtle hints */
-  --fg-4: #5c5c5c; /* subtle — disabled, very subdued */
+  --fg-2: #cccccc; /* secondary — meta info, captions */
+  --fg-3: #b0b0b0; /* muted — placeholders, subtle hints */
+  --fg-4: #888888; /* subtle — disabled, decorative */
 
   /* Border levels — granular */
   --bd-1: #1f1f1f; /* subtle — main dividers */
@@ -77,6 +80,7 @@
   /* Backwards-compat aliases (старые токены, используются в существующем коде) */
   --bg: var(--bg-0);
   --bg-elevated: var(--bg-1);
+  --bg-hover: var(--bg-2);     /* hover-state на cards, menu items, dropdown rows */
   --fg: var(--fg-1);
   --fg-muted: var(--fg-3);
   --border: var(--bd-2);
@@ -101,11 +105,12 @@
   --bg-3: #ddd9cf; /* deepest — sand-3 */
   --bg-4: #cfcabd; /* strongest sand step — disabled inputs */
 
-  /* Foreground — Ink с opacity */
+  /* Foreground — Ink с opacity.
+     2026-05-21 контраст-bump: fg-3 / fg-4 подняли для лучшей читаемости. */
   --fg-1: #15161a; /* основной текст — ink */
-  --fg-2: rgba(21, 22, 26, 0.72); /* secondary — caption, meta */
-  --fg-3: rgba(21, 22, 26, 0.55); /* muted — placeholders, hints */
-  --fg-4: rgba(21, 22, 26, 0.4); /* subtle — disabled */
+  --fg-2: rgba(21, 22, 26, 0.78); /* secondary — caption, meta */
+  --fg-3: rgba(21, 22, 26, 0.66); /* muted — placeholders, hints */
+  --fg-4: rgba(21, 22, 26, 0.5); /* subtle — disabled */
 
   /* Borders — тонкие тёмные линии */
   --bd-1: rgba(21, 22, 26, 0.06); /* subtle — divider */

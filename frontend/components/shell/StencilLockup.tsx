@@ -1,9 +1,10 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { APP_VERSION } from "@/lib/version";
 
 interface StencilLockupProps {
-  /** Версия приложения (по умолчанию 1.2.1). null/undefined — скрыть. */
+  /** Версия приложения. null/undefined — скрыть. По умолчанию — APP_VERSION из lib/version.ts. */
   version?: string | null;
   /** Подпись под лого (PRODUCTION BUILD · STABLE). null — скрыть. */
   subtitle?: string | null;
@@ -29,7 +30,7 @@ interface StencilLockupProps {
  *   xl 48px (hero) · lg 36px (about) · md 24px (titlebar) · sm 16px (inline) · xs 12px (meta).
  */
 export function StencilLockup({
-  version = "1.2.2",
+  version = APP_VERSION,
   subtitle = "Production build · Stable",
   fontSize = 18,
   className,

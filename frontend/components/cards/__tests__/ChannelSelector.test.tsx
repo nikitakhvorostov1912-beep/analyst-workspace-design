@@ -115,6 +115,14 @@ describe("ChannelSelector", () => {
     const conns = [makeConn("1", "Транзит"), makeConn("2", "Второй стенд")];
     vi.mocked(fetchConnections).mockResolvedValue(conns);
     vi.mocked(getMCPConnections as ReturnType<typeof vi.fn>).mockReturnValue([]);
+    // Auto-ping при монтировании (2026-05-21): нужен мок pingConnection
+    // даже когда тест не проверяет ping — иначе падает на чтении .tool_count.
+    vi.mocked(pingConnection).mockResolvedValue({
+      mcp_version: "2025-03-26",
+      tool_count: 0,
+      session_id: "s",
+      duration_ms: 0,
+    });
 
     await act(async () => {
       render(<ChannelSelector activeId={null} onChange={vi.fn()} />);
@@ -178,6 +186,11 @@ describe("ChannelSelector", () => {
       render(<ChannelSelector activeId={null} onChange={vi.fn()} />);
     });
 
+    // С 2026-05-21 auto-ping при mount уже сделал 2 вызова (по одному на conn).
+    // Запоминаем counter до open, чтобы проверить дельту от dropdown.
+    const callsBeforeOpen = vi.mocked(pingConnection).mock.calls.length;
+    expect(callsBeforeOpen).toBe(2);
+
     // Кликаем на dropdown-trigger div — он вызывает onOpenChange(true)
     const triggerDiv = screen.getByTestId("dropdown-trigger");
 
@@ -185,8 +198,9 @@ describe("ChannelSelector", () => {
       fireEvent.click(triggerDiv);
     });
 
+    // Открытие dropdown триггерит ещё один pingAll → ещё 2 вызова → всего 4
     await waitFor(() => {
-      expect(pingConnection).toHaveBeenCalledTimes(2);
+      expect(pingConnection).toHaveBeenCalledTimes(callsBeforeOpen + 2);
     });
   });
 });

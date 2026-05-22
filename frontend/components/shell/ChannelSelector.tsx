@@ -62,16 +62,6 @@ function extractHostPort(endpoint: string): string {
   }
 }
 
-/** Только порт (для компактного отображения в header). */
-function extractPort(endpoint: string): string {
-  try {
-    const u = new URL(endpoint);
-    return u.port || (u.protocol === "https:" ? "443" : "80");
-  } catch {
-    return "";
-  }
-}
-
 function PingDot({ status }: { status: PingStatus }) {
   return (
     <StatusDot
@@ -95,20 +85,80 @@ export function ChannelSelector({ activeId, onChange }: Props) {
   const [open, setOpen] = useState(false);
   const pingInProgress = useRef(false);
 
-  // Загрузка при монтировании
+  // Загрузка при монтировании + автоматический ping, чтобы аналитик при открытии
+  // приложения видел зелёный/красный статус сразу. Плюс auto-retry: типичный
+  // сценарий — аналитик открыл приложение ДО запуска MCP в 1С, autoping упал.
+  // Без retry статус остаётся offline навсегда (до ручного refresh). Теперь:
+  //   - re-ping при возврате окна в фокус (typical case: переключился в 1С → запустил
+  //     MCP_Toolkit → вернулся в приложение → авто-проверка),
+  //   - re-ping каждые 15 сек если есть error-соединения (backstop).
   useEffect(() => {
-    async function load() {
+    async function pingOneConn(connId: string): Promise<boolean> {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 3000);
       try {
-        const conns = await fetchConnections();
-        syncMCPConnections(conns);
-        setConnections(conns.map((c) => ({ ...c, ping: "unknown" as PingStatus })));
+        const result = await pingConnection(connId, controller.signal);
+        clearTimeout(timer);
+        setConnections((prev) =>
+          prev.map((c) =>
+            c.id === connId ? { ...c, ping: "ok", tool_count: result.tool_count } : c,
+          ),
+        );
+        return true;
       } catch {
-        // @deprecated legacy cache fallback — если backend недоступен, используем последний known state
-        const cached = getMCPConnections();
-        setConnections(cached.map((c) => ({ ...c, ping: "unknown" as PingStatus })));
+        clearTimeout(timer);
+        setConnections((prev) =>
+          prev.map((c) => (c.id === connId ? { ...c, ping: "error" } : c)),
+        );
+        return false;
       }
     }
+
+    async function load() {
+      let initialConns: MCPConnection[];
+      try {
+        initialConns = await fetchConnections();
+        syncMCPConnections(initialConns);
+      } catch {
+        initialConns = getMCPConnections();
+      }
+      const withStatus: ConnectionWithStatus[] = initialConns.map((c) => ({
+        ...c,
+        ping: "checking" as PingStatus,
+      }));
+      setConnections(withStatus);
+      await Promise.all(withStatus.map((c) => pingOneConn(c.id)));
+    }
+
     void load();
+
+    // Re-ping при возврате окна в фокус — самый частый сценарий: аналитик
+    // переключился в 1С чтобы запустить MCP, вернулся → видит обновлённый статус.
+    function handleFocus() {
+      setConnections((prev) => {
+        for (const c of prev) {
+          if (c.ping !== "ok") void pingOneConn(c.id);
+        }
+        return prev;
+      });
+    }
+    window.addEventListener("focus", handleFocus);
+
+    // Backstop: каждые 15 сек проверяем error-соединения. Когда все ok —
+    // интервал ничего не делает, нагрузки нет.
+    const intervalId = window.setInterval(() => {
+      setConnections((prev) => {
+        for (const c of prev) {
+          if (c.ping === "error") void pingOneConn(c.id);
+        }
+        return prev;
+      });
+    }, 15_000);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.clearInterval(intervalId);
+    };
   }, []);
 
   async function pingOne(conn: ConnectionWithStatus): Promise<void> {
@@ -204,23 +254,15 @@ export function ChannelSelector({ activeId, onChange }: Props) {
             База 1С
           </span>
 
-          {/* Название канала — IBM Plex Mono 600 */}
+          {/* Название канала — IBM Plex Mono 600. Технических подробностей
+              (порт, embedded/proxy) тут нет: аналитику важно «база подключена / нет»,
+              а не как именно она настроена. Полный адрес показывается в dropdown. */}
           <span
             className="flex-1 text-left truncate text-[12.5px] font-semibold text-[var(--fg-1)]"
             style={{ fontFamily: "var(--font-plex-mono), 'IBM Plex Mono', ui-monospace, monospace" }}
           >
             {activeConn ? activeConn.name : "Выберите подключение"}
           </span>
-
-          {activeConn && <KindBadge kind={activeConn.kind} size="md" />}
-          {activeConn && (
-            <span
-              className="font-mono text-[11px] text-[var(--fg-3)] flex-none tabular-nums"
-              data-testid="channel-selector-port"
-            >
-              :{extractPort(activeConn.endpoint)}
-            </span>
-          )}
 
           <PingDot status={activeConn?.ping ?? "unknown"} />
           <ChevronDown className="h-3.5 w-3.5 text-[var(--fg-3)] flex-none" />

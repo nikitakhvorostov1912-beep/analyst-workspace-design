@@ -89,7 +89,9 @@ export function StencilChip({
 
 const TONE_CLASSES: Record<ChipTone, string> = {
   muted:
-    "bg-[var(--bg-2)] border-[var(--bd-2)] text-[var(--fg-3)]",
+    // Подняли с fg-3 → fg-2 для лучшего контраста (2026-05-21).
+    // muted чипы рядом с другими чипами в шапке должны легко читаться.
+    "bg-[var(--bg-2)] border-[var(--bd-2)] text-[var(--fg-2)]",
   signal:
     "bg-[var(--accent-12)] border-[var(--accent-32)] text-[var(--accent)]",
   success:
