@@ -125,7 +125,7 @@ curl -X POST http://localhost:8010/chat \
 ```bash
 curl -X POST http://localhost:8010/connections \
   -H 'Content-Type: application/json' \
-  -d '{"name": "Транзит Local", "endpoint": "http://localhost:6010/mcp"}'
+  -d '{"name": "Моя база Local", "endpoint": "http://localhost:6010/mcp"}'
 ```
 
 **Load-more LogCard:**

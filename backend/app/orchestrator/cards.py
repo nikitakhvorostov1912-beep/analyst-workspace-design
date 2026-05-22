@@ -90,9 +90,9 @@ class ReferenceItem(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     object_type: str                 # "Документ", "Справочник", "Регистр сведений"
-    name: str                        # "ОПП"
-    navigation_link: str | None = None  # "e1cib/data/Документ.ОПП"
-    full_path: str                   # "Документ.ОПП.Реквизит.НомерТД"
+    name: str                        # "РеализацияТоваровУслуг"
+    navigation_link: str | None = None  # "e1cib/data/Документ.РеализацияТоваровУслуг"
+    full_path: str                   # "Документ.РеализацияТоваровУслуг.Реквизит.Номер"
 
 
 class ReferenceGroup(BaseModel):
@@ -416,7 +416,7 @@ def _build_references_card(args: dict, result: dict) -> dict | None:
             # object_type: либо явно задан, либо первая часть full_path до точки
             object_type = str(ref.get("object_type", ""))
             if not object_type and "." in full_path:
-                # "Документ.ОПП.Реквизит.НомерТД" → "Документ"
+                # "Документ.РеализацияТоваровУслуг.Реквизит.Номер" → "Документ"
                 object_type = full_path.split(".")[0]
             if not object_type:
                 object_type = "Объект"

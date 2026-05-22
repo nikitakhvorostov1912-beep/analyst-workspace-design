@@ -150,3 +150,4 @@ temp/
 
 # Electron resources .env — содержит зашитый ключ MiMo, в git не пушим
 desktop/resources/.env
+*.gz

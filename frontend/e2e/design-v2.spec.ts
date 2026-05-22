@@ -158,7 +158,7 @@ test.describe("Design v2 — Onboarding 4-step (Phase 11.3)", () => {
     // Шаг 1: MCP
     await expect(page.getByText("Подключите вашу базу 1С")).toBeVisible({ timeout: 15000 });
 
-    await page.getByPlaceholder("Транзит").fill("Local 1C");
+    await page.getByPlaceholder("Моя база").fill("Local 1C");
     await page.getByPlaceholder("http://localhost:6010/mcp").fill("http://localhost:6010/mcp");
     await page.getByRole("button", { name: "Сохранить" }).click();
     await expect(page.getByText("База 1С отвечает")).toBeVisible({ timeout: 10000 });
@@ -205,7 +205,7 @@ test.describe("Design v2 — Onboarding 4-step (Phase 11.3)", () => {
 
     // Прохождение шагов 1+2
     await expect(page.getByText("Подключите вашу базу 1С")).toBeVisible({ timeout: 15000 });
-    await page.getByPlaceholder("Транзит").fill("Test");
+    await page.getByPlaceholder("Моя база").fill("Test");
     await page.getByPlaceholder("http://localhost:6010/mcp").fill("http://localhost:6010/mcp");
     await page.getByRole("button", { name: "Сохранить" }).click();
     await expect(page.getByText("База 1С отвечает")).toBeVisible({ timeout: 10000 });

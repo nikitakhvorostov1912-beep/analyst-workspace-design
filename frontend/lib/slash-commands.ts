@@ -64,7 +64,7 @@ export type ExpandResult =
  * "/clear ..." → { isClientAction: "clear" }
  * "/journal Период=Час" → { prompt: "Покажи журнал регистрации с фильтрами: Период=Час" }
  * "/find Контрагент" → { prompt: "Найди где используется Контрагент" }
- * "/audit Документ.ОПП" → { prompt: "Проведи полный аудит Документ.ОПП: ..." }
+ * "/audit Документ.РеализацияТоваровУслуг" → { prompt: "Проведи полный аудит Документ.РеализацияТоваровУслуг: ..." }
  * Возвращает null если префикс не является slash-командой.
  */
 export function expandSlashCommand(input: string): ExpandResult {

@@ -8,7 +8,7 @@
     API-ключ НЕ хранится в backend (sessionStorage в браузере — security
     trade-off из v1.0, см. memory/llm-providers.md). Пользователь вводит
     его сам через /settings.
-  • mcp_connections — одна запись «Транзит» / http://localhost:6010/mcp,
+  • mcp_connections — одна запись «Моя база 1С» / http://localhost:6010/mcp,
     kind=embedded. Если у аналитика свой MCP — отредактирует.
 
 Идемпотентность: повторный вызов не плодит записи и не перезаписывает

@@ -56,7 +56,7 @@ test.describe("Settings CRUD", () => {
     await page.getByRole("button", { name: "+ Добавить подключение" }).click();
 
     // Заполняем форму нового подключения через placeholder
-    await page.getByPlaceholder("Транзит").fill("New Connection");
+    await page.getByPlaceholder("Моя база").fill("New Connection");
     await page.getByPlaceholder("http://localhost:6010/mcp").fill("http://localhost:6003/mcp");
 
     // Сохраняем — форма добавления MCP находится в MCP-секции (выше LLM), берём first()

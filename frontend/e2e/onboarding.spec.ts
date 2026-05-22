@@ -31,7 +31,7 @@ test.describe("First-run onboarding", () => {
     await expect(page.getByText("Подключите вашу базу 1С")).toBeVisible({ timeout: 10000 });
 
     // Заполняем MCPConnectionForm через placeholders (labels не имеют htmlFor)
-    await page.getByPlaceholder("Транзит").fill("Local 1C");
+    await page.getByPlaceholder("Моя база").fill("Local 1C");
     await page.getByPlaceholder("http://localhost:6010/mcp").fill("http://localhost:6010/mcp");
 
     // Сохраняем подключение
@@ -191,7 +191,7 @@ test.describe("First-run onboarding", () => {
     await page.waitForLoadState("networkidle");
 
     // Проходим шаг 1
-    await page.getByPlaceholder("Транзит").fill("Test Connection");
+    await page.getByPlaceholder("Моя база").fill("Test Connection");
     await page.getByPlaceholder("http://localhost:6010/mcp").fill("http://localhost:6010/mcp");
     await page.getByRole("button", { name: "Сохранить" }).click();
     await expect(page.getByText("База 1С отвечает")).toBeVisible({ timeout: 10000 });
@@ -217,7 +217,7 @@ test.describe("First-run onboarding", () => {
     await page.waitForLoadState("networkidle");
 
     // Шаг 1 → переходим на шаг 2
-    await page.getByPlaceholder("Транзит").fill("Test");
+    await page.getByPlaceholder("Моя база").fill("Test");
     await page.getByPlaceholder("http://localhost:6010/mcp").fill("http://localhost:6010/mcp");
     await page.getByRole("button", { name: "Сохранить" }).click();
     await expect(page.getByText("База 1С отвечает")).toBeVisible({ timeout: 10000 });

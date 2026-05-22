@@ -104,7 +104,7 @@ export function MCPConnectionForm({
     [initial],
   );
 
-  const [name, setName] = useState(initial?.name ?? "Транзит");
+  const [name, setName] = useState(initial?.name ?? "Моя база");
   const [kind, setKind] = useState<MCPKind>(parsed.kind);
   const [port, setPort] = useState(parsed.port);
   const [channel, setChannel] = useState(parsed.channel);
@@ -226,7 +226,7 @@ export function MCPConnectionForm({
         <Input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Транзит"
+          placeholder="Моя база"
           maxLength={50}
         />
         {errors.name && (

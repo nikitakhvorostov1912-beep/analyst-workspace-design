@@ -19,7 +19,7 @@ import type { MCPConnection } from "@/lib/types";
 
 const makeConn = (id = "c1"): MCPConnection => ({
   id,
-  name: "Транзит",
+  name: "Моя база",
   endpoint: "http://localhost:6010/mcp",
   channel: null,
   anon_enabled: false,
@@ -49,7 +49,7 @@ describe("MCPConnectionForm", () => {
     render(<MCPConnectionForm onSaved={vi.fn()} />);
 
     // Поле имени и порт — видимые верхнего уровня
-    expect(screen.getByPlaceholderText("Транзит")).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Моя база")).toBeInTheDocument();
     const portInput = screen.getByTestId("port-input") as HTMLInputElement;
     expect(portInput.value).toBe("6010");
 
@@ -91,7 +91,7 @@ describe("MCPConnectionForm", () => {
 
     render(<MCPConnectionForm onSaved={onSaved} />);
 
-    fireEvent.change(screen.getByPlaceholderText("Транзит"), {
+    fireEvent.change(screen.getByPlaceholderText("Моя база"), {
       target: { value: "Тест" },
     });
     fireEvent.change(screen.getByTestId("port-input"), {
@@ -121,7 +121,7 @@ describe("MCPConnectionForm", () => {
 
     render(<MCPConnectionForm onSaved={onSaved} />);
 
-    fireEvent.change(screen.getByPlaceholderText("Транзит"), {
+    fireEvent.change(screen.getByPlaceholderText("Моя база"), {
       target: { value: "Прод сервер" },
     });
     openAdvanced();
@@ -184,8 +184,8 @@ describe("MCPConnectionForm", () => {
 
     render(<MCPConnectionForm initial={conn} onSaved={onSaved} />);
 
-    const nameInput = screen.getByPlaceholderText("Транзит") as HTMLInputElement;
-    expect(nameInput.value).toBe("Транзит");
+    const nameInput = screen.getByPlaceholderText("Моя база") as HTMLInputElement;
+    expect(nameInput.value).toBe("Моя база");
 
     fireEvent.change(nameInput, { target: { value: "Изменённое" } });
 

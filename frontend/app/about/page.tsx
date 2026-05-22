@@ -56,7 +56,7 @@ export default function AboutPage() {
         <section className="space-y-3">
           <h2 className="text-xl font-semibold">Как это работает</h2>
           <ol className="space-y-3 text-[var(--fg-muted)] leading-relaxed pl-5 list-decimal">
-            <li>Вы пишете на русском: «Покажи документы ОПП за вчера»</li>
+            <li>Вы пишете на русском: «Покажи документы реализации за вчера»</li>
             <li>
               Приложение передаёт вопрос модели ИИ — она понимает, какие данные из 1С нужны.
             </li>

@@ -51,7 +51,7 @@ function mapPingToStatus(ping: PingStatus): ConnectionStatus {
  *   битый URL → пустая строка
  *
  * Аналитик должен всегда видеть к какой базе он подключён —
- * особенно когда баз несколько (Транзит :6010 vs КА Демо :6010 на разных хостах).
+ * особенно когда баз несколько на одном порту :6010 но на разных хостах.
  */
 function extractHostPort(endpoint: string): string {
   try {
