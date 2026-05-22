@@ -246,7 +246,7 @@ export function TableCard({ payload, onDeanonymize }: TableCardProps) {
       {tokensInPayload.length > 0 && (
         <div className="px-3 py-2 border-t border-[var(--border)] flex items-center gap-2">
           {revealedMap !== null ? (
-            <span className="text-xs text-emerald-400 flex items-center gap-1">
+            <span className="text-xs text-[var(--success)] flex items-center gap-1">
               <Eye className="h-3 w-3" />
               Реальные значения
             </span>
@@ -254,7 +254,7 @@ export function TableCard({ payload, onDeanonymize }: TableCardProps) {
             <Button
               size="sm"
               variant="ghost"
-              className="text-xs h-7 gap-1 text-amber-400 hover:text-amber-300"
+              className="text-xs h-7 gap-1 text-[var(--warning)] hover:opacity-80"
               disabled={!onDeanonymize || revealing}
               onClick={() => { void handleReveal(); }}
             >

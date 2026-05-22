@@ -91,7 +91,7 @@ export function MentionPopover({ open, query, channelId, onSelect, anchor: _anch
       <div className="flex items-center justify-between px-3 py-1 border-b border-[var(--border)] bg-[var(--bg)]">
         <span className="text-xs text-[var(--fg-muted)]">Объекты 1С</span>
         {stale && (
-          <span className="text-xs text-amber-400 border border-amber-700 rounded px-1">
+          <span className="text-xs text-[var(--warning)] border border-[var(--warning-40)] rounded px-1">
             устаревший кеш
           </span>
         )}

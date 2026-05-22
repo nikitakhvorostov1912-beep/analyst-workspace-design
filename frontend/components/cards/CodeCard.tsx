@@ -115,7 +115,7 @@ export function CodeCard({ payload }: CodeCardProps) {
           title="Скопировать код"
         >
           {copied ? (
-            <Check className="h-3 w-3 text-emerald-400" />
+            <Check className="h-3 w-3 text-[var(--success)]" />
           ) : (
             <Copy className="h-3 w-3" />
           )}

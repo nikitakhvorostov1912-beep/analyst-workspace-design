@@ -64,7 +64,7 @@ export function MetricCard({ payload, onDeanonymize }: MetricCardProps) {
         {/* Delta */}
         {hasDelta && (
           <div
-            className={`flex flex-col items-end gap-0.5 ${deltaUp ? "text-emerald-400" : deltaDown ? "text-rose-400" : "text-[var(--fg-muted)]"}`}
+            className={`flex flex-col items-end gap-0.5 ${deltaUp ? "text-[var(--success)]" : deltaDown ? "text-[var(--error)]" : "text-[var(--fg-muted)]"}`}
           >
             {deltaUp ? (
               <ArrowUp className="h-4 w-4" />
@@ -94,7 +94,7 @@ export function MetricCard({ payload, onDeanonymize }: MetricCardProps) {
           <Button
             size="sm"
             variant="ghost"
-            className="text-xs h-7 gap-1 text-amber-400 hover:text-amber-300"
+            className="text-xs h-7 gap-1 text-[var(--warning)] hover:opacity-80"
             disabled={revealing}
             onClick={() => { void handleReveal(); }}
           >
