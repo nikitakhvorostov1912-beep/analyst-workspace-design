@@ -41,9 +41,13 @@ describe("StreamingStages", () => {
     expect(stages[3]).toHaveAttribute("data-stage-state", "future");
   });
 
-  it("renders tool name in monospace for tool stage", () => {
+  it("renders user-friendly Russian label for tool stage (W3.2)", () => {
+    // W3.2 (2026-05-22): tool name НЕ должен светиться в UI как snake_case.
+    // execute_query → «Выполняю запрос» (per CLAUDE.md «аналитик НЕ знает про MCP-tools»).
     render(<StreamingStages stages={PIPELINE} activeIndex={1} />);
-    expect(screen.getByText("execute_query")).toBeInTheDocument();
+    expect(screen.getByText("Выполняю запрос")).toBeInTheDocument();
+    // raw snake_case НЕ должно быть видно
+    expect(screen.queryByText("execute_query")).not.toBeInTheDocument();
   });
 
   it("renders tool_done with duration", () => {

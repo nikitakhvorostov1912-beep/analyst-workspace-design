@@ -55,6 +55,39 @@ const STAGE_META: Record<StageKind, StageMeta> = {
   finalizing: { Icon: PenLine, label: "Формирую ответ", tone: "accent" },
 };
 
+// W3.2 (2026-05-22): маппинг snake_case tool_name → user-friendly русские
+// фразы. Соответствует CLAUDE.md принципу «аналитик НЕ знает про
+// get_metadata / execute_query / get_event_log — это работа LLM». Раньше
+// в UI светилось `execute_query` — нарушение этого принципа.
+const TOOL_LABELS: Record<string, string> = {
+  execute_query: "Выполняю запрос",
+  execute_code: "Выполняю код 1С",
+  get_metadata: "Читаю структуру",
+  get_object_by_link: "Читаю объект",
+  get_link_of_object: "Получаю ссылку",
+  get_event_log: "Читаю журнал",
+  find_references_to_object: "Ищу ссылки",
+  get_access_rights: "Проверяю права",
+  get_bsl_syntax_help: "Справка BSL",
+  submit_for_deanonymization: "Раскрываю значения",
+  // bsl-context aux MCP (Sprint 1 Hermes)
+  search: "Ищу в справочнике",
+  info: "Получаю детали типа",
+  getMember: "Читаю метод",
+  getMembers: "Список методов",
+  getConstructors: "Конструкторы",
+  // Memory / Learning internal tools (Hermes)
+  memory_read: "Читаю память",
+  memory_write: "Запоминаю",
+  memory_list: "Список записей памяти",
+  clarify_question: "Уточняю вопрос",
+};
+
+function formatToolLabel(toolName: string | undefined): string {
+  if (!toolName) return "";
+  return TOOL_LABELS[toolName] ?? toolName;
+}
+
 const TONE_BG: Record<StageMeta["tone"], string> = {
   muted: "bg-transparent text-[var(--fg-2)]",
   accent: "bg-[var(--accent-08)] text-[var(--accent)]",
@@ -126,8 +159,8 @@ export function StreamingStages({
                 <>
                   <span>{meta.label}</span>
                   {s.tool && (
-                    <span className="font-mono text-[var(--fg-1)]">
-                      {s.tool}
+                    <span className="text-[var(--fg-1)]">
+                      {formatToolLabel(s.tool)}
                     </span>
                   )}
                   {isActive && (
