@@ -3,20 +3,20 @@ gsd_state_version: 1.0
 milestone: M7
 milestone_name: "Commerce Readiness — Security + Stability + Distribution"
 status: in_progress
-last_updated: "2026-05-22T15:00:00Z"
+last_updated: "2026-05-22T18:00:00Z"
 progress:
   wave_1_critical: 9
-  wave_1_done: 8
+  wave_1_done: 9
   wave_2_total: 14
-  wave_2_done: 0
+  wave_2_done: 1
   wave_3_total: 15
-  wave_3_done: 0
+  wave_3_done: 5
   wave_4_total: 5
   wave_4_done: 0
   total_tickets: 43
-  done: 8
-  percent: 19
-note: "Wave 1 (CRITICAL): 8/9 — secrets+execute_query scan+tool budget+rate-limit+Prism XSS+SSE abort+LLM lifecycle verified. Остался W1.8 Sprint 3 wire-up (отложен в отдельную сессию из-за объёма ~6h). Wave 2-4 — впереди."
+  done: 15
+  percent: 35
+note: "Wave 1 (CRITICAL) ЗАКРЫТА 9/9 включая W1.8 Sprint 3 wire-up. End-to-end интеграционный тест подтверждает: turn → background_review → skill сохранён → следующий turn видит skill в system prompt. Найден и закрыт hidden dep-bug: aux client создавался только при compression_enabled (теперь — при learning_enabled тоже). Wave 2: 1/14 (README), Wave 3: 5/15 (UI tokens, tool labels, PRAGMA, httpx reuse, CORS, CHANGELOG)."
 ---
 
 # Project State
@@ -35,7 +35,7 @@ note: "Wave 1 (CRITICAL): 8/9 — secrets+execute_query scan+tool budget+rate-li
 
 Прошлая запись STATE.md заявляла M6 «100% / 30/30 фич». Глубокое ревью 9 направлений (architecture/backend/frontend/security/tests/UX/perf/completeness/devops) вскрыло:
 
-- **Sprint 3 (Self-Learning) — code-only complete, НЕ wired в runtime.** `learning/*` файлы написаны, но `asyncio.create_task(background_review_fork(...))` НЕ вызывается из `loop.py`. Skills не инжектируются в system prompt. Usage telemetry закомментирована. См. `loop.py:468, 489, 524, 531`. → Тикет W1.8 в M7.
+- ~~**Sprint 3 (Self-Learning) — code-only complete, НЕ wired в runtime.**~~ → **Поправка от W1.8 (2026-05-22 вечер):** аудит-агент ошибся. Sprint 3 был wired в коде (loop.py:469-481 init skill_store, 528-542 skills_block в prompt, 532-539 usage.increment, 1184-1199 schedule_review). Но был **скрытый dep-bug**: `aux_compressor_client` создавался ТОЛЬКО при `compression_enabled=True`, и schedule_review тихо skip'ался без aux. → Зависимость развязана: aux создаётся при `compression_enabled OR learning_enabled`. End-to-end интеграционный тест подтверждает что цепочка работает: skill реально создаётся на диске после turn'а и попадает в system prompt следующего вопроса.
 - **«652 backend pytests passed»** — цифра близка к правде (681 collected / 672 passed), НО **общее coverage 26.58%, не 80%**. На критичных модулях: `loop.py` 11%, `persistence.py` 13%, `mcp_pool.py` 15%, `cards.py` 28%. → Wave 2.6 (test coverage 60% на критичных).
 - **«Chrome MCP smoke по всем экранам»** не покрывает SSE-стриминг — 3/5 Playwright spec'ов **skipped** (`setup-and-prompt`, `sessions-history`, `channel-switch`). Главный happy-path (отправить сообщение → SSE → карточка) не тестируется E2E. → Wave 2.5.
 - **«Multi-tenant через channel selector»** изоляция per-session, не per-channel. Глобальные dict'ы `INTERRUPTS`/`_pending`/`CLARIFY` в memory module-level. → Wave 2.2.
@@ -71,8 +71,8 @@ note: "Wave 1 (CRITICAL): 8/9 — secrets+execute_query scan+tool budget+rate-li
 | W1.5 | LLMClient leak verify | ✓ Done (false-positive) | n/a |
 | W1.6 | XSS Prism CodeCard (DOMPurify) | ✓ Done | +6 vitest |
 | W1.7 | AbortController useChatStream | ✓ Done | 15/15 useChatStream |
-| W1.8 | Sprint 3 Hermes wire-up | ⏸ Pending (~6h) | TBD |
-| W1.9 | STATE.md honesty gap update | ⏳ in_progress | n/a |
+| W1.8 | Sprint 3 Hermes wire-up | ✓ Done | +2 e2e pytest |
+| W1.9 | STATE.md honesty gap update | ✓ Done | n/a |
 
 ### Wave 2 — HIGH (commerce-blockers, 55h)
 
