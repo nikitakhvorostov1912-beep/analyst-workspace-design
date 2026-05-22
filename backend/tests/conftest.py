@@ -13,6 +13,20 @@ os.environ["BACKEND_ALLOWED_ORIGINS"] = "http://localhost:3010"
 # Seed-дефолты (LLM + MCP) применяются в проде при первом запуске. В тестах
 # они мешают сценариям «пустая БД → null» — отключаем через env флаг.
 os.environ["SEED_ON_STARTUP"] = "false"
+# W1.4 (2026-05-22): изоляция от dev-машинного backend/.env. На machine
+# разработчика может лежать .env с реальным DEFAULT_LLM_API_KEY (Multi-LLM
+# зашитые ключи). pydantic-settings подхватывает их в Settings() автоматом,
+# что ломает тесты с проверками «нет ключа → 400». Очищаем явно.
+for _provider_key in (
+    "DEFAULT_LLM_API_KEY",
+    "DEFAULT_LLM_API_KEY_NVIDIA",
+    "DEFAULT_LLM_API_KEY_OPENAI",
+    "DEFAULT_LLM_API_KEY_OPENROUTER",
+):
+    os.environ.pop(_provider_key, None)
+# Также блокируем чтение backend/.env в тестах через config.py override.
+# См. Settings.model_config — env_file берётся из PYDANTIC_ENV_FILE.
+os.environ["PYDANTIC_ENV_FILE"] = ""
 
 
 @pytest.fixture(autouse=True)

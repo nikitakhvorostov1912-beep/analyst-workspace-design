@@ -6,8 +6,10 @@ import logging
 from typing import Annotated
 
 import aiosqlite
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from fastapi.responses import Response, StreamingResponse
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from app.config import get_settings
 from app.models import ChatRequest, ConfirmRequest
@@ -19,10 +21,26 @@ from app.storage.db import get_db
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+# W1.4: chat rate-limit. Лимит из settings.chat_rate_limit (env CHAT_RATE_LIMIT).
+# Module-level Limiter — переиспользуется между requests. Между тестами вызывать
+# chat_limiter.reset() через monkeypatch для изоляции счётчиков.
+# RateLimitExceeded handler зарегистрирован в main.py.
+chat_limiter = Limiter(key_func=get_remote_address)
+
+
+def _resolve_chat_rate_limit() -> str:
+    """Лениво считывает лимит из Settings. Через functools для slowapi:
+    @limiter.limit(callable) — slowapi вызывает callable на каждый request.
+    Это позволяет менять лимит через env без рестарта приложения.
+    """
+    return get_settings().chat_rate_limit
+
 
 @router.post("/chat")
+@chat_limiter.limit(_resolve_chat_rate_limit)
 async def chat(
-    request: ChatRequest,
+    request: Request,  # noqa: ARG001 — нужен slowapi для key_func(remote_address)
+    body: ChatRequest,
     db: Annotated[aiosqlite.Connection, Depends(get_db)],
     x_llm_api_key: str | None = Header(default=None, alias="X-LLM-API-Key"),
     x_llm_endpoint: str | None = Header(default=None, alias="X-LLM-Endpoint"),
@@ -57,7 +75,7 @@ async def chat(
     anon_enabled = (x_anon_enabled or "").strip().lower() == "true"
 
     return StreamingResponse(
-        run_chat_loop(db, request, effective_api_key, llm_endpoint, llm_model, x_anon_enabled=anon_enabled),
+        run_chat_loop(db, body, effective_api_key, llm_endpoint, llm_model, x_anon_enabled=anon_enabled),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

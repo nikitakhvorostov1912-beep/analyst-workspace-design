@@ -2,8 +2,10 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from slowapi.errors import RateLimitExceeded
 
 from app.config import get_settings
 from app.log_setup import setup_file_logging
@@ -60,6 +62,26 @@ def create_app() -> FastAPI:
         version=settings.app_version,
         lifespan=lifespan,
     )
+
+    # W1.4: rate-limit на /chat (slowapi). Защита от DoS: UI-баг или
+    # злонамеренный спам не должны положить backend. Лимит per IP, дефолт
+    # 30/minute из settings.chat_rate_limit (env CHAT_RATE_LIMIT).
+    # Декоратор + Limiter живут в routes/chat.py. Здесь только handler 429.
+    from app.routes.chat import chat_limiter
+    app.state.limiter = chat_limiter
+
+    @app.exception_handler(RateLimitExceeded)
+    async def _rate_limit_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+        # Отдаём 429 в формате аналогичном fastapi-error: detail + retry hint.
+        # Frontend `parseError` уже умеет обрабатывать 429 → user-friendly toast.
+        return JSONResponse(
+            status_code=429,
+            content={
+                "detail": "Слишком много запросов. Подождите минуту и повторите.",
+                "code": "rate_limit_exceeded",
+            },
+            headers={"Retry-After": "60"},
+        )
 
     app.add_middleware(
         CORSMiddleware,

@@ -15,6 +15,7 @@ dependencies = [
     "aiosqlite>=0.20",
     "uvicorn[standard]>=0.32",
     "sse-starlette>=2.1",
+    "slowapi>=0.1.9",  # W1.4: rate-limit на /chat endpoint
 ]
 
 [project.optional-dependencies]

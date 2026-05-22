@@ -240,6 +240,11 @@ class Settings(BaseSettings):
     # Бюджет итераций tool-calling loop. Прежняя константа MAX_TOOL_ITERATIONS=100.
     iteration_budget: int = Field(default=100, validation_alias="ITERATION_BUDGET")
 
+    # W1.4 (2026-05-22): rate-limit для POST /chat (slowapi format).
+    # Дефолт "30/minute" — комфортно для нормального аналитика, отсечёт
+    # автоматический спам. Для команды можно поднять через env CHAT_RATE_LIMIT.
+    chat_rate_limit: str = Field(default="30/minute", validation_alias="CHAT_RATE_LIMIT")
+
     # W1.3 (2026-05-22): максимум MCP tool-call'ов за один user-message (turn).
     # Защита от runaway: даже если LLM прошла все 100 итераций, и в каждой
     # вызвала по 5 параллельных tools — это 500 запросов к 1С. На клиентской
@@ -250,8 +255,12 @@ class Settings(BaseSettings):
         default=50, validation_alias="MAX_TOOL_CALLS_PER_TURN"
     )
 
+    # env_file читается из .env по умолчанию. В тестах можно отключить через
+    # env-var PYDANTIC_ENV_FILE="" — иначе backend/.env с реальными API-ключами
+    # ломает тесты которые проверяют «нет ключа → 400». См. conftest.py W1.4.
+    import os as _os  # noqa: PLC0415 — нужен только здесь
     model_config = {
-        "env_file": ".env",
+        "env_file": _os.environ.get("PYDANTIC_ENV_FILE", ".env") or None,
         "env_file_encoding": "utf-8",
         "populate_by_name": True,  # позволяет использовать и поле-имя и alias
     }

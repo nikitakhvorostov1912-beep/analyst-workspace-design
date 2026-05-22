@@ -266,8 +266,28 @@ async def test_loop_duplicate_tool_call_detector(mem_db, monkeypatch):
 
 @pytest.mark.asyncio
 async def test_loop_tool_loop_limit_with_varying_args(mem_db, monkeypatch):
-    """LLM делает разные tool_call каждый раз — duplicate detector не сработает, упирается в MAX_TOOL_ITERATIONS."""
+    """LLM делает разные tool_call каждый раз — duplicate detector не сработает, упирается в MAX_TOOL_ITERATIONS.
+
+    W1.3: чтобы тест проверял ИМЕННО iteration_budget (а не tool_call_budget),
+    monkeypatch'им Settings с большим max_tool_calls_per_turn (200 > iteration_budget=100).
+    Два уровня защиты: iteration_budget — про круги LLM-вызовов;
+    max_tool_calls_per_turn — про общее число MCP-вызовов за turn.
+    """
     import app.orchestrator.loop as loop_module
+    from app.config import Settings
+
+    # Чтобы tool_call_budget не сработал раньше iteration_budget
+    def _loose_settings():
+        return Settings(
+            iteration_budget=100,
+            max_tool_calls_per_turn=200,  # выше iteration_budget — даём дойти до 100 кругов
+            compression_enabled=False,
+            learning_enabled=False,
+            memory_enabled=False,
+            seed_on_startup=False,
+        )
+
+    monkeypatch.setattr(loop_module, "get_settings", _loose_settings)
 
     counter = [0]
 
