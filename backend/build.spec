@@ -29,6 +29,18 @@ a = Analysis(
         'sse_starlette',
         'pydantic',
         'pydantic_settings',
+        # P2.1 (2026-05-23): AES-GCM шифрование user_secrets. PyInstaller
+        # иногда не находит cryptography.hazmat.* через dynamic imports —
+        # явно перечисляем чтобы он точно зашил их в backend.exe.
+        'cryptography',
+        'cryptography.hazmat.primitives.ciphers.aead',
+        'cryptography.hazmat.backends.openssl',
+        # P2.3: sqlparse для SQL AST validator
+        'sqlparse',
+        # W1.4: slowapi для rate-limit
+        'slowapi',
+        'slowapi.errors',
+        'slowapi.util',
     ],
     excludes=['tkinter', 'matplotlib', 'numpy', 'pandas'],
 )

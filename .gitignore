@@ -56,6 +56,14 @@ yarn.lock
 *api*key*
 !frontend/lib/api-keys.ts
 *secret*
+# P2.1 (2026-05-23): но user_secrets — это название модуля backend, НЕ сами секреты.
+# Сами зашифрованные ключи лежат в SQLite user_secrets table (БД отдельно ignored).
+# Файл .app-secret (32-байтовый AES key) генерируется в userData и тоже не в репо.
+!backend/app/security/
+!backend/app/security/user_secrets_crypto.py
+!backend/app/storage/user_secrets_store.py
+!backend/app/routes/user_secrets.py
+!backend/tests/test_user_secrets.py
 *.key
 *.pem
 .api-keys/
