@@ -102,15 +102,20 @@ class TestResolveDefaultApiKey:
 
 
 class TestDefaultEndpointAndModel:
-    """Проверка что P3.1 rev2 дефолты — NVIDIA NIM Llama Nemotron Super."""
+    """Проверка что P3.1 rev3 дефолты — NVIDIA NIM DeepSeek V4 Flash.
+
+    Endpoint остался NVIDIA, поменялась только модель (rev2 → rev3 пивот
+    моделей весны 2026 после web search 22.05.2026).
+    """
 
     def test_default_endpoint_is_nvidia_nim(self) -> None:
         s = _settings()
         assert s.default_llm_endpoint == "https://integrate.api.nvidia.com/v1"
 
-    def test_default_model_is_nemotron_super(self) -> None:
+    def test_default_model_is_deepseek_v4_flash(self) -> None:
+        """P3.1 rev3: дефолтная модель — DeepSeek V4 Flash через NVIDIA NIM."""
         s = _settings()
-        assert s.default_llm_model == "nvidia/llama-3.3-nemotron-super-49b-v1.5"
+        assert s.default_llm_model == "deepseek-ai/deepseek-v4-flash"
 
     def test_cloud_ru_field_exists(self) -> None:
         """default_llm_api_key_cloud_ru — обязательное поле Settings."""
