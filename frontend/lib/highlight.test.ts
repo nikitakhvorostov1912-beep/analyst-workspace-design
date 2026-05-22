@@ -43,4 +43,51 @@ describe("highlight", () => {
     const result = highlight("ВЫБРАТЬ * ИЗ Справочник.Контрагенты", "bsl");
     expect(result).toContain('class="token keyword"');
   });
+
+  // === W1.6: XSS-защита через двойной слой (Prism encode + DOMPurify) ===
+
+  it("W1.6: <script> в SQL — не выполняется, санируется", () => {
+    const payload = "SELECT * FROM users; <script>alert('xss')</script>";
+    const result = highlight(payload, "sql");
+    expect(result).not.toContain("<script>");
+    expect(result).not.toContain("</script>");
+  });
+
+  it("W1.6: <img onerror=...> в BSL — НЕ исполняется (Prism encode'ит < в &lt;)", () => {
+    const payload = `Сообщить("<img src=x onerror=alert(1)>");`;
+    const result = highlight(payload, "bsl");
+    // Не должно быть РЕАЛЬНОГО тега <img (только text/encoded &lt;img)
+    expect(result).not.toMatch(/<img\s/i);
+    // Encoded версия — допустима (это безопасный текст)
+    expect(result).toContain("&lt;img");
+  });
+
+  it("W1.6: </span><script> — попытка вырваться из token закрывается", () => {
+    const payload = `</span><script>alert(1)</script><span>`;
+    const result = highlight(payload, "bsl");
+    expect(result).not.toContain("<script");
+    expect(result).not.toContain("</script>");
+  });
+
+  it("W1.6: javascript: ссылки — НЕ исполняются (нет реального <a> тега)", () => {
+    const payload = `<a href="javascript:alert(1)">click</a>`;
+    const result = highlight(payload, "bsl");
+    // Не должно быть реального <a> тега
+    expect(result).not.toMatch(/<a\s/i);
+    expect(result).not.toMatch(/<a>/i);
+    // <a> в исходнике превращается в encoded &lt;a (безопасный текст)
+    expect(result).toContain("&lt;a");
+  });
+
+  it("W1.6: iframe полностью strip'ается", () => {
+    const payload = `<iframe src="evil.com"></iframe>`;
+    const result = highlight(payload, "json");
+    expect(result).not.toContain("<iframe");
+  });
+
+  it("W1.6: разрешает span с class (Prism токены)", () => {
+    const result = highlight("SELECT 1", "sql");
+    // Whitelist не должен strip'ать корректную подсветку
+    expect(result).toContain('<span class="token');
+  });
 });
