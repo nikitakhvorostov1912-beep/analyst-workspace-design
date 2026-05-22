@@ -53,6 +53,26 @@ class AuxiliaryClient:
         self.model = model or main_model
         self.main_model = main_model
         self.timeout = timeout
+        # W3.4 (2026-05-22): httpx.AsyncClient переиспользуется между .complete()
+        # вызовами вместо `async with` per-call. ContextCompressor вызывает aux
+        # на каждом переполнении контекста (5-15 раз за длинную сессию) — это
+        # 5-15 TCP handshake'ов раньше. Теперь keep-alive + connection pooling
+        # из коробки httpx даёт reuse одного соединения.
+        # Закрытие через aclose() — вручную в loop.py outer finally (W1.5 verified
+        # — там сейчас нет, см. TODO в loop.py перед outer try).
+        self._http: httpx.AsyncClient | None = None
+
+    def _get_client(self) -> httpx.AsyncClient:
+        """Ленивая инициализация. Безопасно вызывать многократно."""
+        if self._http is None or self._http.is_closed:
+            self._http = httpx.AsyncClient(timeout=self.timeout)
+        return self._http
+
+    async def aclose(self) -> None:
+        """Закрыть HTTP клиент. Идемпотентно."""
+        if self._http is not None and not self._http.is_closed:
+            await self._http.aclose()
+            self._http = None
 
     async def complete(
         self,
@@ -84,14 +104,15 @@ class AuxiliaryClient:
             "Content-Type": "application/json",
         }
 
-        async with httpx.AsyncClient(timeout=self.timeout) as client:
-            response = await client.post(
-                f"{self.base_url}/chat/completions",
-                json=payload,
-                headers=headers,
-            )
-            response.raise_for_status()
-            data = response.json()
+        # W3.4: переиспользуемый http client (keep-alive)
+        client = self._get_client()
+        response = await client.post(
+            f"{self.base_url}/chat/completions",
+            json=payload,
+            headers=headers,
+        )
+        response.raise_for_status()
+        data = response.json()
 
         choices = data.get("choices") or []
         if not choices:

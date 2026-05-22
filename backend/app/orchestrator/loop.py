@@ -1070,6 +1070,14 @@ async def run_chat_loop(
         # Sprint 2 (C9): снимаем флаг interrupt — даже если loop завершился сам.
         INTERRUPTS.clear(session_id)
         await mcp.aclose()
+        # W3.4 (2026-05-22): aux_compressor_client теперь реально stateful
+        # (переиспользуемый httpx). Закрываем в finally чтобы httpx connection
+        # pool не оставался открытым после завершения loop.
+        if aux_compressor_client is not None:
+            try:
+                await aux_compressor_client.aclose()
+            except Exception:
+                pass  # cleanup best-effort
 
     # --- Сохраняем результат в БД ---
     total_duration_ms = int((time.monotonic() - loop_start) * 1000)
