@@ -574,6 +574,12 @@ async def run_chat_loop(
     # range(MAX_TOOL_ITERATIONS). Бюджет из настроек env.
     budget = IterationBudget(total=max(1, settings.iteration_budget))
 
+    # W1.3: бюджет MCP tool-call'ов на весь turn (user-message). Защита от
+    # runaway parallel tool_calls: даже если LLM пройдёт все iterations,
+    # каждая итерация с 5 parallel tools = 500 запросов в 1С. Лимит дефолтом 50.
+    tool_calls_this_turn: int = 0
+    max_tool_calls = max(1, settings.max_tool_calls_per_turn)
+
     # Sprint 2 (Hermes C9): scope cleanup interrupt registry для этой сессии.
     INTERRUPTS.clear(session_id)
     interrupted_by_user = False
@@ -812,6 +818,23 @@ async def run_chat_loop(
             yield format_sse("status", StatusEvent(stage="calling_tool"))
 
             for tc in finalized:
+                # W1.3: per-turn tool call budget gate.
+                tool_calls_this_turn += 1
+                if tool_calls_this_turn > max_tool_calls:
+                    logger.warning(
+                        "Tool call budget exhausted: turn=%d, limit=%d",
+                        tool_calls_this_turn, max_tool_calls,
+                    )
+                    yield format_sse("error", ErrorEvent(
+                        message=(
+                            f"Слишком много обращений к 1С за один запрос "
+                            f"(>{max_tool_calls}). Переформулируйте вопрос — "
+                            f"возможно нужно сузить область или уточнить условия."
+                        ),
+                        code="tool_call_budget_exceeded",
+                    ))
+                    return
+
                 tool_id = tc["id"]
                 tool_name = tc["name"]
                 tool_args = tc["args"]

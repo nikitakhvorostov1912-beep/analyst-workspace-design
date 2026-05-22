@@ -240,6 +240,16 @@ class Settings(BaseSettings):
     # Бюджет итераций tool-calling loop. Прежняя константа MAX_TOOL_ITERATIONS=100.
     iteration_budget: int = Field(default=100, validation_alias="ITERATION_BUDGET")
 
+    # W1.3 (2026-05-22): максимум MCP tool-call'ов за один user-message (turn).
+    # Защита от runaway: даже если LLM прошла все 100 итераций, и в каждой
+    # вызвала по 5 параллельных tools — это 500 запросов к 1С. На клиентской
+    # базе это DoS + рост стоимости. Дефолт 50 покрывает разумный диапазон
+    # для глубокого исследования базы; при превышении — graceful stop с
+    # сообщением «слишком много обращений, переформулируйте».
+    max_tool_calls_per_turn: int = Field(
+        default=50, validation_alias="MAX_TOOL_CALLS_PER_TURN"
+    )
+
     model_config = {
         "env_file": ".env",
         "env_file_encoding": "utf-8",

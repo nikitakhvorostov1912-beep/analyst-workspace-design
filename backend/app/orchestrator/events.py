@@ -15,6 +15,7 @@ ErrorCode = Literal[
     "mcp_disconnected",
     "mcp_connect_error",
     "tool_loop_limit",
+    "tool_call_budget_exceeded",  # W1.3: per-turn MCP tool-call budget
     "duplicate_tool_loop",
     "unknown_channel",
     "init_error",
@@ -22,6 +23,7 @@ ErrorCode = Literal[
     "user_declined",
     "dangerous_keyword_blocked",
     "clarify_timeout",
+    "rate_limit_exceeded",  # W1.4: /chat endpoint rate-limit (zarezервировано)
 ]
 
 
