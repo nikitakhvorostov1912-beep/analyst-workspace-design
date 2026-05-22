@@ -109,6 +109,14 @@ logs/
 .planning/intel/scratch/
 .planning/research/scratch/
 
+# Electron build artifacts (распакованные дистрибутивы и установщики)
+1C-Analyst-v*/
+1C-Analyst-v*.zip
+distribution-for-analyst/
+desktop/resources/
+desktop/dist/
+desktop/build-*.log
+
 # Claude Code session state
 .claude/sessions/
 
