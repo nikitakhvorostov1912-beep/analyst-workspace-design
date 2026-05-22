@@ -76,6 +76,23 @@ export function useChatStream({
   const [pendingConfirm, setPendingConfirm] = useState<ConfirmRequiredPayload | null>(null);
   const [pendingClarify, setPendingClarify] = useState<ClarifyRequiredPayload | null>(null);
 
+  // W1.7 (2026-05-22): AbortController для отмены SSE-стрима при unmount/
+  // навигации. Раньше async generator продолжал работу после размонтирования
+  // компонента и вызывал setState на убитом инстансе — утечка памяти +
+  // spurious re-renders + потенциальный crash.
+  // mountedRef блокирует setState ПОСЛЕ unmount (вторая защита).
+  const abortRef = useRef<AbortController | null>(null);
+  const mountedRef = useRef<boolean>(true);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      // Отменяем активный стрим на размонтировании / закрытии вкладки
+      abortRef.current?.abort();
+    };
+  }, []);
+
   // Сброс state при смене сессии. Без этого Next.js не размонтирует страницу
   // [id] при навигации между /sessions/A → /sessions/B — useChatStream
   // остаётся тот же инстанс и держит messages предыдущей сессии.
@@ -84,7 +101,11 @@ export function useChatStream({
   const lastSessionIdRef = useRef<string>(sessionId);
   useEffect(() => {
     if (lastSessionIdRef.current !== sessionId) {
-      // Новая сессия — полный сброс
+      // Новая сессия — полный сброс. W1.7: отменяем активный стрим
+      // предыдущей сессии перед сбросом state, чтобы поздние SSE-события
+      // не сбивали историю новой сессии.
+      abortRef.current?.abort();
+      abortRef.current = null;
       lastSessionIdRef.current = sessionId;
       setMessages(initialMessages);
       setIsStreaming(false);
@@ -143,6 +164,12 @@ export function useChatStream({
       setStreamingStage(null);
       setCurrentToolName(null);
 
+      // W1.7: создаём fresh AbortController для этого стрима. Если предыдущий
+      // ещё активен (defensive) — отменяем его.
+      abortRef.current?.abort();
+      const ac = new AbortController();
+      abortRef.current = ac;
+
       try {
         // Получаем LLM конфиг из backend (source-of-truth, Plan 5.4 UX-04)
         // Один дополнительный round-trip при отправке — приемлемо (T-05-14 accept)
@@ -180,7 +207,7 @@ export function useChatStream({
             // пустом localStorage и должен слать запрос без X-LLM-API-Key.
             hasEnvKey: Boolean(llmConfig.has_env_api_key),
           },
-          undefined,
+          ac.signal,  // W1.7: signal от AbortController — fetch отменяется при unmount
           anonHeaders,
         );
 
@@ -305,11 +332,27 @@ export function useChatStream({
           }
         }
       } catch (err) {
+        // W1.7: AbortError при unmount/navigation — не ошибка, не показываем
+        if (err instanceof DOMException && err.name === "AbortError") {
+          return;
+        }
+        // Также игнорируем setState на размонтированном компоненте
+        if (!mountedRef.current) {
+          return;
+        }
         const msg = err instanceof Error ? err.message : "Неизвестная ошибка";
         setError(msg);
       } finally {
-        setIsStreaming(false);
-        setStreamingStage(null);
+        // W1.7: setState только если ещё mounted (после await loop'а компонент
+        // мог размонтироваться)
+        if (mountedRef.current) {
+          setIsStreaming(false);
+          setStreamingStage(null);
+        }
+        // Очищаем AbortController если это был наш текущий
+        if (abortRef.current === ac) {
+          abortRef.current = null;
+        }
       }
     },
     [isStreaming, sessionId, channelId, onBannerShow, onBannerHide],
