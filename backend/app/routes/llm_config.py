@@ -35,9 +35,14 @@ def _get_db(request: Request):
     return request.app.state.db
 
 
-def _has_env_api_key() -> bool:
-    """True если backend получит ключ из env (DEFAULT_LLM_API_KEY)."""
-    return bool(get_settings().default_llm_api_key)
+def _has_env_api_key_for(endpoint: str) -> bool:
+    """True если backend имеет зашитый env-ключ для конкретного endpoint.
+
+    Per-provider: для api.xiaomimimo.com → DEFAULT_LLM_API_KEY, для NVIDIA →
+    DEFAULT_LLM_API_KEY_NVIDIA, и т.д. UI использует флаг чтобы не требовать
+    ввод ключа когда подходящий ключ зашит в дистрибутиве.
+    """
+    return bool(get_settings().resolve_default_api_key(endpoint))
 
 
 def _row_to_response(row: tuple) -> LLMConfigResponse:
@@ -48,7 +53,7 @@ def _row_to_response(row: tuple) -> LLMConfigResponse:
         model=row[2],
         temperature=row[3],
         updated_at=row[4],
-        has_env_api_key=_has_env_api_key(),
+        has_env_api_key=_has_env_api_key_for(row[1]),
     )
 
 
@@ -177,15 +182,25 @@ async def delete_llm_config(
 async def test_llm_config(
     body: LLMConfigTestRequest,
     request: Request,
-    x_llm_api_key: Annotated[str, Header()],
+    x_llm_api_key: Annotated[str | None, Header()] = None,
 ) -> LLMConfigTestResponse:
     """Валидирует LLM endpoint+model+ключ через 1-token completion.
 
-    API ключ принимается только через header X-LLM-API-Key (T-05-04).
+    API ключ принимается через header X-LLM-API-Key (T-05-04). Если header
+    пуст — env-fallback по endpoint (per-provider: NVIDIA → DEFAULT_LLM_API_KEY_NVIDIA,
+    OpenAI → DEFAULT_LLM_API_KEY_OPENAI, прочие → DEFAULT_LLM_API_KEY).
     Таймаут T-05-03: 10 секунд.
     error_message обрезается до 200 символов (T-05-05).
     """
     started_at = time.monotonic()
+    api_key = (x_llm_api_key or "").strip() or get_settings().resolve_default_api_key(body.endpoint)
+    if not api_key:
+        return LLMConfigTestResponse(
+            ok=False,
+            error_code="invalid_key",
+            error_message="API ключ не задан (ни через header, ни через .env для этого провайдера)",
+            duration_ms=0,
+        )
 
     try:
         endpoint = body.endpoint.rstrip("/")
@@ -199,7 +214,7 @@ async def test_llm_config(
                     "temperature": 0.0,
                 },
                 headers={
-                    "Authorization": f"Bearer {x_llm_api_key}",
+                    "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
                 },
             )

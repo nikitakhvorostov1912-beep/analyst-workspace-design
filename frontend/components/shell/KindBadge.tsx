@@ -1,22 +1,25 @@
 "use client";
 
-import { cn } from "@/lib/utils";
+import { StencilChip } from "@/components/ui/StencilChip";
 import type { MCPKind } from "@/lib/types";
 
 interface KindBadgeProps {
   kind: MCPKind | undefined;
+  /** Сохранено ради backward-compat по сигнатуре (раньше было `sm`/`md`). Сейчас не используется. */
   size?: "sm" | "md";
   className?: string;
 }
 
 /**
  * Бейдж типа подключения для аналитика:
- *   embedded  → «Локально» (синий) — обработка на этом компьютере
- *   proxy     → «Прокси»   (фиолетовый) — обработка на сервере, через интернет
+ *   embedded  → «Локально» (muted) — обработка на этом компьютере
+ *   proxy     → «Прокси»   (muted, accent-tooltip) — обработка через сервер
  *
- * Без kind не рендерится (backend старой версии).
+ * Использует StencilChip — единый brand-pattern (mono uppercase, тёмные/sand
+ * темы выглядят одинаково ровно). До 2026-05-21 рендерил blue/purple chip,
+ * который ломался по контрасту в обеих темах.
  */
-export function KindBadge({ kind, size = "sm", className }: KindBadgeProps) {
+export function KindBadge({ kind, className }: KindBadgeProps) {
   if (!kind) return null;
 
   const label = kind === "embedded" ? "Локально" : "Прокси";
@@ -25,25 +28,14 @@ export function KindBadge({ kind, size = "sm", className }: KindBadgeProps) {
       ? "Встроенный сервер — обработка MCP_Toolkit работает на этом компьютере"
       : "Прокси — обработка работает на удалённом сервере, доступ через интернет";
 
-  const palette =
-    kind === "embedded"
-      ? "bg-blue-500/10 text-blue-300 border-blue-500/30"
-      : "bg-purple-500/10 text-purple-300 border-purple-500/30";
-
-  const sizeClass = size === "sm" ? "text-[10px] px-1.5 py-px" : "text-xs px-2 py-0.5";
-
   return (
-    <span
-      className={cn(
-        "inline-flex items-center rounded border font-medium leading-none whitespace-nowrap",
-        palette,
-        sizeClass,
-        className,
-      )}
+    <StencilChip
+      tone="muted"
       title={tooltip}
+      className={className}
       data-testid={`kind-badge-${kind}`}
     >
       {label}
-    </span>
+    </StencilChip>
   );
 }

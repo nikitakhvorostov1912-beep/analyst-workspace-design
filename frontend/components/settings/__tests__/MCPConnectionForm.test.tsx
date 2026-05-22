@@ -35,33 +35,44 @@ const makeProxyConn = (id = "c2"): MCPConnection => ({
   kind: "proxy",
 });
 
+/** «Тип подключения» (embedded/proxy) теперь за «Расширенные настройки». */
+function openAdvanced() {
+  fireEvent.click(screen.getByRole("button", { name: /Расширенные настройки/i }));
+}
+
 describe("MCPConnectionForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it("рендерит дефолтную форму с типом 'Встроенный' и портом 6010", () => {
+  it("рендерит дефолтную форму с портом 6010 и embedded по умолчанию", () => {
     render(<MCPConnectionForm onSaved={vi.fn()} />);
 
-    // Поле имени
+    // Поле имени и порт — видимые верхнего уровня
     expect(screen.getByPlaceholderText("Транзит")).toBeInTheDocument();
-    // Radio embedded выбран по умолчанию
-    expect(screen.getByTestId("kind-embedded")).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByTestId("kind-proxy")).toHaveAttribute("aria-checked", "false");
-    // Поле порта с дефолтом 6010
     const portInput = screen.getByTestId("port-input") as HTMLInputElement;
     expect(portInput.value).toBe("6010");
-    // Превью URL содержит порт
+
+    // Тип подключения скрыт за advanced — раскрываем чтобы проверить
+    openAdvanced();
+    expect(screen.getByTestId("kind-embedded")).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(screen.getByTestId("kind-proxy")).toHaveAttribute(
+      "aria-checked",
+      "false",
+    );
+    // Превью URL содержит порт (тоже в advanced)
     expect(screen.getByText(/http:\/\/localhost:6010\/mcp/)).toBeInTheDocument();
   });
 
   it("показывает ошибку 'Для прокси-подключения укажите канал' если канал пустой", async () => {
     render(<MCPConnectionForm onSaved={vi.fn()} />);
 
-    // Переключаемся на прокси
+    openAdvanced();
     fireEvent.click(screen.getByTestId("kind-proxy"));
 
-    // Канал пустой → submit должен дать ошибку валидации
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /сохранить/i }));
     });
@@ -113,6 +124,7 @@ describe("MCPConnectionForm", () => {
     fireEvent.change(screen.getByPlaceholderText("Транзит"), {
       target: { value: "Прод сервер" },
     });
+    openAdvanced();
     fireEvent.click(screen.getByTestId("kind-proxy"));
     fireEvent.change(screen.getByTestId("channel-input"), {
       target: { value: "tranzit-prod" },
@@ -142,15 +154,24 @@ describe("MCPConnectionForm", () => {
 
     const portInput = screen.getByTestId("port-input") as HTMLInputElement;
     expect(portInput.value).toBe("6033");
-    expect(screen.getByTestId("kind-embedded")).toHaveAttribute("aria-checked", "true");
+
+    openAdvanced();
+    expect(screen.getByTestId("kind-embedded")).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
   });
 
-  it("при редактировании proxy подключения подставляет канал и проксу", () => {
+  it("при редактировании proxy подключения автораскрывает advanced и подставляет канал", () => {
     const conn = makeProxyConn();
 
     render(<MCPConnectionForm initial={conn} onSaved={vi.fn()} />);
 
-    expect(screen.getByTestId("kind-proxy")).toHaveAttribute("aria-checked", "true");
+    // proxy → advanced раскрыт автоматически (parsed.kind === "proxy")
+    expect(screen.getByTestId("kind-proxy")).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
     const channelInput = screen.getByTestId("channel-input") as HTMLInputElement;
     expect(channelInput.value).toBe("tranzit-prod");
   });

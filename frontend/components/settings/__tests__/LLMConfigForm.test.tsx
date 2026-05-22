@@ -82,6 +82,38 @@ vi.mock("@/components/ui/slider", () => ({
   ),
 }));
 
+// Radix Select мок → нативный <select>, чтобы fireEvent.change мог сменить значение
+// без поднятия portal и keyboard nav. SelectGroup/Label/Separator выпадают, чтобы
+// option-элементы оказались плоско внутри <select> (HTML не любит вложенность).
+vi.mock("@/components/ui/select", () => ({
+  Select: ({
+    value,
+    onValueChange,
+    children,
+  }: {
+    value: string;
+    onValueChange: (v: string) => void;
+    children: React.ReactNode;
+  }) => (
+    <select
+      data-testid="model-preset-select"
+      value={value}
+      onChange={(e) => onValueChange(e.target.value)}
+    >
+      {children}
+    </select>
+  ),
+  SelectTrigger: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  SelectValue: () => null,
+  SelectContent: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  SelectGroup: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  SelectLabel: () => null,
+  SelectSeparator: () => null,
+  SelectItem: ({ value, children }: { value: string; children: React.ReactNode }) => (
+    <option value={value}>{children}</option>
+  ),
+}));
+
 import { LLMConfigForm } from "../LLMConfigForm";
 import {
   saveLLMConfig,
@@ -105,43 +137,26 @@ const makeLLMConfigWithEnvKey = (): LLMConfigResponse => ({
   has_env_api_key: true,
 });
 
-/** Раскрыть свёрнутую секцию «Расширенные настройки» — endpoint и temperature теперь там. */
-function openAdvanced() {
-  fireEvent.click(screen.getByRole("button", { name: /Расширенные настройки/i }));
-}
-
 describe("LLMConfigForm", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(getLLMApiKey).mockReturnValue(null);
   });
 
-  it("рендерит пустые поля без initial, Удалить не виден", () => {
+  it("рендерит дефолтный preset mimo-v2.5-pro и поле API ключа", () => {
     render(<LLMConfigForm initial={null} />);
 
-    // Модель и API ключ — основные видимые поля
-    expect(screen.getByPlaceholderText("mimo-v2.5-pro")).toBeInTheDocument();
+    const select = screen.getByTestId("model-preset-select") as HTMLSelectElement;
+    expect(select.value).toBe("mimo-v2.5-pro");
     expect(screen.getByPlaceholderText("sk-...")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /сохранить/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /тест/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /удалить/i })).not.toBeInTheDocument();
-
-    // Endpoint скрыт под Advanced; раскрываем — должен появиться
-    expect(screen.queryByPlaceholderText("https://api.xiaomimimo.com/v1")).not.toBeInTheDocument();
-    openAdvanced();
-    expect(screen.getByPlaceholderText("https://api.xiaomimimo.com/v1")).toBeInTheDocument();
   });
 
   it("показывает ошибку если api_key слишком короткий", async () => {
     render(<LLMConfigForm initial={null} />);
 
-    openAdvanced();
-    fireEvent.change(screen.getByPlaceholderText("https://api.xiaomimimo.com/v1"), {
-      target: { value: "https://api.xiaomimimo.com/v1" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("mimo-v2.5-pro"), {
-      target: { value: "mimo-v2.5-pro" },
-    });
     fireEvent.change(screen.getByPlaceholderText("sk-..."), {
       target: { value: "short" },
     });
@@ -158,13 +173,6 @@ describe("LLMConfigForm", () => {
 
     render(<LLMConfigForm initial={null} />);
 
-    openAdvanced();
-    fireEvent.change(screen.getByPlaceholderText("https://api.xiaomimimo.com/v1"), {
-      target: { value: "https://api.xiaomimimo.com/v1" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("mimo-v2.5-pro"), {
-      target: { value: "mimo-v2.5-pro" },
-    });
     fireEvent.change(screen.getByPlaceholderText("sk-..."), {
       target: { value: "sk-test12345678" },
     });
@@ -175,7 +183,10 @@ describe("LLMConfigForm", () => {
 
     await waitFor(() => {
       expect(testLLMConfig).toHaveBeenCalledWith(
-        expect.objectContaining({ endpoint: "https://api.xiaomimimo.com/v1", model: "mimo-v2.5-pro" }),
+        expect.objectContaining({
+          endpoint: "https://api.xiaomimimo.com/v1",
+          model: "mimo-v2.5-pro",
+        }),
         "sk-test12345678",
       );
     });
@@ -189,13 +200,6 @@ describe("LLMConfigForm", () => {
 
     render(<LLMConfigForm initial={null} />);
 
-    openAdvanced();
-    fireEvent.change(screen.getByPlaceholderText("https://api.xiaomimimo.com/v1"), {
-      target: { value: "https://api.xiaomimimo.com/v1" },
-    });
-    fireEvent.change(screen.getByPlaceholderText("mimo-v2.5-pro"), {
-      target: { value: "mimo-v2.5-pro" },
-    });
     fireEvent.change(screen.getByPlaceholderText("sk-..."), {
       target: { value: "sk-test12345678" },
     });
@@ -220,11 +224,9 @@ describe("LLMConfigForm", () => {
 
     render(<LLMConfigForm initial={config} />);
 
-    // api_key input скрыт, показывается placeholder ••••••••
     expect(screen.queryByPlaceholderText("sk-...")).not.toBeInTheDocument();
     expect(screen.getByText("••••••••")).toBeInTheDocument();
     expect(screen.getByText("Изменить ключ")).toBeInTheDocument();
-    // Кнопка Удалить видна
     expect(screen.getByRole("button", { name: /удалить/i })).toBeInTheDocument();
   });
 
@@ -236,15 +238,12 @@ describe("LLMConfigForm", () => {
 
     render(<LLMConfigForm initial={config} onSaved={onSaved} />);
 
-    // Нажать кнопку Удалить
     fireEvent.click(screen.getByRole("button", { name: /удалить/i }));
 
-    // Диалог открылся
     await waitFor(() => {
       expect(screen.getByTestId("alert-dialog")).toHaveAttribute("data-open", "true");
     });
 
-    // Подтвердить
     await act(async () => {
       fireEvent.click(screen.getByTestId("alert-confirm"));
     });
@@ -263,12 +262,34 @@ describe("LLMConfigForm", () => {
 
     render(<LLMConfigForm initial={null} onSaved={onSaved} />);
 
-    openAdvanced();
-    fireEvent.change(screen.getByPlaceholderText("https://api.xiaomimimo.com/v1"), {
-      target: { value: "https://api.xiaomimimo.com/v1" },
+    fireEvent.change(screen.getByPlaceholderText("sk-..."), {
+      target: { value: "sk-test12345678" },
     });
-    fireEvent.change(screen.getByPlaceholderText("mimo-v2.5-pro"), {
-      target: { value: "mimo-v2.5-pro" },
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /сохранить/i }));
+    });
+
+    await waitFor(() => {
+      expect(saveLLMConfig).toHaveBeenCalledWith(
+        expect.objectContaining({
+          endpoint: "https://api.xiaomimimo.com/v1",
+          model: "mimo-v2.5-pro",
+        }),
+      );
+      expect(onSaved).toHaveBeenCalled();
+    });
+  });
+
+  it("смена preset на MiMo Mini сохраняет с тем же endpoint MiMo", async () => {
+    const saved = { ...makeLLMConfig(), model: "mimo-v2.5-mini" };
+    vi.mocked(saveLLMConfig).mockResolvedValue(saved);
+    const onSaved = vi.fn();
+
+    render(<LLMConfigForm initial={null} onSaved={onSaved} />);
+
+    fireEvent.change(screen.getByTestId("model-preset-select"), {
+      target: { value: "mimo-v2.5-mini" },
     });
     fireEvent.change(screen.getByPlaceholderText("sk-..."), {
       target: { value: "sk-test12345678" },
@@ -280,10 +301,119 @@ describe("LLMConfigForm", () => {
 
     await waitFor(() => {
       expect(saveLLMConfig).toHaveBeenCalledWith(
-        expect.objectContaining({ endpoint: "https://api.xiaomimimo.com/v1" }),
+        expect.objectContaining({
+          endpoint: "https://api.xiaomimimo.com/v1",
+          model: "mimo-v2.5-mini",
+        }),
       );
       expect(onSaved).toHaveBeenCalled();
     });
+  });
+
+  it("смена preset на gpt-4o переключает endpoint на OpenAI", async () => {
+    const saved = {
+      ...makeLLMConfig(),
+      endpoint: "https://api.openai.com/v1",
+      model: "gpt-4o",
+    };
+    vi.mocked(saveLLMConfig).mockResolvedValue(saved);
+    const onSaved = vi.fn();
+
+    render(<LLMConfigForm initial={null} onSaved={onSaved} />);
+
+    fireEvent.change(screen.getByTestId("model-preset-select"), {
+      target: { value: "gpt-4o" },
+    });
+    // Для OpenAI хинт ключа другой — sk-proj-...
+    fireEvent.change(screen.getByPlaceholderText("sk-proj-..."), {
+      target: { value: "sk-proj-test12345678" },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /сохранить/i }));
+    });
+
+    await waitFor(() => {
+      expect(saveLLMConfig).toHaveBeenCalledWith(
+        expect.objectContaining({
+          endpoint: "https://api.openai.com/v1",
+          model: "gpt-4o",
+        }),
+      );
+      expect(onSaved).toHaveBeenCalled();
+    });
+  });
+
+  it("смена preset на claude-sonnet-4.5 переключает endpoint на OpenRouter", async () => {
+    const saved = {
+      ...makeLLMConfig(),
+      endpoint: "https://openrouter.ai/api/v1",
+      model: "anthropic/claude-sonnet-4.5",
+    };
+    vi.mocked(saveLLMConfig).mockResolvedValue(saved);
+    const onSaved = vi.fn();
+
+    render(<LLMConfigForm initial={null} onSaved={onSaved} />);
+
+    fireEvent.change(screen.getByTestId("model-preset-select"), {
+      target: { value: "anthropic/claude-sonnet-4.5" },
+    });
+    fireEvent.change(screen.getByPlaceholderText("sk-or-v1-..."), {
+      target: { value: "sk-or-v1-test123456" },
+    });
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: /сохранить/i }));
+    });
+
+    await waitFor(() => {
+      expect(saveLLMConfig).toHaveBeenCalledWith(
+        expect.objectContaining({
+          endpoint: "https://openrouter.ai/api/v1",
+          model: "anthropic/claude-sonnet-4.5",
+        }),
+      );
+    });
+  });
+
+  it("при выборе 'Произвольная модель' раскрывается advanced с полями custom", async () => {
+    render(<LLMConfigForm initial={null} />);
+
+    fireEvent.change(screen.getByTestId("model-preset-select"), {
+      target: { value: "__custom__" },
+    });
+
+    // Появляется поле для произвольного идентификатора модели
+    expect(
+      screen.getByPlaceholderText(/gpt-4o, claude-3-5-sonnet/),
+    ).toBeInTheDocument();
+    // И поле для адреса сервера (placeholder — openai как типичный)
+    expect(
+      screen.getByPlaceholderText("https://api.openai.com/v1"),
+    ).toBeInTheDocument();
+  });
+
+  it("при env-key + смене провайдера на OpenAI плашка ENV пропадает и появляется поле ввода ключа", () => {
+    vi.mocked(getLLMApiKey).mockReturnValue(null);
+
+    render(<LLMConfigForm initial={makeLLMConfigWithEnvKey()} onSaved={vi.fn()} />);
+
+    // Дефолт — MiMo Pro, env-плашка видна
+    expect(
+      screen.getByText(/Ключ задан в окружении сервера/i),
+    ).toBeInTheDocument();
+
+    // Переключаемся на GPT-4o
+    fireEvent.change(screen.getByTestId("model-preset-select"), {
+      target: { value: "gpt-4o" },
+    });
+
+    // Плашки больше нет — нужно ввести свой ключ
+    expect(
+      screen.queryByText(/Ключ задан в окружении сервера/i),
+    ).not.toBeInTheDocument();
+    // Появилось поле ввода с openai-хинтом
+    expect(screen.getByPlaceholderText("sk-proj-...")).toBeInTheDocument();
   });
 
   it("когда has_env_api_key=true и localStorage пуст — поле ключа не показывается, форма сохраняется без ввода ключа", async () => {
@@ -293,20 +423,17 @@ describe("LLMConfigForm", () => {
 
     render(<LLMConfigForm initial={makeLLMConfigWithEnvKey()} onSaved={onSaved} />);
 
-    // Поле ввода скрыто, видна табличка «ключ из окружения»
     expect(screen.queryByPlaceholderText(/sk-/)).not.toBeInTheDocument();
     expect(
       screen.getByText(/Ключ задан в окружении сервера/i),
     ).toBeInTheDocument();
 
-    // Сохраняем без ввода ключа — должно сработать (env-fallback)
     await act(async () => {
       fireEvent.click(screen.getByRole("button", { name: /сохранить/i }));
     });
 
     await waitFor(() => {
       expect(updateLLMConfig).toHaveBeenCalled();
-      // setLLMApiKey НЕ должен быть вызван — ключа пользователь не вводил
       expect(setLLMApiKey).not.toHaveBeenCalled();
       expect(onSaved).toHaveBeenCalled();
     });

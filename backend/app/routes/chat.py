@@ -43,14 +43,17 @@ async def chat(
         channel_id (required): идентификатор MCP-подключения.
     """
     settings = get_settings()
-    # Env-fallback: пользователь может прописать ключ один раз в backend/.env
-    # и больше не вводить его через UI. Header выигрывает только если не пустой.
-    effective_api_key = (x_llm_api_key or "").strip() or settings.default_llm_api_key
+    llm_endpoint = x_llm_endpoint or settings.default_llm_endpoint
+    llm_model = x_llm_model or settings.default_llm_model
+    # Env-fallback per-provider: пользователь / админ прописывает ключ один раз в
+    # backend/.env, ключ выбирается по endpoint (MiMo → DEFAULT_LLM_API_KEY,
+    # NVIDIA → DEFAULT_LLM_API_KEY_NVIDIA, и т.д.). Header выигрывает только
+    # если он не пустой — UI может сменить модель и backend сразу подхватит
+    # правильный зашитый ключ для нового провайдера.
+    effective_api_key = (x_llm_api_key or "").strip() or settings.resolve_default_api_key(llm_endpoint)
     if not effective_api_key:
         raise HTTPException(status_code=400, detail="missing api key")
 
-    llm_endpoint = x_llm_endpoint or settings.default_llm_endpoint
-    llm_model = x_llm_model or settings.default_llm_model
     anon_enabled = (x_anon_enabled or "").strip().lower() == "true"
 
     return StreamingResponse(

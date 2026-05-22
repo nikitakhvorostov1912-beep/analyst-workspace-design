@@ -23,6 +23,7 @@ import {
   unarchiveSkill,
 } from "@/lib/api";
 import { getActiveChannelId } from "@/lib/storage";
+import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import type { CuratorReport, SkillDTO } from "@/lib/types";
 
 /**
@@ -109,7 +110,7 @@ export default function SkillsSettingsPage() {
 
   async function handleDelete(skillId: string) {
     if (!channelId) return;
-    if (!confirm(`Удалить skill ${skillId}? Это действие необратимо.`)) return;
+    if (!confirm(`Удалить подсказку ${skillId}? Это действие необратимо.`)) return;
     try {
       await deleteSkill(channelId, skillId);
       await reload(channelId);
@@ -153,16 +154,10 @@ export default function SkillsSettingsPage() {
           <Sparkles className="h-5 w-5 text-[var(--accent)] flex-shrink-0 mt-0.5" />
           <div className="text-[13.5px] text-[var(--fg-2)] leading-[1.6]">
             <p>
-              Skills — короткие инструкции «когда X — делай Y». Агент сам сохраняет
-              их через background review (provenance{" "}
-              <code className="px-1 py-0.5 rounded bg-[var(--bg-2)] text-[12px]">
-                agent
-              </code>
-              ), вы можете добавлять вручную (
-              <code className="px-1 py-0.5 rounded bg-[var(--bg-2)] text-[12px]">
-                user
-              </code>
-              ). Curator архивирует устаревшие agent-skills.
+              Подсказки — короткие инструкции «когда X — делай Y». Ассистент
+              сам накапливает их по ходу диалогов; вы тоже можете добавлять
+              вручную. Автоочистка (она же «Чистильщик» ниже) удаляет устаревшие
+              подсказки, чтобы они не сбивали модель.
             </p>
           </div>
         </div>
@@ -177,7 +172,7 @@ export default function SkillsSettingsPage() {
       {/* Create form */}
       <section className="mb-8 p-4 rounded-md border border-[var(--bd-2)] bg-[var(--bg-1)]">
         <h2 className="text-[15px] font-semibold text-[var(--fg-1)] mb-3">
-          Добавить skill
+          Добавить подсказку
         </h2>
         <textarea
           value={newBody}
@@ -211,15 +206,18 @@ export default function SkillsSettingsPage() {
       {/* Curator block */}
       <section className="mb-8 p-4 rounded-md border border-[var(--bd-2)] bg-[var(--bg-1)]">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-[15px] font-semibold text-[var(--fg-1)]">Curator</h2>
+          <h2 className="text-[15px] font-semibold text-[var(--fg-1)]">
+            Автоочистка устаревших
+          </h2>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={() => handleRunCurator(true)}
               disabled={curatorRunning}
               className="px-3 h-8 rounded-md border border-[var(--bd-2)] bg-[var(--bg-2)] text-[12px] text-[var(--fg-2)] hover:bg-[var(--bg-3)] transition-colors disabled:opacity-50"
+              title="Показать что будет удалено, но ничего не менять"
             >
-              Dry run
+              Только посмотреть
             </button>
             <button
               type="button"
@@ -227,7 +225,7 @@ export default function SkillsSettingsPage() {
               disabled={curatorRunning}
               className="px-3 h-8 rounded-md border border-[var(--accent-32)] bg-[var(--accent-12)] text-[12px] text-[var(--accent)] hover:bg-[var(--accent-20)] transition-colors disabled:opacity-50"
             >
-              {curatorRunning ? "Запускаю..." : "Запустить"}
+              {curatorRunning ? "Чистим..." : "Очистить"}
             </button>
           </div>
         </div>
@@ -236,14 +234,14 @@ export default function SkillsSettingsPage() {
             className="text-[12.5px] text-[var(--fg-2)] leading-[1.7] font-mono"
             style={{ fontFamily: "var(--font-jb-mono), monospace" }}
           >
-            проверено: {curatorReport.inspected} · архивировано:{" "}
-            {curatorReport.archived.length} · pinned пропущено:{" "}
-            {curatorReport.skipped_pinned.length} · user пропущено:{" "}
-            {curatorReport.skipped_user.length} · свежие пропущены:{" "}
+            проверено: {curatorReport.inspected} · убрано в архив:{" "}
+            {curatorReport.archived.length} · закреплённые оставлены:{" "}
+            {curatorReport.skipped_pinned.length} · ваши оставлены:{" "}
+            {curatorReport.skipped_user.length} · свежие оставлены:{" "}
             {curatorReport.skipped_recent.length}
             {curatorReport.backup_label && (
               <div className="mt-1 text-[var(--fg-3)]">
-                backup: {curatorReport.backup_label}
+                резервная копия: {curatorReport.backup_label}
               </div>
             )}
           </div>
@@ -262,8 +260,8 @@ export default function SkillsSettingsPage() {
           </div>
         ) : active.length === 0 ? (
           <div className="p-6 rounded-md border border-[var(--bd-2)] bg-[var(--bg-1)] text-center text-[var(--fg-3)] text-[13px]">
-            Пока нет skills. Поговорите с агентом — он сам начнёт сохранять
-            полезные паттерны.
+            Пока нет подсказок. Поговорите с ассистентом — он сам начнёт
+            сохранять полезные шаблоны решений.
           </div>
         ) : (
           <div className="space-y-3">
@@ -319,8 +317,11 @@ function Header() {
         className="text-lg font-semibold text-[var(--fg-1)]"
         style={{ fontFamily: "var(--font-plex-sans), system-ui" }}
       >
-        Skills
+        Подсказки агента
       </h1>
+      <div className="ml-auto">
+        <ThemeToggle />
+      </div>
     </div>
   );
 }

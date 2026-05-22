@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { fetchMemory, updateMemory } from "@/lib/api";
 import { getActiveChannelId } from "@/lib/storage";
+import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import type { MemoryDocument } from "@/lib/types";
 
 /**
@@ -98,20 +99,14 @@ export default function MemorySettingsPage() {
           <Brain className="h-5 w-5 text-[var(--accent)] flex-shrink-0 mt-0.5" />
           <div className="text-[13.5px] text-[var(--fg-2)] leading-[1.6]">
             <p>
-              Эти заметки сохраняются между сессиями и инжектятся в системный
-              промпт ассистента при каждом запросе. Канал:{" "}
-              <code
-                className="px-1.5 py-0.5 rounded bg-[var(--bg-2)] text-[var(--fg-1)] text-[12px]"
-                style={{ fontFamily: "var(--font-jb-mono), monospace" }}
-              >
-                {doc.channel_id}
-              </code>
+              Эти заметки сохраняются между сессиями и подмешиваются в контекст
+              ассистента при каждом вопросе — он помнит ваши конвенции и предпочтения.
             </p>
             <p className="mt-2">
-              <strong className="text-[var(--fg-1)]">MEMORY.md</strong> — что ассистент знает
-              про вашу базу (конвенции, переименования, паттерны).{" "}
-              <strong className="text-[var(--fg-1)]">USER.md</strong> — что он знает о вас
-              (предпочтения, домен, стиль ответов).
+              <strong className="text-[var(--fg-1)]">База:</strong> что ассистент знает
+              про вашу базу (как у вас называются объекты, переименования, типовые паттерны).{" "}
+              <strong className="text-[var(--fg-1)]">О вас:</strong> что он знает про
+              ваши предпочтения, домен, стиль ответов.
             </p>
           </div>
         </div>
@@ -133,7 +128,7 @@ export default function MemorySettingsPage() {
       )}
 
       <Editor
-        title="MEMORY.md — заметки агента"
+        title="База — заметки агента"
         subtitle="Среда, конвенции базы, типовые паттерны решений"
         value={agentDraft}
         onChange={setAgentDraft}
@@ -146,7 +141,7 @@ export default function MemorySettingsPage() {
       />
 
       <Editor
-        title="USER.md — что ассистент знает о вас"
+        title="О вас — что ассистент знает о вас"
         subtitle="Предпочтения, домен, стиль ответов, конкретные интересы"
         value={userDraft}
         onChange={setUserDraft}
@@ -177,6 +172,9 @@ function Header() {
       >
         Постоянная память
       </h1>
+      <div className="ml-auto">
+        <ThemeToggle />
+      </div>
     </div>
   );
 }

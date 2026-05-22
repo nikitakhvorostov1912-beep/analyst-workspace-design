@@ -1,92 +1,192 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { Check } from "lucide-react";
 import { StatusDot } from "@/components/ui/StatusDot";
 import { StencilChip } from "@/components/ui/StencilChip";
-import { fetchLLMConfig } from "@/lib/api";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { fetchLLMConfig, updateLLMConfig } from "@/lib/api";
+import { getLLMApiKey } from "@/lib/api-keys";
+import { PROVIDERS, resolveProviderAndModel } from "@/lib/llm-providers";
+import { publishToast } from "@/lib/toast";
 
 interface ModelInfo {
   model: string;
+  endpoint: string;
   temperature: number | null;
 }
 
 /**
- * Маппинг технических ID моделей к человекочитаемым именам.
- * Аналитик видит «Xiaomi MiMo v2 Pro», а не «mimo-v2-pro».
- * Tech ID остаётся в title для разработчиков и в data-model для тестов.
+ * Короткое имя для chip в шапке: «MIMO v2.5 PRO», «GPT-4.1», «CLAUDE SONNET 4.5».
+ * Из preset.label убираем префикс провайдера и uppercase'им.
  */
-const MODEL_DISPLAY_NAMES: Record<string, string> = {
-  // Xiaomi MiMo — v2.5 семейство (новее)
-  "mimo-v2.5-pro": "Xiaomi MiMo v2.5 Pro",
-  "mimo-v2.5": "Xiaomi MiMo v2.5",
-  "mimo-v2.5-tts": "Xiaomi MiMo v2.5 TTS",
-  "mimo-v2.5-tts-voiceclone": "Xiaomi MiMo v2.5 Voice Clone",
-  "mimo-v2.5-tts-voicedesign": "Xiaomi MiMo v2.5 Voice Design",
-  // Xiaomi MiMo — v2 семейство
-  "mimo-v2-pro": "Xiaomi MiMo v2 Pro",
-  "mimo-v2-flash": "Xiaomi MiMo v2 Flash",
-  "mimo-v2-omni": "Xiaomi MiMo v2 Omni",
-  "mimo-v2-tts": "Xiaomi MiMo v2 TTS",
-  // OpenAI
-  "gpt-4o": "GPT-4o",
-  "gpt-4o-mini": "GPT-4o mini",
-  "gpt-4-turbo": "GPT-4 Turbo",
-  "gpt-3.5-turbo": "GPT-3.5 Turbo",
-  // Anthropic
-  "claude-sonnet-4-6": "Claude Sonnet 4.6",
-  "claude-opus-4-5": "Claude Opus 4.5",
-  "claude-haiku-4-5": "Claude Haiku 4.5",
-  // xAI
-  "grok-4-0709": "Grok 4",
-};
-
-function displayModelName(model: string): string {
-  return MODEL_DISPLAY_NAMES[model] ?? model;
+function shortenLabel(label: string): string {
+  return label
+    .replace(/^Xiaomi /, "")
+    .replace(/^Anthropic /, "")
+    .replace(/^Google /, "")
+    .replace(/^Meta /, "")
+    .replace(/^Llama /, "Llama ")
+    .toUpperCase();
 }
 
+/**
+ * Бейдж модели в шапке + быстрый переключатель.
+ *
+ * До 2026-05-21 был read-only chip — чтобы сменить модель аналитик шёл в
+ * Settings, выбирал из dropdown, сохранял, возвращался. Теперь клик по chip
+ * открывает popover с тем же каталогом провайдеров/моделей (из lib/llm-providers).
+ *
+ * Switch делает PATCH /llm-config с новой парой endpoint+model. Температура и
+ * API-ключ остаются. Для провайдеров, где ключ ещё не введён, popover ведёт
+ * на /settings (вставлять ключ всё равно надо там).
+ */
 export function ModelBadge() {
   const [info, setInfo] = useState<ModelInfo | null>(null);
+  const [switching, setSwitching] = useState(false);
+
+  async function refresh() {
+    try {
+      const cfg = await fetchLLMConfig();
+      if (cfg && cfg.model) {
+        setInfo({
+          model: cfg.model,
+          endpoint: cfg.endpoint,
+          temperature: typeof cfg.temperature === "number" ? cfg.temperature : null,
+        });
+      }
+    } catch {
+      // Backend недоступен — бейдж не отображается
+    }
+  }
 
   useEffect(() => {
-    void fetchLLMConfig()
-      .then((cfg) => {
-        if (cfg && cfg.model) {
-          setInfo({
-            model: cfg.model,
-            temperature: typeof cfg.temperature === "number" ? cfg.temperature : null,
-          });
-        }
-      })
-      .catch(() => {
-        // Backend недоступен — бейдж не отображается
-      });
+    void refresh();
   }, []);
 
   if (!info) return null;
 
-  const display = displayModelName(info.model);
-  const isMapped = display !== info.model;
+  const matched = resolveProviderAndModel(info.model);
+  const display = matched?.model.label ?? info.model;
+  const shortDisplay = shortenLabel(display);
 
-  // Stencil/Mono redesign: модель показывается как muted-chip с success-dot
-  // (живая модель → зелёный pulse). Brand-стиль: всё mono uppercase ls .16em.
-  // Краткое имя модели в верхнем регистре: «MIMO-V2.5-PRO», «GPT-4O», «CLAUDE-SONNET-4.6».
-  const shortDisplay = display
-    .replace(/^Xiaomi /, "")
-    .replace(/^Claude /, "")
-    .toUpperCase();
+  async function handleSwitch(modelId: string, endpoint: string) {
+    if (switching) return;
+    setSwitching(true);
+    try {
+      await updateLLMConfig({
+        endpoint,
+        model: modelId,
+        temperature: info?.temperature ?? 0.3,
+      });
+      const newPreset = resolveProviderAndModel(modelId);
+      const providerLabel = newPreset?.provider.label ?? "провайдер";
+      const modelLabel = newPreset?.model.label ?? modelId;
+
+      // Проверяем: есть ли ключ для нового провайдера. localStorage хранит один
+      // ключ на весь app (legacy) — если он есть, считаем что подходит. Backend
+      // вернёт `has_env_api_key=true` после refresh если есть env-ключ.
+      // Если ничего из двух — показываем warn-toast с подсказкой ввести ключ.
+      await refresh();
+      const cfg = await fetchLLMConfig();
+      const hasEnv = Boolean(cfg?.has_env_api_key);
+      const hasLocal = Boolean(getLLMApiKey());
+      const hasKey = hasEnv || hasLocal;
+
+      if (!hasKey && newPreset?.provider.embedKeyAvailable !== true) {
+        publishToast({
+          type: "warning",
+          message: `Модель ${modelLabel} выбрана, но API ключ ${providerLabel} не введён. Откройте Настройки → API ключ.`,
+        });
+      } else {
+        publishToast({
+          type: "info",
+          message: `Модель переключена: ${modelLabel}`,
+        });
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Не удалось сменить модель";
+      publishToast({ type: "error", message });
+    } finally {
+      setSwitching(false);
+    }
+  }
 
   return (
-    <span data-testid="model-badge" data-model={info.model}>
-      <StencilChip
-        tone="muted"
-        title={isMapped ? `Модель: ${display} (${info.model})` : info.model}
-      >
-        <StatusDot status="online" size="sm" aria-label="модель активна" />
-        <span className="truncate max-w-[140px]">{shortDisplay}</span>
-        {info.temperature !== null && (
-          <span className="text-[var(--fg-4)]">· {info.temperature.toFixed(1)}</span>
-        )}
-      </StencilChip>
-    </span>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Модель: ${display}. Нажмите чтобы сменить.`}
+          title={matched ? `${display} (${info.model})` : info.model}
+          data-testid="model-badge"
+          data-model={info.model}
+          className="cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent-20)] rounded-full"
+        >
+          <StencilChip tone="muted">
+            <StatusDot status="online" size="sm" aria-label="модель активна" />
+            <span className="truncate max-w-[160px]">{shortDisplay}</span>
+            {info.temperature !== null && (
+              <span className="text-[var(--fg-3)]">· {info.temperature.toFixed(1)}</span>
+            )}
+          </StencilChip>
+        </button>
+      </DropdownMenuTrigger>
+
+      <DropdownMenuContent align="end" className="max-h-[480px] overflow-y-auto w-[320px]">
+        <DropdownMenuLabel>Сменить модель</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+
+        {PROVIDERS.map((provider, idx) => (
+          <div key={provider.id}>
+            {idx > 0 && <DropdownMenuSeparator />}
+            <DropdownMenuLabel className="text-[10px] uppercase tracking-[0.16em] text-[var(--fg-3)] font-normal">
+              {provider.label}
+            </DropdownMenuLabel>
+            {provider.models.map((preset) => {
+              const isActive = preset.id === info.model;
+              return (
+                <DropdownMenuItem
+                  key={preset.id}
+                  className="flex items-start gap-2 cursor-pointer"
+                  disabled={switching || isActive}
+                  onSelect={() => void handleSwitch(preset.id, provider.endpoint)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-[var(--fg-1)]">
+                      {preset.label}
+                    </div>
+                    <div className="text-xs text-[var(--fg-3)] truncate">
+                      {preset.description}
+                    </div>
+                  </div>
+                  {isActive && (
+                    <Check className="h-4 w-4 text-[var(--accent)] flex-none mt-0.5" />
+                  )}
+                </DropdownMenuItem>
+              );
+            })}
+          </div>
+        ))}
+
+        <DropdownMenuSeparator />
+        <DropdownMenuItem asChild>
+          <Link
+            href="/settings"
+            className="text-xs text-[var(--accent)] hover:underline"
+          >
+            Полные настройки →
+          </Link>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
