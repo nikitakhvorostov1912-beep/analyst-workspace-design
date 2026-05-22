@@ -73,7 +73,7 @@ interface TableCardProps {
 }
 
 export function TableCard({ payload, onDeanonymize }: TableCardProps) {
-  const { columns, rows, total, meta } = payload;
+  const { columns, rows, total, meta, truncated, total_available } = payload;
   const [page, setPage] = useState(0);
   const [sortBy, setSortBy] = useState<number | null>(null);
   const [sortDir, setSortDir] = useState<SortDir>("asc");

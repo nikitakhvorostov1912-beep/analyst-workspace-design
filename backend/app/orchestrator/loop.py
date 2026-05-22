@@ -91,11 +91,16 @@ from app.orchestrator.persistence import (
     touch_session,
     update_session_title,
 )
+from app.orchestrator.result_gate import (
+    apply_row_gate,
+    build_llm_summary_for_truncated,
+)
 from app.orchestrator.safety import (
     CONFIRMATION_TIMEOUT_S,
     is_dangerous_tool,
     register_pending_confirmation,
     scan_for_dangerous,
+    scan_query_ast,
     wait_for_confirmation,
 )
 from app.orchestrator.title import generate_title
@@ -877,8 +882,14 @@ async def run_chat_loop(
                 # Раньше — только execute_code. С 2026-05-22 распространено на
                 # execute_query (защита от SQL-DML инъекций через MCP Toolkit).
                 # См. is_dangerous_tool() / _DANGEROUS_TOOL_NAMES в safety.py.
+                #
+                # P2.3 (2026-05-23): для execute_query поверх keyword-scan ещё
+                # AST-валидация через sqlparse. Поймает то что keyword regex
+                # пропустил (encoded/concatenated DELETE, комментарий-обходка).
                 if is_dangerous_tool(tool_name):
-                    danger_reason = scan_for_dangerous(tool_args)
+                    danger_reason = scan_for_dangerous(tool_args) or scan_query_ast(
+                        tool_name, tool_args
+                    )
                     if danger_reason:
                         register_pending_confirmation(tool_id)
                         yield format_sse("confirm_required", ConfirmRequiredEvent(
@@ -1046,14 +1057,23 @@ async def run_chat_loop(
                     duration_ms=duration_ms,
                 ))
 
-                # Детектируем карточку
-                if ok and tool_result is not None:
-                    card = build_card_from_tool_result(tool_name, tool_args, tool_result)
+                # P2.2 ResultSizeGate (2026-05-23): для execute_query режем result
+                # до MAX_ROWS_FOR_LLM=500 строк ДО формирования карточки и LLM-context.
+                # Полный tool_result остаётся в accumulated_tool_calls (для
+                # persist'а в tool_result_storage), но и LLM, и UI карточка
+                # видят только capped версию с пометкой truncated=True.
+                gated_result, gate_info = apply_row_gate(tool_name, tool_result) if ok else (tool_result, {"applied": False})
+
+                # Детектируем карточку (на основе gated, не original — UI
+                # покажет 500 строк + баннер «truncated»)
+                if ok and gated_result is not None:
+                    card = build_card_from_tool_result(tool_name, tool_args, gated_result)
                     if card is not None:
                         yield format_sse("card", CardEvent(type=card["type"], payload=card["payload"]))
                         accumulated_cards.append(card)
 
-                # Сохраняем для последующей персистенции
+                # Сохраняем для последующей персистенции (используем original
+                # tool_result — полный set, на случай load-more / CSV download).
                 accumulated_tool_calls.append({
                     "id": tool_id,
                     "name": tool_name,
@@ -1066,8 +1086,13 @@ async def run_chat_loop(
                 # Добавляем tool-результат в историю для LLM.
                 # Sprint 4 (F1): tool output sanitize — данные из 1С могут содержать
                 # prompt injection patterns (например, в Комментарии документа).
-                tool_content = json.dumps(tool_result, ensure_ascii=False) if tool_result else (tool_error or "")
+                #
+                # P2.2: для LLM используем GATED result + summary с total/kept,
+                # чтобы LLM знала что данные неполные и не сочиняла «всего N
+                # строк» когда реально N+++.
+                tool_content = json.dumps(gated_result, ensure_ascii=False) if gated_result else (tool_error or "")
                 tool_content = scan_sanitize_for_prompt(tool_content)
+                tool_content += build_llm_summary_for_truncated(tool_name, gate_info)
                 messages.append({
                     "role": "tool",
                     "tool_call_id": tool_id,

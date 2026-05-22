@@ -113,6 +113,12 @@ export type TableCardPayload = {
   total: number;
   meta: { query?: string | null; duration_ms?: number | null };
   card_id?: string | null;  // UUID4 для deanonymize endpoint (Plan 04-01)
+  // P2.2 ResultSizeGate (2026-05-23): true означает что backend урезал rows
+  // до MAX_ROWS_FOR_LLM=500. total_available — реальное количество строк до cap.
+  // UI показывает баннер «Показаны первые N из total_available, скачайте CSV
+  // для полного набора».
+  truncated?: boolean;
+  total_available?: number | null;
 };
 
 export type ObjectCardPayload = {

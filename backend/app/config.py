@@ -119,6 +119,34 @@ def _find_latest_1c_platform() -> str:
     return str(versions[-1])
 
 
+def _resolve_env_files() -> tuple[str, ...] | str | None:
+    """Возвращает env_file путь(и) с учётом frozen-режима.
+
+    - PYDANTIC_ENV_FILE override (для тестов и custom-сценариев) — приоритетнее
+      всего. Пустая строка → None (не читать env-файл вообще).
+    - PyInstaller frozen (backend.exe) — абсолютные пути рядом с exe:
+      .env (личный, опциональный) + embedded.env (общий NVIDIA ключ).
+    - dev — обычные относительные ".env" и "embedded.env" из CWD.
+
+    P3.1 rev2 (2026-05-23): tuple — у pydantic-settings приоритет первый.
+    .env переопределяет embedded.env. Это даёт админу команды положить личный
+    .env с per-user ключом, а installer всё ещё несёт fallback NVIDIA ключ.
+    """
+    import os
+    import sys
+
+    override = os.environ.get("PYDANTIC_ENV_FILE")
+    if override is not None:
+        return override or None
+    if getattr(sys, "frozen", False):
+        exe_dir = Path(sys.executable).resolve().parent
+        return (
+            str(exe_dir / ".env"),
+            str(exe_dir / "embedded.env"),
+        )
+    return (".env", "embedded.env")
+
+
 class Settings(BaseSettings):
     database_url: str = "sqlite+aiosqlite:////data/app.db"
 
@@ -128,14 +156,22 @@ class Settings(BaseSettings):
     cors_origins: str = Field(default="", validation_alias="BACKEND_ALLOWED_ORIGINS")
 
     log_level: str = "INFO"
-    # Дефолтные параметры LLM — Xiaomi MiMo v2.5-pro (приоритетный провайдер по
-    # memory/llm-providers.md). При первом запуске сидятся в llm_settings,
-    # пользователю остаётся ввести только API-ключ через UI.
+    # Дефолтные параметры LLM — NVIDIA NIM Llama Nemotron Super 49B.
+    # При первом запуске сидятся в llm_settings, пользователь работает
+    # сразу через зашитый в installer ключ NVIDIA (один ключ покрывает
+    # все модели платформы NIM).
+    #
+    # P3.1 rev2 (2026-05-23): NVIDIA NIM стал базой вместо Cloud.ru.
+    # Cloud.ru остаётся в каталоге как 152-ФЗ compliance альтернатива.
+    # Причина: NVIDIA шире каталог моделей (DeepSeek R1/V3, Qwen3-Coder, Llama,
+    # Mistral, Nemotron) с единым ключом — удобно для пилотного распространения.
     default_llm_endpoint: str = Field(
-        default="https://api.xiaomimimo.com/v1", validation_alias="DEFAULT_LLM_ENDPOINT"
+        default="https://integrate.api.nvidia.com/v1",
+        validation_alias="DEFAULT_LLM_ENDPOINT",
     )
     default_llm_model: str = Field(
-        default="mimo-v2.5-pro", validation_alias="DEFAULT_LLM_MODEL"
+        default="nvidia/llama-3.3-nemotron-super-49b-v1.5",
+        validation_alias="DEFAULT_LLM_MODEL",
     )
     default_llm_temperature: float = Field(
         default=0.3, validation_alias="DEFAULT_LLM_TEMPERATURE"
@@ -157,6 +193,12 @@ class Settings(BaseSettings):
     )
     default_llm_api_key_openrouter: str = Field(
         default="", validation_alias="DEFAULT_LLM_API_KEY_OPENROUTER"
+    )
+    # P3.1 (2026-05-23): Cloud.ru Foundation Models — РФ-ДЦ дефолтный провайдер.
+    # При наличии ключа в env коллеги пользователя сразу получают рабочий
+    # Cloud.ru без ручной настройки (как раньше работала схема с MiMo).
+    default_llm_api_key_cloud_ru: str = Field(
+        default="", validation_alias="DEFAULT_LLM_API_KEY_CLOUD_RU"
     )
 
     app_version: str = "0.1.0"
@@ -254,12 +296,14 @@ class Settings(BaseSettings):
         default=50, validation_alias="MAX_TOOL_CALLS_PER_TURN"
     )
 
-    # env_file читается из .env по умолчанию. В тестах можно отключить через
-    # env-var PYDANTIC_ENV_FILE="" — иначе backend/.env с реальными API-ключами
-    # ломает тесты которые проверяют «нет ключа → 400». См. conftest.py W1.4.
-    import os as _os  # noqa: PLC0415 — нужен только здесь
     model_config = {
-        "env_file": _os.environ.get("PYDANTIC_ENV_FILE", ".env") or None,
+        # env_file читается из .env + embedded.env. P3.1 rev2 (2026-05-23):
+        # tuple — приоритет у первого. .env (private, личный, не в installer)
+        # переопределяет embedded.env (public, NVIDIA ключ для всех
+        # инсталляций, попадает в installer).
+        # PyInstaller frozen — оба пути резолвятся относительно <exe-dir>
+        # через _resolve_env_files() выше.
+        "env_file": _resolve_env_files(),
         "env_file_encoding": "utf-8",
         "populate_by_name": True,  # позволяет использовать и поле-имя и alias
     }
@@ -271,6 +315,7 @@ class Settings(BaseSettings):
         тогда backend должен потребовать X-LLM-API-Key от клиента.
 
         Логика проверки совпадает с UI (lib/llm-providers.ts):
+        - foundation-models.api.cloud.ru → Cloud.ru ключ (P3.1, default-провайдер)
         - integrate.api.nvidia.com → NVIDIA ключ
         - api.openai.com → OpenAI ключ
         - openrouter.ai → OpenRouter ключ
@@ -279,6 +324,8 @@ class Settings(BaseSettings):
         if not endpoint:
             return self.default_llm_api_key
         url = endpoint.lower()
+        if "cloud.ru" in url and self.default_llm_api_key_cloud_ru:
+            return self.default_llm_api_key_cloud_ru
         if "nvidia.com" in url and self.default_llm_api_key_nvidia:
             return self.default_llm_api_key_nvidia
         if "api.openai.com" in url and self.default_llm_api_key_openai:

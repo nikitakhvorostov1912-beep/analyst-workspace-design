@@ -125,10 +125,13 @@ import { publishToast } from "@/lib/toast";
 import { clearLLMApiKey, getLLMApiKey, setLLMApiKey } from "@/lib/api-keys";
 import type { LLMConfigResponse } from "@/lib/types";
 
+// P3.1 rev2 (2026-05-23): default — NVIDIA NIM Llama Nemotron Super 49B.
+// NVIDIA выбран как база (вшитый ключ в installer, широкий каталог моделей).
+// Cloud.ru — 152-ФЗ compliance альтернатива в каталоге.
 const makeLLMConfig = (): LLMConfigResponse => ({
   id: "default",
-  endpoint: "https://api.xiaomimimo.com/v1",
-  model: "mimo-v2.5-pro",
+  endpoint: "https://integrate.api.nvidia.com/v1",
+  model: "nvidia/llama-3.3-nemotron-super-49b-v1.5",
   temperature: 0.3,
 });
 
@@ -143,12 +146,13 @@ describe("LLMConfigForm", () => {
     vi.mocked(getLLMApiKey).mockReturnValue(null);
   });
 
-  it("рендерит дефолтный preset mimo-v2.5-pro и поле API ключа", () => {
+  it("рендерит дефолтный preset Nemotron Super 49B и поле API ключа", () => {
     render(<LLMConfigForm initial={null} />);
 
     const select = screen.getByTestId("model-preset-select") as HTMLSelectElement;
-    expect(select.value).toBe("mimo-v2.5-pro");
-    expect(screen.getByPlaceholderText("sk-...")).toBeInTheDocument();
+    expect(select.value).toBe("nvidia/llama-3.3-nemotron-super-49b-v1.5");
+    // NVIDIA keyHint содержит "nvapi-..." как substring.
+    expect(screen.getByPlaceholderText(/nvapi-\.\.\./)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /сохранить/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /тест/i })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /удалить/i })).not.toBeInTheDocument();
@@ -157,7 +161,7 @@ describe("LLMConfigForm", () => {
   it("показывает ошибку если api_key слишком короткий", async () => {
     render(<LLMConfigForm initial={null} />);
 
-    fireEvent.change(screen.getByPlaceholderText("sk-..."), {
+    fireEvent.change(screen.getByPlaceholderText(/nvapi-\.\.\./), {
       target: { value: "short" },
     });
 
@@ -173,8 +177,8 @@ describe("LLMConfigForm", () => {
 
     render(<LLMConfigForm initial={null} />);
 
-    fireEvent.change(screen.getByPlaceholderText("sk-..."), {
-      target: { value: "sk-test12345678" },
+    fireEvent.change(screen.getByPlaceholderText(/nvapi-\.\.\./), {
+      target: { value: "nvapi-test12345678" },
     });
 
     await act(async () => {
@@ -184,10 +188,10 @@ describe("LLMConfigForm", () => {
     await waitFor(() => {
       expect(testLLMConfig).toHaveBeenCalledWith(
         expect.objectContaining({
-          endpoint: "https://api.xiaomimimo.com/v1",
-          model: "mimo-v2.5-pro",
+          endpoint: "https://integrate.api.nvidia.com/v1",
+          model: "nvidia/llama-3.3-nemotron-super-49b-v1.5",
         }),
-        "sk-test12345678",
+        "nvapi-test12345678",
       );
     });
   });
@@ -200,8 +204,8 @@ describe("LLMConfigForm", () => {
 
     render(<LLMConfigForm initial={null} />);
 
-    fireEvent.change(screen.getByPlaceholderText("sk-..."), {
-      target: { value: "sk-test12345678" },
+    fireEvent.change(screen.getByPlaceholderText(/nvapi-\.\.\./), {
+      target: { value: "nvapi-test12345678" },
     });
 
     await act(async () => {
@@ -224,7 +228,7 @@ describe("LLMConfigForm", () => {
 
     render(<LLMConfigForm initial={config} />);
 
-    expect(screen.queryByPlaceholderText("sk-...")).not.toBeInTheDocument();
+    expect(screen.queryByPlaceholderText(/nvapi-\.\.\./)).not.toBeInTheDocument();
     expect(screen.getByText("••••••••")).toBeInTheDocument();
     expect(screen.getByText("Изменить ключ")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /удалить/i })).toBeInTheDocument();
@@ -255,15 +259,17 @@ describe("LLMConfigForm", () => {
     });
   });
 
-  it("вызывает saveLLMConfig при valid submit без initial", async () => {
+  it("вызывает saveLLMConfig при valid submit без initial (default = NVIDIA Nemotron)", async () => {
+    // P3.1 rev2 (2026-05-23): default preset изменён с Cloud.ru Qwen3 на
+    // NVIDIA Llama Nemotron Super 49B (база с вшитым ключом).
     const saved = makeLLMConfig();
     vi.mocked(saveLLMConfig).mockResolvedValue(saved);
     const onSaved = vi.fn();
 
     render(<LLMConfigForm initial={null} onSaved={onSaved} />);
 
-    fireEvent.change(screen.getByPlaceholderText("sk-..."), {
-      target: { value: "sk-test12345678" },
+    fireEvent.change(screen.getByPlaceholderText(/nvapi-\.\.\./), {
+      target: { value: "nvapi-test12345678" },
     });
 
     await act(async () => {
@@ -273,8 +279,8 @@ describe("LLMConfigForm", () => {
     await waitFor(() => {
       expect(saveLLMConfig).toHaveBeenCalledWith(
         expect.objectContaining({
-          endpoint: "https://api.xiaomimimo.com/v1",
-          model: "mimo-v2.5-pro",
+          endpoint: "https://integrate.api.nvidia.com/v1",
+          model: "nvidia/llama-3.3-nemotron-super-49b-v1.5",
         }),
       );
       expect(onSaved).toHaveBeenCalled();
@@ -291,6 +297,7 @@ describe("LLMConfigForm", () => {
     fireEvent.change(screen.getByTestId("model-preset-select"), {
       target: { value: "mimo-v2.5-mini" },
     });
+    // После смены на MiMo placeholder ключа должен стать "sk-..." (P3.1 rev2: NVIDIA по дефолту, MiMo требует свой sk-... ключ)
     fireEvent.change(screen.getByPlaceholderText("sk-..."), {
       target: { value: "sk-test12345678" },
     });
@@ -310,11 +317,13 @@ describe("LLMConfigForm", () => {
     });
   });
 
-  it("смена preset на gpt-4o переключает endpoint на OpenAI", async () => {
+  it("смена preset на deepseek-chat переключает endpoint на DeepSeek", async () => {
+    // P3.1 rev2 (2026-05-23): OpenAI / Anthropic убраны из дефолтного UI.
+    // Тестируем переключение на DeepSeek прямой API (дешёвый китайский).
     const saved = {
       ...makeLLMConfig(),
-      endpoint: "https://api.openai.com/v1",
-      model: "gpt-4o",
+      endpoint: "https://api.deepseek.com/v1",
+      model: "deepseek-chat",
     };
     vi.mocked(saveLLMConfig).mockResolvedValue(saved);
     const onSaved = vi.fn();
@@ -322,11 +331,11 @@ describe("LLMConfigForm", () => {
     render(<LLMConfigForm initial={null} onSaved={onSaved} />);
 
     fireEvent.change(screen.getByTestId("model-preset-select"), {
-      target: { value: "gpt-4o" },
+      target: { value: "deepseek-chat" },
     });
-    // Для OpenAI хинт ключа другой — sk-proj-...
-    fireEvent.change(screen.getByPlaceholderText("sk-proj-..."), {
-      target: { value: "sk-proj-test12345678" },
+    // Для DeepSeek хинт sk-...
+    fireEvent.change(screen.getByPlaceholderText("sk-..."), {
+      target: { value: "sk-deepseektest12345" },
     });
 
     await act(async () => {
@@ -336,19 +345,20 @@ describe("LLMConfigForm", () => {
     await waitFor(() => {
       expect(saveLLMConfig).toHaveBeenCalledWith(
         expect.objectContaining({
-          endpoint: "https://api.openai.com/v1",
-          model: "gpt-4o",
+          endpoint: "https://api.deepseek.com/v1",
+          model: "deepseek-chat",
         }),
       );
       expect(onSaved).toHaveBeenCalled();
     });
   });
 
-  it("смена preset на claude-sonnet-4.5 переключает endpoint на OpenRouter", async () => {
+  it("смена preset на Cloud.ru Qwen3 переключает endpoint на cloud.ru (РФ-ДЦ)", async () => {
+    // P3.1 rev2: Cloud.ru — 152-ФЗ compliance альтернатива в каталоге.
     const saved = {
       ...makeLLMConfig(),
-      endpoint: "https://openrouter.ai/api/v1",
-      model: "anthropic/claude-sonnet-4.5",
+      endpoint: "https://foundation-models.api.cloud.ru/v1",
+      model: "Qwen/Qwen3-Coder-480B-A35B-Instruct",
     };
     vi.mocked(saveLLMConfig).mockResolvedValue(saved);
     const onSaved = vi.fn();
@@ -356,10 +366,10 @@ describe("LLMConfigForm", () => {
     render(<LLMConfigForm initial={null} onSaved={onSaved} />);
 
     fireEvent.change(screen.getByTestId("model-preset-select"), {
-      target: { value: "anthropic/claude-sonnet-4.5" },
+      target: { value: "Qwen/Qwen3-Coder-480B-A35B-Instruct" },
     });
-    fireEvent.change(screen.getByPlaceholderText("sk-or-v1-..."), {
-      target: { value: "sk-or-v1-test123456" },
+    fireEvent.change(screen.getByPlaceholderText(/sk-\.\.\..*Cloud\.ru/), {
+      target: { value: "sk-cloudruTest1234" },
     });
 
     await act(async () => {
@@ -369,8 +379,8 @@ describe("LLMConfigForm", () => {
     await waitFor(() => {
       expect(saveLLMConfig).toHaveBeenCalledWith(
         expect.objectContaining({
-          endpoint: "https://openrouter.ai/api/v1",
-          model: "anthropic/claude-sonnet-4.5",
+          endpoint: "https://foundation-models.api.cloud.ru/v1",
+          model: "Qwen/Qwen3-Coder-480B-A35B-Instruct",
         }),
       );
     });
@@ -393,27 +403,29 @@ describe("LLMConfigForm", () => {
     ).toBeInTheDocument();
   });
 
-  it("при env-key + смене провайдера на OpenAI плашка ENV пропадает и появляется поле ввода ключа", () => {
+  it("при env-key + смене провайдера на DeepSeek плашка ENV пропадает и появляется поле ввода ключа", () => {
+    // P3.1 rev2: NVIDIA имеет встроенный env-ключ. При переключении на DeepSeek
+    // (нет embedded key) плашка должна пропасть, появиться поле sk-... ввода.
     vi.mocked(getLLMApiKey).mockReturnValue(null);
 
     render(<LLMConfigForm initial={makeLLMConfigWithEnvKey()} onSaved={vi.fn()} />);
 
-    // Дефолт — MiMo Pro, env-плашка видна
+    // Дефолт — NVIDIA Nemotron Super (env-плашка видна т.к. NVIDIA вшит)
     expect(
       screen.getByText(/Ключ задан в окружении сервера/i),
     ).toBeInTheDocument();
 
-    // Переключаемся на GPT-4o
+    // Переключаемся на DeepSeek прямой API
     fireEvent.change(screen.getByTestId("model-preset-select"), {
-      target: { value: "gpt-4o" },
+      target: { value: "deepseek-chat" },
     });
 
     // Плашки больше нет — нужно ввести свой ключ
     expect(
       screen.queryByText(/Ключ задан в окружении сервера/i),
     ).not.toBeInTheDocument();
-    // Появилось поле ввода с openai-хинтом
-    expect(screen.getByPlaceholderText("sk-proj-...")).toBeInTheDocument();
+    // Появилось поле ввода с DeepSeek-хинтом
+    expect(screen.getByPlaceholderText("sk-...")).toBeInTheDocument();
   });
 
   it("когда has_env_api_key=true и localStorage пуст — поле ключа не показывается, форма сохраняется без ввода ключа", async () => {

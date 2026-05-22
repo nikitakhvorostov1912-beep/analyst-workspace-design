@@ -16,6 +16,7 @@ dependencies = [
     "uvicorn[standard]>=0.32",
     "sse-starlette>=2.1",
     "slowapi>=0.1.9",  # W1.4: rate-limit на /chat endpoint
+    "sqlparse>=0.5",  # P2.3: SQL AST validator (defence-in-depth поверх keyword scan)
 ]
 
 [project.optional-dependencies]

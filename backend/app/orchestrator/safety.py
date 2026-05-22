@@ -106,6 +106,47 @@ def scan_for_dangerous(args: dict[str, Any]) -> str | None:
     return None
 
 
+def scan_query_ast(tool_name: str, args: dict[str, Any]) -> str | None:
+    """P2.3: AST-уровневая проверка для execute_query — defence-in-depth.
+
+    Парсит query через sqlparse и блокирует всё, что не SELECT/ВЫБРАТЬ/EXPLAIN/SHOW.
+    Срабатывает поверх keyword-scan: если LLM придумает encoded/concatenated
+    DELETE — keyword regex может промахнуться, AST увидит первый токен и
+    откажет.
+
+    Returns:
+        Строку "ast_blocked: <причина>" если запрос заблокирован,
+        None если запрос прошёл валидацию (или это не execute_query).
+    """
+    if tool_name != "execute_query":
+        return None
+
+    # Извлекаем текст запроса. MCP-1C-Toolkit принимает arg `query` (тело запроса).
+    # Если структура другая — пропускаем (keyword-scan защищает).
+    query_text = args.get("query") if isinstance(args, dict) else None
+    if not isinstance(query_text, str):
+        return None
+
+    # Локальный импорт чтобы не платить за sqlparse если safety импортится в
+    # путях где execute_query не вызывается (например, в storage).
+    from app.orchestrator.sql_validator import (
+        ValidationStatus,
+        is_available,
+        validate_query,
+    )
+
+    if not is_available():
+        # sqlparse не установлен — degrade к keyword-scan (он уже отработал
+        # выше в scan_for_dangerous).
+        return None
+
+    result = validate_query(query_text)
+    if result.status == ValidationStatus.OK:
+        return None
+
+    return f"ast_blocked: {result.reason}"
+
+
 # ===== Pending confirmation store =====
 
 # module-level dict: tool_call_id → (event, payload)

@@ -10,6 +10,25 @@ M7 Commerce Readiness — переход от пилот-готового beta �
 распространяемой версии. Wave 1 закрывает CRITICAL уязвимости, Wave 2-3
 готовят к публичному релизу.
 
+### LLM Providers (P3.1 / P3.3, 2026-05-23)
+
+- **NVIDIA NIM (база)** теперь дефолтный провайдер — ключ вшит в installer,
+  один аккаунт покрывает 9 моделей (Llama Nemotron Super 49B, DeepSeek R1/V3.1,
+  Qwen3-Coder 480B, Llama 3.3 70B, Mistral Large 3, Mistral Medium 3.5,
+  Nemotron Nano 9B). Раньше дефолтом был Xiaomi MiMo (один ключ — одна модель).
+- **Cloud.ru Foundation Models** добавлен как 152-ФЗ compliance альтернатива
+  (РФ-ДЦ). Бесплатный Qwen3-Coder-480B для корп-клиентов с jur-требованием
+  «данные не пересекают границу». Новый env-параметр
+  `DEFAULT_LLM_API_KEY_CLOUD_RU` для embedded ключа.
+- **Каталог сокращён** под коммерческую стратегию: NVIDIA NIM, Cloud.ru,
+  DeepSeek (прямой API — самый дешёвый для R1/V3), Xiaomi MiMo. OpenAI direct,
+  Anthropic, Groq, Mistral direct, xAI Grok, OpenRouter убраны из UI dropdown
+  (доступны через «Свой endpoint» по необходимости).
+- **UI compliance badges** в LLMConfigForm: рядом с выбранным провайдером
+  показывается зелёная плашка «РФ-ДЦ ✓ 152-ФЗ» для Cloud.ru или янтарная
+  «За рубежом» для зарубежных провайдеров. Аналитик/админ видит compliance
+  риск до отправки данных в LLM.
+
 ### Security
 
 - **W1.1** Убран MiMo API ключ из коммерческого installer. `desktop/resources/.env`

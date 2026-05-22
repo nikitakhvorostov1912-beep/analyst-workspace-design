@@ -1073,14 +1073,18 @@ const SECTIONS: GuideSection[] = [
           </li>
           <li>
             <strong className="text-[var(--fg-1)]">Модель</strong> — название
-            конкретной модели (например, <Code>mimo-v2.5-pro</Code> или{" "}
-            <Code>gpt-4o</Code>). По умолчанию — <Code>mimo-v2.5-pro</Code>.
+            конкретной модели (например,{" "}
+            <Code>nvidia/llama-3.3-nemotron-super-49b-v1.5</Code> или{" "}
+            <Code>deepseek-chat</Code>). По умолчанию —{" "}
+            <Code>nvidia/llama-3.3-nemotron-super-49b-v1.5</Code> (NVIDIA NIM, вшит ключ).
           </li>
         </ul>
         <Callout variant="info">
-          Можно подключить любого провайдера, который умеет в OpenAI-совместимый API
-          с function calling: OpenAI, Anthropic (через прокси), Aitunnel, Xiaomi
-          MiMo, локальную LM Studio. Адрес и название модели — особенность провайдера.
+          Базовый провайдер — NVIDIA NIM с вшитым ключом (Llama Nemotron Super,
+          DeepSeek R1/V3, Qwen3-Coder). Для 152-ФЗ-сценариев — Cloud.ru
+          Foundation Models (РФ-ДЦ). Дешёвые альтернативы — DeepSeek и Xiaomi
+          MiMo. Можно подключить любого провайдера c OpenAI-совместимым API
+          через «Свой endpoint».
         </Callout>
 
         <H3>Маскировка</H3>

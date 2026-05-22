@@ -37,6 +37,11 @@ class TableCardPayload(BaseModel):
     total: int
     meta: dict[str, Any]
     card_id: str | None = None  # UUID4 для deanonymize endpoint (Plan 04-01)
+    # P2.2 ResultSizeGate (2026-05-23): true означает что rows урезан до
+    # MAX_ROWS_FOR_LLM, полный набор лежит в tool_results_storage. UI
+    # показывает баннер «Показаны первые N из total_available».
+    truncated: bool = False
+    total_available: int | None = None  # Реальное количество строк до cap
 
 
 class ObjectCardPayload(BaseModel):
@@ -211,6 +216,12 @@ def _build_table_card(args: dict, result: dict) -> dict | None:
         else:
             columns.append(ColumnSchema(name=str(col), type="String"))
 
+    # P2.2: ResultSizeGate в loop.py добавляет служебный `_result_gate` к
+    # tool_result, если применил cap. Прокидываем флаги в payload карточки.
+    gate_meta = data.get("_result_gate") if isinstance(data, dict) else None
+    truncated = bool(gate_meta and gate_meta.get("truncated"))
+    total_available = gate_meta.get("total_rows") if gate_meta else None
+
     payload = TableCardPayload(
         columns=columns,
         rows=rows,
@@ -220,6 +231,8 @@ def _build_table_card(args: dict, result: dict) -> dict | None:
             "duration_ms": result.get("duration_ms"),
         },
         card_id=str(uuid4()),
+        truncated=truncated,
+        total_available=total_available,
     )
     return {"type": "table", "payload": payload.model_dump()}
 

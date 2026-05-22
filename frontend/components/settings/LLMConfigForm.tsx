@@ -288,15 +288,37 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
             </SelectGroup>
           </SelectContent>
         </Select>
-        {/* Под dropdown — только короткое «откуда / на чём работает», без дублирования
-            description (он уже виден внутри открытого меню). */}
+        {/* Под dropdown — провайдер + compliance badge (P3.3).
+            Badge показывает 152-ФЗ статус: «РФ-ДЦ ✓» для Cloud.ru / GigaChat /
+            YandexGPT (когда добавим), «За рубежом» для зарубежных. */}
         {activePreset && (
-          <p className="text-xs text-[var(--fg-3)] mt-1">
-            Провайдер:{" "}
-            <span className="font-mono text-[var(--fg-2)]">
-              {activePreset.provider.label}
-            </span>
-          </p>
+          <div className="flex items-center gap-2 mt-1 flex-wrap">
+            <p className="text-xs text-[var(--fg-3)]">
+              Провайдер:{" "}
+              <span className="font-mono text-[var(--fg-2)]">
+                {activePreset.provider.label}
+              </span>
+            </p>
+            {activePreset.provider.compliance?.russian_dc && (
+              <span
+                data-testid="compliance-badge-ru"
+                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[10px] uppercase tracking-wide bg-[var(--success-12)] text-[var(--success)] border border-[var(--success-40)]"
+                title="Хостится в РФ-дата-центре. Безопасно по 152-ФЗ без отдельного согласия субъектов ПД."
+              >
+                РФ-ДЦ ✓ 152-ФЗ
+              </span>
+            )}
+            {activePreset.provider.compliance &&
+              !activePreset.provider.compliance.russian_dc && (
+                <span
+                  data-testid="compliance-badge-foreign"
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-sm text-[10px] uppercase tracking-wide bg-[var(--warning-12)] text-[var(--warning)] border border-[var(--warning-40)]"
+                  title="Провайдер за рубежом. По 152-ФЗ передача ПД требует согласия субъектов."
+                >
+                  За рубежом
+                </span>
+              )}
+          </div>
         )}
         {errors.model && (
           <p className="text-xs text-[var(--error)] mt-1">{errors.model}</p>
