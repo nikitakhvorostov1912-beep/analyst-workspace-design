@@ -1,11 +1,9 @@
 "use client";
 import { useState } from "react";
-import { ChevronRight, ChevronDown, Copy, Wrench, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { JsonTree } from "@/lib/json-tree";
+import { ChevronRight, ChevronDown, Wrench, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { formatDuration } from "@/lib/format-duration";
-import { buildCurlCommand } from "@/lib/curl-builder";
-import { publishToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
+import { TraceSummary } from "./TraceSummary";
 import type { ToolCallRecord } from "@/lib/types";
 
 function pluralTools(n: number): string {
@@ -106,22 +104,17 @@ function ToolChip({
 }
 
 export function ToolTrace({ toolCalls, totalDurationMs, mcpEndpoint, mcpSessionId }: ToolTraceProps) {
+  // Sprint 03 (handoff E · TraceSummary): свёрнут по умолчанию — чтобы не
+  // загромождать поток. При раскрытии — сразу human-readable summary через
+  // TraceSummary (не raw JSON). Аналитик видит что сделала модель и
+  // каков результат, без необходимости разбирать JSON. Raw — по клику
+  // «JSON» в каждом шаге.
   const [open, setOpen] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
 
   if (!toolCalls || toolCalls.length === 0) return null;
 
-  const durationStr = totalDurationMs != null ? `, ${formatDuration(totalDurationMs)}` : "";
-
-  async function handleCopyCurl(tc: ToolCallRecord) {
-    try {
-      const cmd = buildCurlCommand(tc, mcpEndpoint ?? "", mcpSessionId);
-      await navigator.clipboard.writeText(cmd);
-      publishToast({ type: "info", message: "Скопировано" });
-    } catch {
-      publishToast({ type: "error", message: "Не удалось скопировать" });
-    }
-  }
+  const durationStr = totalDurationMs != null ? ` · ${formatDuration(totalDurationMs)}` : "";
 
   return (
     <div className="mt-2 text-xs text-[var(--fg-muted)]" data-component="tool-trace">
@@ -140,7 +133,7 @@ export function ToolTrace({ toolCalls, totalDurationMs, mcpEndpoint, mcpSessionI
           </span>
         </button>
 
-        {/* Mini chips inline — компактный preview */}
+        {/* Mini chips inline — компактный preview только когда свёрнуто */}
         {!open && (
           <div className="flex items-center gap-1 flex-wrap" data-testid="trace-chips">
             {toolCalls.map((tc) => (
@@ -158,76 +151,22 @@ export function ToolTrace({ toolCalls, totalDurationMs, mcpEndpoint, mcpSessionI
         )}
       </div>
 
-      {/* Expanded accordion */}
+      {/* Expanded accordion — human-readable summary через TraceSummary */}
       {open && (
-        <ul
-          className="mt-2 space-y-2 border-l-2 border-[var(--bd-1)] pl-3 animate-fade-up"
+        <div
+          className="mt-2 border-l-2 border-[var(--bd-1)] pl-3 animate-fade-up"
           data-testid="trace-list"
         >
-          {toolCalls.map((tc) => {
-            const isActive = activeId === tc.id;
-            const isError = tc.ok === false;
-            return (
-              <li
-                key={tc.id}
-                className={cn(
-                  "space-y-1 rounded-md px-2 py-1.5 transition-colors duration-micro ease-design-ease",
-                  isActive && "bg-[var(--bg-1)]",
-                )}
-                data-active={isActive ? "true" : "false"}
-              >
-                <div className="flex items-baseline gap-2 flex-wrap">
-                  <ToolChip
-                    tc={tc}
-                    active={isActive}
-                    onClick={() => setActiveId(isActive ? null : tc.id)}
-                  />
-                  {isError && (
-                    <span className="text-[var(--error)] text-[11px]" data-testid="tool-error-badge">
-                      · ошибка
-                    </span>
-                  )}
-                  {/* Кнопка «Скопировать как curl» (TRACE-03) */}
-                  <button
-                    type="button"
-                    onClick={() => { void handleCopyCurl(tc); }}
-                    aria-label="Скопировать как curl"
-                    className="text-xs text-[var(--fg-muted)] hover:text-[var(--fg)] inline-flex items-center gap-1 ml-auto"
-                  >
-                    <Copy size={12} />
-                    <span>Скопировать как curl</span>
-                  </button>
-                </div>
-
-                <details className="ml-2">
-                  <summary className="cursor-pointer text-[var(--fg-muted)] hover:text-[var(--fg)] text-[11px]">
-                    Аргументы
-                  </summary>
-                  <div className="mt-1 ml-2">
-                    <JsonTree value={tc.args} defaultExpanded={1} />
-                  </div>
-                </details>
-
-                {tc.result !== undefined && (
-                  <details className="ml-2" data-testid="result-details">
-                    <summary className="cursor-pointer text-[var(--fg-muted)] hover:text-[var(--fg)] text-[11px]">
-                      Результат
-                    </summary>
-                    <div className="mt-1 ml-2">
-                      <JsonTree value={tc.result} defaultExpanded={0} />
-                    </div>
-                  </details>
-                )}
-
-                {tc.error ? (
-                  <div className="ml-2 text-[var(--error)] font-mono text-[11px]" data-testid="tool-error-text">
-                    {tc.error}
-                  </div>
-                ) : null}
-              </li>
-            );
-          })}
-        </ul>
+          {toolCalls.map((tc, i) => (
+            <TraceSummary
+              key={tc.id}
+              toolCall={tc}
+              index={i}
+              mcpEndpoint={mcpEndpoint}
+              mcpSessionId={mcpSessionId}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
