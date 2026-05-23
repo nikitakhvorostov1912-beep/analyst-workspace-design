@@ -5,15 +5,17 @@ import {
   Archive,
   Bot,
   CheckCircle2,
+  Clock,
   Loader2,
   Pin,
   RotateCcw,
   Sparkles,
   Trash2,
+  TrendingUp,
   User,
 } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   archiveSkill,
   createSkill,
@@ -25,6 +27,75 @@ import {
 import { getActiveChannelId } from "@/lib/storage";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import type { CuratorReport, SkillDTO } from "@/lib/types";
+
+/**
+ * Группа навыков по дате создания: сегодня / неделя / месяц / раньше.
+ * Возвращает 4 списка плюс краткую сводку для каждой группы.
+ */
+function groupSkillsByPeriod(skills: SkillDTO[]): {
+  today: SkillDTO[];
+  week: SkillDTO[];
+  month: SkillDTO[];
+  older: SkillDTO[];
+} {
+  const now = Date.now();
+  const day = 24 * 60 * 60 * 1000;
+  const today: SkillDTO[] = [];
+  const week: SkillDTO[] = [];
+  const month: SkillDTO[] = [];
+  const older: SkillDTO[] = [];
+  for (const skill of skills) {
+    const created = new Date(skill.created_at).getTime();
+    if (Number.isNaN(created)) {
+      older.push(skill);
+      continue;
+    }
+    const ageDays = (now - created) / day;
+    if (ageDays < 1) today.push(skill);
+    else if (ageDays < 7) week.push(skill);
+    else if (ageDays < 30) month.push(skill);
+    else older.push(skill);
+  }
+  return { today, week, month, older };
+}
+
+/**
+ * Период активности — от самого старого до самого нового активного навыка.
+ * Формат: «12 дней» / «3 месяца» / «—» если skills пуст.
+ */
+function formatTrainingPeriod(skills: SkillDTO[]): string {
+  if (skills.length === 0) return "—";
+  const dates = skills
+    .map((s) => new Date(s.created_at).getTime())
+    .filter((t) => !Number.isNaN(t));
+  if (dates.length === 0) return "—";
+  const oldest = Math.min(...dates);
+  const newest = Math.max(...dates);
+  const days = Math.max(1, Math.round((newest - oldest) / (24 * 60 * 60 * 1000)));
+  if (days < 1) return "сегодня";
+  if (days === 1) return "1 день";
+  if (days < 30) return `${days} дн.`;
+  const months = Math.round(days / 30);
+  if (months === 1) return "1 месяц";
+  if (months < 12) return `${months} мес.`;
+  const years = Math.round(months / 12);
+  return years === 1 ? "1 год" : `${years} лет`;
+}
+
+function formatRelativeDate(iso: string): string {
+  const ts = new Date(iso).getTime();
+  if (Number.isNaN(ts)) return iso;
+  const now = Date.now();
+  const diffMs = now - ts;
+  const diffMin = Math.round(diffMs / 60_000);
+  const diffH = Math.round(diffMs / 3_600_000);
+  const diffD = Math.round(diffMs / 86_400_000);
+  if (diffMin < 1) return "только что";
+  if (diffMin < 60) return `${diffMin} мин назад`;
+  if (diffH < 24) return `${diffH} ч назад`;
+  if (diffD < 7) return `${diffD} дн назад`;
+  return new Date(iso).toLocaleDateString("ru-RU");
+}
 
 /**
  * Sprint 3 (Hermes A8/A9/A6): Skills + Curator UI.
@@ -248,7 +319,10 @@ export default function SkillsSettingsPage() {
         )}
       </section>
 
-      {/* Active skills */}
+      {/* Training summary — что система выучила и за какой период */}
+      <TrainingSummary active={active} archived={archived} loading={loading} />
+
+      {/* Active skills grouped by period */}
       <section className="mb-6">
         <h2 className="text-[15px] font-semibold text-[var(--fg-1)] mb-3">
           Активные ({active.length})
@@ -264,16 +338,11 @@ export default function SkillsSettingsPage() {
             сохранять полезные шаблоны решений.
           </div>
         ) : (
-          <div className="space-y-3">
-            {active.map((skill) => (
-              <SkillCard
-                key={skill.id}
-                skill={skill}
-                onArchive={() => handleArchive(skill.id)}
-                onDelete={() => handleDelete(skill.id)}
-              />
-            ))}
-          </div>
+          <GroupedSkills
+            active={active}
+            onArchive={handleArchive}
+            onDelete={handleDelete}
+          />
         )}
       </section>
 
@@ -410,19 +479,294 @@ function SkillCard({ skill, onArchive, onUnarchive, onDelete }: SkillCardProps) 
       >
         {skill.body.length > 600 ? skill.body.slice(0, 600) + "…" : skill.body}
       </div>
-      <div className="mt-2 flex items-center gap-3 text-[11px] text-[var(--fg-4)] tabular-nums">
-        <span>chars: {skill.chars}</span>
+      <div className="mt-2 flex items-center gap-3 text-[11px] text-[var(--fg-4)] tabular-nums flex-wrap">
+        <span title={new Date(skill.created_at).toLocaleString("ru-RU")}>
+          выучен: {formatRelativeDate(skill.created_at)}
+        </span>
         <span>·</span>
-        <span>used: {skill.usage_count}</span>
+        <span>применён: {skill.usage_count} раз</span>
         {skill.usage_count > 0 && skill.last_used_iso && (
           <>
             <span>·</span>
-            <span>last: {new Date(skill.last_used_iso).toLocaleString("ru-RU")}</span>
+            <span title={new Date(skill.last_used_iso).toLocaleString("ru-RU")}>
+              последний: {formatRelativeDate(skill.last_used_iso)}
+            </span>
           </>
         )}
+        <span>·</span>
+        <span>{skill.chars} симв.</span>
         {skill.usage_count > 0 && (
           <CheckCircle2 className="h-3 w-3 text-[var(--success)] ml-auto" />
         )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Сводный блок «Что система выучила» — показывает общую статистику обучения:
+ * сколько навыков, за какой период, как разделены по источнику и активности.
+ */
+function TrainingSummary({
+  active,
+  archived,
+  loading,
+}: {
+  active: SkillDTO[];
+  archived: SkillDTO[];
+  loading: boolean;
+}) {
+  const stats = useMemo(() => {
+    const all = [...active, ...archived];
+    const agentSkills = active.filter((s) => s.provenance === "agent");
+    const userSkills = active.filter((s) => s.provenance === "user");
+    const usedSkills = active.filter((s) => s.usage_count > 0);
+    const totalUsages = active.reduce((sum, s) => sum + s.usage_count, 0);
+    const topUsed = [...active]
+      .filter((s) => s.usage_count > 0)
+      .sort((a, b) => b.usage_count - a.usage_count)
+      .slice(0, 3);
+
+    // Самый свежий навык (для UX «когда последний раз чему-то научилась»)
+    const newest = active.reduce<SkillDTO | null>((acc, s) => {
+      if (!acc) return s;
+      return new Date(s.created_at) > new Date(acc.created_at) ? s : acc;
+    }, null);
+
+    return {
+      total: all.length,
+      activeCount: active.length,
+      archivedCount: archived.length,
+      agentCount: agentSkills.length,
+      userCount: userSkills.length,
+      usedCount: usedSkills.length,
+      totalUsages,
+      topUsed,
+      trainingPeriod: formatTrainingPeriod(active),
+      newest,
+    };
+  }, [active, archived]);
+
+  if (loading && active.length === 0 && archived.length === 0) {
+    return null;
+  }
+
+  if (stats.total === 0) {
+    return (
+      <section className="mb-6 p-4 rounded-md border border-[var(--bd-2)] bg-[var(--bg-1)]">
+        <h2 className="text-[14px] font-semibold text-[var(--fg-1)] mb-2 flex items-center gap-2">
+          <Sparkles className="h-4 w-4 text-[var(--accent)]" />
+          Что система выучила
+        </h2>
+        <p className="text-[13px] text-[var(--fg-3)]">
+          Ассистент пока ничему не научился — поговорите с ним. После каждого
+          ответа фоновая задача анализирует диалог и сохраняет полезные шаблоны.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="mb-6 p-4 rounded-md border border-[var(--bd-2)] bg-[var(--bg-1)]">
+      <h2 className="text-[14px] font-semibold text-[var(--fg-1)] mb-3 flex items-center gap-2">
+        <Sparkles className="h-4 w-4 text-[var(--accent)]" />
+        Что система выучила
+      </h2>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+        <Metric
+          label="Навыков активно"
+          value={stats.activeCount}
+          sub={stats.archivedCount > 0 ? `+${stats.archivedCount} в архиве` : ""}
+        />
+        <Metric
+          label="Период обучения"
+          value={stats.trainingPeriod}
+          sub={
+            stats.newest
+              ? `последний: ${formatRelativeDate(stats.newest.created_at)}`
+              : ""
+          }
+          icon={<Clock className="h-3 w-3" />}
+        />
+        <Metric
+          label="От агента / от вас"
+          value={`${stats.agentCount} / ${stats.userCount}`}
+          sub={`автоматически / вручную`}
+        />
+        <Metric
+          label="Применений всего"
+          value={stats.totalUsages}
+          sub={
+            stats.usedCount > 0
+              ? `${stats.usedCount} из ${stats.activeCount} в работе`
+              : "пока не применялись"
+          }
+          icon={<TrendingUp className="h-3 w-3" />}
+        />
+      </div>
+
+      {stats.topUsed.length > 0 && (
+        <div className="pt-3 border-t border-[var(--bd-2)]">
+          <div className="text-[11px] uppercase tracking-[0.12em] text-[var(--fg-4)] mb-2">
+            Топ применяемые
+          </div>
+          <div className="space-y-1.5">
+            {stats.topUsed.map((skill) => (
+              <div
+                key={skill.id}
+                className="flex items-baseline gap-2 text-[12.5px]"
+              >
+                <span
+                  className="font-mono text-[var(--fg-2)] tabular-nums w-12"
+                  style={{ fontFamily: "var(--font-jb-mono), monospace" }}
+                >
+                  ×{skill.usage_count}
+                </span>
+                <code
+                  className="text-[var(--fg-1)] truncate flex-1"
+                  style={{ fontFamily: "var(--font-jb-mono), monospace" }}
+                  title={skill.body.slice(0, 200)}
+                >
+                  {skill.id}
+                </code>
+                {skill.tags.length > 0 && (
+                  <span className="text-[10.5px] text-[var(--fg-4)] uppercase tracking-wide">
+                    {skill.tags.slice(0, 2).join(" · ")}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Metric({
+  label,
+  value,
+  sub,
+  icon,
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  icon?: React.ReactNode;
+}) {
+  return (
+    <div className="rounded-md bg-[var(--bg-2)] p-2.5 border border-[var(--bd-2)]">
+      <div className="text-[10.5px] uppercase tracking-[0.12em] text-[var(--fg-4)] mb-1 flex items-center gap-1">
+        {icon}
+        {label}
+      </div>
+      <div
+        className="text-[18px] font-semibold text-[var(--fg-1)] tabular-nums leading-tight"
+        style={{ fontFamily: "var(--font-plex-sans), system-ui" }}
+      >
+        {value}
+      </div>
+      {sub && (
+        <div className="text-[10.5px] text-[var(--fg-3)] mt-0.5">{sub}</div>
+      )}
+    </div>
+  );
+}
+
+/**
+ * Группирует активные навыки по дате создания и рендерит секции.
+ */
+function GroupedSkills({
+  active,
+  onArchive,
+  onDelete,
+}: {
+  active: SkillDTO[];
+  onArchive: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  const groups = useMemo(() => groupSkillsByPeriod(active), [active]);
+
+  // Если все в одной группе (типично для свежей установки) — без подзаголовков
+  const groupCount = [
+    groups.today.length,
+    groups.week.length,
+    groups.month.length,
+    groups.older.length,
+  ].filter((n) => n > 0).length;
+
+  if (groupCount <= 1) {
+    return (
+      <div className="space-y-3">
+        {active.map((skill) => (
+          <SkillCard
+            key={skill.id}
+            skill={skill}
+            onArchive={() => onArchive(skill.id)}
+            onDelete={() => onDelete(skill.id)}
+          />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-5">
+      <PeriodGroup
+        title="Сегодня"
+        skills={groups.today}
+        onArchive={onArchive}
+        onDelete={onDelete}
+      />
+      <PeriodGroup
+        title="За неделю"
+        skills={groups.week}
+        onArchive={onArchive}
+        onDelete={onDelete}
+      />
+      <PeriodGroup
+        title="За месяц"
+        skills={groups.month}
+        onArchive={onArchive}
+        onDelete={onDelete}
+      />
+      <PeriodGroup
+        title="Раньше"
+        skills={groups.older}
+        onArchive={onArchive}
+        onDelete={onDelete}
+      />
+    </div>
+  );
+}
+
+function PeriodGroup({
+  title,
+  skills,
+  onArchive,
+  onDelete,
+}: {
+  title: string;
+  skills: SkillDTO[];
+  onArchive: (id: string) => void;
+  onDelete: (id: string) => void;
+}) {
+  if (skills.length === 0) return null;
+  return (
+    <div>
+      <div className="text-[11px] uppercase tracking-[0.14em] text-[var(--fg-4)] mb-2 px-1">
+        {title} · {skills.length}
+      </div>
+      <div className="space-y-2.5">
+        {skills.map((skill) => (
+          <SkillCard
+            key={skill.id}
+            skill={skill}
+            onArchive={() => onArchive(skill.id)}
+            onDelete={() => onDelete(skill.id)}
+          />
+        ))}
       </div>
     </div>
   );
