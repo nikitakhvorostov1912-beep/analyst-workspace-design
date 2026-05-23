@@ -48,35 +48,43 @@ import httpx
 
 from app.clients.llm import LLMClient, LLMRateLimitError
 from app.clients.mcp import MCPClient, MCPDisconnectedError, MCPError
+from app.config import get_settings
+from app.learning.background_review import schedule_review
+from app.learning.skill_store import SkillStore
+from app.learning.skill_usage import SkillUsageStore
+from app.memory.injection_scan import sanitize_for_prompt as scan_sanitize_for_prompt
+from app.models import ChatRequest
 from app.orchestrator.attachments import (
     build_user_message_content,
     extract_attachment,
     make_history_user_text,
 )
-
-# Модель которая поддерживает vision. Для Xiaomi MiMo — `mimo-v2-omni`.
-# Если активная модель — text-only, и пользователь прикрепил картинку,
-# orchestrator временно (для этого запроса) переключается на VISION_MODEL.
-# Эту константу можно вынести в Settings когда появятся другие провайдеры.
-VISION_MODEL = "mimo-v2-omni"
-from app.learning.background_review import schedule_review
-from app.learning.skill_store import SkillStore
-from app.learning.skill_usage import SkillUsageStore
-from app.memory.injection_scan import sanitize_for_prompt as scan_sanitize_for_prompt
 from app.orchestrator.auxiliary import AuxiliaryClient
+from app.orchestrator.cards import _extract_anon_tokens_from_payload, build_card_from_tool_result
 from app.orchestrator.clarify import (
     CLARIFY,
     CLARIFY_TIMEOUT_S,
     CLARIFY_TOOL_SCHEMA,
     is_clarify_tool,
     new_clarify_id,
-    validate_args as validate_clarify_args,
 )
+from app.orchestrator.clarify import validate_args as validate_clarify_args
 from app.orchestrator.compressor import (
     compress,
     needs_compression,
 )
-from app.orchestrator.error_classifier import Action, classify
+from app.orchestrator.events import (
+    CardEvent,
+    ClarifyRequiredEvent,
+    ConfirmRequiredEvent,
+    DeltaEvent,
+    DoneEvent,
+    ErrorEvent,
+    StatusEvent,
+    ToolCallEvent,
+    ToolResultEvent,
+    format_sse,
+)
 from app.orchestrator.interrupt import INTERRUPTS
 from app.orchestrator.iteration_budget import BudgetExhausted, IterationBudget
 from app.orchestrator.mcp_pool import MCPPool, build_aux_clients
@@ -89,32 +97,6 @@ from app.orchestrator.memory_integration import (
     memory_system_block,
     memory_tool_schemas,
     sync_memory_post_turn,
-)
-from app.orchestrator.sanitize import (
-    repair_message_sequence,
-    sanitize_messages,
-)
-from app.orchestrator.think_scrubber import ThinkScrubber
-from app.orchestrator.todo import (
-    TODO_TOOL_SCHEMAS,
-    dispatch_todo_tool,
-    is_todo_tool,
-    render_todos_for_prompt,
-)
-from app.config import get_settings
-from app.models import ChatRequest
-from app.orchestrator.cards import _extract_anon_tokens_from_payload, build_card_from_tool_result
-from app.orchestrator.events import (
-    CardEvent,
-    ClarifyRequiredEvent,
-    ConfirmRequiredEvent,
-    DeltaEvent,
-    DoneEvent,
-    ErrorEvent,
-    StatusEvent,
-    ToolCallEvent,
-    ToolResultEvent,
-    format_sse,
 )
 from app.orchestrator.persistence import (
     count_session_messages,
@@ -139,9 +121,26 @@ from app.orchestrator.safety import (
     scan_query_ast,
     wait_for_confirmation,
 )
+from app.orchestrator.sanitize import (
+    repair_message_sequence,
+    sanitize_messages,
+)
+from app.orchestrator.think_scrubber import ThinkScrubber
 from app.orchestrator.title import generate_title
+from app.orchestrator.todo import (
+    TODO_TOOL_SCHEMAS,
+    dispatch_todo_tool,
+    is_todo_tool,
+    render_todos_for_prompt,
+)
 
 logger = logging.getLogger(__name__)
+
+# Модель которая поддерживает vision. Для Xiaomi MiMo — `mimo-v2-omni`.
+# Если активная модель — text-only, и пользователь прикрепил картинку,
+# orchestrator временно (для этого запроса) переключается на VISION_MODEL.
+# Эту константу можно вынести в Settings когда появятся другие провайдеры.
+VISION_MODEL = "mimo-v2-omni"
 
 # Tool iterations — фактически unlimited для аналитика.
 # 100 — soft safety net, обычно не достигается (сложные find_references
@@ -1131,7 +1130,7 @@ async def run_chat_loop(
                         answer = await asyncio.wait_for(
                             pending.future, timeout=CLARIFY_TIMEOUT_S
                         )
-                    except (asyncio.TimeoutError, asyncio.CancelledError):
+                    except (TimeoutError, asyncio.CancelledError):
                         CLARIFY.cancel(clarify_id)
                         yield format_sse("error", ErrorEvent(
                             message=(

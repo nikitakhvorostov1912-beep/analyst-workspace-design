@@ -61,3 +61,10 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B"]
 ignore = []
+
+[tool.ruff.lint.isort]
+# Объединяем aliased импорты в один from-блок с обычными импортами того же
+# модуля. Без этого `from foo import bar` и `from foo import baz as alias`
+# разделяются в 2 блока — некрасиво, шумит в diff и не даёт I001 чисто
+# зелёным даже после `--fix`.
+combine-as-imports = true
