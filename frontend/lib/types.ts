@@ -191,6 +191,17 @@ export type MCPConnection = {
   kind?: MCPKind;
   last_seen_at?: string | null;   // ISO timestamp последнего успешного пинга
   created_at?: string;
+  // === Sprint 03 (handoff 06 · Channel enrichment) ===
+  // Поля заполняются backend'ом при detect-фазе. Frontend готов работать с null —
+  // показывает «—» или скрывает соответствующую строку.
+  /** Тип конфигурации 1С: «УТ 11.5» / «ERP 2.5» / «УСО» / «Самописная» / null. */
+  config_type?: string | null;
+  /** Количество объектов в метаданных (детектится при первом успешном ping'е). */
+  metadata_object_count?: number | null;
+  /** ISO timestamp последней синхронизации метаданных. */
+  metadata_last_sync?: string | null;
+  /** Количество tools, отданных MCP при ping'е (зеркалит ping.tool_count). */
+  tool_count?: number | null;
 };
 
 // --- Advanced card types (Plan 04-02) ---

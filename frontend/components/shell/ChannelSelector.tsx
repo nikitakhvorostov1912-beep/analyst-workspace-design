@@ -18,13 +18,18 @@ import {
 import { KindBadge } from "@/components/shell/KindBadge";
 import { fetchConnections, pingConnection } from "@/lib/api";
 import { getMCPConnections, setActiveChannelId, syncMCPConnections } from "@/lib/storage";
+import {
+  formatRelativeTime,
+  pluralObject,
+  pluralTool,
+} from "@/lib/format-relative-time";
+import { cn } from "@/lib/utils";
 import type { MCPConnection } from "@/lib/types";
 
 type PingStatus = "unknown" | "checking" | "ok" | "error";
 
 type ConnectionWithStatus = MCPConnection & {
   ping: PingStatus;
-  tool_count?: number;
 };
 
 type Props = {
@@ -273,48 +278,144 @@ export function ChannelSelector({ activeId, onChange }: Props) {
         <DropdownMenuLabel>Базы 1С</DropdownMenuLabel>
         <DropdownMenuSeparator />
 
-        {connections.map((conn) => (
-          <div key={conn.id} className="flex items-center gap-1 pr-1">
-            <DropdownMenuItem
-              className="flex-1 gap-2 cursor-pointer"
-              onSelect={() => handleSelect(conn.id)}
-            >
-              <PingDot status={conn.ping} />
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  <span className="truncate font-medium">{conn.name}</span>
-                  <KindBadge kind={conn.kind} />
-                </div>
-                <div
-                  className="text-xs text-[var(--fg-muted)] truncate font-mono"
-                  title={conn.endpoint}
-                >
-                  {extractHostPort(conn.endpoint) || conn.endpoint}
-                </div>
-                {/* REM-4 (2026-05-24): «Канал: ...» убран из видимого UI —
-                    это техническая строка proxy-профиля, аналитику не нужна.
-                    Полный endpoint виден в title attribute trigger'а. */}
-                {conn.ping === "ok" && conn.tool_count !== undefined && (
-                  <div className="text-xs text-[var(--fg-muted)]">{conn.tool_count} инструментов</div>
-                )}
-              </div>
-              {conn.id === activeId && (
-                <span className="text-[var(--accent)] text-xs flex-none">✓</span>
+        {connections.map((conn) => {
+          const isActive = conn.id === activeId;
+          const isOffline = conn.ping === "error";
+          return (
+            <div
+              key={conn.id}
+              className={cn(
+                "flex items-center gap-1 pr-1 my-0.5 mx-1 rounded-md transition-colors",
+                isActive && "bg-[var(--accent-08)]",
               )}
-            </DropdownMenuItem>
-            <button
-              className="p-1 rounded text-[var(--fg-muted)] hover:text-[var(--fg)] hover:bg-[var(--bg-hover)] transition-colors flex-none"
-              onClick={(e) => {
-                e.stopPropagation();
-                void pingOne(conn);
-              }}
-              aria-label={`Обновить статус ${conn.name}`}
-              title="Обновить статус"
             >
-              <RefreshCw size={12} className={conn.ping === "checking" ? "animate-spin" : ""} />
-            </button>
-          </div>
-        ))}
+              <DropdownMenuItem
+                className="flex-1 gap-3 cursor-pointer items-start py-2.5 px-3"
+                onSelect={() => handleSelect(conn.id)}
+              >
+                <PingDot status={conn.ping} />
+                <div className="flex-1 min-w-0">
+                  {/* Row 1: имя + config-type chip + kind badge */}
+                  <div className="flex items-center gap-2 mb-1">
+                    <span
+                      className="font-semibold text-[13px] truncate"
+                      style={{
+                        fontFamily:
+                          "var(--font-plex-mono), 'IBM Plex Mono', ui-monospace, monospace",
+                      }}
+                    >
+                      {conn.name}
+                    </span>
+                    {conn.config_type && (
+                      <span
+                        className={cn(
+                          "px-1.5 py-[1px] rounded text-[9px] tracking-[0.14em] uppercase font-medium border flex-none",
+                          isActive
+                            ? "bg-[var(--accent-12)] text-[var(--accent)] border-[var(--accent-32)]"
+                            : "bg-[var(--bg-2)] text-[var(--fg-2)] border-[var(--bd-2)]",
+                        )}
+                        style={{
+                          fontFamily:
+                            "var(--font-jb-mono), ui-monospace, monospace",
+                        }}
+                      >
+                        {conn.config_type}
+                      </span>
+                    )}
+                    <KindBadge kind={conn.kind} />
+                  </div>
+                  {/* Row 2: meta (объекты · инструменты · sync). Скрыто если offline. */}
+                  {!isOffline && (
+                    <div
+                      className="text-[10px] tracking-[0.12em] uppercase text-[var(--fg-3)] flex items-center gap-1.5 flex-wrap"
+                      style={{
+                        fontFamily:
+                          "var(--font-jb-mono), ui-monospace, monospace",
+                      }}
+                    >
+                      {conn.metadata_object_count != null && (
+                        <>
+                          <span>
+                            {conn.metadata_object_count.toLocaleString("ru")}{" "}
+                            {pluralObject(conn.metadata_object_count)}
+                          </span>
+                          <span className="text-[var(--fg-4)]">·</span>
+                        </>
+                      )}
+                      {conn.tool_count != null && (
+                        <>
+                          <span>
+                            {conn.tool_count} {pluralTool(conn.tool_count)}
+                          </span>
+                          <span className="text-[var(--fg-4)]">·</span>
+                        </>
+                      )}
+                      <span>
+                        обновлено {formatRelativeTime(conn.metadata_last_sync ?? conn.last_seen_at)}
+                      </span>
+                    </div>
+                  )}
+                  {/* Offline row — состояние + последняя связь */}
+                  {isOffline && (
+                    <div
+                      className="text-[10px] tracking-[0.12em] uppercase text-[var(--error)] flex items-center gap-1.5 flex-wrap"
+                      style={{
+                        fontFamily:
+                          "var(--font-jb-mono), ui-monospace, monospace",
+                      }}
+                    >
+                      <span>Офлайн</span>
+                      {(conn.metadata_last_sync ?? conn.last_seen_at) && (
+                        <>
+                          <span className="text-[var(--fg-4)]">·</span>
+                          <span>
+                            последняя связь{" "}
+                            {formatRelativeTime(
+                              conn.metadata_last_sync ?? conn.last_seen_at,
+                            )}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  )}
+                  {/* Fallback: host:port если нет config_type — для совместимости со старым backend */}
+                  {!conn.config_type && conn.ping !== "error" && (
+                    <div
+                      className="text-[10px] text-[var(--fg-4)] truncate font-mono mt-0.5"
+                      title={conn.endpoint}
+                    >
+                      {extractHostPort(conn.endpoint) || conn.endpoint}
+                    </div>
+                  )}
+                </div>
+                {isActive && (
+                  <span
+                    className="text-[var(--accent)] text-sm flex-none mt-1"
+                    aria-label="Активный"
+                  >
+                    ✓
+                  </span>
+                )}
+              </DropdownMenuItem>
+              <button
+                className="p-1 rounded text-[var(--fg-muted)] hover:text-[var(--fg)] hover:bg-[var(--bg-hover)] transition-colors flex-none"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  void pingOne(conn);
+                }}
+                aria-label={`Обновить статус ${conn.name}`}
+                title={
+                  isOffline ? "↻ Перепроверить" : "Обновить статус"
+                }
+              >
+                <RefreshCw
+                  size={12}
+                  className={conn.ping === "checking" ? "animate-spin" : ""}
+                />
+              </button>
+            </div>
+          );
+        })}
 
         <DropdownMenuSeparator />
 
