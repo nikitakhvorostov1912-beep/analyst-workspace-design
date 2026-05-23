@@ -24,8 +24,53 @@ interface OnboardingDialogProps {
 }
 
 type Step = 1 | 2 | 3 | 4;
-const STEP_LABELS = ["База 1С", "Модель ИИ", "Обучение", "Готово"];
+// Sprint 04 (handoff O-6): «Обучение» → «Память» — согласовано с Settings → Memory.
+const STEP_LABELS = ["База 1С", "Модель ИИ", "Память", "Готово"];
 const LEARN_STORAGE_KEY = "analyst.learn_enabled";
+
+// Sprint 04 (handoff O-1): persistance прогресса между перезагрузками.
+// Если юзер закрыл вкладку посередине — при следующем заходе откроет с того
+// же шага с восстановленными флагами.
+const PROGRESS_STORAGE_KEY = "analyst.onboarding-progress";
+
+interface PersistedProgress {
+  step: Step;
+  createdConnectionId: string | null;
+  llmTestPassed: boolean;
+  learnOn: boolean;
+}
+
+function loadProgress(): PersistedProgress | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(PROGRESS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PersistedProgress;
+    // Sanity: step должен быть 1..4
+    if (parsed.step < 1 || parsed.step > 4) return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function saveProgress(p: PersistedProgress): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(PROGRESS_STORAGE_KEY, JSON.stringify(p));
+  } catch {
+    // приватный режим — игнорируем
+  }
+}
+
+function clearProgress(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(PROGRESS_STORAGE_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 function clampStep(value: number): Step {
   if (value < 1) return 1;
@@ -81,9 +126,22 @@ export function OnboardingDialog({
   const [llmTestPassed, setLlmTestPassed] = useState(false);
   const [learnOn, setLearnOn] = useState(false);
 
-  // Сброс состояния при каждом открытии
+  // Sprint 04 (O-1): сброс ИЛИ восстановление прогресса при открытии.
+  // Note: createdConnection не восстанавливаем из backend (требует доп fetch) —
+  // достаточно сохранить id и проигнорировать его в восстановлении: если
+  // юзер вернулся, он либо уже видит свою базу в списке, либо начнёт заново.
   useEffect(() => {
-    if (open) {
+    if (!open) return;
+    const saved = loadProgress();
+    if (saved) {
+      setStep(saved.step);
+      setLlmTestPassed(saved.llmTestPassed);
+      setLearnOn(saved.learnOn);
+      // pingPassed восстановим оптимистично — если сохранён connectionId,
+      // считаем что ping был пройден (иначе step бы не сдвинулся).
+      setPingPassed(saved.createdConnectionId !== null);
+      setPingLoading(false);
+    } else {
       setStep(1);
       setCreatedConnection(null);
       setPingPassed(false);
@@ -93,7 +151,19 @@ export function OnboardingDialog({
     }
   }, [open]);
 
+  // Sprint 04 (O-1): persist при каждом изменении ключевого state.
+  useEffect(() => {
+    if (!open) return;
+    saveProgress({
+      step,
+      createdConnectionId: createdConnection?.id ?? null,
+      llmTestPassed,
+      learnOn,
+    });
+  }, [open, step, createdConnection?.id, llmTestPassed, learnOn]);
+
   function handleSkip() {
+    clearProgress();
     setOnboardingCompleted(true);
     onSkip();
   }
@@ -114,6 +184,7 @@ export function OnboardingDialog({
         // localStorage недоступен (privacy mode) — игнорируем
       }
     }
+    clearProgress();
     setOnboardingCompleted(true);
     onComplete(createdConnection?.id ?? null);
   }
@@ -221,7 +292,7 @@ export function OnboardingDialog({
                 <BookOpen className="h-5 w-5" />
               </div>
               <DialogTitle className="text-lg font-semibold text-[var(--fg-1)]">
-                Обучение на ваших чатах
+                Память по этой базе
                 <span className="ml-2 text-sm font-normal text-[var(--fg-3)]">
                   · опционально
                 </span>
@@ -254,12 +325,11 @@ export function OnboardingDialog({
                 <Info className="h-4 w-4 text-[var(--accent)] flex-shrink-0 mt-0.5" />
                 <div className="min-w-0">
                   <div className="text-[13px] font-medium text-[var(--fg-1)]">
-                    Готовим функцию обучения
+                    Опция сохранена
                   </div>
                   <div className="text-xs text-[var(--fg-3)] mt-0.5 leading-relaxed">
-                    Когда функция будет готова, ваши прошлые чаты будут использованы
-                    автоматически. Сейчас включение запомнит ваш выбор — настройка
-                    появится в Настройках → Обучение.
+                    Когда память запустится, она подхватит ваши прошлые ответы
+                    по&nbsp;этой базе. Управлять можно в&nbsp;Настройки →&nbsp;Память.
                   </div>
                 </div>
               </div>

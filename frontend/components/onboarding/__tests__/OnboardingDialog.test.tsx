@@ -285,14 +285,15 @@ describe("OnboardingDialog", () => {
   // ————————————————————
   // 7. Переход на шаг 3 (Learn opt-in) — НОВОЕ ПОВЕДЕНИЕ (Phase 11.3)
   // ————————————————————
-  it("после save LLM + click «Далее» — переходит на шаг 3 «Обучение» (Learn opt-in)", async () => {
+  it("после save LLM + click «Далее» — переходит на шаг 3 «Память» (Learn opt-in)", async () => {
     render(
       <OnboardingDialog open={true} onComplete={vi.fn()} onSkip={vi.fn()} />,
     );
 
     await advanceToLearnStep();
 
-    expect(screen.getByText(/Обучение на ваших чатах/)).toBeInTheDocument();
+    // Sprint 04 (O-4 + O-6): heading «Обучение на ваших чатах» → «Память по этой базе».
+    expect(screen.getByText(/Память по этой базе/)).toBeInTheDocument();
     expect(screen.getByRole("switch")).toBeInTheDocument();
   });
 
@@ -308,14 +309,15 @@ describe("OnboardingDialog", () => {
 
     const sw = screen.getByRole("switch");
     expect(sw).toHaveAttribute("aria-checked", "false");
+    // Sprint 04 (O-4): «Готовим функцию обучения» → «Опция сохранена».
     expect(
-      screen.queryByText(/Готовим функцию обучения/),
+      screen.queryByText(/Опция сохранена/),
     ).not.toBeInTheDocument();
 
     fireEvent.click(sw);
     expect(sw).toHaveAttribute("aria-checked", "true");
     expect(
-      screen.getByText(/Готовим функцию обучения/),
+      screen.getByText(/Опция сохранена/),
     ).toBeInTheDocument();
   });
 
