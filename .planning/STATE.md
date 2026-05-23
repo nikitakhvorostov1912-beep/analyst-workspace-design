@@ -62,45 +62,54 @@ note: "COMMERCE-PLAN-2026-05-23 Phase 1-3 в основном закрыты (10
 | **Branch** | `feature/v1.3.0-commerce` |
 | **Latest tag** | v1.2.2 (2026-05-19, pre-Hermes) |
 | **Pending tag** | v1.3.0 — installer уже собран (a070b21), ждёт smoke + release |
-| **Last commit** | `1c1a646` test(P3.1 rev3) + `49492ba` fix(P2.1 unignore) |
+| **Last commit** | `fcd6f38` POST-RELEASE-DEBT + `6a299a5` helper tests + `469460c` P1.2 phase 1 |
 | **Mode** | Atomic commits per ticket, тесты обязательны |
-| **Last Update** | 2026-05-23 18:30 — backend 800/807 + frontend 323/323 |
+| **Last Update** | 2026-05-23 19:30 — P1.2 phase 1 done + P4.2 quality gate done + POST-RELEASE-DEBT |
 
-### Verification status (2026-05-23 18:30)
+### Verification status (2026-05-23 19:30)
 
 - **Backend pytest:** 800 / 807 passed. 7 failed — pre-existing flaky:
   - `test_markdown_store_*` (3) — Windows-1251 encoding
   - `test_migrations_v5_backfill_messages_into_fts`
   - `test_orchestrator_loop_confirm` (2) — pre-existing
   - `test_trajectory_handles_multimodal_content` — Windows console unicode
-- **Backend новые тесты (P2.1 / P2.2 / P2.3 / P3.2):** 109 / 109 passed
+- **Backend новые тесты (P2.1 / P2.2 / P2.3 / P3.2 / P1.2 phase1):** 131 / 131 passed
+- **Backend loop-related регрессия после P1.2 phase1:** 72 / 72 passed
 - **Frontend vitest:** 323 / 323 passed (43 файла)
+- **Frontend `npx tsc --noEmit`:** 0 errors
+- **Frontend `npx next build`:** clean
+- **Backend `ruff check` на новых файлах:** All checks passed
 - **Установщик v1.3.0** уже собран в коммите `a070b21` (W4.1), оптимизирован
   до 187 МБ в `6000fd6` (W4.2 clean-venv). **Проверено бинарным grep:**
   `backend.exe` содержит `user_secrets` ✓ + `cryptography` ✓ + `sqlparse` ✓
   — модули запакованы по фактическому диску, .gitignore при сборке не
   играл роли. Ре-build НЕ нужен. Installer готов к смоку.
+- **Артефакты для smoke / release:**
+  - `.planning/SMOKE-v1.3.0.md` — 9-секционный чек-лист
+  - `.planning/RELEASE-NOTES-v1.3.0-DRAFT.md` — текст для GitHub Release
+  - `.planning/POST-RELEASE-DEBT.md` — 14 пунктов тех долга для будущих spike
 
 ### Commerce Plan Phase 1-4 (2026-05-23, поверх Wave 1-4)
 
 | Тикет | Статус | Заметка |
 |---|---|---|
 | P1.1 | ✓ Done | Verification stamp: Sprint 3 уже wired |
-| P1.2 | ⏸ Pending | Decompose loop.py 1222→400 строк (10h, рискованный) |
+| P1.2 phase 1 | ✓ Done | 3 pure helpers extracted (`469460c`) + 22 юнит-теста (`6a299a5`) |
+| P1.2 phase 2/3 | ⏸ POST-RELEASE | handle_tool_call + LoopContext — отдельная сессия 6h (см. POST-RELEASE-DEBT TD-1) |
 | P1.3 | ✓ Code ready | electron-builder.yml + GH workflow; ждёт EV/OV cert от admin |
 | P1.4 | ✓ Done | electron-updater интегрирован, UpdateBanner в Header |
 | P2.1 | ✓ Done | user_secrets таблица + AES-GCM + REST + chat.py priority |
 | P2.2 | ✓ Done | ResultSizeGate (500 row cap) + TableCard truncated banner |
 | P2.3 | ✓ Done | sql_validator.py через sqlparse + защита от bypass |
-| P3.1 | ✓ Done | NVIDIA NIM база, Cloud.ru 152-ФЗ альтернатива |
+| P3.1 | ✓ Done | NVIDIA NIM база, Cloud.ru 152-ФЗ альтернатива (rev3: DeepSeek V4 Flash default) |
 | P3.2 | ✓ Done | resolve_default_api_key + endpoint detection tests |
 | P3.3 | ✓ Done | Compliance badges в LLMConfigForm |
 | P3.4 | ✓ Done | CHANGELOG + memory/llm-providers.md обновлены |
-| P4.1 | ⏸ Pending | Smoke на чистой Win11 VM — manual |
-| P4.2 | ⏸ Pending | Quality gate (pytest+vitest+build+playwright) |
-| P4.3 | ⏸ Pending | Build v1.3.0 final + sign + bundle |
-| P4.4 | ⏸ Pending | git tag v1.3.0 + GitHub Release |
-| P4.5 | ⏸ Pending | STATE.md M7 close + M8 open |
+| P4.1 | ⏸ Manual | Smoke на чистой Win11 VM — checklist `.planning/SMOKE-v1.3.0.md` (9 секций) |
+| P4.2 | ✓ Done | TypeScript 0 errors, ruff на новых файлах clean, build clean (`41cd18f`) |
+| P4.3 | ⏸ Manual | Re-build с подписью — ждёт EV/OV cert. Текущий `analyst-setup-v1.3.0.exe` 187 МБ работоспособен |
+| P4.4 | ⏸ Manual | git tag v1.3.0 + GitHub Release — после P4.1 smoke PASS |
+| P4.5 | ⏸ Manual | STATE.md M7 close + M8 open — после P4.4 release |
 
 ## Milestone M7 — Commerce Readiness (2026-05-22 в работе)
 
