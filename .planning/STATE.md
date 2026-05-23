@@ -62,25 +62,21 @@ note: "COMMERCE-PLAN-2026-05-23 Phase 1-3 в основном закрыты (10
 | **Branch** | `feature/v1.3.0-commerce` |
 | **Latest tag** | v1.2.2 (2026-05-19, pre-Hermes) |
 | **Pending tag** | v1.3.0 — installer уже собран (a070b21), ждёт smoke + release |
-| **Last commit** | `9ba4c1c` exec_mcp tests + `7f2b89c` P1.2 phase3 + `7e6202c` skills UI + `90ba493` dispatch tests |
+| **Last commit** | `5b76e0c` P1.2 phase3 step3 + `94b7864` TD-7 + `bd40d3d` TD-4 + `57fc20a` TD-3 final |
 | **Mode** | Atomic commits per ticket, тесты обязательны |
-| **Last Update** | 2026-05-24 11:00 — P1.2 phase 3 step 1 + skills UI «Что система выучила» + fresh installer |
+| **Last Update** | 2026-05-24 12:00 — POST-RELEASE-DEBT основные пункты закрыты, fresh installer pending |
 
-### Verification status (2026-05-24 11:00)
+### Verification status (2026-05-24 12:00)
 
-- **Backend pytest:** 844 / 847 passed. 3 failed — pre-existing (НЕ TD-3 encoding):
-  - `test_migrations_v5_backfill_messages_into_fts` — sqlite no such table
-  - `test_orchestrator_loop_confirm` (2) — race condition в тесте (1с таймаут)
+- **Backend pytest:** **847 / 847 passed** (было 800 → 837 → 844 → 847). 0 flaky.
 - **Backend новые тесты (P1.2 phase1+2+3 + P2.1 + P2.2 + P2.3 + P3.2):** 149 / 149 passed
-  - P1.2 helpers (phase 1): 22 ✓
-  - P1.2 dispatch_internal (phase 2): 11 ✓
-  - P1.2 execute_mcp (phase 3 step 1): 7 ✓
-  - P2.1/P2.2/P2.3/P3.2: 109 ✓
+- **Backend coverage:** **88.1%** orchestrator+clients (target ≥80%, TD-2 закрыт)
+  - loop.py: 81.9%, persistence.py: 88.4%, sql_validator: 89%, cards: 93%
 - **Frontend vitest:** 323 / 323 passed (43 файла)
 - **Frontend `npx tsc --noEmit`:** 0 errors
-- **Frontend `npx next build`:** clean
-- **Backend `ruff check` loop.py:** 8 errors (всё E501 — длинные строки в SYSTEM_PROMPT, контент)
-- **Backend `ruff check` на новых файлах:** All checks passed
+- **Backend `ruff check` loop.py:** 8 errors (всё E501 — длинные строки в SYSTEM_PROMPT)
+- **Frontend E2E:** 3 ранее-skipped spec'а unskipped — требуют `pnpm exec playwright test`
+  на dev-stack для финальной верификации (TD-4)
 - **Установщик v1.3.0 (свежий)** пересобран 2026-05-24 11:00 — 183 МБ.
   Лежит в `1C-Analyst-v1.3.0/analyst-setup-v1.3.0.exe` + `desktop/dist/`.
   Включает все правки до `9ba4c1c` (включая skills UI «Что система
@@ -96,9 +92,10 @@ note: "COMMERCE-PLAN-2026-05-23 Phase 1-3 в основном закрыты (10
 |---|---|---|
 | P1.1 | ✓ Done | Verification stamp: Sprint 3 уже wired |
 | P1.2 phase 1 | ✓ Done | 4 pure helpers (`469460c`) + 22 теста (`6a299a5`) |
-| P1.2 phase 2 | ✓ Done | `_dispatch_sync_internal_tool` memory+todo merge (`afebab8`) + 11 тестов (`90ba493`) |
-| P1.2 phase 3 step1 | ✓ Done | `_execute_mcp_tool` (`7f2b89c`) + 7 тестов (`9ba4c1c`). `run_chat_loop`: 870 → 739 строк |
-| P1.2 phase 3 step2 | ⏸ POST-RELEASE | LoopContext dataclass + init blocks decompose — цель ≤400 (TD-1) |
+| P1.2 phase 2 | ✓ Done | `_dispatch_sync_internal_tool` (`afebab8`) + 11 тестов (`90ba493`) |
+| P1.2 phase 3 step1 | ✓ Done | `_execute_mcp_tool` (`7f2b89c`) + 7 тестов (`9ba4c1c`) |
+| P1.2 phase 3 step2 | ✓ Done | skill_store / openai_tools / vision helpers (`f6816b9`) |
+| P1.2 phase 3 step3 | ✓ Done | history + skills_block helpers (`5b76e0c`). **870 → 689 строк (-181)** |
 | P1.3 | ✓ Code ready | electron-builder.yml + GH workflow; ждёт EV/OV cert от admin |
 | P1.4 | ✓ Done | electron-updater интегрирован, UpdateBanner в Header |
 | P2.1 | ✓ Done | user_secrets таблица + AES-GCM + REST + chat.py priority |

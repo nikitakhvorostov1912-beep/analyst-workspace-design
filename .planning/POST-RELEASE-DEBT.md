@@ -1,7 +1,22 @@
 # Тех. долг после v1.3.0 — реестр для следующего spike
 
-**Создан:** 2026-05-23
+**Создан:** 2026-05-23 · **Закрыт по основным пунктам:** 2026-05-24
 **Источник:** что не вошло в COMMERCE-PLAN-2026-05-23 как «critical для первой продажи»
+
+## Сводка закрытия (2026-05-24)
+
+| Пункт | Статус | Коммит |
+|---|---|---|
+| TD-1 | 🟡 Частично — `run_chat_loop` 870 → 689 строк (-181), цель ≤400 не достигнута | phase 1/2/3 step 1-3 |
+| TD-2 | ✅ Done — orchestrator+clients coverage **88.1%** (выше target ≥60%) | существующая база |
+| TD-3 | ✅ Done — 7/7 flaky починены (encoding + migration setup + race timeout) | `57fc20a`, `3075b26` |
+| TD-4 | ✅ Done — 3 skipped E2E specs unskipped + fixtures расширены | `bd40d3d` |
+| TD-5 | ✅ Done — ruff loop.py 35 → 8 (8 — E501 в SYSTEM_PROMPT контенте) | `260ad44` |
+| TD-6 | ✅ Done — 5 cards уже через CardHeader, Metric+Chart намеренно не нуждаются | re-eval |
+| TD-7 | ✅ Done — ToolTrace цветной accent per категории (mcp/memory/todo/clarify) | `94b7864` |
+| TD-8 | ✅ N/A — react-window не используется, ResultSizeGate (P2.2) режет 500 строк | re-eval |
+
+**Осталось только** TD-9..14 — архитектурное (по запросу клиентов).
 
 Документ — НЕ план реализации, а **навигация** для следующих спайков. Каждая запись = одна потенциальная фокусная сессия.
 
