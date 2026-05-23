@@ -374,6 +374,73 @@ _TOOL_FOR_CARD_TYPE: dict[str, str] = {
 }
 
 
+def _dispatch_sync_internal_tool(
+    *,
+    tool_name: str,
+    tool_args: dict,
+    tool_id: str,
+    memory_manager: Any,
+    session_id: str,
+    start_ts: float,
+) -> tuple[bool, ToolResultEvent, dict, dict] | None:
+    """Обрабатывает synchronous internal tools — memory_* и todo_*.
+
+    Извлечено из run_chat_loop как часть P1.2 phase 2. Эти инструменты НЕ
+    идут в MCP-сервер и НЕ требуют await — pure dispatch + сборка
+    готовых структур для main loop.
+
+    Returns:
+        None — если tool не internal (значит main loop должен пробовать
+            MCP path).
+        Tuple — (ok, event, accumulated_entry, message_entry):
+            - ok: успех dispatch'а
+            - event: ToolResultEvent для yield format_sse
+            - accumulated_entry: dict для append в accumulated_tool_calls
+            - message_entry: dict для append в messages
+
+    Note: clarify_question НЕ обрабатывается тут — он требует await на
+    pending.future (диалог с пользователем). Остаётся в run_chat_loop.
+    """
+    if is_memory_tool(tool_name):
+        ok, tool_result, tool_error = dispatch_memory_tool(
+            memory_manager, tool_name, tool_args
+        )
+    elif is_todo_tool(tool_name):
+        ok, tool_result, tool_error = dispatch_todo_tool(
+            session_id, tool_name, tool_args
+        )
+    else:
+        return None
+
+    duration_ms = int((time.monotonic() - start_ts) * 1000)
+    event = ToolResultEvent(
+        id=tool_id,
+        ok=ok,
+        result=tool_result if ok else None,
+        error=tool_error,
+        duration_ms=duration_ms,
+    )
+    accumulated_entry = {
+        "id": tool_id,
+        "name": tool_name,
+        "args": tool_args,
+        "result": tool_result,
+        "error": tool_error,
+        "duration_ms": duration_ms,
+    }
+    tool_content = (
+        json.dumps(tool_result, ensure_ascii=False)
+        if tool_result
+        else (tool_error or "")
+    )
+    message_entry = {
+        "role": "tool",
+        "tool_call_id": tool_id,
+        "content": _cap_content(tool_content),
+    }
+    return ok, event, accumulated_entry, message_entry
+
+
 async def _persist_card_states(
     db: aiosqlite.Connection,
     *,
@@ -1068,34 +1135,25 @@ async def run_chat_loop(
                         # approved is True — продолжаем как обычно
 
                 start_ts = time.monotonic()
-                # Sprint 1 (Hermes): memory_* tools → MemoryManager, не MCP.
-                # Это internal tools — они не доходят до MCP-сервера.
-                if is_memory_tool(tool_name):
-                    ok, tool_result, tool_error = dispatch_memory_tool(
-                        memory_manager, tool_name, tool_args
-                    )
-                    duration_ms = int((time.monotonic() - start_ts) * 1000)
-                    yield format_sse("tool_result", ToolResultEvent(
-                        id=tool_id,
-                        ok=ok,
-                        result=tool_result if ok else None,
-                        error=tool_error,
-                        duration_ms=duration_ms,
-                    ))
-                    accumulated_tool_calls.append({
-                        "id": tool_id,
-                        "name": tool_name,
-                        "args": tool_args,
-                        "result": tool_result,
-                        "error": tool_error,
-                        "duration_ms": duration_ms,
-                    })
-                    tool_content = json.dumps(tool_result, ensure_ascii=False) if tool_result else (tool_error or "")
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool_id,
-                        "content": _cap_content(tool_content),
-                    })
+
+                # P1.2 phase 2 (2026-05-23): memory_* и todo_* — synchronous
+                # internal tools — обрабатываются одним dispatcher'ом.
+                # Возвращает None если tool не internal (тогда дальше — MCP).
+                # clarify_* остаётся в main loop, потому что требует await на
+                # pending.future (диалог с юзером).
+                sync_internal = _dispatch_sync_internal_tool(
+                    tool_name=tool_name,
+                    tool_args=tool_args,
+                    tool_id=tool_id,
+                    memory_manager=memory_manager,
+                    session_id=session_id,
+                    start_ts=start_ts,
+                )
+                if sync_internal is not None:
+                    _ok, event, accum_entry, msg_entry = sync_internal
+                    yield format_sse("tool_result", event)
+                    accumulated_tool_calls.append(accum_entry)
+                    messages.append(msg_entry)
                     continue
 
                 # Sprint 4 (Hermes D1): clarify_question — диалог с пользователем
@@ -1161,36 +1219,8 @@ async def run_chat_loop(
                     })
                     continue
 
-                # Sprint 3 (Hermes D3): todo_* tools → TodoRegistry, не MCP.
-                if is_todo_tool(tool_name):
-                    ok, tool_result, tool_error = dispatch_todo_tool(
-                        session_id, tool_name, tool_args
-                    )
-                    duration_ms = int((time.monotonic() - start_ts) * 1000)
-                    yield format_sse("tool_result", ToolResultEvent(
-                        id=tool_id,
-                        ok=ok,
-                        result=tool_result if ok else None,
-                        error=tool_error,
-                        duration_ms=duration_ms,
-                    ))
-                    accumulated_tool_calls.append({
-                        "id": tool_id,
-                        "name": tool_name,
-                        "args": tool_args,
-                        "result": tool_result,
-                        "error": tool_error,
-                        "duration_ms": duration_ms,
-                    })
-                    tool_content = json.dumps(tool_result, ensure_ascii=False) if tool_result else (tool_error or "")
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool_id,
-                        "content": _cap_content(tool_content),
-                    })
-                    continue
-
                 # Маршрутизация tool_call → правильный MCP client (primary или aux).
+                # (todo_* и memory_* выше через _dispatch_sync_internal_tool)
                 tool_client = pool.client_for(tool_name)
                 try:
                     ok, tool_result, tool_error = await _call_tool_with_retry(tool_client, tool_name, tool_args)
