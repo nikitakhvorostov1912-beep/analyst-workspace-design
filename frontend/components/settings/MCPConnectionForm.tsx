@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { FieldError } from "@/components/ui/FieldError";
 import { createConnection, updateConnection, pingConnection } from "@/lib/api";
 import { mcpConnectionSchema } from "@/lib/form-schemas";
 import { publishToast } from "@/lib/toast";
@@ -228,10 +229,10 @@ export function MCPConnectionForm({
           onChange={(e) => setName(e.target.value)}
           placeholder="Моя база"
           maxLength={50}
+          aria-invalid={!!errors.name}
+          aria-describedby={errors.name ? "name-error" : undefined}
         />
-        {errors.name && (
-          <p className="text-xs text-[var(--error)] mt-1">{errors.name}</p>
-        )}
+        <FieldError id="name-error" message={errors.name} />
       </div>
 
       {/* Порт встроенного сервера — главное что аналитик настраивает.
@@ -330,11 +331,13 @@ export function MCPConnectionForm({
                     maxLength={60}
                     className="font-mono"
                     data-testid="channel-input"
+                    aria-invalid={!!errors.channel}
+                    aria-describedby={errors.channel ? "channel-error" : "channel-hint"}
                   />
                   {errors.channel ? (
-                    <p className="text-xs text-[var(--error)] mt-1">{errors.channel}</p>
+                    <FieldError id="channel-error" message={errors.channel} />
                   ) : (
-                    <p className="text-xs text-[var(--fg-3)] mt-1">
+                    <p id="channel-hint" className="text-xs text-[var(--fg-3)] mt-1">
                       Идентификатор, под которым прокси-шлюз отдаёт ваше подключение.
                     </p>
                   )}
@@ -361,9 +364,7 @@ export function MCPConnectionForm({
             <div className="text-xs text-[var(--fg-3)] bg-[var(--bg-elevated)] border border-[var(--border)] rounded p-2 font-mono break-all">
               Адрес: {computedEndpoint || "—"}
             </div>
-            {errors.endpoint && (
-              <p className="text-xs text-[var(--error)]">{errors.endpoint}</p>
-            )}
+            <FieldError message={errors.endpoint} />
           </div>
         )}
       </div>
