@@ -30,6 +30,7 @@ import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { cn } from "@/lib/utils";
+import { describeMcpTool } from "@/lib/mcp-tool-descriptions";
 import type {
   AuxMCPStatus,
   EnvDiagnosticsResponse,
@@ -306,7 +307,7 @@ function backendCheck(health: HealthResponse, env: EnvDiagnosticsResponse | null
     id: "backend",
     title: "Сервер приложения",
     status: "ok",
-    summary: `OK · версия ${health.version} · БД ${health.db}`,
+    summary: `OK · БД ${health.db === "ok" ? "в порядке" : "ошибка"}`,
     fields,
   };
 }
@@ -623,7 +624,8 @@ function CheckRow({ check }: { check: Check }) {
                 {check.chips.map((name) => (
                   <span
                     key={name}
-                    className="text-[10px] font-mono px-1.5 py-px rounded border border-[var(--bd-2)] bg-[var(--bg-2)] text-[var(--fg-2)]"
+                    title={`${name}: ${describeMcpTool(name)}`}
+                    className="text-[10px] font-mono px-1.5 py-px rounded border border-[var(--bd-2)] bg-[var(--bg-2)] text-[var(--fg-2)] cursor-help"
                   >
                     {name}
                   </span>

@@ -1,12 +1,18 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { APP_VERSION } from "@/lib/version";
 
 interface StencilLockupProps {
-  /** Версия приложения. null/undefined — скрыть. По умолчанию — APP_VERSION из lib/version.ts. */
+  /**
+   * Версия приложения. По умолчанию null — не показывать.
+   * 2026-05-23: убрали из шапки, чтобы не палить раннюю стадию и не плодить drift.
+   * Если нужно показать (на странице диагностики, например) — передать строкой.
+   */
   version?: string | null;
-  /** Подпись под лого (PRODUCTION BUILD · STABLE). null — скрыть. */
+  /**
+   * Подпись под лого (например, «PRODUCTION · STABLE»). По умолчанию null — не показывать.
+   * 2026-05-23: убрали из шапки вместе с версией.
+   */
   subtitle?: string | null;
   /** Размер текста АНАЛИТИК в px (по умолчанию 18). */
   fontSize?: number;
@@ -16,9 +22,12 @@ interface StencilLockupProps {
 /**
  * Stencil inline-lockup из фирменного стиля (2026-05-19).
  *
- * Структура (фиксированная по brand guideline):
- *   [orange bar] АНАЛИТИК [/] 1.2.1
- *   PRODUCTION BUILD · STABLE
+ * Базовая структура:
+ *   [orange bar] АНАЛИТИК
+ *
+ * Если переданы `version` и/или `subtitle` — добавляются вторая часть и/или подпись:
+ *   [orange bar] АНАЛИТИК [/] 1.3.0
+ *   PRODUCTION · STABLE
  *
  * Слева — оранжевый «маркер данных» (квадратик ½ x-height).
  * АНАЛИТИК — IBM Plex Mono 700, uppercase, letter-spacing +0.02em.
@@ -30,8 +39,8 @@ interface StencilLockupProps {
  *   xl 48px (hero) · lg 36px (about) · md 24px (titlebar) · sm 16px (inline) · xs 12px (meta).
  */
 export function StencilLockup({
-  version = APP_VERSION,
-  subtitle = "Production build · Stable",
+  version = null,
+  subtitle = null,
   fontSize = 18,
   className,
 }: StencilLockupProps) {

@@ -44,7 +44,7 @@ export function Header({
         )}
         <div className="flex items-center gap-2.5 min-w-0">
           <BrandMark size={36} />
-          <StencilLockup subtitle="Production · Stable" fontSize={16} />
+          <StencilLockup fontSize={16} />
         </div>
       </div>
 

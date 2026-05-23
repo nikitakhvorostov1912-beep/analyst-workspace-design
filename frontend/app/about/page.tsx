@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, BookOpen } from "lucide-react";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
-import { APP_VERSION } from "@/lib/version";
 
 export default function AboutPage() {
   return (
@@ -174,7 +173,7 @@ export default function AboutPage() {
 
         <section className="pt-6 border-t border-[var(--border)]">
           <p className="text-xs text-[var(--fg-muted)]">
-            Версия {APP_VERSION} · MIT License ·{" "}
+            MIT License ·{" "}
             <a
               href="https://github.com/nikitakhvorostov1912-beep/analyst-workspace-design"
               target="_blank"
