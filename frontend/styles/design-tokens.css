@@ -411,6 +411,25 @@
   }
 }
 
+/* UndoToast container — slide-in spring при появлении, slide-out при closing. */
+.toast-undo {
+  animation: toast-in 280ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+.toast-undo[data-state="closing"] {
+  animation: toast-out 240ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+
+/* Прогресс-бар внизу UndoToast — линейно сужается за длительность toast'а.
+ * `--toast-duration` подаётся через inline style. Hover на toast паузит. */
+.toast-progress {
+  animation: toast-progress-shrink var(--toast-duration, 5000ms) linear forwards;
+}
+
+.toast-undo:hover .toast-progress {
+  animation-play-state: paused;
+}
+
 /* prefers-reduced-motion: пользователь отключил анимации — переключаем
  * на тихую pulse вместо двигающегося gradient. */
 @media (prefers-reduced-motion: reduce) {
@@ -432,6 +451,16 @@
   .spark-fill {
     opacity: 1;
     animation: none;
+  }
+  /* UndoToast: без slide-in, сразу видим */
+  .toast-undo {
+    animation: none;
+  }
+  /* Прогресс-бар остаётся, но без анимации — заменяем на статический индикатор */
+  .toast-progress {
+    animation: none;
+    width: 100%;
+    opacity: 0.4;
   }
 }
 
