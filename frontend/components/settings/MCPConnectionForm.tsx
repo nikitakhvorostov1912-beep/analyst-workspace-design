@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/FieldError";
+import { LiveTestResult } from "@/components/ui/LiveTestResult";
 import { createConnection, updateConnection, pingConnection } from "@/lib/api";
 import { mcpConnectionSchema } from "@/lib/form-schemas";
 import { publishToast } from "@/lib/toast";
@@ -114,6 +115,16 @@ export function MCPConnectionForm({
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
+  // Sprint 02 (handoff B · LiveTestResult): inline-чип результата теста.
+  // Дублирует toast, но остаётся на экране до следующего теста — удобно когда
+  // пользователь подряд проверяет несколько подключений и хочет вернуться
+  // к цифре отклика.
+  const [testState, setTestState] = useState<
+    "idle" | "testing" | "success" | "error"
+  >("idle");
+  const [testMs, setTestMs] = useState<number | undefined>(undefined);
+  const [testDetail, setTestDetail] = useState<string | undefined>(undefined);
+  const [testError, setTestError] = useState<string | undefined>(undefined);
   // Advanced раскрывается автоматически, если редактируется proxy-подключение —
   // там поля для канала и адреса прокси.
   const [advancedOpen, setAdvancedOpen] = useState(parsed.kind === "proxy");
@@ -203,14 +214,23 @@ export function MCPConnectionForm({
     }
 
     setTesting(true);
+    setTestState("testing");
+    setTestError(undefined);
+    const t0 = performance.now();
     try {
       const result = await pingConnection(initial.id);
+      const elapsed = Math.round(performance.now() - t0);
+      setTestMs(result.duration_ms ?? elapsed);
+      setTestDetail(`${result.tool_count} инструментов`);
+      setTestState("success");
       publishToast({
         type: "info",
         message: `База 1С отвечает · ${result.tool_count} инструментов · ${result.duration_ms} мс`,
       });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Ошибка теста";
+      setTestError(message);
+      setTestState("error");
       publishToast({ type: "error", message });
     } finally {
       setTesting(false);
@@ -369,7 +389,7 @@ export function MCPConnectionForm({
         )}
       </div>
 
-      <div className="flex items-center gap-2 pt-1">
+      <div className="flex items-center gap-2 pt-1 flex-wrap">
         <Button
           variant="secondary"
           size="sm"
@@ -395,6 +415,12 @@ export function MCPConnectionForm({
             Отмена
           </Button>
         )}
+        <LiveTestResult
+          state={testState}
+          ms={testMs}
+          detail={testDetail}
+          errorMessage={testError}
+        />
       </div>
     </div>
   );

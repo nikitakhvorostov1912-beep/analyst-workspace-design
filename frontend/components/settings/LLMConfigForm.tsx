@@ -5,6 +5,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import { LiveTestResult } from "@/components/ui/LiveTestResult";
 import {
   Select,
   SelectContent,
@@ -92,6 +93,13 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
   const [testing, setTesting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(initialPresetId === CUSTOM_MODEL_ID);
+  // Sprint 02 (handoff B · LiveTestResult): inline-чип результата теста — см. MCPConnectionForm.
+  const [testState, setTestState] = useState<
+    "idle" | "testing" | "success" | "error"
+  >("idle");
+  const [testMs, setTestMs] = useState<number | undefined>(undefined);
+  const [testDetail, setTestDetail] = useState<string | undefined>(undefined);
+  const [testError, setTestError] = useState<string | undefined>(undefined);
 
   // activePreset = текущий выбор (плоский preset или null если custom).
   const activePreset = useMemo(() => {
@@ -149,6 +157,9 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
     if (!data) return;
 
     setTesting(true);
+    setTestState("testing");
+    setTestError(undefined);
+    const t0 = performance.now();
     try {
       const result = await testLLMConfig(
         { endpoint: data.endpoint, model: data.model, temperature: data.temperature },
@@ -156,18 +167,27 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
       );
 
       if (result.ok) {
+        const elapsed = Math.round(performance.now() - t0);
+        setTestMs(elapsed);
+        setTestDetail(data.model);
+        setTestState("success");
         publishToast({
           type: "info",
           message: `Модель отвечает: ${data.model}`,
         });
       } else {
+        const message = translateErrorCode(result.error_code);
+        setTestError(message);
+        setTestState("error");
         publishToast({
           type: "error",
-          message: translateErrorCode(result.error_code),
+          message,
         });
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : "Ошибка теста";
+      setTestError(message);
+      setTestState("error");
       publishToast({ type: "error", message });
     } finally {
       setTesting(false);
@@ -470,7 +490,7 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
         )}
       </div>
 
-      <div className="flex items-center gap-2 pt-1">
+      <div className="flex items-center gap-2 pt-1 flex-wrap">
         <Button
           variant="secondary"
           size="sm"
@@ -491,6 +511,12 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
             Удалить
           </Button>
         )}
+        <LiveTestResult
+          state={testState}
+          ms={testMs}
+          detail={testDetail}
+          errorMessage={testError}
+        />
       </div>
 
       <AlertDialog open={showDeleteDialog}>

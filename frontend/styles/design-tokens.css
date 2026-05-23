@@ -62,6 +62,13 @@
   --error-20: rgba(248, 113, 113, 0.20);
   --error-40: rgba(248, 113, 113, 0.40);
 
+  /* Info — neutral hint colour, не путать с accent (CTA).
+     Используется в hint-блоках, inline-чипах «Проверяю...», info-banner. */
+  --info: #5fb8ff;
+  --info-12: rgba(95, 184, 255, 0.12);
+  --info-20: rgba(95, 184, 255, 0.20);
+  --info-40: rgba(95, 184, 255, 0.40);
+
   /* Animation timing */
   --t-micro: 150ms;
   --t-normal: 200ms;
@@ -139,6 +146,12 @@
   --error-12: rgba(220, 38, 38, 0.12);
   --error-20: rgba(220, 38, 38, 0.2);
   --error-40: rgba(220, 38, 38, 0.4);
+
+  /* Info — light theme variant (приглушённый синий для контраста на sand) */
+  --info: #1a73c4;
+  --info-12: rgba(26, 115, 196, 0.12);
+  --info-20: rgba(26, 115, 196, 0.2);
+  --info-40: rgba(26, 115, 196, 0.4);
 
   /* Code surface на светлой теме всё равно тёмная — фирменный «code ground».
      В Stencil-системе code blocks никогда не меняют цвет. */
