@@ -14,6 +14,46 @@ function pluralTools(n: number): string {
   return "инструментов";
 }
 
+/**
+ * Категория инструмента — для визуального code мини-chip'а в ToolTrace.
+ *
+ * - mcp: реальные 1С MCP tools (execute_query, get_metadata, …) — orange
+ * - memory: memory_append / memory_remove — blue
+ * - todo: todo_add / todo_complete / todo_list — green
+ * - clarify: clarify_question — purple (требует диалога)
+ */
+type ToolCategory = "mcp" | "memory" | "todo" | "clarify";
+
+function getToolCategory(name: string): ToolCategory {
+  if (name.startsWith("memory_")) return "memory";
+  if (name.startsWith("todo_")) return "todo";
+  if (name === "clarify_question") return "clarify";
+  return "mcp";
+}
+
+/**
+ * Цветовая палитра chip per категории — light/dark тема через CSS-переменные.
+ * accent/success/warning — стандартные семантические токены design-tokens.css.
+ */
+const CATEGORY_STYLE: Record<ToolCategory, { ok: string; error: string }> = {
+  mcp: {
+    ok: "bg-[var(--bg-2)] text-[var(--fg-2)] border-[var(--bd-2)] hover:border-[var(--accent-32)]",
+    error: "bg-[var(--error-12)] text-[var(--error)] border-[var(--error-20)] hover:bg-[var(--error-20)]",
+  },
+  memory: {
+    ok: "bg-[var(--info-12,var(--bg-2))] text-[var(--info,var(--fg-2))] border-[var(--info-20,var(--bd-2))] hover:opacity-90",
+    error: "bg-[var(--error-12)] text-[var(--error)] border-[var(--error-20)] hover:bg-[var(--error-20)]",
+  },
+  todo: {
+    ok: "bg-[var(--success-12,var(--bg-2))] text-[var(--success,var(--fg-2))] border-[var(--success-20,var(--bd-2))] hover:opacity-90",
+    error: "bg-[var(--error-12)] text-[var(--error)] border-[var(--error-20)] hover:bg-[var(--error-20)]",
+  },
+  clarify: {
+    ok: "bg-[var(--warning-12)] text-[var(--warning)] border-[var(--warning-20)] hover:opacity-90",
+    error: "bg-[var(--error-12)] text-[var(--error)] border-[var(--error-20)] hover:bg-[var(--error-20)]",
+  },
+};
+
 type ToolTraceProps = {
   toolCalls: ToolCallRecord[];
   totalDurationMs?: number;
@@ -38,20 +78,23 @@ function ToolChip({
 }) {
   const isError = tc.ok === false;
   const Icon = isError ? AlertTriangle : tc.ok === true ? CheckCircle2 : Wrench;
+  // TD-7 (2026-05-24): цветной accent per категории — пользователь
+  // мгновенно понимает что LLM делает (1С запрос / память / план / уточнение).
+  const category = getToolCategory(tc.name);
+  const styleVariant = isError ? CATEGORY_STYLE[category].error : CATEGORY_STYLE[category].ok;
   return (
     <button
       type="button"
       onClick={onClick}
       data-tool-chip={tc.id}
       data-tone={isError ? "error" : "ok"}
+      data-category={category}
       className={cn(
         "inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] border transition-colors duration-micro ease-design-ease",
-        isError
-          ? "bg-[var(--error-12)] text-[var(--error)] border-[var(--error-20)] hover:bg-[var(--error-20)]"
-          : "bg-[var(--bg-2)] text-[var(--fg-2)] border-[var(--bd-2)] hover:border-[var(--bd-3)]",
+        styleVariant,
         active && "ring-1 ring-[var(--accent)]",
       )}
-      title={tc.name}
+      title={`${tc.name} · ${category}`}
     >
       <Icon className="h-3 w-3" />
       <span className="font-mono" data-testid="tool-name">{tc.name}</span>
