@@ -62,28 +62,29 @@ note: "COMMERCE-PLAN-2026-05-23 Phase 1-3 в основном закрыты (10
 | **Branch** | `feature/v1.3.0-commerce` |
 | **Latest tag** | v1.2.2 (2026-05-19, pre-Hermes) |
 | **Pending tag** | v1.3.0 — installer уже собран (a070b21), ждёт smoke + release |
-| **Last commit** | `fcd6f38` POST-RELEASE-DEBT + `6a299a5` helper tests + `469460c` P1.2 phase 1 |
+| **Last commit** | `9ba4c1c` exec_mcp tests + `7f2b89c` P1.2 phase3 + `7e6202c` skills UI + `90ba493` dispatch tests |
 | **Mode** | Atomic commits per ticket, тесты обязательны |
-| **Last Update** | 2026-05-23 19:30 — P1.2 phase 1 done + P4.2 quality gate done + POST-RELEASE-DEBT |
+| **Last Update** | 2026-05-24 11:00 — P1.2 phase 3 step 1 + skills UI «Что система выучила» + fresh installer |
 
-### Verification status (2026-05-23 19:30)
+### Verification status (2026-05-24 11:00)
 
-- **Backend pytest:** 800 / 807 passed. 7 failed — pre-existing flaky:
-  - `test_markdown_store_*` (3) — Windows-1251 encoding
-  - `test_migrations_v5_backfill_messages_into_fts`
-  - `test_orchestrator_loop_confirm` (2) — pre-existing
-  - `test_trajectory_handles_multimodal_content` — Windows console unicode
-- **Backend новые тесты (P2.1 / P2.2 / P2.3 / P3.2 / P1.2 phase1):** 131 / 131 passed
-- **Backend loop-related регрессия после P1.2 phase1:** 72 / 72 passed
+- **Backend pytest:** 844 / 847 passed. 3 failed — pre-existing (НЕ TD-3 encoding):
+  - `test_migrations_v5_backfill_messages_into_fts` — sqlite no such table
+  - `test_orchestrator_loop_confirm` (2) — race condition в тесте (1с таймаут)
+- **Backend новые тесты (P1.2 phase1+2+3 + P2.1 + P2.2 + P2.3 + P3.2):** 149 / 149 passed
+  - P1.2 helpers (phase 1): 22 ✓
+  - P1.2 dispatch_internal (phase 2): 11 ✓
+  - P1.2 execute_mcp (phase 3 step 1): 7 ✓
+  - P2.1/P2.2/P2.3/P3.2: 109 ✓
 - **Frontend vitest:** 323 / 323 passed (43 файла)
 - **Frontend `npx tsc --noEmit`:** 0 errors
 - **Frontend `npx next build`:** clean
+- **Backend `ruff check` loop.py:** 8 errors (всё E501 — длинные строки в SYSTEM_PROMPT, контент)
 - **Backend `ruff check` на новых файлах:** All checks passed
-- **Установщик v1.3.0** уже собран в коммите `a070b21` (W4.1), оптимизирован
-  до 187 МБ в `6000fd6` (W4.2 clean-venv). **Проверено бинарным grep:**
-  `backend.exe` содержит `user_secrets` ✓ + `cryptography` ✓ + `sqlparse` ✓
-  — модули запакованы по фактическому диску, .gitignore при сборке не
-  играл роли. Ре-build НЕ нужен. Installer готов к смоку.
+- **Установщик v1.3.0 (свежий)** пересобран 2026-05-24 11:00 — 183 МБ.
+  Лежит в `1C-Analyst-v1.3.0/analyst-setup-v1.3.0.exe` + `desktop/dist/`.
+  Включает все правки до `9ba4c1c` (включая skills UI «Что система
+  выучила» + P1.2 phase3 + decomposed loop.py). Готов к smoke на VM.
 - **Артефакты для smoke / release:**
   - `.planning/SMOKE-v1.3.0.md` — 9-секционный чек-лист
   - `.planning/RELEASE-NOTES-v1.3.0-DRAFT.md` — текст для GitHub Release
@@ -94,8 +95,10 @@ note: "COMMERCE-PLAN-2026-05-23 Phase 1-3 в основном закрыты (10
 | Тикет | Статус | Заметка |
 |---|---|---|
 | P1.1 | ✓ Done | Verification stamp: Sprint 3 уже wired |
-| P1.2 phase 1 | ✓ Done | 3 pure helpers extracted (`469460c`) + 22 юнит-теста (`6a299a5`) |
-| P1.2 phase 2/3 | ⏸ POST-RELEASE | handle_tool_call + LoopContext — отдельная сессия 6h (см. POST-RELEASE-DEBT TD-1) |
+| P1.2 phase 1 | ✓ Done | 4 pure helpers (`469460c`) + 22 теста (`6a299a5`) |
+| P1.2 phase 2 | ✓ Done | `_dispatch_sync_internal_tool` memory+todo merge (`afebab8`) + 11 тестов (`90ba493`) |
+| P1.2 phase 3 step1 | ✓ Done | `_execute_mcp_tool` (`7f2b89c`) + 7 тестов (`9ba4c1c`). `run_chat_loop`: 870 → 739 строк |
+| P1.2 phase 3 step2 | ⏸ POST-RELEASE | LoopContext dataclass + init blocks decompose — цель ≤400 (TD-1) |
 | P1.3 | ✓ Code ready | electron-builder.yml + GH workflow; ждёт EV/OV cert от admin |
 | P1.4 | ✓ Done | electron-updater интегрирован, UpdateBanner в Header |
 | P2.1 | ✓ Done | user_secrets таблица + AES-GCM + REST + chat.py priority |
