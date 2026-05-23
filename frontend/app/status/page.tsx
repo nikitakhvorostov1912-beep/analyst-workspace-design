@@ -43,6 +43,48 @@ import type {
 
 type CheckStatus = "loading" | "ok" | "warn" | "error";
 
+/**
+ * Sprint 03 (handoff 06 · Status split): высокоуровневая карточка состояния.
+ * Показывает один из трёх блоков (Базы / Модель / Серверная часть) — большой
+ * номер/имя сверху, мелкая мета снизу, цвет точки соответствует статусу.
+ */
+interface StatusCardProps {
+  label: string;
+  state: CheckStatus;
+  headline: string;
+  subtitle: string;
+}
+
+function StatusCard({ label, state, headline, subtitle }: StatusCardProps) {
+  const stateClasses: Record<CheckStatus, string> = {
+    loading: "text-[var(--fg-3)]",
+    ok: "text-[var(--success)]",
+    warn: "text-[var(--warning)]",
+    error: "text-[var(--error)]",
+  };
+  return (
+    <div className="rounded-lg bg-[var(--bg-elevated)] border border-[var(--border)] p-4">
+      <div
+        className={cn(
+          "text-[10px] tracking-[0.16em] uppercase mb-2 flex items-center gap-1.5",
+          stateClasses[state],
+        )}
+        style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
+      >
+        <span className="w-1.5 h-1.5 rounded-full bg-current" />
+        {label}
+      </div>
+      <div
+        className="font-semibold text-base leading-tight text-[var(--fg-1)] truncate"
+        style={{ fontFamily: "var(--font-plex-mono), ui-monospace, monospace" }}
+      >
+        {headline}
+      </div>
+      <div className="text-xs text-[var(--fg-3)] mt-1 truncate">{subtitle}</div>
+    </div>
+  );
+}
+
 interface FieldRow {
   label: string;
   value: string;
@@ -169,6 +211,11 @@ export default function StatusPage() {
   const allOk = checks.length > 0 && checks.every((c) => c.status === "ok");
   const anyError = checks.some((c) => c.status === "error");
 
+  // Sprint 03 (handoff 06 · Status split): агрегируем все checks в 3 верхнеуровневые
+  // карточки. «Базы 1С» (все mcp-*), «Модель ИИ» (llm-config), «Серверная часть»
+  // (backend + bsl-context aux). Технические детали уезжают в <details>.
+  const highLevelCards = aggregateCards(checks);
+
   return (
     <div className="min-h-screen bg-[var(--bg)] px-6 py-8 max-w-3xl mx-auto">
       <div className="flex items-center gap-3 mb-8">
@@ -212,39 +259,66 @@ export default function StatusPage() {
             )}
             {anyError && (
               <span className="text-[var(--error)]">
-                ✗ Найдены проблемы. Раскройте строки ниже — там детали и подсказки по исправлению.
+                ✗ Найдены проблемы. Раскройте «Технические подробности» — там детали и подсказки по исправлению.
               </span>
             )}
             {!allOk && !anyError && (
               <span className="text-[var(--warning)]">
-                ⚠ Есть незавершённые настройки. Раскройте строки ниже.
+                ⚠ Есть незавершённые настройки. Раскройте «Технические подробности».
               </span>
             )}
           </p>
         </div>
       )}
 
-      <div className="space-y-2">
-        {checks.length === 0 && (
-          <div className="text-center text-[var(--fg-muted)] py-8 text-sm">
-            Запускаем проверки...
-          </div>
-        )}
-        {checks.map((check) => (
-          <CheckRow key={check.id} check={check} />
-        ))}
-      </div>
-
-      {env && (
-        <div className="mt-6">
-          <EnvSection env={env} />
+      {/* Sprint 03 (handoff 06 · Status split): высокоуровневые карточки —
+          самое важное, что аналитик видит без раскрытия. */}
+      {checks.length > 0 && (
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
+          <StatusCard {...highLevelCards.bases} />
+          <StatusCard {...highLevelCards.llm} />
+          <StatusCard {...highLevelCards.backend} />
         </div>
       )}
 
-      {logInfo && (
-        <div className="mt-6">
-          <LogSection info={logInfo} />
+      {checks.length === 0 && (
+        <div className="text-center text-[var(--fg-muted)] py-8 text-sm">
+          Запускаем проверки...
         </div>
+      )}
+
+      {/* Sprint 03: технические подробности — старая раскладка CheckRow + Env + Log.
+          По дефолту свёрнуто. Здесь живут endpoint URL, версии MCP, channel id —
+          инфа для разработчика, не для аналитика. */}
+      {checks.length > 0 && (
+        <details className="border-t border-[var(--border)] pt-4 mt-2 group">
+          <summary
+            className="cursor-pointer text-[10px] tracking-[0.18em] uppercase text-[var(--fg-3)] hover:text-[var(--fg-1)] transition-colors flex items-center gap-2 select-none list-none [&::-webkit-details-marker]:hidden"
+            style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
+          >
+            <ChevronRight
+              size={12}
+              className="transition-transform group-open:rotate-90"
+              aria-hidden="true"
+            />
+            Технические подробности (для разработчика)
+          </summary>
+          <div className="mt-4 space-y-2">
+            {checks.map((check) => (
+              <CheckRow key={check.id} check={check} />
+            ))}
+            {env && (
+              <div className="pt-3">
+                <EnvSection env={env} />
+              </div>
+            )}
+            {logInfo && (
+              <div className="pt-3">
+                <LogSection info={logInfo} />
+              </div>
+            )}
+          </div>
+        </details>
       )}
 
       <div className="mt-8 pt-6 border-t border-[var(--border)] text-xs text-[var(--fg-muted)] space-y-1">
@@ -849,6 +923,121 @@ function formatDate(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+/**
+ * Sprint 03: агрегирует низкоуровневые checks в 3 high-level cards.
+ *
+ * - «Базы 1С»: статус = worst(connection checks); headline = «N из M»;
+ *   subtitle = краткие имена через · (макс 3, остальные →«и ещё X»).
+ * - «Модель ИИ»: ровно один llm-config check; headline = model name;
+ *   subtitle = последний тест / API-ключ.
+ * - «Серверная часть»: backend + aux bsl-context; headline = версия;
+ *   subtitle = БД + кол-во записей где-то.
+ */
+function aggregateCards(checks: Check[]): {
+  bases: StatusCardProps;
+  llm: StatusCardProps;
+  backend: StatusCardProps;
+} {
+  const bases = aggregateBases(checks);
+  const llm = aggregateLlm(checks);
+  const backend = aggregateBackend(checks);
+  return { bases, llm, backend };
+}
+
+function aggregateBases(checks: Check[]): StatusCardProps {
+  const mcpChecks = checks.filter((c) => c.id.startsWith("mcp-"));
+  const empty = checks.find((c) => c.id === "connections-empty");
+  if (empty) {
+    return {
+      label: "Базы 1С",
+      state: "warn",
+      headline: "0 из 0",
+      subtitle: "подключений ещё нет",
+    };
+  }
+  if (mcpChecks.length === 0) {
+    return {
+      label: "Базы 1С",
+      state: "loading",
+      headline: "—",
+      subtitle: "проверяю...",
+    };
+  }
+  const okCount = mcpChecks.filter((c) => c.status === "ok").length;
+  const total = mcpChecks.length;
+  const state: CheckStatus =
+    okCount === total ? "ok" : okCount === 0 ? "error" : "warn";
+  const names = mcpChecks
+    .map((c) => c.title.replace(/^База «(.+)»$/, "$1"))
+    .slice(0, 3);
+  const extras = mcpChecks.length - names.length;
+  const subtitle =
+    names.join(" · ") + (extras > 0 ? ` · и ещё ${extras}` : "");
+  return {
+    label: "Базы 1С",
+    state,
+    headline: `${okCount} из ${total}`,
+    subtitle,
+  };
+}
+
+function aggregateLlm(checks: Check[]): StatusCardProps {
+  const llm = checks.find((c) => c.id === "llm-config");
+  if (!llm) {
+    return {
+      label: "Модель ИИ",
+      state: "loading",
+      headline: "—",
+      subtitle: "проверяю...",
+    };
+  }
+  // Из summary вытаскиваем имя модели если есть.
+  const modelMatch = llm.summary.match(/модель\s+(\S+)/i);
+  const headline = modelMatch ? (modelMatch[1] ?? "—") : "—";
+  // Время отклика — из fields «Последний тест»
+  const lastTest = llm.fields?.find((f) => f.label === "Последний тест");
+  let subtitle = "";
+  if (lastTest) {
+    subtitle = lastTest.value;
+  } else if (llm.status === "warn") {
+    subtitle = llm.summary;
+  } else if (llm.status === "error") {
+    subtitle = llm.summary;
+  } else {
+    subtitle = "связь установлена";
+  }
+  return {
+    label: "Модель ИИ",
+    state: llm.status === "loading" ? "loading" : llm.status,
+    headline,
+    subtitle,
+  };
+}
+
+function aggregateBackend(checks: Check[]): StatusCardProps {
+  const backend = checks.find((c) => c.id === "backend");
+  if (!backend) {
+    return {
+      label: "Серверная часть",
+      state: "loading",
+      headline: "—",
+      subtitle: "проверяю...",
+    };
+  }
+  const versionField = backend.fields?.find((f) => f.label === "Версия");
+  const dbField = backend.fields?.find((f) => f.label === "База данных");
+  const headline = versionField ? `v${versionField.value}` : "—";
+  const subtitle = dbField
+    ? `База данных · ${dbField.value.toLowerCase()}`
+    : backend.summary;
+  return {
+    label: "Серверная часть",
+    state: backend.status === "loading" ? "loading" : backend.status,
+    headline,
+    subtitle,
+  };
 }
 
 function placeholderRest(): Check[] {
