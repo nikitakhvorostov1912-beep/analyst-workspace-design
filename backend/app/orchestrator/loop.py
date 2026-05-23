@@ -363,6 +363,145 @@ def _safe_error_message(exc: Exception) -> str:
     return first_line[:200]
 
 
+# Соответствие card.type → MCP tool который её произвёл. Используется при
+# восстановлении args из accumulated_tool_calls для save_card_state.
+_TOOL_FOR_CARD_TYPE: dict[str, str] = {
+    "log": "get_event_log",
+    "table": "execute_query",
+    "object": "get_object_by_link",
+    "metric": "execute_query",
+    "references": "find_references_to_object",
+    "code": "execute_code",
+}
+
+
+async def _persist_card_states(
+    db: aiosqlite.Connection,
+    *,
+    accumulated_cards: list[dict],
+    accumulated_tool_calls: list[dict],
+    message_id: str,
+    session_id: str,
+    channel_id: str,
+    x_anon_enabled: bool,
+) -> None:
+    """Сохраняет card_state для карточек чтобы load-more endpoint + deanonymize работали.
+
+    Извлечено из run_chat_loop как часть P1.2 декомпозиции.
+
+    Логика:
+    - LogCard всегда сохраняется (нужен card_id для load-more, Plan 03-04)
+    - Table/Object/Metric/References карточки — только если x_anon_enabled
+      (для deanonymize, Plan 04-01)
+    - Best-effort: исключения внутри loop'а не roняют orchestrator
+    """
+    for card in accumulated_cards:
+        card_type = card.get("type")
+        card_id = card.get("payload", {}).get("card_id")
+        if not card_id:
+            continue
+
+        # Determine если надо сохранять
+        save_this = card_type == "log" or x_anon_enabled
+        if not save_this:
+            continue
+
+        tool_name_for_card = _TOOL_FOR_CARD_TYPE.get(card_type, "")
+
+        # Находим соответствующий tool_call для args
+        card_tool_args: dict = {}
+        for tc in accumulated_tool_calls:
+            if tc.get("name") == tool_name_for_card:
+                card_tool_args = tc.get("args", {})
+                break
+
+        # Вычисляем anon_tokens если anon режим
+        anon_tokens: list[str] | None = None
+        if x_anon_enabled:
+            anon_tokens = _extract_anon_tokens_from_payload(card.get("payload", {}))
+
+        try:
+            await save_card_state(
+                db,
+                card_id=card_id,
+                session_id=session_id,
+                message_id=message_id,
+                tool_name=tool_name_for_card,
+                original_args=card_tool_args,
+                channel_id=channel_id,
+                anon_tokens=anon_tokens,
+            )
+        except Exception:
+            logger.warning("Не удалось сохранить card_state для card %s", card_id)
+
+
+def _finalize_streamed_tool_calls(chunk_tool_calls: dict[int, dict]) -> list[dict]:
+    """Парсит JSON arguments в накопленных tool_calls от streaming LLM.
+
+    Извлечено из run_chat_loop как часть P1.2 декомпозиции. Pure function.
+
+    Args:
+        chunk_tool_calls: словарь {index: {"id": str, "name": str, "arguments": str}}
+            из стрима LLM, где arguments — JSON-строка собранная по частям.
+
+    Returns:
+        Список [{"id": str, "name": str, "args": dict}], отсортированный по index.
+        Невалидный JSON в arguments → пустой dict (fail-safe).
+    """
+    finalized: list[dict] = []
+    for idx in sorted(chunk_tool_calls.keys()):
+        tc = chunk_tool_calls[idx]
+        raw_args = tc.get("arguments", "{}")
+        try:
+            args_dict = json.loads(raw_args) if raw_args.strip() else {}
+        except json.JSONDecodeError:
+            args_dict = {}
+        finalized.append({
+            "id": tc["id"],
+            "name": tc["name"],
+            "args": args_dict,
+        })
+    return finalized
+
+
+def _compute_tool_signature(finalized: list[dict]) -> str:
+    """Сериализует tool_calls в стабильную строку для duplicate detector.
+
+    Извлечено из run_chat_loop как часть P1.2 декомпозиции. Pure function.
+
+    `sort_keys=True` гарантирует что одинаковые args в разном порядке
+    дадут одинаковую сигнатуру — иначе LLM могла бы обойти detector
+    переставляя ключи.
+    """
+    return json.dumps(
+        [(tc["name"], tc["args"]) for tc in finalized],
+        ensure_ascii=False,
+        sort_keys=True,
+    )
+
+
+def _build_full_system_prompt(
+    mem_block: str,
+    skills_block: str,
+    todos_block: str,
+) -> str:
+    """Собирает финальный system prompt из статичного SYSTEM_PROMPT + опциональных блоков.
+
+    Порядок: статика → memory → skills → todos. Todos последние —
+    самый свежий контекст для модели.
+
+    Pure function. Извлечено из run_chat_loop как часть P1.2 декомпозиции.
+    """
+    prompt_parts = [SYSTEM_PROMPT]
+    if mem_block:
+        prompt_parts.append(mem_block)
+    if skills_block:
+        prompt_parts.append(skills_block)
+    if todos_block:
+        prompt_parts.append(todos_block)
+    return "\n\n".join(prompt_parts)
+
+
 async def _call_tool_with_retry(
     mcp,  # MCPClient | StdioMCPClient — единый интерфейс call_tool/aclose
     name: str,
@@ -589,14 +728,8 @@ async def run_chat_loop(
 
     todos_block = render_todos_for_prompt(session_id)
 
-    prompt_parts = [SYSTEM_PROMPT]
-    if mem_block:
-        prompt_parts.append(mem_block)
-    if skills_block:
-        prompt_parts.append(skills_block)
-    if todos_block:
-        prompt_parts.append(todos_block)
-    full_system_prompt = "\n\n".join(prompt_parts)
+    # P1.2 (2026-05-23): сборка system prompt вынесена в _build_full_system_prompt
+    full_system_prompt = _build_full_system_prompt(mem_block, skills_block, todos_block)
 
     messages: list[dict] = [
         {"role": "system", "content": full_system_prompt},
@@ -823,28 +956,14 @@ async def run_chat_loop(
             if not chunk_tool_calls or finish_reason == "stop":
                 break
 
-            # Финализируем tool_calls: парсим JSON arguments
-            finalized: list[dict] = []
-            for idx in sorted(chunk_tool_calls.keys()):
-                tc = chunk_tool_calls[idx]
-                raw_args = tc.get("arguments", "{}")
-                try:
-                    args_dict = json.loads(raw_args) if raw_args.strip() else {}
-                except json.JSONDecodeError:
-                    args_dict = {}
-                finalized.append({
-                    "id": tc["id"],
-                    "name": tc["name"],
-                    "args": args_dict,
-                })
+            # P1.2 (2026-05-23): финализация tool_calls + вычисление сигнатуры
+            # вынесены в pure helpers — _finalize_streamed_tool_calls и
+            # _compute_tool_signature соответственно.
+            finalized = _finalize_streamed_tool_calls(chunk_tool_calls)
 
             # Duplicate detector: считаем подряд одинаковые вызовы (имя + args).
             # >5 одинаковых = LLM зациклилась на одном tool, прерываем.
-            current_signature = json.dumps(
-                [(tc["name"], tc["args"]) for tc in finalized],
-                ensure_ascii=False,
-                sort_keys=True,
-            )
+            current_signature = _compute_tool_signature(finalized)
             if current_signature == last_tool_signature:
                 duplicate_count += 1
                 if duplicate_count >= DUPLICATE_TOOL_CALL_THRESHOLD:
@@ -1171,55 +1290,17 @@ async def run_chat_loop(
         )
         await touch_session(db, session_id)
 
-        # Сохраняем card_state для карточек (load-more endpoint + deanonymize)
-        # Выполняется ПОСЛЕ save_assistant_message чтобы иметь реальный message_id
-        #
-        # - LogCard всегда сохраняется (нужен card_id для load-more, Plan 03-04)
-        # - Table/Object карточки сохраняются только если x_anon_enabled (для deanonymize, Plan 04-01)
-        _TOOL_FOR_CARD_TYPE = {
-            "log": "get_event_log",
-            "table": "execute_query",
-            "object": "get_object_by_link",
-            "metric": "execute_query",
-            "references": "find_references_to_object",
-            "code": "execute_code",
-        }
-        for card in accumulated_cards:
-            card_type = card.get("type")
-            card_id = card.get("payload", {}).get("card_id")
-            if not card_id:
-                continue
-            # Determine если надо сохранять
-            save_this = card_type == "log" or x_anon_enabled
-            if not save_this:
-                continue
-
-            tool_name_for_card = _TOOL_FOR_CARD_TYPE.get(card_type, "")
-            # Находим соответствующий tool_call для args
-            card_tool_args: dict = {}
-            for tc in accumulated_tool_calls:
-                if tc.get("name") == tool_name_for_card:
-                    card_tool_args = tc.get("args", {})
-                    break
-
-            # Вычисляем anon_tokens если anon режим
-            anon_tokens: list[str] | None = None
-            if x_anon_enabled:
-                anon_tokens = _extract_anon_tokens_from_payload(card.get("payload", {}))
-
-            try:
-                await save_card_state(
-                    db,
-                    card_id=card_id,
-                    session_id=session_id,
-                    message_id=message_id,
-                    tool_name=tool_name_for_card,
-                    original_args=card_tool_args,
-                    channel_id=request.channel_id,
-                    anon_tokens=anon_tokens,
-                )
-            except Exception:
-                logger.warning("Не удалось сохранить card_state для card %s", card_id)
+        # P1.2 (2026-05-23): card_state persist loop вынесен в _persist_card_states.
+        # Выполняется ПОСЛЕ save_assistant_message чтобы иметь реальный message_id.
+        await _persist_card_states(
+            db,
+            accumulated_cards=accumulated_cards,
+            accumulated_tool_calls=accumulated_tool_calls,
+            message_id=message_id,
+            session_id=session_id,
+            channel_id=request.channel_id,
+            x_anon_enabled=x_anon_enabled,
+        )
 
     except Exception:
         logger.exception("Ошибка сохранения assistant message")
