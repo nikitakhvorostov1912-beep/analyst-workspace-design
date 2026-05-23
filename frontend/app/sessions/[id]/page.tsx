@@ -10,6 +10,7 @@ import { ConfirmExecuteDialog } from "@/components/chat/ConfirmExecuteDialog";
 import { ClarifyDialog } from "@/components/chat/ClarifyDialog";
 import { ConnectionStatusBanner } from "@/components/chat/ConnectionStatusBanner";
 import { ExportSessionButton } from "@/components/chat/ExportSessionButton";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { useChatStream } from "@/components/chat/useChatStream";
 import { useSessionsStore } from "@/lib/sessions-store";
 import { fetchSessionDetail, fetchSessionMessages, fetchConnections, fetchLLMConfig, pingConnection } from "@/lib/api";
@@ -240,9 +241,12 @@ export default function SessionPage() {
   }, []);
 
   if (!ready) {
+    // Sprint 02 (handoff M01): Skeleton shimmer для loading чата.
     return (
-      <div className="h-screen flex items-center justify-center bg-[var(--bg)]">
-        <div className="text-sm text-[var(--fg-muted)]">Загрузка...</div>
+      <div className="h-screen flex flex-col items-center justify-center gap-3 bg-[var(--bg)] px-6">
+        <Skeleton className="h-6 w-56" />
+        <Skeleton className="h-4 w-80" />
+        <Skeleton className="h-4 w-64" />
       </div>
     );
   }

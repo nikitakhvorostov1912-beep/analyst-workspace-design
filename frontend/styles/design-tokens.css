@@ -294,6 +294,40 @@
   }
 }
 
+/* M01 (handoff 2026-05-23): Skeleton shimmer для loading-состояний.
+ * Заменяет голый текст «Загрузка...» в 4+ местах. background-size 200%
+ * двигается с -200% → +200% за 1.6s. Тёмная тема — мягкий gradient
+ * между bg-1 и bg-3; в light переопределяется ниже в [data-theme="light"]. */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-bg-from, var(--bg-1)) 0%,
+    var(--skeleton-bg-to, var(--bg-3)) 50%,
+    var(--skeleton-bg-from, var(--bg-1)) 100%
+  );
+  background-size: 200% 100%;
+  border-radius: 4px;
+  animation: skeleton-shimmer 1.6s linear infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* prefers-reduced-motion: пользователь отключил анимации — переключаем
+ * на тихую pulse вместо двигающегося gradient. */
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: skeleton-pulse 1.8s ease-in-out infinite;
+    background: var(--bg-2);
+  }
+}
+
 @keyframes streaming-shimmer {
   0% {
     background-position: -200% 0;

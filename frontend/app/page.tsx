@@ -6,6 +6,7 @@ import Link from "next/link";
 import { AppShell } from "@/components/shell/AppShell";
 import { CommandPalette } from "@/components/chat/CommandPalette";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog";
 import { MemoryHint } from "@/components/memory/MemoryHint";
 import { fetchHealth, fetchConnections, fetchLLMConfig } from "@/lib/api";
@@ -168,9 +169,12 @@ export default function HomePage() {
 
   // Skeleton пока не загрузились данные
   if (!ready) {
+    // Sprint 02 (handoff M01): Skeleton shimmer вместо текста «Загрузка...».
     return (
-      <div className="h-screen flex items-center justify-center bg-[var(--bg)]">
-        <div className="text-sm text-[var(--fg-muted)]">Загрузка...</div>
+      <div className="h-screen flex flex-col items-center justify-center gap-3 bg-[var(--bg)] px-6">
+        <Skeleton className="h-6 w-48" />
+        <Skeleton className="h-4 w-72" />
+        <Skeleton className="h-4 w-64" />
       </div>
     );
   }

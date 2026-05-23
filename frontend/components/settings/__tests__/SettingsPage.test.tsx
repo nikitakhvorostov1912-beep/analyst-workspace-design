@@ -168,8 +168,8 @@ describe("SettingsPage", () => {
 
     render(<SettingsPage />);
 
-    // Сначала загрузка
-    expect(screen.getByText("Загрузка...")).toBeInTheDocument();
+    // Sprint 02 M01: Skeleton с aria-label="Загрузка" вместо текста «Загрузка...»
+    expect(screen.getAllByRole("status", { name: "Загрузка" }).length).toBeGreaterThan(0);
 
     // Затем контент
     await act(async () => {
@@ -177,7 +177,7 @@ describe("SettingsPage", () => {
     });
 
     await waitFor(() => {
-      expect(screen.queryByText("Загрузка...")).not.toBeInTheDocument();
+      expect(screen.queryAllByRole("status", { name: "Загрузка" })).toHaveLength(0);
       expect(screen.getByTestId("mcp-list")).toBeInTheDocument();
     });
   });

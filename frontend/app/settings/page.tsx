@@ -7,6 +7,7 @@ import { fetchConnections, fetchLLMConfig } from "@/lib/api";
 import { MCPConnectionList } from "@/components/settings/MCPConnectionList";
 import { LLMConfigForm } from "@/components/settings/LLMConfigForm";
 import { LocalDataSection } from "@/components/settings/LocalDataSection";
+import { Skeleton } from "@/components/ui/Skeleton";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import type { LLMConfigResponse, MCPConnection } from "@/lib/types";
 
@@ -81,8 +82,12 @@ export default function SettingsPage() {
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center py-16">
-          <p className="text-sm text-[var(--fg-muted)]">Загрузка...</p>
+        // Sprint 02 M01: Skeleton вместо текста «Загрузка...»
+        <div className="space-y-3 py-4">
+          <Skeleton className="h-7 w-40" />
+          <Skeleton className="h-24 w-full" />
+          <Skeleton className="h-5 w-32 mt-6" />
+          <Skeleton className="h-40 w-full" />
         </div>
       )}
 
