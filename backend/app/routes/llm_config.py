@@ -63,16 +63,41 @@ def _row_to_response(row: tuple) -> LLMConfigResponse:
 
 @router.get("", response_model=LLMConfigResponse | None)
 async def get_llm_config(request: Request) -> LLMConfigResponse | None:
-    """Возвращает сохранённый LLM-конфиг или null если не задан."""
+    """Возвращает сохранённый LLM-конфиг или дефолт из settings.
+
+    2026-05-24 (UX fix): если в БД пусто И в env есть зашитый ключ для
+    дефолтного endpoint (NVIDIA NIM с DeepSeek V4 Flash из embedded.env) —
+    возвращаем дефолтную конфигурацию вместо null. Это даёт «работа из
+    коробки»: пользователь установил → подключил 1С базу → сразу
+    отправляет запрос, без ручного выбора модели.
+
+    Возвращает null только когда:
+    - БД пуста И
+    - env ключ для дефолтного endpoint НЕ зашит (нестандартная сборка)
+    В этом случае frontend ведёт пользователя в onboarding для ручного
+    ввода ключа.
+    """
     db = _get_db(request)
     async with db.execute(
         "SELECT id, endpoint, model, temperature, updated_at FROM llm_settings WHERE id = ?",
         (_SINGLETON_ID,),
     ) as cursor:
         row = await cursor.fetchone()
-    if row is None:
-        return None
-    return _row_to_response(row)
+    if row is not None:
+        return _row_to_response(row)
+
+    # БД пуста — пробуем seed-default из settings (зашитый NVIDIA NIM).
+    settings = get_settings()
+    if _has_env_api_key_for(settings.default_llm_endpoint):
+        return LLMConfigResponse(
+            id=_DEFAULT_ALIAS,
+            endpoint=settings.default_llm_endpoint,
+            model=settings.default_llm_model,
+            temperature=settings.default_llm_temperature,
+            updated_at=None,
+            has_env_api_key=True,
+        )
+    return None
 
 
 @router.post("", response_model=LLMConfigResponse, status_code=201)

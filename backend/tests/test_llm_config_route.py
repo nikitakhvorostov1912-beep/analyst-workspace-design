@@ -16,10 +16,43 @@ _BASE_BODY = {
 
 @pytest.mark.asyncio
 async def test_get_empty_returns_null(client: AsyncClient):
-    """GET /llm-config с пустой БД → 200, body null."""
+    """GET /llm-config с пустой БД и БЕЗ env-ключа → 200, body null.
+
+    2026-05-24: dev-окружение без NVIDIA ключа должно возвращать null
+    (frontend ведёт пользователя в onboarding).
+    """
     response = await client.get("/llm-config")
     assert response.status_code == 200
     assert response.json() is None
+
+
+@pytest.mark.asyncio
+async def test_get_empty_returns_default_when_nvidia_key_in_env(
+    client: AsyncClient, monkeypatch
+):
+    """GET /llm-config с пустой БД + DEFAULT_LLM_API_KEY_NVIDIA задан →
+    возвращаем default (NVIDIA + DeepSeek V4 Flash + has_env_api_key=True).
+
+    2026-05-24: «работа из коробки» — installer с embedded.env содержит
+    NVIDIA ключ → пользователь устанавливает → сразу шлёт запрос без
+    ручного выбора модели.
+    """
+    from app.config import get_settings
+
+    monkeypatch.setenv("DEFAULT_LLM_API_KEY_NVIDIA", "nvapi-test-12345")
+    get_settings.cache_clear()
+    try:
+        response = await client.get("/llm-config")
+        assert response.status_code == 200
+        data = response.json()
+        assert data is not None, "ожидался дефолт, а не null"
+        assert data["id"] == "default"
+        assert data["endpoint"] == "https://integrate.api.nvidia.com/v1"
+        assert data["model"] == "deepseek-ai/deepseek-v4-flash"
+        assert data["has_env_api_key"] is True
+        assert data["updated_at"] is None  # БД пуста → нет реальной даты
+    finally:
+        get_settings.cache_clear()
 
 
 # ---------------------------------------------------------------------------
