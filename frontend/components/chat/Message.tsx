@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { AssistantMessage } from "./AssistantMessage";
-import type { StreamingStage } from "./StreamingIndicator";
+import type { StreamingStage } from "@/lib/streaming-stages";
 import type { ChatMessage } from "@/lib/types";
 
 interface MessageProps {

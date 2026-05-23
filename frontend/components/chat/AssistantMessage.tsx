@@ -6,7 +6,7 @@ import { ToolTrace } from "./ToolTrace";
 import { StreamingStages } from "./StreamingStages";
 import { buildStreamingStages } from "@/lib/streaming-stages";
 import { getMCPConnections, getActiveChannelId } from "@/lib/storage";
-import type { StreamingStage } from "./StreamingIndicator";
+import type { StreamingStage } from "@/lib/streaming-stages";
 import type { ChatMessage, CardContext } from "@/lib/types";
 
 interface AssistantMessageProps {

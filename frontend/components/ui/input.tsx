@@ -9,7 +9,10 @@ const Input = React.forwardRef<HTMLInputElement, InputProps>(
       <input
         type={type}
         className={cn(
-          "flex h-9 w-full rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-1 text-sm text-[var(--fg)] shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-[var(--fg-muted)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50",
+          // HIGH-2 (2026-05-24): ring-2 + border accent для focus visibility
+          // (a11y WCAG 2.4.7). Без offset — у Input уже есть граница, ring
+          // приклеивается прямо к border для cleaner look.
+          "flex h-9 w-full rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-1 text-sm text-[var(--fg)] shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-[var(--fg-muted)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:border-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50",
           className,
         )}
         ref={ref}

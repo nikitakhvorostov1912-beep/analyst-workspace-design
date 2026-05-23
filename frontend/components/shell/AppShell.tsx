@@ -36,7 +36,13 @@ export function AppShell({
   return (
     <div
       className="grid h-screen overflow-hidden"
-      style={{ gridTemplateColumns: "260px 1fr", gridTemplateRows: "56px minmax(0, 1fr) auto" }}
+      // HIGH-10 (2026-05-24): header row 56→52px чтобы совпасть с реальной
+      // высотой Header (h-[52px] в Header.tsx). Раньше резерв 56px → визуальный
+      // gap 4px между Header и Sidebar.
+      style={{
+        gridTemplateColumns: "260px 1fr",
+        gridTemplateRows: "52px minmax(0, 1fr) auto",
+      }}
     >
       {/* Header — занимает обе колонки */}
       <Header {...headerProps} />

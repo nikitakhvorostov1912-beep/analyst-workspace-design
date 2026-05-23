@@ -7,8 +7,16 @@
  */
 
 import type { Stage } from "@/components/chat/StreamingStages";
-import type { StreamingStage } from "@/components/chat/StreamingIndicator";
 import type { ToolCallRecord } from "@/lib/types";
+
+/**
+ * Стадия SSE-стриминга, отдаваемая backend'ом в event=status / event=delta.
+ *
+ * REM-5 (2026-05-24): тип перенесён сюда из deprecated `StreamingIndicator.tsx`
+ * который удалён в Sprint 01. `StreamingStages` теперь единственный рендерер
+ * pipeline'а — buildStreamingStages() ниже превращает SSE state в массив этапов.
+ */
+export type StreamingStage = "thinking" | "calling_tool" | "formatting";
 
 interface BuildStagesInput {
   streamingStage: StreamingStage | null;

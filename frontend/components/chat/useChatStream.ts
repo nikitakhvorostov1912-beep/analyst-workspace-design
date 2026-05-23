@@ -13,7 +13,7 @@ import type {
   ErrorCode,
   ToolCallRecord,
 } from "@/lib/types";
-import type { StreamingStage } from "./StreamingIndicator";
+import type { StreamingStage } from "@/lib/streaming-stages";
 
 export type UseChatStreamOptions = {
   sessionId: string;

@@ -25,7 +25,7 @@ export function KindBadge({ kind, className }: KindBadgeProps) {
   const label = kind === "embedded" ? "Локально" : "Прокси";
   const tooltip =
     kind === "embedded"
-      ? "Встроенный сервер — обработка MCP_Toolkit работает на этом компьютере"
+      ? "Встроенный сервер — обработка-обработчик работает на этом компьютере"
       : "Прокси — обработка работает на удалённом сервере, доступ через интернет";
 
   return (

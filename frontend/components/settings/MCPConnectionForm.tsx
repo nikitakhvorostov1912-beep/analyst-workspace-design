@@ -251,7 +251,7 @@ export function MCPConnectionForm({
             inputMode="numeric"
           />
           <p className="text-xs text-[var(--fg-3)] mt-1">
-            Тот же номер, что введён в MCP_Toolkit на вкладке «Встроенный сервер». По умолчанию <span className="font-mono">6010</span>.
+            Тот же номер, что указан в обработке 1С на вкладке «Встроенный сервер». По умолчанию <span className="font-mono">6010</span>.
           </p>
         </div>
       )}
@@ -303,7 +303,7 @@ export function MCPConnectionForm({
                 <KindCard
                   checked={kind === "embedded"}
                   title="Встроенный сервер"
-                  description="Обработка MCP_Toolkit запущена на этом компьютере"
+                  description="Обработка-обработчик запущена на этом компьютере"
                   onSelect={() => setKind("embedded")}
                   data-testid="kind-embedded"
                 />

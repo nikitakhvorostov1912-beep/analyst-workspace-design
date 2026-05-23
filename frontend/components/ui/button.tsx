@@ -3,8 +3,11 @@ import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
+// HIGH-2 (2026-05-24): ring-1 → ring-2 + offset для A11y WCAG 2.4.7.
+// Signal-orange 1px на песке plain glass — теряется. 2px + offset на --bg-0
+// даёт видимый контраст в обоих темах.
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--accent)] disabled:pointer-events-none disabled:opacity-50",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-0)] focus-visible:ring-[var(--accent)] disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {

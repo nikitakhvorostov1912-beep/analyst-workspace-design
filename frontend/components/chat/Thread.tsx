@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Message } from "./Message";
-import type { StreamingStage } from "./StreamingIndicator";
+import type { StreamingStage } from "@/lib/streaming-stages";
 import type { ChatMessage } from "@/lib/types";
 
 interface ThreadProps {

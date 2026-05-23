@@ -403,7 +403,8 @@ export function ChatInput({
           rows={1}
           readOnly={disabled}
           autoComplete="off"
-          className="flex-1 resize-none rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-3 text-sm text-[var(--fg)] placeholder:text-[var(--fg-muted)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)] transition-colors disabled:opacity-50"
+          // HIGH-2 (2026-05-24): ring-2 + border accent для focus (WCAG 2.4.7).
+          className="flex-1 resize-none rounded-md border border-[var(--border)] bg-[var(--bg-elevated)] px-3 py-3 text-sm text-[var(--fg)] placeholder:text-[var(--fg-muted)] focus:outline-none focus:ring-2 focus:ring-[var(--accent)] focus:border-[var(--accent)] transition-colors disabled:opacity-50"
           style={{ minHeight: "56px", maxHeight: "240px", height: "56px" }}
         />
         <Button

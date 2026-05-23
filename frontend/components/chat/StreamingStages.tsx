@@ -7,9 +7,9 @@ import { cn } from "@/lib/utils";
 /**
  * StreamingStages — pipeline-style визуализация этапов LLM call.
  *
- * Phase 11.4 prep — компонент готов, интеграция с useChatStream идёт отдельно
- * (StreamingIndicator пока остаётся, переключение через AssistantMessage в
- * следующем заходе).
+ * Phase 11.4 + REM-5 (2026-05-24): единственный рендерер streaming pipeline'а.
+ * Старый StreamingIndicator (одно-строчный inline label) удалён в Sprint 01;
+ * AssistantMessage всегда использует этот компонент.
  *
  * Маппинг SSE-событий → Stage[] делает caller (useChatStream / AssistantMessage):
  *   - status="thinking" → { kind: "analyzing" }

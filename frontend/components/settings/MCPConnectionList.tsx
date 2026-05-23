@@ -88,7 +88,7 @@ export function MCPConnectionList({
       }
       publishToast({
         type: "error",
-        message: `База «${conn?.name ?? "?"}» не отвечает${portHint}. Проверьте что в 1С запущен встроенный сервер MCP_Toolkit на том же порту. ${detail}`,
+        message: `База «${conn?.name ?? "?"}» не отвечает${portHint}. Проверьте что в 1С запущен встроенный сервер обработки 1С на том же порту. ${detail}`,
       });
     } finally {
       setPingingId(null);
