@@ -266,9 +266,11 @@ const SECTIONS: GuideSection[] = [
             .
           </li>
           <li>
-            <strong className="text-[var(--fg-1)]">Введите API-ключ модели ИИ</strong>{" "}
-            на той же странице. Адрес и название модели уже подставлены по умолчанию
-            (Xiaomi MiMo v2.5 Pro).
+            <strong className="text-[var(--fg-1)]">API-ключ модели ИИ уже зашит в установщик</strong>{" "}
+            — это NVIDIA NIM с DeepSeek V4 Flash по умолчанию. Один ключ покрывает
+            9 моделей (DeepSeek V4 Pro, Qwen3 Coder, Llama 4, Mistral Large 3, и т.д.) —
+            переключаются в Настройках → Модель ИИ. Свой ключ нужен только если
+            хотите Cloud.ru (РФ-ДЦ, 152-ФЗ) или другой провайдер.
           </li>
           <li>
             <strong className="text-[var(--fg-1)]">Выберите канал в шапке</strong> —
@@ -745,8 +747,9 @@ const SECTIONS: GuideSection[] = [
         </P>
         <Callout variant="tip">
           Когда приложите картинку, модель автоматически переключится на multimodal-вариант
-          (например, <Code>mimo-v2-omni</Code>), который умеет с изображениями. Это
-          происходит прозрачно — вам ничего делать не нужно.
+          (например, <Code>nemotron-3-nano-omni</Code> или <Code>mimo-v2-omni</Code>),
+          который умеет работать с изображениями. Это происходит прозрачно — вам
+          ничего делать не нужно.
         </Callout>
 
         <H3 id="feat-masking">Маскировка (анонимизация)</H3>
@@ -1074,17 +1077,17 @@ const SECTIONS: GuideSection[] = [
           <li>
             <strong className="text-[var(--fg-1)]">Модель</strong> — название
             конкретной модели (например,{" "}
-            <Code>nvidia/llama-3.3-nemotron-super-49b-v1.5</Code> или{" "}
-            <Code>deepseek-chat</Code>). По умолчанию —{" "}
-            <Code>nvidia/llama-3.3-nemotron-super-49b-v1.5</Code> (NVIDIA NIM, вшит ключ).
+            <Code>deepseek-ai/deepseek-v4-flash</Code> или{" "}
+            <Code>qwen/qwen3-coder-plus</Code>). По умолчанию —{" "}
+            <Code>deepseek-ai/deepseek-v4-flash</Code> через NVIDIA NIM (вшит ключ).
           </li>
         </ul>
         <Callout variant="info">
-          Базовый провайдер — NVIDIA NIM с вшитым ключом (Llama Nemotron Super,
-          DeepSeek R1/V3, Qwen3-Coder). Для 152-ФЗ-сценариев — Cloud.ru
-          Foundation Models (РФ-ДЦ). Дешёвые альтернативы — DeepSeek и Xiaomi
-          MiMo. Можно подключить любого провайдера c OpenAI-совместимым API
-          через «Свой endpoint».
+          Базовый провайдер — NVIDIA NIM с вшитым ключом (9 моделей одним
+          ключом: DeepSeek V4 Flash/Pro, Qwen3-Coder, Llama 4 Scout, Mistral
+          Large 3, GLM-5.1, Nemotron 3, MiniMax M2.7). Для 152-ФЗ — Cloud.ru
+          Foundation Models (РФ-ДЦ, Qwen3-Coder бесплатно). Можно подключить
+          любого провайдера c OpenAI-совместимым API через «Свой endpoint».
         </Callout>
 
         <H3>Маскировка</H3>

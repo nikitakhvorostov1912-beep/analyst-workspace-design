@@ -28,12 +28,20 @@ export function AppShell({
   onDeleteSession,
   headerProps = DEFAULT_HEADER_PROPS,
 }: AppShellProps) {
+  // UX-12 fix (2026-05-24): без `overflow-hidden` + `minmax(0, 1fr)` дочерние
+  // элементы с h-full + длинным контентом (Sidebar с 30 сессиями) растягивают
+  // grid row 1fr до своей высоты — body становится выше 100vh, input field
+  // уходит за viewport. CSS grid имеет дефолтный min-height: auto для cells,
+  // что и ломает overflow. minmax(0, 1fr) фиксирует row на доступную высоту.
   return (
-    <div className="grid h-screen" style={{ gridTemplateColumns: "260px 1fr", gridTemplateRows: "56px 1fr auto" }}>
+    <div
+      className="grid h-screen overflow-hidden"
+      style={{ gridTemplateColumns: "260px 1fr", gridTemplateRows: "56px minmax(0, 1fr) auto" }}
+    >
       {/* Header — занимает обе колонки */}
       <Header {...headerProps} />
 
-      {/* Sidebar */}
+      {/* Sidebar — собственный h-full работает корректно с minmax(0, 1fr) row */}
       <Sidebar
         grouped={grouped}
         activeId={activeId}
@@ -42,7 +50,7 @@ export function AppShell({
       />
 
       {/* Main content area */}
-      <main className="overflow-y-auto bg-[var(--bg)]">
+      <main className="overflow-y-auto bg-[var(--bg)] min-h-0">
         {children}
       </main>
 

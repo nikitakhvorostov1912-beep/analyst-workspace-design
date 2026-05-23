@@ -146,6 +146,20 @@ async def test_migration_v5_backfill_messages_into_fts(fresh_db):
         )
         """
     )
+    # v10 (2026-05-24): миграция апгрейдит legacy MiMo → NVIDIA в llm_settings —
+    # таблица должна существовать (v1 schema).
+    await fresh_db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS llm_settings (
+            id INTEGER PRIMARY KEY,
+            endpoint TEXT NOT NULL,
+            model TEXT NOT NULL,
+            temperature REAL DEFAULT 0.3,
+            max_tokens INTEGER DEFAULT 4096,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
     await fresh_db.execute(
         "INSERT INTO sessions (id, channel_id) VALUES ('sess-1', 'ch-1')"
     )

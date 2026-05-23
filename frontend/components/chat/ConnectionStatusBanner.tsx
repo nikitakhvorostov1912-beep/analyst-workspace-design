@@ -27,9 +27,13 @@ export function ConnectionStatusBanner({
     ? `Подключение к базе "${channelName}" потеряно`
     : "Подключение к 1С потеряно";
 
+  // UX-13 fix (2026-05-24): раньше top-0 → banner накладывался на Header
+  // (52px) и перекрывал logo «АНАЛИТИК». Header — sticky top-0 z-10,
+  // banner был z-40 (выше) и full-width поверх. Решение: top-[52px]
+  // чтобы banner шёл ПОД Header'ом, остаётся виден без overlay logo.
   return (
     <div
-      className="fixed top-0 left-0 right-0 z-40 flex items-center justify-between gap-3 px-4 py-3 bg-[var(--error-12)] border-b border-[var(--error-40)] text-[var(--error)] text-sm"
+      className="fixed top-[52px] left-0 right-0 z-40 flex items-center justify-between gap-3 px-4 py-3 bg-[var(--error-12)] border-b border-[var(--error-40)] text-[var(--error)] text-sm"
       role="alert"
     >
       <span>{text}</span>

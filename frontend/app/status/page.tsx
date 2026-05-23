@@ -262,8 +262,9 @@ export default function StatusPage() {
           Опционально. Помогает модели точнее называть методы платформы.
         </p>
         <p>
-          <strong>Модель ИИ</strong> — внешний сервис (Xiaomi MiMo, OpenAI и т.п.), который читает
-          ваши вопросы и решает, какие данные из 1С достать.
+          <strong>Модель ИИ</strong> — внешний сервис (NVIDIA NIM с DeepSeek V4 Flash
+          по умолчанию, либо Cloud.ru для 152-ФЗ, либо свой OpenAI-совместимый
+          endpoint), который читает ваши вопросы и решает, какие данные из 1С достать.
         </p>
         <p>
           <strong>Окружение приложения</strong> — параметры, с которыми запустился backend.
@@ -463,7 +464,7 @@ function auxCheck(item: AuxMCPStatus, env: EnvDiagnosticsResponse | null): Check
 
 async function llmCheck(llmConfig: LLMConfigResponse | null): Promise<Check> {
   const apiKey = getLLMApiKey();
-  // env-fallback: backend получает ключ из .env (зашит в дистрибутиве для MiMo).
+  // env-fallback: backend получает ключ из embedded.env (NVIDIA NIM зашит в дистрибутиве).
   // Если has_env_api_key=true — у нас есть рабочий ключ, даже если localStorage пуст.
   const hasEnvKey = Boolean(llmConfig?.has_env_api_key);
   const hasKey = Boolean(apiKey) || hasEnvKey;

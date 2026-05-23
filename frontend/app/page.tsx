@@ -33,20 +33,18 @@ function BackendIndicator() {
       });
   }, []);
 
-  if (status === "loading") return null;
+  // UX (2026-05-24): показываем плашку ТОЛЬКО при недоступном backend.
+  // «Backend: ok» в углу выглядел как debug-артефакт коммерческого продукта.
+  // Статус ok всё ещё доступен на странице /status для admin-проверки.
+  void info; // тип сохранён, использование пока только для status='unavailable' message
+  if (status !== "unavailable") return null;
 
   return (
-    <div className="fixed bottom-3 right-3 z-50">
+    <div className="fixed bottom-3 right-3 z-50" role="alert">
       <span
-        className={`text-xs px-2 py-1 rounded border ${
-          status === "ok"
-            ? "text-[var(--success)] border-[var(--success-40)] bg-[var(--success-12)]"
-            : "text-[var(--error)] border-[var(--error-40)] bg-[var(--error-12)]"
-        }`}
+        className="text-xs px-2 py-1 rounded border text-[var(--error)] border-[var(--error-40)] bg-[var(--error-12)]"
       >
-        {status === "ok"
-          ? `Backend: ok ${info?.version ?? ""}`
-          : "Backend: недоступен"}
+        Backend недоступен — проверьте /status
       </span>
     </div>
   );

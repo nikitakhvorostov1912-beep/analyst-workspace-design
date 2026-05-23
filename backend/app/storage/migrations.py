@@ -74,7 +74,7 @@ MIGRATIONS_V3 = [
     """,
 ]
 
-CURRENT_VERSION = 9
+CURRENT_VERSION = 10
 
 # Миграция v4: расширение card_states — добавление колонки anon_tokens JSON
 MIGRATIONS_V4 = [
@@ -185,6 +185,32 @@ MIGRATIONS_V8 = [
 #
 # Provider_id — короткий идентификатор каталога (cloud-ru-qwen3, nvidia-nim,
 # xiaomi-mimo, deepseek). UNIQUE INDEX гарантирует один ключ на провайдера.
+# Миграция v10 (2026-05-24): апгрейд legacy LLM config с устаревших endpoint'ов
+# на новый дефолт NVIDIA NIM + DeepSeek V4 Flash.
+#
+# Контекст: до v1.3.0 дефолтом был Xiaomi MiMo. Пользователи которые работали
+# через MiMo при апгрейде увидят в шапке «MIMO V2.5 PRO» — но MiMo ключа в
+# embedded.env НЕТ (только NVIDIA). Frontend будет требовать ввод ключа.
+#
+# Логика идемпотентная:
+# - Если в llm_settings есть запись с устаревшим endpoint
+#   (api.xiaomimimo.com / api.deepseek.com со старыми моделями chat/reasoner)
+#   → обновляем на NVIDIA NIM + DeepSeek V4 Flash, temperature сохраняется.
+# - Запись с любым другим endpoint (Cloud.ru, NVIDIA уже, OpenAI, etc.) —
+#   НЕ трогаем.
+# - Пустая таблица — НЕ создаём дефолт (это сделает get_llm_config fallback).
+MIGRATIONS_V10 = [
+    """
+    UPDATE llm_settings
+    SET endpoint = 'https://integrate.api.nvidia.com/v1',
+        model = 'deepseek-ai/deepseek-v4-flash',
+        updated_at = CURRENT_TIMESTAMP
+    WHERE endpoint LIKE '%xiaomimimo.com%'
+       OR model IN ('mimo-v2.5-mini', 'deepseek-chat', 'deepseek-reasoner')
+    """,
+]
+
+
 MIGRATIONS_V9 = [
     """
     CREATE TABLE IF NOT EXISTS user_secrets (
@@ -304,5 +330,15 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
             (9,),
+        )
+        await db.commit()
+
+    if current < 10:
+        # Апгрейд legacy MiMo / DeepSeek-chat → NVIDIA + DeepSeek V4 Flash (v10)
+        for stmt in MIGRATIONS_V10:
+            await db.execute(stmt)
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (10,),
         )
         await db.commit()
