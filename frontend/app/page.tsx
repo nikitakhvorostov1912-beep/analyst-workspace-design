@@ -9,48 +9,18 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog";
 import { MemoryHint } from "@/components/memory/MemoryHint";
-import { fetchHealth, fetchConnections, fetchLLMConfig } from "@/lib/api";
+import { fetchConnections, fetchLLMConfig } from "@/lib/api";
+import { useBackendHealth } from "@/lib/use-backend-health";
+import { BackendDownBanner } from "@/components/shell/BackendDownBanner";
 import { migrateLegacyApiKey } from "@/lib/api-keys";
 import { useSessionsStore } from "@/lib/sessions-store";
 import { getActiveChannelId, setActiveChannelId } from "@/lib/storage";
 import { getOnboardingCompleted, setOnboardingCompleted } from "@/lib/onboarding-flag";
 import { publishToast } from "@/lib/toast";
 import { publishUndoToast } from "@/lib/undo-toast";
-import type { HealthResponse } from "@/lib/types";
-
-type BackendStatus = "loading" | "ok" | "unavailable";
-
-function BackendIndicator() {
-  const [status, setStatus] = useState<BackendStatus>("loading");
-  const [info, setInfo] = useState<HealthResponse | null>(null);
-
-  useEffect(() => {
-    fetchHealth()
-      .then((data) => {
-        setInfo(data);
-        setStatus("ok");
-      })
-      .catch(() => {
-        setStatus("unavailable");
-      });
-  }, []);
-
-  // UX (2026-05-24): показываем плашку ТОЛЬКО при недоступном backend.
-  // «Backend: ok» в углу выглядел как debug-артефакт коммерческого продукта.
-  // Статус ok всё ещё доступен на странице /status для admin-проверки.
-  void info; // тип сохранён, использование пока только для status='unavailable' message
-  if (status !== "unavailable") return null;
-
-  return (
-    <div className="fixed bottom-3 right-3 z-50" role="alert">
-      <span
-        className="text-xs px-2 py-1 rounded border text-[var(--error)] border-[var(--error-40)] bg-[var(--error-12)]"
-      >
-        Backend недоступен — проверьте /status
-      </span>
-    </div>
-  );
-}
+// Sprint 03 (handoff F · BackendDownBanner): старый BackendIndicator
+// (мелкий chip в правом нижнем углу) заменён на top-banner. Логика probe/retry
+// вынесена в `useBackendHealth` hook — переиспользуется во всех страницах.
 
 export default function HomePage() {
   const router = useRouter();
@@ -61,6 +31,7 @@ export default function HomePage() {
   // null = ещё не определили, true/false = решение принято
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
   const store = useSessionsStore();
+  const backendHealth = useBackendHealth();
 
   useEffect(() => {
     let cancelled = false;
@@ -199,7 +170,10 @@ export default function HomePage() {
             refreshAfterOnboarding();
           }}
         />
-        <BackendIndicator />
+        <BackendDownBanner
+          visible={backendHealth.status === "unavailable"}
+          onRetry={backendHealth.retry}
+        />
       </>
     );
   }
@@ -221,7 +195,10 @@ export default function HomePage() {
             <Link href="/settings">Настроить</Link>
           </Button>
         </div>
-        <BackendIndicator />
+        <BackendDownBanner
+          visible={backendHealth.status === "unavailable"}
+          onRetry={backendHealth.retry}
+        />
       </>
     );
   }
@@ -234,7 +211,7 @@ export default function HomePage() {
     } catch (err) {
       // Раньше catch был пустой — кнопка кликалась, ничего не происходило,
       // пользователь думал что приложение зависло. Теперь явно сообщаем
-      // причину (типичная — backend не отвечает, см. BackendIndicator).
+      // причину (типичная — backend не отвечает, см. BackendDownBanner вверху).
       const message = err instanceof Error ? err.message : "Не удалось создать чат";
       publishToast({
         type: "error",
@@ -323,7 +300,10 @@ export default function HomePage() {
           </div>
         </div>
       </AppShell>
-      <BackendIndicator />
+      <BackendDownBanner
+        visible={backendHealth.status === "unavailable"}
+        onRetry={backendHealth.retry}
+      />
     </>
   );
 }
