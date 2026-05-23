@@ -135,7 +135,7 @@ describe("SettingsPage", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText(/Backend недоступен/i),
+        screen.getByText(/не отвечает/i),
       ).toBeInTheDocument();
     });
   });

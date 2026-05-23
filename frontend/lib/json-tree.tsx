@@ -29,37 +29,39 @@ export function JsonTree({
   const indent = Math.min(_depth * 12, 240);
 
   // Primitive: string
+  // REM-1 (2026-05-24): семантические токены вместо tailwind text-green-300 —
+  // light тема имела неоновый green на песке, нечитаемо.
   if (typeof value === "string") {
     return (
       <div style={{ paddingLeft: indent }} className="font-mono text-xs tabular-nums">
-        <span className="text-green-300">&quot;{truncateStr(value)}&quot;</span>
+        <span className="text-[var(--success)]">&quot;{truncateStr(value)}&quot;</span>
       </div>
     );
   }
 
-  // Primitive: number
+  // Primitive: number — accent (signal) для главного фокуса
   if (typeof value === "number") {
     return (
       <div style={{ paddingLeft: indent }} className="font-mono text-xs tabular-nums">
-        <span className="text-orange-300">{value}</span>
+        <span className="text-[var(--accent)]">{value}</span>
       </div>
     );
   }
 
-  // Primitive: boolean
+  // Primitive: boolean — warning (ochre) для признаков состояния
   if (typeof value === "boolean") {
     return (
       <div style={{ paddingLeft: indent }} className="font-mono text-xs tabular-nums">
-        <span className="text-purple-300">{String(value)}</span>
+        <span className="text-[var(--warning)]">{String(value)}</span>
       </div>
     );
   }
 
-  // Primitive: null
+  // Primitive: null — fg-3 italic, символ отсутствия
   if (value === null) {
     return (
       <div style={{ paddingLeft: indent }} className="font-mono text-xs tabular-nums">
-        <span className="text-purple-300">null</span>
+        <span className="text-[var(--fg-3)] italic">null</span>
       </div>
     );
   }
@@ -73,11 +75,11 @@ export function JsonTree({
     );
   }
 
-  // Circular reference detection
+  // Circular reference detection — error для предупреждения
   if (isCircular(value)) {
     return (
       <div style={{ paddingLeft: indent }} className="font-mono text-xs tabular-nums">
-        <span className="text-red-400">[Circular]</span>
+        <span className="text-[var(--error)]">[Circular]</span>
       </div>
     );
   }

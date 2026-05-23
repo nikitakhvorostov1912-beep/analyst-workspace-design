@@ -30,7 +30,10 @@ export default function SettingsPage() {
         setLlmConfig(llm);
       } catch {
         if (cancelled) return;
-        setError("Backend недоступен. Запустите docker compose up");
+        // REM-2 (2026-05-24): убрали docker hint — приложение в Electron, не Docker.
+        setError(
+          "Серверная часть не отвечает. Проверьте, что приложение запущено корректно, и попробуйте перезагрузить страницу.",
+        );
       } finally {
         if (!cancelled) setLoading(false);
       }

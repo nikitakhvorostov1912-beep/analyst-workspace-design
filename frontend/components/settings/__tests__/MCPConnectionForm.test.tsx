@@ -67,7 +67,7 @@ describe("MCPConnectionForm", () => {
     expect(screen.getByText(/http:\/\/localhost:6010\/mcp/)).toBeInTheDocument();
   });
 
-  it("показывает ошибку 'Для прокси-подключения укажите канал' если канал пустой", async () => {
+  it("показывает ошибку 'Для прокси-подключения укажите профиль' если канал пустой", async () => {
     render(<MCPConnectionForm onSaved={vi.fn()} />);
 
     openAdvanced();
@@ -79,7 +79,7 @@ describe("MCPConnectionForm", () => {
 
     await waitFor(() => {
       expect(
-        screen.getByText("Для прокси-подключения укажите канал"),
+        screen.getByText("Для прокси-подключения укажите профиль"),
       ).toBeInTheDocument();
     });
   });

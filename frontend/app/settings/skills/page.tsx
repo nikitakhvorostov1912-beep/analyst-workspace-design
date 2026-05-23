@@ -210,7 +210,7 @@ export default function SkillsSettingsPage() {
       <div className="max-w-4xl mx-auto p-6">
         <Header />
         <div className="mt-8 rounded-md border border-[var(--bd-2)] bg-[var(--bg-1)] p-6 text-center text-[var(--fg-2)]">
-          Не выбран канал. Откройте главный экран и выберите базу 1С.
+          Не выбрана база 1С. Откройте главный экран и выберите подключение.
         </div>
       </div>
     );

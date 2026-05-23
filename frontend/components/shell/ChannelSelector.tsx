@@ -241,7 +241,7 @@ export function ChannelSelector({ activeId, onChange }: Props) {
       <DropdownMenuTrigger asChild>
         <button
           className="flex items-center gap-3 h-9 px-3 rounded-md border border-[var(--bd-2)] bg-[var(--bg-2)] hover:bg-[var(--bg-hover)] hover:border-[var(--bd-3)] transition-colors min-w-[320px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--accent-20)]"
-          aria-label="Выбор канала"
+          aria-label="Выбор базы 1С"
           title={activeConn ? `${activeConn.name} — ${activeConn.endpoint}` : undefined}
           data-testid="channel-selector-button"
         >
@@ -270,7 +270,7 @@ export function ChannelSelector({ activeId, onChange }: Props) {
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align="center" className="min-w-[280px] max-h-[360px] overflow-y-auto">
-        <DropdownMenuLabel>Канал</DropdownMenuLabel>
+        <DropdownMenuLabel>Базы 1С</DropdownMenuLabel>
         <DropdownMenuSeparator />
 
         {connections.map((conn) => (
@@ -291,11 +291,9 @@ export function ChannelSelector({ activeId, onChange }: Props) {
                 >
                   {extractHostPort(conn.endpoint) || conn.endpoint}
                 </div>
-                {conn.channel && (
-                  <div className="text-xs text-[var(--fg-muted)] truncate">
-                    Канал: {conn.channel}
-                  </div>
-                )}
+                {/* REM-4 (2026-05-24): «Канал: ...» убран из видимого UI —
+                    это техническая строка proxy-профиля, аналитику не нужна.
+                    Полный endpoint виден в title attribute trigger'а. */}
                 {conn.ping === "ok" && conn.tool_count !== undefined && (
                   <div className="text-xs text-[var(--fg-muted)]">{conn.tool_count} инструментов</div>
                 )}

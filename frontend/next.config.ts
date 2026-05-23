@@ -1,8 +1,22 @@
 import type { NextConfig } from "next";
+import fs from "node:fs";
 import path from "path";
 
 const isProd = process.env.NODE_ENV === "production";
 const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8010";
+
+// REM-3 (2026-05-24): источник правды для UI-версии — `desktop/package.json`.
+// Раньше в коде было три разных значения (Header lockup default, About page text,
+// frontend/package.json). Теперь все читают через APP_VERSION → version из desktop.
+let pkgVersion = "1.3.0";
+try {
+  const desktopPkg = JSON.parse(
+    fs.readFileSync(path.join(process.cwd(), "..", "desktop", "package.json"), "utf-8"),
+  );
+  if (typeof desktopPkg.version === "string") pkgVersion = desktopPkg.version;
+} catch {
+  // Если читать не удалось (CI / odd cwd) — оставляем fallback 1.3.0
+}
 
 // SEC-02: CSP headers только в production (dev HMR требует unsafe-eval).
 // connect-src включает http://127.0.0.1:* + http://localhost:* — в Electron-сборке
@@ -35,6 +49,9 @@ const securityHeaders = isProd
 const isStandalone = process.env.NEXT_OUTPUT === "standalone";
 const nextConfig: NextConfig = {
   ...(isStandalone ? { output: "standalone" as const } : {}),
+  env: {
+    NEXT_PUBLIC_APP_VERSION: pkgVersion,
+  },
   experimental: {
     reactCompiler: false,
   },

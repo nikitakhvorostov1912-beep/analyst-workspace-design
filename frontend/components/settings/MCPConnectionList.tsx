@@ -142,7 +142,7 @@ export function MCPConnectionList({
                     <KindBadge kind={conn.kind} />
                   </div>
                   {/* Технический URL не показываем аналитику. Embedded — порт mono,
-                      proxy — имя канала. Полный endpoint виден в форме редактирования
+                      proxy — имя профиля внешнего шлюза. Полный endpoint виден в форме редактирования
                       под «Расширенные настройки». */}
                   <p className="text-xs text-[var(--fg-muted)] truncate">
                     <ConnectionSummary conn={conn} />

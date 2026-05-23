@@ -321,7 +321,7 @@ export function MCPConnectionForm({
               <>
                 <div>
                   <label className="block text-xs text-[var(--fg-muted)] mb-1">
-                    Канал
+                    Профиль (для прокси)
                   </label>
                   <Input
                     value={channel}
@@ -335,7 +335,7 @@ export function MCPConnectionForm({
                     <p className="text-xs text-[var(--error)] mt-1">{errors.channel}</p>
                   ) : (
                     <p className="text-xs text-[var(--fg-3)] mt-1">
-                      Имя канала, которое введено в обработке MCP_Toolkit на сервере.
+                      Идентификатор, под которым прокси-шлюз отдаёт ваше подключение.
                     </p>
                   )}
                 </div>
