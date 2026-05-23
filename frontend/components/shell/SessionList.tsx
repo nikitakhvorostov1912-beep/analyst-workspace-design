@@ -89,12 +89,13 @@ interface SessionItemProps {
 }
 
 function SessionItem({ item, isActive, onDelete }: SessionItemProps) {
+  // Sprint 02 (handoff A): window.confirm заменён на оптимистичное удаление
+  // с UndoToast — onDelete сразу убирает item из UI, через 5с делается
+  // реальный DELETE на бэк, либо «↺ Отменить» восстанавливает.
   function handleDelete(e: React.MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
-    if (window.confirm(`Удалить чат "${item.title ?? "Новый чат"}"?`)) {
-      onDelete(item.id);
-    }
+    onDelete(item.id);
   }
 
   // Короткий ID — первые 4 hex-символа UUID (для brand-eyebrow «#A4F2»)

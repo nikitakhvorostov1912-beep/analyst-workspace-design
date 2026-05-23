@@ -16,6 +16,7 @@ import { useSessionsStore } from "@/lib/sessions-store";
 import { fetchSessionDetail, fetchSessionMessages, fetchConnections, fetchLLMConfig, pingConnection } from "@/lib/api";
 import { getActiveChannelId, setActiveChannelId } from "@/lib/storage";
 import { publishToast } from "@/lib/toast";
+import { publishUndoToast } from "@/lib/undo-toast";
 import type { ChatMessage, MCPConnection, SessionDetail } from "@/lib/types";
 
 function messageRowToChat(row: {
@@ -221,11 +222,33 @@ export default function SessionPage() {
     }
   }
 
-  async function handleDelete(sessionId: string) {
-    await store.remove(sessionId);
+  function handleDelete(sessionId: string) {
+    // Sprint 02 A · UndoToast: оптимистично удаляем сессию, через 5с —
+    // реальный DELETE. Если удалили текущую сессию — переходим на главную
+    // (пользователь увидит UndoToast в шапке главной).
+    const allItems = [
+      ...(store.grouped?.today ?? []),
+      ...(store.grouped?.yesterday ?? []),
+      ...(store.grouped?.this_week ?? []),
+      ...(store.grouped?.earlier ?? []),
+    ];
+    const item = allItems.find((s) => s.id === sessionId);
+    if (!item) return;
+
+    store.removeOptimistic(sessionId);
     if (sessionId === id) {
       router.push("/");
     }
+    publishUndoToast({
+      id: `delete-${sessionId}`,
+      title: "Чат удалён",
+      subtitle: item.title ?? `#${sessionId.slice(0, 4).toUpperCase()}`,
+      durationMs: 5000,
+      onUndo: () => store.restoreOptimistic(sessionId),
+      onCommit: () => {
+        void store.commitRemove(sessionId);
+      },
+    });
   }
 
   // Global Cmd+K / Ctrl+K hotkey (должен быть до ранних return)

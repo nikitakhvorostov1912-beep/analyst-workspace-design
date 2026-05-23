@@ -15,6 +15,7 @@ import { useSessionsStore } from "@/lib/sessions-store";
 import { getActiveChannelId, setActiveChannelId } from "@/lib/storage";
 import { getOnboardingCompleted, setOnboardingCompleted } from "@/lib/onboarding-flag";
 import { publishToast } from "@/lib/toast";
+import { publishUndoToast } from "@/lib/undo-toast";
 import type { HealthResponse } from "@/lib/types";
 
 type BackendStatus = "loading" | "ok" | "unavailable";
@@ -242,8 +243,29 @@ export default function HomePage() {
     }
   }
 
-  async function handleDelete(sessionId: string) {
-    await store.remove(sessionId);
+  function handleDelete(sessionId: string) {
+    // Sprint 02 A · UndoToast: оптимистичное удаление с возможностью отмены.
+    // Сначала убираем из UI, через 5с делаем реальный DELETE.
+    const allItems = [
+      ...(store.grouped?.today ?? []),
+      ...(store.grouped?.yesterday ?? []),
+      ...(store.grouped?.this_week ?? []),
+      ...(store.grouped?.earlier ?? []),
+    ];
+    const item = allItems.find((s) => s.id === sessionId);
+    if (!item) return;
+
+    store.removeOptimistic(sessionId);
+    publishUndoToast({
+      id: `delete-${sessionId}`,
+      title: "Чат удалён",
+      subtitle: item.title ?? `#${sessionId.slice(0, 4).toUpperCase()}`,
+      durationMs: 5000,
+      onUndo: () => store.restoreOptimistic(sessionId),
+      onCommit: () => {
+        void store.commitRemove(sessionId);
+      },
+    });
   }
 
   // Основной layout — AppShell с welcome screen (нет активной сессии).

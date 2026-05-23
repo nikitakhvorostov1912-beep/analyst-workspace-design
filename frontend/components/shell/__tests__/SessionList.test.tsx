@@ -132,10 +132,12 @@ describe("SessionList", () => {
     vi.unstubAllGlobals();
   });
 
-  it("click на удаление с confirm=false НЕ вызывает onDelete", () => {
+  // Sprint 02 (handoff A · UndoToast): `window.confirm` удалён из
+  // SessionItem — теперь caller (`app/page.tsx`, `app/sessions/[id]/page.tsx`)
+  // показывает UndoToast и сам решает откатить ли удаление через
+  // store.restoreOptimistic / store.commitRemove.
+  it("click на удаление всегда вызывает onDelete (UndoToast managed)", () => {
     const onDelete = vi.fn();
-    vi.stubGlobal("confirm", () => false);
-
     const grouped: SessionsGrouped = {
       today: [makeItem("s1", "Не удалять", NOW)],
       yesterday: [],
@@ -147,9 +149,7 @@ describe("SessionList", () => {
     );
     const btn = container.querySelector("button[aria-label='Удалить сессию']");
     fireEvent.click(btn!);
-    expect(onDelete).not.toHaveBeenCalled();
-
-    vi.unstubAllGlobals();
+    expect(onDelete).toHaveBeenCalledWith("s1");
   });
 
   it("message_count отображается в meta строке", () => {
