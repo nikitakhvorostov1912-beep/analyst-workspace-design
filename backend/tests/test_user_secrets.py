@@ -29,7 +29,6 @@ from app.storage.user_secrets_store import (
     save_secret,
 )
 
-
 # ===== Crypto =====
 
 

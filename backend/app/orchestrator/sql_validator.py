@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 logger = logging.getLogger(__name__)
 
@@ -94,8 +94,12 @@ _FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
 )
 
 
-class ValidationStatus(str, Enum):
-    """Результат AST-валидации SQL/1С запроса."""
+class ValidationStatus(StrEnum):
+    """Результат AST-валидации SQL/1С запроса.
+
+    Python 3.11+ StrEnum: значения сериализуются как строки автоматически,
+    `ValidationStatus.OK == "ok"` остаётся True (используется в тестах).
+    """
 
     OK = "ok"
     BLOCKED = "blocked"

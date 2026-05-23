@@ -26,7 +26,9 @@ describe("MemoryHint", () => {
     window.addEventListener(TOAST_EVENT, handler);
     render(<MemoryHint sessionCount={3} threshold={3} />);
     expect(handler).toHaveBeenCalledTimes(1);
-    const evt = handler.mock.calls[0][0] as CustomEvent;
+    const firstCall = handler.mock.calls[0];
+    expect(firstCall).toBeDefined();
+    const evt = firstCall![0] as CustomEvent;
     expect(evt.detail.type).toBe("info");
     expect(evt.detail.message.toLowerCase()).toContain("сесси");
     window.removeEventListener(TOAST_EVENT, handler);
