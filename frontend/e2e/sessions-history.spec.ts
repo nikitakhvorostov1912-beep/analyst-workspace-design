@@ -10,11 +10,10 @@
 import { test, expect } from "@playwright/test";
 import { MOCK_LLM_CONFIG, MOCK_CONNECTIONS, setupRoutes } from "./fixtures";
 
-// SKIP rationale: использует legacy fixtures (analyst.llm + analyst.mcp_connections localStorage)
-// которые page.tsx больше не читает после Phase 5 Plan 5.4 (UX-04 Source-of-truth migration).
-// Нужно переписать через setupOnboardingMocks (см. design-v2.spec.ts паттерн).
-// Deferred → M6 (см. RELEASE-NOTES.md v1.2.0).
-test.describe.skip("sessions-history", () => {
+// 2026-05-24 (TD-4): unskip — fixtures.ts расширен моками /llm-config + /llm/effective +
+// /user-secrets/** после UX-04 migration. addInitScript с legacy localStorage всё ещё
+// нужен для active_channel hint (sidebar открывает первую базу сразу при наличии).
+test.describe("sessions-history", () => {
   test.beforeEach(async ({ page }) => {
     await setupRoutes(page);
     await page.addInitScript(

@@ -231,6 +231,47 @@ export async function setupRoutes(page: Page): Promise<void> {
       },
     }),
   );
+
+  // 2026-05-24: после UX-04 migration (Phase 5 Plan 5.4) — LLM config
+  // и MCP connections живут в backend, не localStorage. E2E специфы
+  // ожидают здесь GET /llm-config + /llm/effective ответы.
+  await page.route(`${BACKEND}/llm-config`, (route) => {
+    if (route.request().method() === "GET") {
+      return route.fulfill({
+        json: {
+          id: "default",
+          endpoint: MOCK_LLM_CONFIG.endpoint,
+          model: MOCK_LLM_CONFIG.model,
+          temperature: 0.3,
+          max_tokens: 4096,
+        },
+      });
+    }
+    return route.continue();
+  });
+
+  await page.route(`${BACKEND}/llm/effective`, (route) =>
+    route.fulfill({
+      json: {
+        endpoint: MOCK_LLM_CONFIG.endpoint,
+        model: MOCK_LLM_CONFIG.model,
+        source: "user",
+      },
+    }),
+  );
+
+  // P2.1 (2026-05-23): user_secrets backend-only API key. E2E тестам
+  // достаточно вернуть пустой список (нет сохранённых ключей в БД mock).
+  await page.route(`${BACKEND}/user-secrets/**`, (route) => {
+    const method = route.request().method();
+    if (method === "GET") {
+      return route.fulfill({ json: { provider_ids: [] } });
+    }
+    if (method === "POST" || method === "DELETE") {
+      return route.fulfill({ status: 204, body: "" });
+    }
+    return route.continue();
+  });
 }
 
 /** LLM config для localStorage. */
