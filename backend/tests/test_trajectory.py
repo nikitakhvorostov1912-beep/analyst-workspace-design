@@ -94,7 +94,7 @@ def test_logger_handles_multimodal_content(tmp_path: Path) -> None:
         completed=True,
         model="m",
     )
-    entry = json.loads((tmp_path / "trajectory_samples.jsonl").read_text().strip())
+    entry = json.loads((tmp_path / "trajectory_samples.jsonl").read_text(encoding="utf-8").strip())
     # Image part пропущена, текст сохранён
     user_msg = entry["conversations"][0]
     assert user_msg["from"] == "human"

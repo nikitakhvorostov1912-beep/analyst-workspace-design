@@ -26,8 +26,8 @@ def test_markdown_store_initialize_creates_files(tmp_path: Path) -> None:
     store.initialize()
     assert store.memory_path.exists()
     assert store.user_path.exists()
-    assert store.memory_path.read_text() == ""
-    assert store.user_path.read_text() == ""
+    assert store.memory_path.read_text(encoding="utf-8") == ""
+    assert store.user_path.read_text(encoding="utf-8") == ""
 
 
 def test_markdown_store_append_writes_section(tmp_path: Path) -> None:
@@ -39,7 +39,7 @@ def test_markdown_store_append_writes_section(tmp_path: Path) -> None:
         {"namespace": "agent", "content": "База использует ut_rt_copy"},
     )
     assert "appended" in msg
-    content = store.memory_path.read_text()
+    content = store.memory_path.read_text(encoding="utf-8")
     assert "### " in content  # section heading
     assert "База использует ut_rt_copy" in content
 
@@ -60,7 +60,7 @@ def test_markdown_store_remove_matches_substring(tmp_path: Path) -> None:
 
     msg = store.handle_tool_call("memory_remove", {"namespace": "user", "match": "csv"})
     assert "removed 1" in msg
-    remaining = store.user_path.read_text()
+    remaining = store.user_path.read_text(encoding="utf-8")
     assert "CSV" not in remaining
     assert "УТ 11.4" in remaining
 
@@ -97,7 +97,7 @@ def test_markdown_store_cap_truncates_oversized(tmp_path: Path) -> None:
             "memory_append",
             {"namespace": "agent", "content": f"Длинный факт {i} " * 5},
         )
-    content = store.memory_path.read_text()
+    content = store.memory_path.read_text(encoding="utf-8")
     assert "truncated" in content
     assert len(content) <= 200 + 50  # truncation marker + small overhead
 
