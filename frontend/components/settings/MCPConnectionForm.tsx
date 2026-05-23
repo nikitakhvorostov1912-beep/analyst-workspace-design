@@ -374,6 +374,15 @@ export function MCPConnectionForm({
           size="sm"
           onClick={handleTest}
           disabled={!initial?.id || testing || !isValidUrl(computedEndpoint)}
+          // HIGH-7 (2026-05-24): tooltip объясняет почему «Тест» disabled.
+          // Браузер сам рендерит native tooltip из title attribute.
+          title={
+            !initial?.id
+              ? "Сначала сохраните подключение, потом тестируйте"
+              : !isValidUrl(computedEndpoint)
+                ? "Невалидный адрес — проверьте поля выше"
+                : undefined
+          }
         >
           {testing ? "Тестирование..." : "Тест"}
         </Button>
@@ -413,7 +422,9 @@ function KindCard({
       onClick={onSelect}
       data-testid={testId}
       className={cn(
-        "flex-1 text-left p-3 rounded-md border transition-colors",
+        // HIGH-8 (2026-05-24): min-h-[88px] чтобы карточки не «прыгали» по
+        // высоте между «embedded» (1 строка description) и «proxy» (2 строки).
+        "flex-1 text-left p-3 rounded-md border transition-colors min-h-[88px]",
         checked
           ? "border-[var(--accent)] bg-[var(--accent-08)]"
           : "border-[var(--border)] bg-[var(--bg)] hover:border-[var(--bd-3)]",

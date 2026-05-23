@@ -193,10 +193,10 @@ export default function InsightsPage() {
             )}
           </section>
 
-          {/* Top channels */}
+          {/* Top channels (база 1С) */}
           <section className="mt-8">
             <h2 className="text-[15px] font-semibold text-[var(--fg-1)] mb-3">
-              Топ баз 1С (channels)
+              Топ баз 1С
             </h2>
             {data.top_channels.length === 0 ? (
               <EmptyState text="Пока нет активных сессий" />
@@ -209,7 +209,7 @@ export default function InsightsPage() {
                   <thead>
                     <tr className="border-b border-[var(--bd-2)] text-[var(--fg-3)]">
                       <th className="text-left p-3 font-normal text-[11px] uppercase tracking-[0.12em]">
-                        Channel
+                        База
                       </th>
                       <th className="text-right p-3 font-normal text-[11px] uppercase tracking-[0.12em]">
                         Сессий
