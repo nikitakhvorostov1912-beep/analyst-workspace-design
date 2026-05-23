@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { Header } from "./Header";
 import type { HeaderProps } from "./Header";
@@ -22,6 +23,8 @@ const DEFAULT_HEADER_PROPS: HeaderProps = {
   onChannelChange: () => undefined,
 };
 
+const SIDEBAR_STORAGE_KEY = "analyst.sidebar-collapsed";
+
 export function AppShell({
   children,
   bottom,
@@ -33,9 +36,35 @@ export function AppShell({
 }: AppShellProps) {
   // Sprint 04 (M08 · Page enter): main контент проигрывает fade-up при смене
   // маршрута. key={pathname} перемонтирует main → animate-fade-up отыграет
-  // заново. Sidebar и Header не перемонтируются, sessions/streaming-state
-  // в chat сохраняется внутри страницы /sessions/[id] (там собственный layout).
+  // заново. Sidebar и Header не перемонтируются.
   const pathname = usePathname();
+
+  // Sprint 04 (M07 · Sidebar collapse): persistance в localStorage. Дефолт —
+  // развёрнут. Hydration-safe: при SSR collapsed=false, эффект после mount
+  // читает реальное значение.
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
+      if (stored === "true") setCollapsed(true);
+    } catch {
+      // localStorage может быть отключён — оставляем дефолт
+    }
+  }, []);
+
+  const toggleSidebar = useCallback(() => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem(SIDEBAR_STORAGE_KEY, String(next));
+      } catch {
+        // ignore
+      }
+      return next;
+    });
+  }, []);
+
   // UX-12 fix (2026-05-24): без `overflow-hidden` + `minmax(0, 1fr)` дочерние
   // элементы с h-full + длинным контентом (Sidebar с 30 сессиями) растягивают
   // grid row 1fr до своей высоты — body становится выше 100vh, input field
@@ -43,12 +72,13 @@ export function AppShell({
   // что и ломает overflow. minmax(0, 1fr) фиксирует row на доступную высоту.
   return (
     <div
-      className="grid h-screen overflow-hidden"
+      className="grid h-screen overflow-hidden transition-[grid-template-columns] duration-300 ease-out"
+      data-sidebar={collapsed ? "collapsed" : "expanded"}
       // HIGH-10 (2026-05-24): header row 56→52px чтобы совпасть с реальной
       // высотой Header (h-[52px] в Header.tsx). Раньше резерв 56px → визуальный
       // gap 4px между Header и Sidebar.
       style={{
-        gridTemplateColumns: "260px 1fr",
+        gridTemplateColumns: collapsed ? "56px 1fr" : "260px 1fr",
         gridTemplateRows: "52px minmax(0, 1fr) auto",
       }}
     >
@@ -61,6 +91,8 @@ export function AppShell({
         activeId={activeId}
         onCreateNew={onCreateNew}
         onDelete={onDeleteSession}
+        collapsed={collapsed}
+        onToggleCollapse={toggleSidebar}
       />
 
       {/* Main content area — animate-fade-up при смене pathname (M08) */}
