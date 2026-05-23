@@ -374,6 +374,91 @@ _TOOL_FOR_CARD_TYPE: dict[str, str] = {
 }
 
 
+async def _execute_mcp_tool(
+    *,
+    tool_client: Any,
+    tool_id: str,
+    tool_name: str,
+    tool_args: dict,
+    start_ts: float,
+) -> tuple[
+    ToolResultEvent,
+    dict | None,
+    dict,
+    dict,
+]:
+    """Вызывает MCP tool с retry, применяет ResultSizeGate, собирает все
+    структуры для main loop.
+
+    Извлечено из run_chat_loop как часть P1.2 phase 3.
+
+    Returns:
+        (event, card_or_none, accumulated_entry, message_entry)
+        - event: ToolResultEvent для yield format_sse
+        - card_or_none: dict {"type", "payload"} для yield CardEvent
+          (None если карточка не построена или tool упал)
+        - accumulated_entry: dict для accumulated_tool_calls.append
+        - message_entry: dict для messages.append (LLM history)
+
+    Raises:
+        MCPDisconnectedError — main loop ловит и yield-ит error event.
+
+    Note: tool_content для LLM = GATED result + summary с total/kept.
+    Полный original result сохраняется в accumulated_entry (для
+    load-more / CSV download через tool_result_storage).
+    """
+    ok, tool_result, tool_error = await _call_tool_with_retry(
+        tool_client, tool_name, tool_args
+    )
+    duration_ms = int((time.monotonic() - start_ts) * 1000)
+
+    event = ToolResultEvent(
+        id=tool_id,
+        ok=ok,
+        result=tool_result if ok else None,
+        error=tool_error,
+        duration_ms=duration_ms,
+    )
+
+    # P2.2 ResultSizeGate: режем result до MAX_ROWS_FOR_LLM=500 строк ДО
+    # формирования карточки и LLM-context. Полный set остаётся в
+    # accumulated_entry.
+    gated_result, gate_info = (
+        apply_row_gate(tool_name, tool_result) if ok else (tool_result, {"applied": False})
+    )
+
+    # Карточка — на основе gated (UI покажет 500 строк + баннер truncated)
+    card: dict | None = None
+    if ok and gated_result is not None:
+        built = build_card_from_tool_result(tool_name, tool_args, gated_result)
+        if built is not None:
+            card = built
+
+    accumulated_entry = {
+        "id": tool_id,
+        "name": tool_name,
+        "args": tool_args,
+        "result": tool_result,
+        "error": tool_error,
+        "duration_ms": duration_ms,
+    }
+
+    # tool_content для LLM: GATED result + scan_sanitize_for_prompt + summary.
+    # F1: prompt injection scan на данных из 1С (Комментарии документа и т.п.).
+    tool_content = (
+        json.dumps(gated_result, ensure_ascii=False) if gated_result else (tool_error or "")
+    )
+    tool_content = scan_sanitize_for_prompt(tool_content)
+    tool_content += build_llm_summary_for_truncated(tool_name, gate_info)
+    message_entry = {
+        "role": "tool",
+        "tool_call_id": tool_id,
+        "content": _cap_content(tool_content),
+    }
+
+    return event, card, accumulated_entry, message_entry
+
+
 def _dispatch_sync_internal_tool(
     *,
     tool_name: str,
@@ -1220,10 +1305,17 @@ async def run_chat_loop(
                     continue
 
                 # Маршрутизация tool_call → правильный MCP client (primary или aux).
-                # (todo_* и memory_* выше через _dispatch_sync_internal_tool)
+                # P1.2 phase 3 (2026-05-23): MCP path вынесен в _execute_mcp_tool.
+                # (memory_* и todo_* выше через _dispatch_sync_internal_tool).
                 tool_client = pool.client_for(tool_name)
                 try:
-                    ok, tool_result, tool_error = await _call_tool_with_retry(tool_client, tool_name, tool_args)
+                    event, card, accum_entry, msg_entry = await _execute_mcp_tool(
+                        tool_client=tool_client,
+                        tool_id=tool_id,
+                        tool_name=tool_name,
+                        tool_args=tool_args,
+                        start_ts=start_ts,
+                    )
                 except MCPDisconnectedError:
                     logger.warning("MCP disconnected during tool call: %s", tool_name)
                     yield format_sse("error", ErrorEvent(
@@ -1231,57 +1323,13 @@ async def run_chat_loop(
                         code="mcp_disconnected",
                     ))
                     return
-                duration_ms = int((time.monotonic() - start_ts) * 1000)
 
-                yield format_sse("tool_result", ToolResultEvent(
-                    id=tool_id,
-                    ok=ok,
-                    result=tool_result if ok else None,
-                    error=tool_error,
-                    duration_ms=duration_ms,
-                ))
-
-                # P2.2 ResultSizeGate (2026-05-23): для execute_query режем result
-                # до MAX_ROWS_FOR_LLM=500 строк ДО формирования карточки и LLM-context.
-                # Полный tool_result остаётся в accumulated_tool_calls (для
-                # persist'а в tool_result_storage), но и LLM, и UI карточка
-                # видят только capped версию с пометкой truncated=True.
-                gated_result, gate_info = apply_row_gate(tool_name, tool_result) if ok else (tool_result, {"applied": False})
-
-                # Детектируем карточку (на основе gated, не original — UI
-                # покажет 500 строк + баннер «truncated»)
-                if ok and gated_result is not None:
-                    card = build_card_from_tool_result(tool_name, tool_args, gated_result)
-                    if card is not None:
-                        yield format_sse("card", CardEvent(type=card["type"], payload=card["payload"]))
-                        accumulated_cards.append(card)
-
-                # Сохраняем для последующей персистенции (используем original
-                # tool_result — полный set, на случай load-more / CSV download).
-                accumulated_tool_calls.append({
-                    "id": tool_id,
-                    "name": tool_name,
-                    "args": tool_args,
-                    "result": tool_result,
-                    "error": tool_error,
-                    "duration_ms": duration_ms,
-                })
-
-                # Добавляем tool-результат в историю для LLM.
-                # Sprint 4 (F1): tool output sanitize — данные из 1С могут содержать
-                # prompt injection patterns (например, в Комментарии документа).
-                #
-                # P2.2: для LLM используем GATED result + summary с total/kept,
-                # чтобы LLM знала что данные неполные и не сочиняла «всего N
-                # строк» когда реально N+++.
-                tool_content = json.dumps(gated_result, ensure_ascii=False) if gated_result else (tool_error or "")
-                tool_content = scan_sanitize_for_prompt(tool_content)
-                tool_content += build_llm_summary_for_truncated(tool_name, gate_info)
-                messages.append({
-                    "role": "tool",
-                    "tool_call_id": tool_id,
-                    "content": _cap_content(tool_content),
-                })
+                yield format_sse("tool_result", event)
+                if card is not None:
+                    yield format_sse("card", CardEvent(type=card["type"], payload=card["payload"]))
+                    accumulated_cards.append(card)
+                accumulated_tool_calls.append(accum_entry)
+                messages.append(msg_entry)
 
             yield format_sse("status", StatusEvent(stage="formatting"))
 
