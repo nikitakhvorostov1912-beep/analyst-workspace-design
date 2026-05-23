@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { AppShell } from "@/components/shell/AppShell";
 import { CommandPalette } from "@/components/chat/CommandPalette";
+import { ComposerHub } from "@/components/chat/ComposerHub";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog";
@@ -30,6 +31,12 @@ export default function HomePage() {
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
   // null = ещё не определили, true/false = решение принято
   const [showOnboarding, setShowOnboarding] = useState<boolean | null>(null);
+  // Sprint 03 (handoff 06 · ComposerHub): данные активного подключения для
+  // eyebrow («БАЗА 1С · {name} · {config_type}»). Загружается одновременно
+  // с conns/llm — отдельного fetch не нужно.
+  const [connections, setConnections] = useState<
+    Array<{ id: string; name: string; config_type?: string | null }>
+  >([]);
   const store = useSessionsStore();
   const backendHealth = useBackendHealth();
 
@@ -66,6 +73,14 @@ export default function HomePage() {
 
         // hasConfig читается из backend (source-of-truth)
         setHasConfig(hasBoth);
+        // Сохраняем connections для ComposerHub eyebrow
+        setConnections(
+          conns.map((c) => ({
+            id: c.id,
+            name: c.name,
+            config_type: c.config_type,
+          })),
+        );
 
         // Auto-select: если ничего не активно, но подключения есть — выбираем первое.
         // Иначе аналитик видит «Выберите подключение» с красной точкой и не понимает что делать.
@@ -254,6 +269,15 @@ export default function HomePage() {
     (store.grouped?.this_week.length ?? 0) +
     (store.grouped?.earlier.length ?? 0);
 
+  // Sprint 03 (handoff 06 · ComposerHub): данные для eyebrow.
+  const activeConn = connections.find((c) => c.id === activeChannelId);
+  const recentSessions = [
+    ...(store.grouped?.today ?? []),
+    ...(store.grouped?.yesterday ?? []),
+    ...(store.grouped?.this_week ?? []),
+    ...(store.grouped?.earlier ?? []),
+  ];
+
   return (
     <>
       <CommandPalette
@@ -272,33 +296,14 @@ export default function HomePage() {
           onChannelChange: handleChannelChange,
         }}
       >
-        <div className="h-full flex flex-col items-center justify-center gap-6 text-center px-6 max-w-2xl mx-auto" data-testid="welcome-screen">
-          <div className="space-y-2">
-            <h2 className="text-2xl font-semibold text-[var(--fg)]">
-              Готов отвечать на вопросы по 1С
-            </h2>
-            <p className="text-[var(--fg-muted)] text-sm leading-relaxed">
-              Напишите вопрос на русском — модель сама подберёт нужные инструменты 1С,
-              выполнит запросы и покажет ответ с таблицей или карточкой объекта.
-            </p>
-          </div>
-
-          <Button onClick={handleCreateNew} className="gap-2">
-            + Новый чат
-          </Button>
-
-          <div className="w-full pt-4 border-t border-[var(--border)] text-center">
-            <p className="text-xs text-[var(--fg-muted)] pt-2">
-              <Link href="/about" className="text-[var(--accent)] hover:underline">
-                Подробнее о приложении
-              </Link>
-              {" · "}
-              <Link href="/status" className="text-[var(--accent)] hover:underline">
-                Проверить диагностику
-              </Link>
-            </p>
-          </div>
-        </div>
+        <ComposerHub
+          activeChannelId={activeChannelId}
+          recentSessions={recentSessions}
+          totalSessionCount={totalSessionCount}
+          activeConnectionName={activeConn?.name}
+          activeConnectionConfigType={activeConn?.config_type ?? null}
+          hasEnvApiKey={false}
+        />
       </AppShell>
       <BackendDownBanner
         visible={backendHealth.status === "unavailable"}

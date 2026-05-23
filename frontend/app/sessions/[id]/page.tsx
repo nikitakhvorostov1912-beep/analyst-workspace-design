@@ -17,7 +17,7 @@ import { fetchSessionDetail, fetchSessionMessages, fetchConnections, fetchLLMCon
 import { getActiveChannelId, setActiveChannelId } from "@/lib/storage";
 import { publishToast } from "@/lib/toast";
 import { publishUndoToast } from "@/lib/undo-toast";
-import type { ChatMessage, MCPConnection, SessionDetail } from "@/lib/types";
+import type { ChatAttachment, ChatMessage, MCPConnection, SessionDetail } from "@/lib/types";
 
 function messageRowToChat(row: {
   id: string;
@@ -203,6 +203,32 @@ export default function SessionPage() {
     }
     prevStreamingRef.current = isStreaming;
   }, [isStreaming, store]);
+
+  // Sprint 03 (handoff 06 · ComposerHub): когда юзер задал первый вопрос
+  // в welcome-композере, мы создали сессию + сохранили pending-message
+  // в sessionStorage. Здесь подхватываем и автоматически отправляем.
+  const pendingHandledRef = useRef(false);
+  useEffect(() => {
+    if (pendingHandledRef.current) return;
+    if (typeof window === "undefined") return;
+    const key = `pending-message-${id}`;
+    const raw = sessionStorage.getItem(key);
+    if (!raw) return;
+    sessionStorage.removeItem(key);
+    pendingHandledRef.current = true;
+    try {
+      const parsed = JSON.parse(raw) as {
+        message: string;
+        attachments: ChatAttachment[] | null;
+      };
+      if (parsed.message?.trim()) {
+        void send(parsed.message, parsed.attachments ?? undefined);
+      }
+    } catch {
+      // Битый JSON — игнорируем, юзер сам нажмёт Enter.
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   async function handleCreateNew() {
     const ch = getActiveChannelId() ?? "default";
