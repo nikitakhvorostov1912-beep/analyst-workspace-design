@@ -1,4 +1,7 @@
+"use client";
+
 import type { ReactNode } from "react";
+import { usePathname } from "next/navigation";
 import { Header } from "./Header";
 import type { HeaderProps } from "./Header";
 import { Sidebar } from "./Sidebar";
@@ -28,6 +31,11 @@ export function AppShell({
   onDeleteSession,
   headerProps = DEFAULT_HEADER_PROPS,
 }: AppShellProps) {
+  // Sprint 04 (M08 · Page enter): main контент проигрывает fade-up при смене
+  // маршрута. key={pathname} перемонтирует main → animate-fade-up отыграет
+  // заново. Sidebar и Header не перемонтируются, sessions/streaming-state
+  // в chat сохраняется внутри страницы /sessions/[id] (там собственный layout).
+  const pathname = usePathname();
   // UX-12 fix (2026-05-24): без `overflow-hidden` + `minmax(0, 1fr)` дочерние
   // элементы с h-full + длинным контентом (Sidebar с 30 сессиями) растягивают
   // grid row 1fr до своей высоты — body становится выше 100vh, input field
@@ -55,8 +63,11 @@ export function AppShell({
         onDelete={onDeleteSession}
       />
 
-      {/* Main content area */}
-      <main className="overflow-y-auto bg-[var(--bg)] min-h-0">
+      {/* Main content area — animate-fade-up при смене pathname (M08) */}
+      <main
+        key={pathname}
+        className="overflow-y-auto bg-[var(--bg)] min-h-0 animate-fade-up"
+      >
         {children}
       </main>
 

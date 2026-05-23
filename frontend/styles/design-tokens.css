@@ -332,12 +332,67 @@
   }
 }
 
+/* Sprint 04 (M04 · Send-flight): spring press для кнопки Send при handleSubmit.
+ * Класс ставится на 240мс — кнопка слегка сжимается → отскакивает → возврат. */
+.send-flight {
+  animation: send-press 240ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes send-press {
+  0% {
+    transform: scale(1);
+  }
+  25% {
+    transform: scale(0.94);
+  }
+  60% {
+    transform: scale(1.04);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Sprint 04 (M09 · Toast slide-in): undo-toast анимации (используется
+ * в components/ui/UndoToast.tsx). */
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(40px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+}
+
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(40px) scale(0.96);
+  }
+}
+
+@keyframes toast-progress-shrink {
+  from {
+    width: 100%;
+  }
+  to {
+    width: 0;
+  }
+}
+
 /* prefers-reduced-motion: пользователь отключил анимации — переключаем
  * на тихую pulse вместо двигающегося gradient. */
 @media (prefers-reduced-motion: reduce) {
   .skeleton {
     animation: skeleton-pulse 1.8s ease-in-out infinite;
     background: var(--bg-2);
+  }
+
+  /* Sprint 04: при reduced-motion гасим spring и slide-in анимации */
+  .send-flight {
+    animation: none;
   }
 }
 

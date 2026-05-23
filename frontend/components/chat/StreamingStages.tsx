@@ -124,7 +124,13 @@ export function StreamingStages({
             : "bg-transparent text-[var(--fg-4)]";
 
         return (
-          <span key={`stage-${i}`} className="inline-flex items-center gap-1">
+          <span
+            key={`stage-${i}`}
+            className="inline-flex items-center gap-1"
+            style={{
+              animation: `fade-up 280ms ${i * 80}ms var(--ease, cubic-bezier(0.4,0,0.2,1)) both`,
+            }}
+          >
             {i > 0 && (
               <span
                 className={cn(

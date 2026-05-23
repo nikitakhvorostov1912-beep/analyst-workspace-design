@@ -49,6 +49,8 @@ export function ChatInput({
   const [value, setValue] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Sprint 04 (M04 · Send-flight): spring press кнопки Send при клике.
+  const sendBtnRef = useRef<HTMLButtonElement>(null);
 
   // Slash popover state
   const [slashOpen, setSlashOpen] = useState(false);
@@ -98,6 +100,21 @@ export function ChatInput({
     const text = value.trim();
     // Разрешаем отправку с пустым text если есть файлы — модель сама поймёт
     if (!text && attachments.length === 0) return;
+
+    // Sprint 04 (M04 · Send-flight): spring press на кнопку. CSS keyframe
+    // `send-press` определён в design-tokens.css.
+    const btn = sendBtnRef.current;
+    if (btn) {
+      btn.classList.remove("send-flight");
+      // re-trigger animation: force reflow между классами
+      void btn.offsetWidth;
+      btn.classList.add("send-flight");
+      btn.addEventListener(
+        "animationend",
+        () => btn.classList.remove("send-flight"),
+        { once: true },
+      );
+    }
 
     // Проверяем наличие api_key. Если в localStorage пусто И backend не сообщил
     // о env-ключе (DEFAULT_LLM_API_KEY) — отправлять нечего, показываем toast.
@@ -275,7 +292,7 @@ export function ChatInput({
 
   return (
     <div
-      className={`relative flex flex-col gap-1.5 p-3 ${isDragOver ? "ring-2 ring-[var(--accent)] ring-inset rounded-md bg-[var(--accent-08)]" : ""}`}
+      className={`relative flex flex-col gap-1.5 p-3 transition-all duration-200 ease-out ${isDragOver ? "ring-2 ring-[var(--accent)] ring-inset rounded-md bg-[var(--accent-08)] scale-[1.005]" : ""}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
@@ -436,6 +453,7 @@ export function ChatInput({
           </button>
         ) : (
           <button
+            ref={sendBtnRef}
             type="button"
             onClick={handleSubmit}
             disabled={!canSubmit}
