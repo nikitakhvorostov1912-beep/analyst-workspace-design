@@ -374,6 +374,60 @@ _TOOL_FOR_CARD_TYPE: dict[str, str] = {
 }
 
 
+async def _load_history_safe(
+    db: aiosqlite.Connection,
+    session_id: str,
+    fallback_message: str,
+) -> list[dict]:
+    """Загружает историю сессии для LLM с fallback на single-message при ошибке.
+
+    Извлечено из run_chat_loop как часть P1.2 phase 3 step 3.
+
+    Если load_history_for_llm падает или возвращает пустой список — возвращаем
+    [{"role": "user", "content": fallback_message}] чтобы LLM получила хотя бы
+    текущий запрос (save_user_message может не успеть commit'нуться на slow IO).
+    """
+    try:
+        history_msgs = await load_history_for_llm(db, session_id)
+    except Exception:
+        logger.exception(
+            "Не удалось загрузить историю сессии %s — продолжаем без неё", session_id
+        )
+        history_msgs = [{"role": "user", "content": fallback_message}]
+    if not history_msgs:
+        history_msgs = [{"role": "user", "content": fallback_message}]
+    return history_msgs
+
+
+def _render_skills_block(
+    skill_store: SkillStore | None,
+    skill_usage: SkillUsageStore | None,
+) -> str:
+    """Рендер skills блока + инкремент usage telemetry для активных skills.
+
+    Sprint 3 A9: инкрементим counter для каждого skill_id найденного в
+    отрендеренном prompt. Best-effort: ошибки render / increment логируются
+    и не падают loop.
+
+    Извлечено из run_chat_loop как часть P1.2 phase 3 step 3.
+    """
+    if skill_store is None:
+        return ""
+    try:
+        skills_block = skill_store.render_for_prompt(max_chars=4_000)
+    except Exception:
+        logger.warning("Skill render failed", exc_info=True)
+        return ""
+    if skills_block and skill_usage is not None:
+        for active_skill in skill_store.list_active():
+            if active_skill.id in skills_block:
+                try:
+                    skill_usage.increment(active_skill.id)
+                except Exception:
+                    logger.debug("Skill usage increment failed for %s", active_skill.id)
+    return skills_block
+
+
 def _initialize_skill_store(
     settings: Any,
     channel_id: str,
@@ -874,19 +928,9 @@ async def run_chat_loop(
         await pool.aclose()
         return
 
-    # Подгружаем историю сессии — текущий user-message уже сохранён в БД
-    # save_user_message() выше, поэтому войдёт в history. Модели нужно видеть
-    # предыдущие user/assistant/tool обмены, иначе follow-up («покажи подотчётника
-    # в них») теряет контекст.
-    try:
-        history_msgs = await load_history_for_llm(db, session_id)
-    except Exception:
-        logger.exception("Не удалось загрузить историю сессии %s — продолжаем без неё", session_id)
-        history_msgs = [{"role": "user", "content": request.message}]
-
-    if not history_msgs:
-        # Защита от пустой истории (например, save_user_message не успел зафиксироваться)
-        history_msgs = [{"role": "user", "content": request.message}]
+    # P1.2 phase 3 step 3 (2026-05-24): history load + system prompt сборка
+    # вынесены в _load_history_safe + _render_skills_block + _build_full_system_prompt.
+    history_msgs = await _load_history_safe(db, session_id, request.message)
 
     # Vision: history содержит placeholder «[Картинка: name.png]», но модель
     # должна получить реальное изображение в image_url. Подменяем content
@@ -895,30 +939,13 @@ async def run_chat_loop(
         history_msgs = list(history_msgs)
         history_msgs[-1] = {"role": "user", "content": user_message_content}
 
-    # Собираем system prompt — статичный SYSTEM_PROMPT + memory block (если есть)
-    # + skills block (Sprint 3) + todo block (Sprint 3).
-    # Порядок: статика → memory → skills → todo. Todo последний — самый свежий контекст.
-    mem_block = memory_system_block(memory_manager)
-    skills_block = ""
-    if skill_store is not None:
-        try:
-            skills_block = skill_store.render_for_prompt(max_chars=4_000)
-            # Sprint 3 (A9): инкрементим usage для всех активных skills попавших в prompt.
-            if skills_block and skill_usage is not None:
-                for active_skill in skill_store.list_active():
-                    if active_skill.id in skills_block:
-                        try:
-                            skill_usage.increment(active_skill.id)
-                        except Exception:
-                            logger.debug("Skill usage increment failed for %s", active_skill.id)
-        except Exception:
-            logger.warning("Skill render failed", exc_info=True)
-            skills_block = ""
-
-    todos_block = render_todos_for_prompt(session_id)
-
-    # P1.2 (2026-05-23): сборка system prompt вынесена в _build_full_system_prompt
-    full_system_prompt = _build_full_system_prompt(mem_block, skills_block, todos_block)
+    # System prompt: статика → memory → skills → todo. Skills блок включает
+    # инкремент usage telemetry для попавших в prompt активных skills (Sprint 3 A9).
+    full_system_prompt = _build_full_system_prompt(
+        memory_system_block(memory_manager),
+        _render_skills_block(skill_store, skill_usage),
+        render_todos_for_prompt(session_id),
+    )
 
     messages: list[dict] = [
         {"role": "system", "content": full_system_prompt},
