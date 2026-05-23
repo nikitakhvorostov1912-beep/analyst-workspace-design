@@ -332,6 +332,35 @@
   }
 }
 
+/* Sprint 04 (M03 · Sparkline draw-in): линия sparkline рисуется один раз
+ * при mount через stroke-dasharray трюк. Длина пути считается в Sparkline.tsx
+ * через getTotalLength() → --spark-len. Заливка появляется с задержкой 0.4с. */
+@keyframes spark-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes spark-fill-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.spark-line {
+  stroke-dasharray: var(--spark-len, 1000);
+  stroke-dashoffset: var(--spark-len, 1000);
+  animation: spark-draw 1.6s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.spark-fill {
+  opacity: 0;
+  animation: spark-fill-fade 1s 0.4s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
 /* Sprint 04 (M04 · Send-flight): spring press для кнопки Send при handleSubmit.
  * Класс ставится на 240мс — кнопка слегка сжимается → отскакивает → возврат. */
 .send-flight {
@@ -392,6 +421,16 @@
 
   /* Sprint 04: при reduced-motion гасим spring и slide-in анимации */
   .send-flight {
+    animation: none;
+  }
+  /* Sparkline без draw-in — сразу полная линия и заливка */
+  .spark-line {
+    stroke-dasharray: none;
+    stroke-dashoffset: 0;
+    animation: none;
+  }
+  .spark-fill {
+    opacity: 1;
     animation: none;
   }
 }

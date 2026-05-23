@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import type { SparklinePoint } from "@/lib/types";
 
 interface SparklineProps {
@@ -10,6 +11,24 @@ interface SparklineProps {
 }
 
 export function Sparkline({ points, width = 120, height = 32, stroke }: SparklineProps) {
+  // Sprint 04 (M03 · Sparkline draw-in): line анимируется через
+  // stroke-dasharray + stroke-dashoffset. Считаем длину пути после mount.
+  // jsdom (vitest) не поддерживает getTotalLength — оборачиваем в try/catch,
+  // в браузере работает, в тестах просто пропускается (анимация всё равно
+  // не видна в тестовой среде).
+  const pathRef = useRef<SVGPolylineElement>(null);
+  useEffect(() => {
+    const el = pathRef.current;
+    if (!el || typeof el.getTotalLength !== "function") return;
+    try {
+      const len = el.getTotalLength();
+      el.style.setProperty("--spark-len", String(len));
+    } catch {
+      // Fallback на дефолт из CSS (1000) — в редких ситуациях getTotalLength
+      // может бросить (отсоединённый SVG-узел). Анимация просто не сыграет.
+    }
+  }, []);
+
   if (points.length < 2) return null;
 
   const values = points.map((p) => p.value);
@@ -48,20 +67,23 @@ export function Sparkline({ points, width = 120, height = 32, stroke }: Sparklin
       role="img"
       className="overflow-visible"
     >
-      {/* Fill area */}
+      {/* Fill area — fade-in с задержкой */}
       <polygon
         points={fillPoints}
         fill="currentColor"
         fillOpacity={0.1}
+        className="spark-fill"
       />
-      {/* Line */}
+      {/* Line — draw-in через dashoffset */}
       <polyline
+        ref={pathRef}
         points={polylinePoints}
         fill="none"
         stroke={stroke ?? "currentColor"}
         strokeWidth={1.5}
         strokeLinejoin="round"
         strokeLinecap="round"
+        className="spark-line"
       />
     </svg>
   );
