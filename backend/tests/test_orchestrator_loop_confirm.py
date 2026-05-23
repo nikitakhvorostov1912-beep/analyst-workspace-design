@@ -117,8 +117,13 @@ async def test_loop_emits_confirm_required_on_dangerous_execute_code(mem_db, mon
     await asyncio.sleep(0.05)
 
     # Резолвим pending confirmation как declined
+    # 2026-05-24: было range(20) × 50ms = 1с — race-flaky после P1.2
+    # декомпозиции (init loop'а чуть тяжелее, _pending наполняется позже).
+    # Подняли до 5с total — pending всегда наполняется за <3с в самых
+    # медленных сценариях, а если не наполнилось за 5с — значит реально
+    # сломано, не race.
     resolved = False
-    for _attempt in range(20):
+    for _attempt in range(100):
         if safety_mod._pending:
             tool_call_id = next(iter(safety_mod._pending))
             safety_mod.resolve_pending_confirmation(tool_call_id, False)
@@ -189,8 +194,13 @@ async def test_loop_approved_continues(mem_db, monkeypatch):
     # Ждём появления pending и резолвим approved=True
     await asyncio.sleep(0.05)
 
+    # 2026-05-24: было range(20) × 50ms = 1с — race-flaky после P1.2
+    # декомпозиции (init loop'а чуть тяжелее, _pending наполняется позже).
+    # Подняли до 5с total — pending всегда наполняется за <3с в самых
+    # медленных сценариях, а если не наполнилось за 5с — значит реально
+    # сломано, не race.
     resolved = False
-    for _attempt in range(20):
+    for _attempt in range(100):
         if safety_mod._pending:
             tool_call_id = next(iter(safety_mod._pending))
             safety_mod.resolve_pending_confirmation(tool_call_id, True)

@@ -82,8 +82,18 @@ async def test_migration_v5_creates_index_metadata_cache(fresh_db):
 
 @pytest.mark.asyncio
 async def test_migration_v5_backfill_messages_into_fts(fresh_db):
-    """Backfill: существующие messages должны попасть в FTS5 после миграции."""
-    # Сначала создаём базовую схему v1-v4 вручную (упрощённо)
+    """Backfill: существующие messages должны попасть в FTS5 после миграции.
+
+    Тест эмулирует БД на v4 (sessions + messages + card_states + mcp_connections
+    существуют, FTS ещё нет), затем запускает apply_migrations и проверяет
+    backfill в FTS5.
+
+    Note: 2026-05-24 — раньше тест создавал только sessions+messages, без
+    mcp_connections. apply_migrations прокатывала v5...v9 включая
+    `ALTER TABLE mcp_connections ADD COLUMN kind` (v7), что падало на
+    отсутствующей таблице. Теперь создаём полную v1+v3+v4 схему.
+    """
+    # Базовая схема v1: sessions + messages + mcp_connections + llm_settings
     await fresh_db.execute(
         "CREATE TABLE IF NOT EXISTS schema_version ("
         "version INTEGER PRIMARY KEY, "
@@ -110,19 +120,46 @@ async def test_migration_v5_backfill_messages_into_fts(fresh_db):
         """
     )
     await fresh_db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS mcp_connections (
+            id TEXT PRIMARY KEY,
+            name TEXT NOT NULL,
+            endpoint TEXT NOT NULL,
+            channel TEXT,
+            anon_enabled BOOLEAN DEFAULT 0,
+            last_seen_at TIMESTAMP,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    await fresh_db.execute(
+        """
+        CREATE TABLE IF NOT EXISTS card_states (
+            card_id TEXT PRIMARY KEY,
+            session_id TEXT NOT NULL,
+            message_id TEXT NOT NULL,
+            tool_name TEXT NOT NULL,
+            original_args TEXT NOT NULL,
+            channel_id TEXT NOT NULL,
+            anon_tokens TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    await fresh_db.execute(
         "INSERT INTO sessions (id, channel_id) VALUES ('sess-1', 'ch-1')"
     )
     await fresh_db.execute(
-        "INSERT INTO messages (id, session_id, role, content) VALUES ('msg-1', 'sess-1', 'user', 'тестовое сообщение')"
+        "INSERT INTO messages (id, session_id, role, content) "
+        "VALUES ('msg-1', 'sess-1', 'user', 'тестовое сообщение')"
     )
     await fresh_db.commit()
 
-    # Применяем миграции (они определят v1-4 как уже выполненные через версию)
-    # Выставляем версию как будто v4 уже применена
+    # Выставляем версию как будто v4 уже применена → apply_migrations
+    # запустит только v5...v9.
     await fresh_db.execute("INSERT OR IGNORE INTO schema_version (version) VALUES (4)")
     await fresh_db.commit()
 
-    # Применяем только v5 через apply_migrations
     await apply_migrations(fresh_db)
 
     # Проверяем что сообщение перешло в FTS
