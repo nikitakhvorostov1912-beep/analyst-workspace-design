@@ -374,6 +374,67 @@ _TOOL_FOR_CARD_TYPE: dict[str, str] = {
 }
 
 
+def _initialize_skill_store(
+    settings: Any,
+    channel_id: str,
+) -> tuple[SkillStore | None, SkillUsageStore | None]:
+    """Init SkillStore + SkillUsageStore per канал.
+
+    Best-effort: при отсутствии настроек или ошибке init — возвращает
+    (None, None) и loop продолжается без skills.
+
+    Извлечено из run_chat_loop как часть P1.2 phase 3.
+    """
+    if not settings.memory_enabled:
+        return None, None
+    try:
+        skills_root = settings.memory_root_path / "skills"
+        skill_store = SkillStore(skills_root, channel_id)
+        skill_usage = SkillUsageStore(skill_store.directory)
+        return skill_store, skill_usage
+    except Exception:
+        logger.warning("Не удалось инициализировать SkillStore — продолжаем без skills")
+        return None, None
+
+
+def _build_openai_tools(
+    mcp_tools: list[dict],
+    memory_manager: Any,
+) -> list[dict]:
+    """Конвертирует MCP tools в OpenAI function format + добавляет internal tools.
+
+    Объединяет:
+    - MCP tools (через _mcp_tools_to_openai, фильтрует _DANGEROUS_MCP_TOOLS)
+    - memory_* tools через memory_tool_schemas(memory_manager)
+    - todo_* tools через TODO_TOOL_SCHEMAS
+    - clarify_question tool
+
+    Извлечено из run_chat_loop как часть P1.2 phase 3.
+    """
+    openai_tools = _mcp_tools_to_openai(mcp_tools)
+    openai_tools = openai_tools + memory_tool_schemas(memory_manager)
+    openai_tools = openai_tools + TODO_TOOL_SCHEMAS
+    openai_tools = openai_tools + [CLARIFY_TOOL_SCHEMA]
+    return openai_tools
+
+
+def _resolve_effective_model(
+    requested_model: str,
+    has_image: bool,
+) -> str:
+    """Vision auto-switch: если есть картинка и модель text-only — VISION_MODEL.
+
+    Извлечено из run_chat_loop как часть P1.2 phase 3.
+    """
+    if has_image and requested_model != VISION_MODEL:
+        logger.info(
+            "Vision attachment detected — переключаю модель %s → %s для этого запроса",
+            requested_model, VISION_MODEL,
+        )
+        return VISION_MODEL
+    return requested_model
+
+
 async def _execute_mcp_tool(
     *,
     tool_client: Any,
@@ -751,15 +812,8 @@ async def run_chat_loop(
         history_text = make_history_user_text(request.message, extracted_attachments)
         await save_user_message(db, session_id, history_text)
 
-        # Vision auto-switch: если есть картинка и активная модель — text-only,
-        # для текущего запроса используем VISION_MODEL. Конфиг backend не меняем.
-        effective_llm_model = llm_model
-        if has_image and llm_model != VISION_MODEL:
-            logger.info(
-                "Vision attachment detected — переключаю модель %s → %s для этого запроса",
-                llm_model, VISION_MODEL,
-            )
-            effective_llm_model = VISION_MODEL
+        # P1.2 phase 3 (2026-05-24): vision auto-switch вынесен в helper.
+        effective_llm_model = _resolve_effective_model(llm_model, has_image)
 
         mcp_endpoint = await lookup_mcp_endpoint(db, request.channel_id)
     except Exception:
@@ -798,35 +852,19 @@ async def run_chat_loop(
     trajectory_logger = build_trajectory_logger(settings)
 
     # Sprint 3 (Hermes A8/A9/D3): skill store + usage telemetry per канал.
-    # Best-effort: при отсутствии настроек или ошибке init — продолжаем без skills.
     # P1.1 verified (2026-05-23): runtime wired через 3 точки:
-    #   - инициализация SkillStore/SkillUsageStore (этот блок)
+    #   - инициализация SkillStore/SkillUsageStore (через _initialize_skill_store)
     #   - render_for_prompt + usage.increment ниже (build_system_prompt секция)
-    #   - schedule_review fire-and-forget после _finalize_turn
-    # См. .planning/COMMERCE-PLAN-2026-05-23.md → P1.1 verified false positive.
-    skill_store: SkillStore | None = None
-    skill_usage: SkillUsageStore | None = None
-    if settings.memory_enabled:
-        try:
-            skills_root = settings.memory_root_path / "skills"
-            skill_store = SkillStore(skills_root, request.channel_id)
-            skill_usage = SkillUsageStore(skill_store.directory)
-        except Exception:
-            logger.warning("Не удалось инициализировать SkillStore — продолжаем без skills")
-            skill_store = None
-            skill_usage = None
+    #   - schedule_review fire-and-forget после finally
+    # P1.2 phase 3 (2026-05-24): init вынесен в _initialize_skill_store.
+    skill_store, skill_usage = _initialize_skill_store(settings, request.channel_id)
 
     try:
         await pool.initialize_all()
         mcp_tools = await pool.list_all_tools()
-        openai_tools = _mcp_tools_to_openai(mcp_tools)
-        # Добавляем memory tool schemas (memory_append, memory_remove) к OpenAI tools.
-        # LLM видит их в едином списке вместе с MCP-инструментами.
-        openai_tools = openai_tools + memory_tool_schemas(memory_manager)
-        # Sprint 3: todo_add / todo_complete / todo_list — internal tools.
-        openai_tools = openai_tools + TODO_TOOL_SCHEMAS
-        # Sprint 4: clarify_question — структурированные уточнения вместо free-text.
-        openai_tools = openai_tools + [CLARIFY_TOOL_SCHEMA]
+        # P1.2 phase 3 (2026-05-24): сборка openai_tools вынесена в helper.
+        # MCP + memory_* + todo_* + clarify_question — единый список для LLM.
+        openai_tools = _build_openai_tools(mcp_tools, memory_manager)
     except Exception:
         logger.exception("Ошибка инициализации MCP pool")
         yield format_sse("error", ErrorEvent(
