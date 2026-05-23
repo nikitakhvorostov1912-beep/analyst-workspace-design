@@ -1,0 +1,3392 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=1440" />
+<title>Аудит UX/UI · 1С Аналитик</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* =============================================================================
+ * Аудит «1С Аналитик» — единый стиль отчёта
+ * Бренд: Stencil/Mono · Signal #FF6A3D · Ink #15161A · Sand #F3F1EC
+ * ============================================================================= */
+
+:root {
+  /* фон / surface */
+  --bg-0: #0a0a0a;
+  --bg-1: #111213;
+  --bg-2: #17191b;
+  --bg-3: #1f2123;
+  --bg-4: #2a2c2f;
+  --bg-hover: #1c1e21;
+  --code-bg: #0d0e11;
+
+  /* текст */
+  --fg-1: #ededed;
+  --fg-2: #c4c6c9;
+  --fg-3: #8c8f93;
+  --fg-4: #5e6166;
+  --fg-5: #3d4045;
+
+  /* бордюры */
+  --bd-1: #1b1d1f;
+  --bd-2: #2a2c30;
+  --bd-3: #3d4045;
+  --bd-4: #54585e;
+
+  /* бренд */
+  --signal: #ff6a3d;
+  --signal-tint: #ffb38a;
+  --signal-deep: #c84a23;
+  --signal-08: rgba(255, 106, 61, 0.08);
+  --signal-12: rgba(255, 106, 61, 0.12);
+  --signal-20: rgba(255, 106, 61, 0.20);
+  --signal-32: rgba(255, 106, 61, 0.32);
+  --signal-50: rgba(255, 106, 61, 0.50);
+  --ink: #15161a;
+  --sand: #f3f1ec;
+  --sand-2: #e7e4dc;
+  --sand-3: #cfcabd;
+
+  /* семантические */
+  --success: #7cf0c4;
+  --success-12: rgba(124, 240, 196, 0.12);
+  --success-20: rgba(124, 240, 196, 0.20);
+  --success-40: rgba(124, 240, 196, 0.40);
+  --warning: #f7c948;
+  --warning-12: rgba(247, 201, 72, 0.12);
+  --warning-20: rgba(247, 201, 72, 0.20);
+  --warning-40: rgba(247, 201, 72, 0.40);
+  --error: #f87171;
+  --error-12: rgba(248, 113, 113, 0.12);
+  --error-20: rgba(248, 113, 113, 0.20);
+  --error-40: rgba(248, 113, 113, 0.40);
+
+  /* severity */
+  --sev-blocker: #f87171;
+  --sev-high: #f7c948;
+  --sev-medium: #5fb8ff;
+  --sev-low: #8c8f93;
+  --sev-positive: #7cf0c4;
+
+  /* motion */
+  --t-micro: 100ms;
+  --t-fast: 160ms;
+  --t-norm: 240ms;
+  --t-slow: 420ms;
+  --ease: cubic-bezier(0.32, 0.72, 0, 1);
+  --ease-spring: cubic-bezier(0.5, 1.4, 0.45, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+
+  /* шрифты */
+  --f-sans: "IBM Plex Sans", -apple-system, system-ui, sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, monospace;
+  --f-jb: "JetBrains Mono", ui-monospace, monospace;
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg-0);
+  color: var(--fg-1);
+  font-family: var(--f-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  font-feature-settings: "ss01", "cv01";
+  scroll-behavior: smooth;
+}
+
+::selection { background: var(--signal-32); color: #fff; }
+
+/* utility */
+.mono { font-family: var(--f-mono); }
+.jb { font-family: var(--f-jb); }
+.eyebrow {
+  font-family: var(--f-jb);
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.tabular { font-variant-numeric: tabular-nums; }
+.marker {
+  display: inline-block;
+  width: 0.52em;
+  height: 0.52em;
+  background: var(--signal);
+  border-radius: 2px;
+  vertical-align: 0.04em;
+}
+
+/* scrollbars */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #232527; border-radius: 6px; border: 2px solid var(--bg-0); }
+::-webkit-scrollbar-thumb:hover { background: #2d2f32; }
+
+/* =============================================================================
+ * Layout
+ * ============================================================================= */
+.app {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100vh;
+}
+
+/* sticky side nav */
+.side {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  border-right: 1px solid var(--bd-1);
+  background: linear-gradient(180deg, #0c0d0e 0%, #0a0a0a 100%);
+  padding: 22px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  overflow-y: auto;
+}
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.brand-glyph {
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+  background: var(--ink);
+  display: grid;
+  place-items: center;
+  font-family: var(--f-mono);
+  font-weight: 700;
+  color: #fff;
+  font-size: 15px;
+  position: relative;
+  border: 1px solid #000;
+}
+.brand-glyph::before {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 5px;
+  height: 5px;
+  background: var(--signal);
+  border-radius: 1px;
+}
+.brand-lockup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--f-mono);
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.brand-lockup .ver {
+  color: var(--fg-4);
+  font-weight: 500;
+}
+.brand-lockup .slash {
+  color: var(--fg-5);
+}
+
+.side-eyebrow {
+  font-family: var(--f-jb);
+  font-size: 9px;
+  letter-spacing: 0.2em;
+  color: var(--fg-4);
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.side-eyebrow::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--bd-1);
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 12.5px;
+  color: var(--fg-2);
+  text-decoration: none;
+  position: relative;
+  transition: background var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.nav-link .num {
+  font-family: var(--f-jb);
+  font-size: 10px;
+  color: var(--fg-4);
+  letter-spacing: 0.1em;
+  min-width: 18px;
+}
+.nav-link:hover {
+  background: var(--bg-hover);
+  color: var(--fg-1);
+}
+.nav-link.active {
+  background: var(--bg-2);
+  color: var(--fg-1);
+}
+.nav-link.active::before {
+  content: "";
+  position: absolute;
+  left: -18px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 16px;
+  background: var(--signal);
+  border-radius: 1px;
+}
+
+.side-foot {
+  margin-top: auto;
+  font-size: 11px;
+  color: var(--fg-4);
+  line-height: 1.6;
+}
+.side-foot .dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 2px var(--success-20);
+  margin-right: 6px;
+}
+
+/* main */
+main {
+  min-width: 0;
+}
+
+.section {
+  padding: 80px 64px;
+  border-bottom: 1px solid var(--bd-1);
+  max-width: 1280px;
+}
+.section.tight { padding: 48px 64px; }
+.section + .section { padding-top: 80px; }
+
+.section-head {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+.section-head .index {
+  font-family: var(--f-jb);
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--fg-4);
+}
+.section-head h2 {
+  font-family: var(--f-mono);
+  font-weight: 600;
+  font-size: 22px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.section-head h2::before {
+  content: "";
+  width: 10px;
+  height: 10px;
+  background: var(--signal);
+  border-radius: 2px;
+  display: inline-block;
+}
+.section-head .rule {
+  flex: 1;
+  height: 1px;
+  background: var(--bd-2);
+  margin-left: 8px;
+}
+.section-lede {
+  color: var(--fg-3);
+  max-width: 720px;
+  font-size: 15px;
+  line-height: 1.6;
+  margin: 0 0 40px 0;
+}
+.section-lede strong { color: var(--fg-1); font-weight: 500; }
+
+/* =============================================================================
+ * Hero
+ * ============================================================================= */
+.hero {
+  padding: 96px 64px 64px;
+  background:
+    radial-gradient(circle at 100% 0%, var(--signal-08), transparent 50%),
+    radial-gradient(circle at 0% 100%, rgba(124, 240, 196, 0.04), transparent 40%);
+  border-bottom: 1px solid var(--bd-1);
+  max-width: 1280px;
+}
+.hero-head {
+  font-family: var(--f-jb);
+  font-size: 11px;
+  letter-spacing: 0.22em;
+  color: var(--fg-3);
+  text-transform: uppercase;
+  margin-bottom: 28px;
+  display: flex;
+  gap: 18px;
+  align-items: center;
+}
+.hero-head .sep {
+  width: 36px;
+  height: 1px;
+  background: var(--signal);
+}
+.hero h1 {
+  font-family: var(--f-mono);
+  font-weight: 600;
+  font-size: 64px;
+  line-height: 1.04;
+  letter-spacing: -0.01em;
+  margin: 0 0 24px 0;
+  max-width: 980px;
+  text-wrap: balance;
+}
+.hero h1 .accent { color: var(--signal); }
+.hero h1 .dim { color: var(--fg-4); font-weight: 500; }
+
+.hero-sub {
+  font-size: 17px;
+  line-height: 1.55;
+  color: var(--fg-2);
+  max-width: 720px;
+  margin: 0 0 48px;
+}
+
+.hero-grid {
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 48px;
+  align-items: start;
+  margin-top: 56px;
+}
+
+/* score gauge */
+.gauge {
+  position: relative;
+  width: 280px;
+  height: 280px;
+}
+.gauge svg { transform: rotate(-90deg); }
+.gauge-center {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  text-align: center;
+}
+.gauge-num {
+  font-family: var(--f-mono);
+  font-weight: 700;
+  font-size: 78px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  color: var(--fg-1);
+  font-variant-numeric: tabular-nums;
+}
+.gauge-num .small {
+  font-size: 24px;
+  color: var(--fg-4);
+  font-weight: 500;
+}
+.gauge-label {
+  font-family: var(--f-jb);
+  font-size: 10px;
+  letter-spacing: 0.22em;
+  color: var(--fg-3);
+  text-transform: uppercase;
+  margin-top: 8px;
+}
+.gauge-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+  padding: 4px 10px;
+  border-radius: 4px;
+  background: var(--success-12);
+  color: var(--success);
+  font-family: var(--f-jb);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+/* KPI cards */
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+.kpi {
+  border: 1px solid var(--bd-2);
+  background: var(--bg-1);
+  padding: 16px 18px;
+  border-radius: 8px;
+  position: relative;
+  overflow: hidden;
+}
+.kpi::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 16px;
+  height: 2px;
+  background: var(--signal);
+}
+.kpi .label {
+  font-family: var(--f-jb);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  color: var(--fg-3);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.kpi .val {
+  font-family: var(--f-mono);
+  font-weight: 600;
+  font-size: 26px;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+.kpi .val .unit {
+  color: var(--fg-4);
+  font-size: 14px;
+  font-weight: 500;
+}
+.kpi .hint {
+  font-size: 11.5px;
+  color: var(--fg-3);
+  line-height: 1.45;
+  margin-top: 4px;
+}
+
+/* pillar scores */
+.pillars {
+  margin-top: 28px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  max-width: 720px;
+}
+.pillar {
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 4px;
+  font-size: 12.5px;
+}
+.pillar .pin {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  display: grid;
+  place-items: center;
+  font-family: var(--f-jb);
+  font-size: 8px;
+  font-weight: 600;
+  color: var(--ink);
+}
+.pillar .pin.s1 { background: var(--error); }
+.pillar .pin.s2 { background: var(--warning); }
+.pillar .pin.s3 { background: var(--warning); }
+.pillar .pin.s4 { background: var(--warning); }
+.pillar .pin.s5 { background: var(--warning); }
+.pillar .pin.s6 { background: var(--error); }
+.pillar .pin.ok { background: var(--success); }
+.pillar .bar-track {
+  background: var(--bg-2);
+  border-radius: 2px;
+  height: 5px;
+  overflow: hidden;
+  border: 1px solid var(--bd-1);
+}
+.pillar .bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--signal-deep), var(--signal));
+}
+.pillar .score {
+  font-family: var(--f-jb);
+  font-size: 11px;
+  color: var(--fg-3);
+  letter-spacing: 0.05em;
+  font-variant-numeric: tabular-nums;
+  min-width: 42px;
+  text-align: right;
+}
+
+/* =============================================================================
+ * Severity matrix
+ * ============================================================================= */
+.matrix {
+  display: grid;
+  grid-template-columns: 200px 1fr 1fr 1fr 1fr;
+  gap: 1px;
+  background: var(--bd-1);
+  border: 1px solid var(--bd-1);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 24px;
+}
+.matrix .cell {
+  background: var(--bg-1);
+  padding: 14px 14px;
+  min-height: 80px;
+}
+.matrix .cell.head {
+  background: var(--bg-2);
+  font-family: var(--f-jb);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  color: var(--fg-3);
+  text-transform: uppercase;
+  min-height: 0;
+  padding: 12px 14px;
+}
+.matrix .cell.row-head {
+  font-family: var(--f-mono);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--fg-2);
+}
+.matrix .cell.row-head .nm {
+  font-family: var(--f-jb);
+  font-size: 10px;
+  color: var(--fg-4);
+  letter-spacing: 0.14em;
+  margin-bottom: 4px;
+  display: block;
+}
+.matrix .findings {
+  font-family: var(--f-mono);
+  font-weight: 600;
+  font-size: 20px;
+  font-variant-numeric: tabular-nums;
+}
+.matrix .findings .x { color: var(--fg-4); font-weight: 500; font-size: 13px; margin-left: 4px; }
+.matrix .findings .x.b { color: var(--sev-blocker); }
+.matrix .findings .x.h { color: var(--sev-high); }
+.matrix .findings .x.m { color: var(--sev-medium); }
+.matrix .findings .x.l { color: var(--sev-low); }
+.matrix .descr {
+  font-size: 11.5px;
+  color: var(--fg-3);
+  line-height: 1.45;
+  margin-top: 4px;
+}
+
+/* =============================================================================
+ * Issue cards
+ * ============================================================================= */
+.issues {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+.issue {
+  border: 1px solid var(--bd-2);
+  background: var(--bg-1);
+  border-radius: 10px;
+  padding: 22px 22px 24px;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  transition: transform var(--t-norm) var(--ease), border-color var(--t-norm) var(--ease);
+}
+.issue:hover {
+  transform: translateY(-2px);
+  border-color: var(--bd-3);
+}
+.issue-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.issue-tag {
+  font-family: var(--f-jb);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  padding: 3px 7px;
+  border-radius: 3px;
+  font-weight: 600;
+}
+.issue-tag.blocker { background: var(--error-12); color: var(--error); border: 1px solid var(--error-40); }
+.issue-tag.high { background: var(--warning-12); color: var(--warning); border: 1px solid var(--warning-40); }
+.issue-tag.medium { background: rgba(95, 184, 255, 0.10); color: var(--sev-medium); border: 1px solid rgba(95, 184, 255, 0.32); }
+.issue-tag.positive { background: var(--success-12); color: var(--success); border: 1px solid var(--success-40); }
+.issue-id {
+  font-family: var(--f-jb);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--fg-4);
+  margin-left: auto;
+}
+.issue h3 {
+  font-family: var(--f-mono);
+  font-size: 15px;
+  font-weight: 600;
+  margin: 0;
+  line-height: 1.35;
+  letter-spacing: 0;
+}
+.issue-body {
+  font-size: 13px;
+  color: var(--fg-3);
+  line-height: 1.55;
+}
+.issue-body code, code.inline {
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  background: var(--code-bg);
+  color: var(--signal-tint);
+  padding: 1px 6px;
+  border-radius: 3px;
+  border: 1px solid var(--bd-2);
+}
+.issue-body strong { color: var(--fg-1); font-weight: 500; }
+.issue-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-family: var(--f-jb);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  color: var(--fg-4);
+  text-transform: uppercase;
+}
+.issue-meta .chip {
+  padding: 3px 8px;
+  border-radius: 3px;
+  background: var(--bg-2);
+  border: 1px solid var(--bd-2);
+}
+.issue-fix {
+  display: flex;
+  gap: 10px;
+  font-size: 12.5px;
+  background: var(--signal-08);
+  border: 1px solid var(--signal-20);
+  padding: 10px 12px;
+  border-radius: 6px;
+  color: var(--fg-2);
+  line-height: 1.5;
+}
+.issue-fix::before {
+  content: "→";
+  color: var(--signal);
+  font-family: var(--f-mono);
+  font-weight: 600;
+  flex: none;
+}
+
+/* =============================================================================
+ * Before/After
+ * ============================================================================= */
+.ba {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 24px;
+}
+.ba-card {
+  background: var(--bg-1);
+  border: 1px solid var(--bd-2);
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.ba-card.before { border-top: 3px solid var(--error); }
+.ba-card.after { border-top: 3px solid var(--success); }
+.ba-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--bd-1);
+}
+.ba-head .tag {
+  font-family: var(--f-jb);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+.before .ba-head .tag { color: var(--error); }
+.after .ba-head .tag { color: var(--success); }
+.ba-head .name {
+  font-family: var(--f-mono);
+  font-weight: 500;
+  font-size: 12.5px;
+  color: var(--fg-2);
+}
+.ba-body {
+  background: var(--bg-0);
+  padding: 28px 24px;
+  min-height: 260px;
+  position: relative;
+}
+.ba-notes {
+  border-top: 1px solid var(--bd-1);
+  padding: 14px 16px;
+  font-size: 12.5px;
+  color: var(--fg-3);
+  line-height: 1.55;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.ba-notes li {
+  list-style: none;
+  padding-left: 18px;
+  position: relative;
+}
+.ba-notes li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 7px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+.before .ba-notes li::before { background: var(--error); }
+.after .ba-notes li::before { background: var(--success); }
+
+/* =============================================================================
+ * Mocked UI (приложение)
+ * ============================================================================= */
+.mock {
+  font-family: var(--f-sans);
+  font-size: 13px;
+  color: var(--fg-1);
+  background: var(--bg-0);
+  border-radius: 6px;
+}
+.mock-header {
+  display: grid;
+  grid-template-columns: 220px 1fr auto;
+  align-items: center;
+  gap: 14px;
+  padding: 0 14px;
+  height: 48px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--bd-1);
+}
+.mock-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.mock-glyph {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--ink);
+  display: grid;
+  place-items: center;
+  position: relative;
+  border: 1px solid #000;
+  font-family: var(--f-mono);
+  font-weight: 700;
+  color: #fff;
+  font-size: 13px;
+}
+.mock-glyph::before {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 4px;
+  height: 4px;
+  background: var(--signal);
+  border-radius: 1px;
+}
+.mock-lockup {
+  font-family: var(--f-mono);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.02em;
+}
+.mock-lockup .slash { color: var(--fg-4); margin: 0 4px; }
+.mock-lockup .ver { color: var(--fg-3); font-weight: 500; }
+.mock-channel {
+  justify-self: center;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  height: 30px;
+  padding: 0 12px;
+  border: 1px solid var(--bd-2);
+  background: var(--bg-2);
+  border-radius: 5px;
+  font-size: 12px;
+}
+.mock-channel.warn {
+  border: 1px dashed var(--warning-40);
+  background: var(--warning-12);
+}
+.mock-channel .icon-db {
+  width: 11px;
+  height: 11px;
+  border: 1.5px solid var(--signal);
+  border-radius: 2px;
+  position: relative;
+}
+.mock-channel .icon-db::before, .mock-channel .icon-db::after {
+  content: "";
+  position: absolute;
+  left: -1.5px;
+  right: -1.5px;
+  height: 1.5px;
+  background: var(--signal);
+}
+.mock-channel .icon-db::before { top: 3px; }
+.mock-channel .icon-db::after { top: 6px; }
+.mock-channel .eyebrow-cap {
+  font-family: var(--f-jb);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.mock-channel.warn .eyebrow-cap { color: var(--warning); }
+.mock-channel .name {
+  font-family: var(--f-mono);
+  font-weight: 600;
+  font-size: 12px;
+}
+.mock-channel .dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 2px var(--success-20);
+  animation: pulse 2s var(--ease) infinite;
+}
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 2px var(--success-20); }
+  50% { box-shadow: 0 0 0 4px var(--success-12); }
+}
+.mock-toolbar {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+.mock-iconbtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 5px;
+  display: grid;
+  place-items: center;
+  color: var(--fg-3);
+  border: 1px solid transparent;
+}
+.mock-iconbtn:hover { background: var(--bg-2); color: var(--fg-1); }
+.mock-search {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  height: 28px;
+  border: 1px solid var(--bd-2);
+  background: var(--bg-2);
+  border-radius: 5px;
+  font-family: var(--f-jb);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.mock-search kbd {
+  font-family: var(--f-jb);
+  font-size: 8.5px;
+  border: 1px solid var(--bd-2);
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.mock-body {
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  min-height: 320px;
+}
+.mock-sidebar {
+  background: linear-gradient(180deg, #0c0d0e, #0a0a0a);
+  border-right: 1px solid var(--bd-1);
+  padding: 12px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.mock-newbtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 5px;
+  background: var(--bg-2);
+  border: 1px solid var(--bd-2);
+  font-family: var(--f-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.mock-newbtn .plus { margin-left: auto; color: var(--fg-3); }
+.mock-grouphead {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--f-jb);
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  color: var(--fg-4);
+  text-transform: uppercase;
+  padding: 0 4px;
+  margin-top: 6px;
+}
+.mock-grouphead .line { flex: 1; height: 1px; background: var(--bd-1); }
+.mock-grouphead .count {
+  font-family: var(--f-jb);
+  color: var(--fg-3);
+}
+.mock-session {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 8px;
+  border-radius: 5px;
+  font-size: 12px;
+  gap: 2px;
+  position: relative;
+  cursor: pointer;
+}
+.mock-session:hover { background: var(--bg-2); }
+.mock-session.active { background: var(--bg-2); }
+.mock-session.active::before {
+  content: "";
+  position: absolute;
+  left: -10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 16px;
+  background: var(--signal);
+  border-radius: 1px;
+}
+.mock-session .row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.mock-session .title {
+  font-weight: 500;
+  font-size: 12px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.mock-session .meta {
+  font-family: var(--f-jb);
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  color: var(--fg-4);
+  text-transform: uppercase;
+}
+
+.mock-main {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+/* messages */
+.msg-row {
+  display: flex;
+  gap: 10px;
+}
+.msg-row.user { justify-content: flex-end; }
+.msg {
+  max-width: 76%;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.55;
+}
+.msg.user {
+  background: var(--signal-12);
+  border: 1px solid var(--signal-20);
+  color: var(--fg-1);
+}
+.msg.assistant {
+  background: transparent;
+  color: var(--fg-1);
+  padding: 4px 0;
+  max-width: 100%;
+}
+
+/* trace */
+.trace {
+  border: 1px solid var(--bd-2);
+  background: var(--bg-1);
+  border-radius: 8px;
+  font-family: var(--f-mono);
+  font-size: 11.5px;
+  overflow: hidden;
+}
+.trace-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--bd-1);
+  font-family: var(--f-jb);
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.trace-head .dot {
+  width: 6px;
+  height: 6px;
+  background: var(--success);
+  border-radius: 50%;
+  animation: pulse 2s infinite;
+}
+.trace-head .ms { margin-left: auto; color: var(--fg-4); font-variant-numeric: tabular-nums; }
+.trace-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--bd-1);
+  color: var(--fg-2);
+}
+.trace-step:last-child { border-bottom: none; }
+.trace-step .idx {
+  font-family: var(--f-jb);
+  color: var(--fg-4);
+  font-size: 10px;
+  min-width: 18px;
+  padding-top: 1px;
+}
+.trace-step .body { flex: 1; }
+.trace-step .op { color: var(--signal); font-weight: 600; }
+.trace-step .args { color: var(--fg-3); }
+.trace-step .ok { color: var(--success); font-size: 10px; }
+.trace-step .pending { color: var(--warning); }
+
+/* data card (table) */
+.dc {
+  border: 1px solid var(--bd-2);
+  background: var(--bg-1);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.dc-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--bd-1);
+  background: var(--bg-2);
+}
+.dc-head .badge {
+  font-family: var(--f-jb);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  color: var(--signal);
+  border: 1px solid var(--signal-32);
+  background: var(--signal-12);
+  padding: 2px 6px;
+  border-radius: 3px;
+  text-transform: uppercase;
+}
+.dc-head .title {
+  font-family: var(--f-mono);
+  font-weight: 600;
+  font-size: 12.5px;
+  letter-spacing: 0.02em;
+}
+.dc-head .meta {
+  font-family: var(--f-jb);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  color: var(--fg-4);
+  text-transform: uppercase;
+  margin-left: auto;
+}
+.dc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.dc-table th {
+  text-align: left;
+  font-family: var(--f-jb);
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  color: var(--fg-3);
+  font-weight: 500;
+  text-transform: uppercase;
+  padding: 8px 14px;
+  background: var(--bg-2);
+  border-bottom: 1px solid var(--bd-1);
+}
+.dc-table td {
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--bd-1);
+  font-variant-numeric: tabular-nums;
+}
+.dc-table tr:last-child td { border-bottom: none; }
+.dc-table tr:hover td { background: var(--bg-hover); }
+.dc-table .num { text-align: right; font-family: var(--f-mono); }
+.dc-table .delta-up { color: var(--success); }
+.dc-table .delta-down { color: var(--error); }
+
+/* composer */
+.composer {
+  margin-top: auto;
+  border: 1px solid var(--bd-2);
+  background: var(--bg-1);
+  border-radius: 8px;
+  padding: 10px 12px;
+  position: relative;
+}
+.composer::before {
+  content: "";
+  position: absolute;
+  top: -1px;
+  left: 22px;
+  width: 22px;
+  height: 2px;
+  background: var(--signal);
+}
+.composer-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+.composer-input {
+  flex: 1;
+  background: var(--bg-2);
+  border: 1px solid var(--bd-2);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 13px;
+  color: var(--fg-1);
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.composer-input.placeholder { color: var(--fg-4); }
+.composer-input .caret {
+  display: inline-block;
+  width: 1.5px;
+  height: 14px;
+  background: var(--signal);
+  margin-left: 2px;
+  animation: blink 1.05s steps(1) infinite;
+}
+@keyframes blink { 50% { opacity: 0; } }
+.composer-tools {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.composer-tools button {
+  width: 32px;
+  height: 32px;
+  border-radius: 5px;
+  border: 1px solid var(--bd-2);
+  background: var(--bg-2);
+  color: var(--fg-2);
+  display: grid;
+  place-items: center;
+}
+.composer-tools .send {
+  background: var(--signal);
+  border-color: var(--signal);
+  color: var(--ink);
+}
+.composer-foot {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-family: var(--f-jb);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  color: var(--fg-4);
+  text-transform: uppercase;
+}
+
+/* =============================================================================
+ * Motion lab
+ * ============================================================================= */
+.motion-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+.motion-card {
+  border: 1px solid var(--bd-2);
+  background: var(--bg-1);
+  border-radius: 10px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-height: 280px;
+}
+.motion-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.motion-head .name {
+  font-family: var(--f-mono);
+  font-weight: 600;
+  font-size: 13.5px;
+  letter-spacing: 0.02em;
+}
+.motion-head .specs {
+  font-family: var(--f-jb);
+  font-size: 9.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-4);
+}
+.motion-body {
+  flex: 1;
+  background: var(--bg-0);
+  border: 1px solid var(--bd-1);
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  min-height: 150px;
+  overflow: hidden;
+  position: relative;
+}
+.motion-foot {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.motion-foot .descr {
+  font-size: 12px;
+  color: var(--fg-3);
+  line-height: 1.45;
+}
+.motion-btn {
+  padding: 6px 12px;
+  border-radius: 5px;
+  background: var(--bg-2);
+  border: 1px solid var(--bd-2);
+  color: var(--fg-1);
+  font-family: var(--f-jb);
+  font-size: 9.5px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease);
+}
+.motion-btn:hover { background: var(--bg-3); border-color: var(--bd-3); }
+.motion-btn:active { transform: scale(0.96); }
+
+/* skeleton (motion demo) */
+.sk {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 90%;
+}
+.sk-line {
+  height: 10px;
+  background: linear-gradient(90deg, var(--bg-2) 0%, var(--bg-3) 50%, var(--bg-2) 100%);
+  background-size: 200% 100%;
+  border-radius: 4px;
+  animation: shimmer 1.6s linear infinite;
+}
+@keyframes shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* sparkline */
+.spark svg { width: 100%; height: 56px; display: block; }
+.spark path.line {
+  fill: none;
+  stroke: var(--signal);
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 800;
+  stroke-dashoffset: 800;
+  animation: drawline 1.6s var(--ease-out) forwards;
+}
+.spark path.area {
+  fill: url(#sparkfill);
+  opacity: 0;
+  animation: fadein 1s 0.4s var(--ease-out) forwards;
+}
+@keyframes drawline { to { stroke-dashoffset: 0; } }
+@keyframes fadein { to { opacity: 1; } }
+
+/* tokens / typography blocks */
+.swatches {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 10px;
+}
+.swatch {
+  background: var(--bg-1);
+  border: 1px solid var(--bd-2);
+  border-radius: 6px;
+  overflow: hidden;
+}
+.swatch .chip {
+  height: 56px;
+  border-bottom: 1px solid var(--bd-1);
+}
+.swatch .info {
+  padding: 8px 10px;
+  font-family: var(--f-jb);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+}
+.swatch .name { color: var(--fg-1); text-transform: uppercase; letter-spacing: 0.14em; font-size: 9.5px; }
+.swatch .hex { color: var(--fg-3); margin-top: 3px; }
+
+/* Type specimens */
+.type-row {
+  display: grid;
+  grid-template-columns: 200px 1fr;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--bd-1);
+  align-items: center;
+}
+.type-row:last-child { border-bottom: none; }
+.type-meta .label {
+  font-family: var(--f-jb);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.type-meta .spec {
+  font-family: var(--f-jb);
+  font-size: 11px;
+  color: var(--fg-4);
+  margin-top: 4px;
+}
+
+/* logic blocks (product gaps) */
+.gap-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+.gap {
+  border: 1px solid var(--bd-2);
+  background: var(--bg-1);
+  border-radius: 10px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.gap-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.gap-num {
+  font-family: var(--f-mono);
+  font-weight: 700;
+  font-size: 26px;
+  letter-spacing: -0.02em;
+  color: var(--signal);
+  line-height: 1;
+}
+.gap-title {
+  font-family: var(--f-mono);
+  font-weight: 600;
+  font-size: 14.5px;
+  letter-spacing: 0.02em;
+}
+.gap-body { font-size: 13px; color: var(--fg-3); line-height: 1.55; }
+.gap-flow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--f-jb);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  color: var(--fg-2);
+  flex-wrap: wrap;
+  text-transform: uppercase;
+  margin-top: 4px;
+}
+.gap-flow .step {
+  padding: 4px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--bd-2);
+  background: var(--bg-2);
+}
+.gap-flow .arrow { color: var(--signal); }
+.gap-flow .step.new {
+  border-color: var(--signal-32);
+  background: var(--signal-12);
+  color: var(--signal);
+}
+
+/* roadmap */
+.roadmap {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 24px;
+}
+.sprint {
+  border: 1px solid var(--bd-2);
+  background: var(--bg-1);
+  border-radius: 10px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: relative;
+  overflow: hidden;
+}
+.sprint::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 3px;
+  width: 100%;
+}
+.sprint.s1::before { background: var(--error); }
+.sprint.s2::before { background: var(--warning); }
+.sprint.s3::before { background: var(--sev-medium); }
+.sprint.s4::before { background: var(--success); }
+.sprint-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+.sprint-head .n {
+  font-family: var(--f-mono);
+  font-size: 11px;
+  letter-spacing: 0.16em;
+  color: var(--fg-4);
+  text-transform: uppercase;
+}
+.sprint-head .duration {
+  font-family: var(--f-jb);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--fg-3);
+  text-transform: uppercase;
+}
+.sprint-title {
+  font-family: var(--f-mono);
+  font-weight: 600;
+  font-size: 15px;
+  letter-spacing: 0.01em;
+  line-height: 1.35;
+}
+.sprint-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--fg-2);
+}
+.sprint-list li {
+  display: flex;
+  gap: 8px;
+  line-height: 1.45;
+}
+.sprint-list li::before {
+  content: "→";
+  color: var(--fg-4);
+  flex: none;
+  font-family: var(--f-mono);
+  font-weight: 600;
+}
+.sprint-list li code {
+  background: var(--code-bg);
+  color: var(--signal-tint);
+  font-family: var(--f-mono);
+  font-size: 11px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--bd-1);
+}
+
+/* call-out / pull-quote */
+.callout {
+  margin: 32px 0;
+  padding: 24px 28px;
+  border-left: 3px solid var(--signal);
+  background: linear-gradient(90deg, var(--signal-08), transparent 60%);
+  border-radius: 0 6px 6px 0;
+  font-family: var(--f-mono);
+  font-weight: 500;
+  font-size: 17px;
+  color: var(--fg-1);
+  line-height: 1.5;
+  letter-spacing: 0.005em;
+}
+.callout .author {
+  display: block;
+  margin-top: 10px;
+  font-family: var(--f-jb);
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  color: var(--fg-4);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+/* Onboarding mock — стилизованный диалог */
+.onboard {
+  background: var(--bg-1);
+  border: 1px solid var(--bd-2);
+  border-radius: 12px;
+  padding: 32px;
+  display: grid;
+  grid-template-columns: 180px 1fr;
+  gap: 28px;
+  position: relative;
+  overflow: hidden;
+}
+.onboard-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.onboard-step {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  color: var(--fg-3);
+  position: relative;
+}
+.onboard-step.done { color: var(--success); }
+.onboard-step.active {
+  background: var(--signal-08);
+  color: var(--fg-1);
+}
+.onboard-step.active::before {
+  content: "";
+  position: absolute;
+  left: -16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 18px;
+  background: var(--signal);
+}
+.onboard-step .n {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1px solid var(--bd-2);
+  display: grid;
+  place-items: center;
+  font-family: var(--f-jb);
+  font-size: 10px;
+  color: var(--fg-3);
+  background: var(--bg-2);
+}
+.onboard-step.done .n {
+  background: var(--success-20);
+  border-color: var(--success-40);
+  color: var(--success);
+}
+.onboard-step.active .n {
+  background: var(--signal);
+  border-color: var(--signal);
+  color: var(--ink);
+}
+.onboard-step .lbl {
+  display: block;
+  font-family: var(--f-jb);
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--fg-4);
+  margin-bottom: 2px;
+}
+.onboard-step .title {
+  font-family: var(--f-mono);
+  font-weight: 500;
+  font-size: 12px;
+}
+
+.onboard-form { display: flex; flex-direction: column; gap: 20px; }
+.onboard-form h3 {
+  font-family: var(--f-mono);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: 0;
+  margin: 0;
+}
+.onboard-form p {
+  font-size: 13.5px;
+  color: var(--fg-3);
+  line-height: 1.55;
+  margin: 0;
+  max-width: 480px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.field-label {
+  font-family: var(--f-jb);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  color: var(--fg-3);
+  text-transform: uppercase;
+}
+.field-input {
+  background: var(--bg-2);
+  border: 1px solid var(--bd-2);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-family: var(--f-mono);
+  font-size: 13px;
+  color: var(--fg-1);
+}
+.field-input.ok {
+  border-color: var(--success-40);
+  background: var(--success-12);
+}
+.field-input.ok::after {
+  content: "✓";
+  color: var(--success);
+  margin-left: auto;
+}
+.field-hint {
+  font-size: 11.5px;
+  color: var(--fg-4);
+  line-height: 1.45;
+}
+
+.onboard-cta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+}
+.btn-primary {
+  background: var(--signal);
+  color: var(--ink);
+  border: 1px solid var(--signal);
+  padding: 8px 16px;
+  border-radius: 5px;
+  font-family: var(--f-mono);
+  font-weight: 600;
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all var(--t-fast) var(--ease);
+}
+.btn-primary:hover { background: var(--signal-tint); }
+.btn-ghost {
+  background: transparent;
+  color: var(--fg-3);
+  border: 1px solid var(--bd-2);
+  padding: 8px 16px;
+  border-radius: 5px;
+  font-family: var(--f-jb);
+  font-size: 10px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.btn-ghost:hover { color: var(--fg-1); border-color: var(--bd-3); }
+
+/* footer */
+.footer {
+  padding: 56px 64px;
+  border-top: 1px solid var(--bd-1);
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--fg-4);
+  font-family: var(--f-jb);
+  letter-spacing: 0.06em;
+}
+
+/* helper grid */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.three-col { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ============================================================ SIDE NAV -->
+<aside class="side">
+  <div class="brand">
+    <div class="brand-glyph">А</div>
+    <div class="brand-lockup">
+      <span>АУДИТ</span>
+      <span class="slash">/</span>
+      <span class="ver">v1.2.4</span>
+    </div>
+  </div>
+
+  <div>
+    <div class="side-eyebrow">Содержание</div>
+    <div class="nav-group" id="nav-group">
+      <a href="#summary" class="nav-link active"><span class="num">01</span>Резюме</a>
+      <a href="#diagnosis" class="nav-link"><span class="num">02</span>Диагностика</a>
+      <a href="#logic" class="nav-link"><span class="num">03</span>Логика и пробелы</a>
+      <a href="#system" class="nav-link"><span class="num">04</span>Визуальная система</a>
+      <a href="#screens" class="nav-link"><span class="num">05</span>Редизайн экранов</a>
+      <a href="#motion" class="nav-link"><span class="num">06</span>Моушн-дизайн</a>
+      <a href="#micro" class="nav-link"><span class="num">07</span>Микровзаимодействия</a>
+      <a href="#roadmap" class="nav-link"><span class="num">08</span>Дорожная карта</a>
+    </div>
+  </div>
+
+  <div>
+    <div class="side-eyebrow">Метаданные</div>
+    <div style="font-family: var(--f-jb); font-size: 10.5px; color: var(--fg-3); line-height: 1.8; letter-spacing: 0.04em;">
+      <div>SCOPE · frontend/**</div>
+      <div>BRAND · Stencil/Mono v1.2.x</div>
+      <div>BASELINE · 47 / 100</div>
+      <div style="color: var(--success);">TARGET&nbsp;&nbsp;&nbsp; · 86 / 100</div>
+    </div>
+  </div>
+
+  <div class="side-foot">
+    <span class="dot"></span> Аудит обновлён 2026-05-23<br>
+    Stencil/Mono · Direction 06<br>
+    Signal #FF6A3D · Ink #15161A
+  </div>
+</aside>
+
+<!-- ============================================================ MAIN -->
+<main>
+
+<!-- ============================================================ HERO -->
+<section id="summary" class="hero">
+  <div class="hero-head">
+    <span><span class="marker"></span> · АУДИТ UX / UI / ЛОГИКА</span>
+    <span class="sep"></span>
+    <span>2026-05-23 · v1.2.4 · ДО РЕЛИЗА</span>
+  </div>
+
+  <h1>
+    Хороший каркас. <span class="dim">Brand доехал до shell —</span>
+    <span class="accent">а body, settings и моушн остановились на полпути.</span>
+  </h1>
+
+  <p class="hero-sub">
+    Stencil/Mono грамотно собран в шапке, сайдбаре и compose-зоне. Дальше — старый «universal dark»:
+    хардкод <code class="inline">text-red-400</code> на 30+ местах, light-тема ломается, моушна почти нет,
+    а в продуктовой логике есть пробелы, которые читаются как баги.
+    Этот документ — карта того, что чинить, в каком порядке и как должен выглядеть результат.
+  </p>
+
+  <div class="hero-grid">
+    <!-- Gauge -->
+    <div>
+      <div class="gauge">
+        <svg width="280" height="280" viewBox="0 0 280 280">
+          <defs>
+            <linearGradient id="gradGauge" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#c84a23"/>
+              <stop offset="100%" stop-color="#ff6a3d"/>
+            </linearGradient>
+          </defs>
+          <!-- track -->
+          <circle cx="140" cy="140" r="118" stroke="#1f2123" stroke-width="14" fill="none"/>
+          <!-- fill (47/100) -->
+          <circle cx="140" cy="140" r="118"
+                  stroke="url(#gradGauge)" stroke-width="14" fill="none"
+                  stroke-linecap="round"
+                  stroke-dasharray="741.3"
+                  stroke-dashoffset="392.9"
+                  style="transition: stroke-dashoffset 1.2s var(--ease-out)"/>
+          <!-- tick at target (86/100) -->
+          <g transform="rotate(309.6 140 140)">
+            <circle cx="258" cy="140" r="4" fill="#7cf0c4"/>
+          </g>
+        </svg>
+        <div class="gauge-center">
+          <div>
+            <div class="gauge-num tabular">47<span class="small">/100</span></div>
+            <div class="gauge-label">Текущий score</div>
+            <div class="gauge-delta">▲ + 39 пунктов до релиза</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="pillars">
+        <div class="pillar"><span class="pin s1">1</span><div class="bar-track"><div class="bar-fill" style="width: 31%"></div></div><span class="score">5/16</span></div>
+        <div class="pillar"><span class="pin s2">2</span><div class="bar-track"><div class="bar-fill" style="width: 69%"></div></div><span class="score">11/16</span></div>
+        <div class="pillar"><span class="pin s3">3</span><div class="bar-track"><div class="bar-fill" style="width: 56%"></div></div><span class="score">9/16</span></div>
+        <div class="pillar"><span class="pin s4">4</span><div class="bar-track"><div class="bar-fill" style="width: 56%"></div></div><span class="score">9/16</span></div>
+        <div class="pillar"><span class="pin s5">5</span><div class="bar-track"><div class="bar-fill" style="width: 50%"></div></div><span class="score">8/16</span></div>
+        <div class="pillar"><span class="pin s6">6</span><div class="bar-track"><div class="bar-fill" style="width: 25%"></div></div><span class="score">5/20</span></div>
+      </div>
+    </div>
+
+    <!-- KPIs -->
+    <div>
+      <div class="kpis">
+        <div class="kpi">
+          <div class="label">Критичных багов</div>
+          <div class="val tabular">5<span class="unit"> блокеров</span></div>
+          <div class="hint">Чинятся за 1–2 дня. Без них light-тема нерабочая, brand консистентность не достигается.</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Хардкод-цветов в коде</div>
+          <div class="val tabular">30<span class="unit">+ мест</span></div>
+          <div class="hint"><code class="inline" style="font-size:10.5px">text-red-400</code>, <code class="inline" style="font-size:10.5px">bg-red-950</code>, <code class="inline" style="font-size:10.5px">text-blue-400</code> вместо токенов.</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Запрещённых терминов в UI</div>
+          <div class="val tabular">12<span class="unit"> точек</span></div>
+          <div class="hint">«MCP», «Channel», «Tool calls», «endpoint» — должны переехать в expert-блоки.</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Моушна на весь интерфейс</div>
+          <div class="val tabular">~ 4<span class="unit"> точки</span></div>
+          <div class="hint">Spin на refresh, native dropdown fade. Ни skeleton, ни stream-pulse, ни enter-transition страниц.</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Версия — разнобой</div>
+          <div class="val tabular">3<span class="unit"> разные</span></div>
+          <div class="hint">Header 1.2.4 · Lockup default 1.2.2 · About 1.2.1. Источник правды один.</div>
+        </div>
+        <div class="kpi">
+          <div class="label">Loading-стилей</div>
+          <div class="val tabular">2<span class="unit"> разных</span></div>
+          <div class="hint">Голый текст «Загрузка...» + Loader2-спиннер. Skeleton-токены есть, но не подключены.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="callout">
+    Аналитик 1С смотрит на «<span class="mono" style="color: var(--signal)">Tool calls / Errors / Rate / Channel</span>» и не понимает, что это его данные. Технические термины — для разработчика; интерфейс должен говорить языком аналитика: «база», «запрос», «вопрос», «ответ».
+    <span class="author">— Принцип №1 редизайна</span>
+  </div>
+</section>
+
+<!-- ============================================================ DIAGNOSIS -->
+<section id="diagnosis" class="section">
+  <div class="section-head">
+    <span class="index">02</span>
+    <h2>Диагностика по столпам</h2>
+    <span class="rule"></span>
+  </div>
+  <p class="section-lede">
+    Шесть осей оценки. Каждая дробится на конкретные находки: <strong>5 блокеров</strong>,
+    <strong>16 high</strong>, <strong>17 medium</strong>, <strong>5 low</strong>.
+    Ниже — карточки с точным указанием файла, корня проблемы и фикса.
+  </p>
+
+  <div class="matrix">
+    <div class="cell head">Столп</div>
+    <div class="cell head">Score</div>
+    <div class="cell head">Блокеры</div>
+    <div class="cell head">High</div>
+    <div class="cell head">Симптом</div>
+
+    <div class="cell row-head"><span class="nm">01 · CONSISTENCY</span>Визуальная согласованность</div>
+    <div class="cell findings">5<span class="x">/16</span></div>
+    <div class="cell findings">2<span class="x b">B</span></div>
+    <div class="cell findings">3<span class="x h">H</span></div>
+    <div class="cell descr">Stencil доехал только до shell. В settings/cards/insights — старая палитра.</div>
+
+    <div class="cell row-head"><span class="nm">02 · HIERARCHY</span>Информационная иерархия</div>
+    <div class="cell findings">11<span class="x">/16</span></div>
+    <div class="cell findings">0</div>
+    <div class="cell findings">1<span class="x h">H</span></div>
+    <div class="cell descr">Двойные заголовки, дубли описаний, разнобой H1/H2 на welcome vs empty.</div>
+
+    <div class="cell row-head"><span class="nm">03 · AFFORDANCE</span>Affordance & feedback</div>
+    <div class="cell findings">9<span class="x">/16</span></div>
+    <div class="cell findings">1<span class="x b">B</span></div>
+    <div class="cell findings">2<span class="x h">H</span></div>
+    <div class="cell descr">Destructive «жёстко-красная». Feedback от теста — только в toast. Focus-ring 1px.</div>
+
+    <div class="cell row-head"><span class="nm">04 · RHYTHM</span>Плотность и ритм</div>
+    <div class="cell findings">9<span class="x">/16</span></div>
+    <div class="cell findings">0</div>
+    <div class="cell findings">2<span class="x h">H</span></div>
+    <div class="cell descr">Padding p-3/p-4/p-5 на одной странице. Header 52 vs grid 56 — пиксельный glitch.</div>
+
+    <div class="cell row-head"><span class="nm">05 · STATES</span>Empty / error / loading</div>
+    <div class="cell findings">8<span class="x">/16</span></div>
+    <div class="cell findings">0</div>
+    <div class="cell findings">3<span class="x h">H</span></div>
+    <div class="cell descr">Два разных loading. EmptyState задвоен. Ошибка чата — голый красный текст.</div>
+
+    <div class="cell row-head"><span class="nm">06 · A11Y</span>Доступность</div>
+    <div class="cell findings">5<span class="x">/20</span></div>
+    <div class="cell findings">2<span class="x b">B</span></div>
+    <div class="cell findings">4<span class="x h">H</span></div>
+    <div class="cell descr">Контраст в light-теме фейлит WCAG, focus-ring 1px, <code class="inline" style="font-size:10.5px">--bg-hover</code> undefined в 8 файлах.</div>
+  </div>
+
+  <!-- BLOCKERS -->
+  <h3 style="font-family: var(--f-mono); font-weight: 600; font-size: 17px; letter-spacing: 0.04em; text-transform: uppercase; margin: 56px 0 6px;">
+    <span class="marker"></span> &nbsp; 5 блокеров — чинить до релиза
+  </h3>
+  <p style="color: var(--fg-3); margin-bottom: 24px; font-size: 13.5px;">Каждый из этих пяти ломает работу в light-теме либо ломает бренд-консистентность. Все — детерминированные, локальные, чинятся быстро.</p>
+
+  <div class="issues">
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="issue-tag blocker">BLOCKER</span>
+        <span class="issue-id">B-1</span>
+      </div>
+      <h3>CSS-переменная <code class="inline">--bg-hover</code> используется в 8 файлах, но <em>нигде не определена</em></h3>
+      <div class="issue-body">
+        Компоненты резолвят <code class="inline">--bg-hover</code> в <code class="inline">unset → inherit</code> — невидимый hover. Особенно фатально в light-теме (Sand): hover пропадает полностью. Затронуты <strong>главный селектор баз 1С</strong>, все dropdown'ы, command palette, status row.
+      </div>
+      <div class="issue-meta">
+        <span class="chip">SHELL/CHANNELSELECTOR.TSX</span>
+        <span class="chip">UI/DROPDOWN-MENU.TSX</span>
+        <span class="chip">UI/COMMAND.TSX</span>
+        <span class="chip">+5 ФАЙЛОВ</span>
+      </div>
+      <div class="issue-fix">
+        <span>Добавить в <code class="inline">:root</code> и <code class="inline">[data-theme="light"]</code>: <code class="inline">--bg-hover: var(--bg-2);</code> — 5 минут, чинит hover на ~30% интерактивных элементов.</span>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="issue-tag blocker">BLOCKER</span>
+        <span class="issue-id">B-2</span>
+      </div>
+      <h3>30+ мест с хардкод-цветами <code class="inline">text-red-400</code>, <code class="inline">bg-red-950</code>, <code class="inline">text-blue-400</code></h3>
+      <div class="issue-body">
+        В <code class="inline">status</code>, <code class="inline">insights</code>, всех <code class="inline">cards</code> и формах настроек — старая Tailwind-палитра вместо <code class="inline">--success / --warning / --error / --accent</code>. В light-теме ярко-розовый текст на песочном фоне, контраст местами &lt; 3:1.
+      </div>
+      <div class="issue-meta">
+        <span class="chip">~30 МЕСТ</span>
+        <span class="chip">CARDS/LOGCARD</span>
+        <span class="chip">CARDS/TABLECARD</span>
+        <span class="chip">CHAT/BANNER</span>
+        <span class="chip">UI/BUTTON DESTRUCTIVE</span>
+      </div>
+      <div class="issue-fix">
+        <span>Codemod: <code class="inline">text-red-*</code> → <code class="inline">text-[var(--error)]</code>, <code class="inline">bg-red-950</code> → <code class="inline">bg-[var(--error-12)]</code>, <code class="inline">text-blue-400</code> → <code class="inline">text-[var(--accent)]</code>. 2–3 часа, чинит light-тему целиком.</span>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="issue-tag blocker">BLOCKER</span>
+        <span class="issue-id">B-3</span>
+      </div>
+      <h3>Запрещённые технические термины — «MCP», «Channel», «Tool calls» — видны аналитику</h3>
+      <div class="issue-body">
+        В <code class="inline">/insights</code> KPI «Tool calls», «Errors», «Rate». В <code class="inline">/status</code> — «Канал», «Версия MCP», «обработка MCP_Toolkit». В <code class="inline">MCPConnectionForm</code> поле «Канал» с placeholder <code class="inline">tranzit-prod</code>. Пользователь — бизнес-аналитик, не разработчик.
+      </div>
+      <div class="issue-meta">
+        <span class="chip">INSIGHTS</span>
+        <span class="chip">STATUS</span>
+        <span class="chip">MCPCONNECTIONFORM</span>
+        <span class="chip">ABOUT</span>
+      </div>
+      <div class="issue-fix">
+        <span>«Tool calls» → «Запросов в 1С». «Channel» → «База 1С». «Версия MCP» → expert-блок. «Errors / Rate» → «Ошибок / % ошибок».</span>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="issue-tag blocker">BLOCKER</span>
+        <span class="issue-id">B-4</span>
+      </div>
+      <h3>Двойной заголовок «Модель ИИ» + дубль описания в <code class="inline">LLMConfigForm</code></h3>
+      <div class="issue-body">
+        Заголовок секции «Модель ИИ» из <code class="inline">/settings</code> + label «Модель ИИ» внутри формы → визуально два H. <code class="inline">SelectItem</code> с <code class="inline">flex flex-col</code> делает trigger двухстрочным — текст центрируется неровно. Описание под селектом дублирует описание в дропдауне.
+      </div>
+      <div class="issue-meta">
+        <span class="chip">SETTINGS/PAGE.TSX:108</span>
+        <span class="chip">SETTINGS/LLMCONFIGFORM.TSX:443</span>
+        <span class="chip">VISUAL DUPLICATE</span>
+      </div>
+      <div class="issue-fix">
+        <span>Убрать внутренний label. <code class="inline">SelectItem</code> рендерить плоско — <code class="inline">label · description</code> в одну строку. Описание под селектом удалить.</span>
+      </div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="issue-tag blocker">BLOCKER</span>
+        <span class="issue-id">B-5</span>
+      </div>
+      <h3>Light-тема катастрофически сломана в 8+ местах</h3>
+      <div class="issue-body">
+        Хардкод-краснота из B-2 + неопределённый <code class="inline">--bg-hover</code> из B-1 + хардкод scrollbar <code class="inline">#262626</code> на песочном фоне + <code class="inline">bg-black/60</code> overlay становится грязно-серым + <code class="inline">focus:bg-[var(--bg)]</code> на bg-0 (focus исчезает) + ConnectionStatusBanner = тёмно-красный квадрат на песке.
+      </div>
+      <div class="issue-meta">
+        <span class="chip">8+ ТОЧЕК</span>
+        <span class="chip">SCROLLBAR</span>
+        <span class="chip">DIALOG OVERLAY</span>
+        <span class="chip">BANNER</span>
+      </div>
+      <div class="issue-fix">
+        <span>После B-1 / B-2 — обход экранов в light-теме, фикс scrollbar через токены, замена <code class="inline">bg-black/60</code> на <code class="inline">color-mix(var(--bg-0) 60%, transparent)</code>.</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- HIGHS -->
+  <h3 style="font-family: var(--f-mono); font-weight: 600; font-size: 17px; letter-spacing: 0.04em; text-transform: uppercase; margin: 64px 0 6px;">
+    <span class="marker"></span> &nbsp; Топ HIGH — 6 находок, ритм и feedback
+  </h3>
+  <p style="color: var(--fg-3); margin-bottom: 24px; font-size: 13.5px;">Не валят релиз, но именно от них зависит ощущение «полированности» продукта.</p>
+
+  <div class="issues">
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="issue-tag high">HIGH</span>
+        <span class="issue-id">H-1</span>
+      </div>
+      <h3>Destructive-кнопка не из бренда</h3>
+      <div class="issue-body">
+        <code class="inline">bg-red-800 text-white hover:bg-red-700</code> в <code class="inline">button.tsx:20</code>. Применяется на «Удалить LLM-конфиг», «Удалить подключение», «Сбросить базу» — все деструктивные действия выглядят чужеродно в Stencil.
+      </div>
+      <div class="issue-fix"><span>Variant <code class="inline">destructive</code>: <code class="inline">bg-[var(--error-20)] text-[var(--error)] border border-[var(--error-40)]</code>; primary destructive — solid <code class="inline">--error</code>.</span></div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="issue-tag high">HIGH</span>
+        <span class="issue-id">H-2</span>
+      </div>
+      <h3>Feedback от «Тест» только через toast — пользователь моргнул и пропустил</h3>
+      <div class="issue-body">
+        В <code class="inline">LLMConfigForm</code> и <code class="inline">MCPConnectionForm</code> результат теста — единственный сигнал — всплывающий toast на 3 сек. Если аналитик отвёл взгляд, он не знает, прошёл ли тест.
+      </div>
+      <div class="issue-fix"><span>Inline-результат рядом с кнопкой: <code class="inline">StencilChip</code> с success/error + ms + tool count. Toast — дополнительно, не вместо.</span></div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="issue-tag high">HIGH</span>
+        <span class="issue-id">H-3</span>
+      </div>
+      <h3>Settings — три разных <code class="inline">padding</code> на одной странице</h3>
+      <div class="issue-body">
+        Базы 1С / Модель ИИ — <code class="inline">p-5</code>. Link-cards (Memory / Insights / Skills) — <code class="inline">p-4</code>. Внутренний контейнер MCPConnectionForm — <code class="inline">p-4</code>. <code class="inline">rounded-md</code> рядом с <code class="inline">rounded-lg</code>. Вертикальный ритм рваный.
+      </div>
+      <div class="issue-fix"><span>Единая система: shell-card <code class="inline">p-5 rounded-lg</code>, nested form <code class="inline">space-y-4</code>, link-cards переехать выше под отдельный заголовок «Дополнительно».</span></div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="issue-tag high">HIGH</span>
+        <span class="issue-id">H-4</span>
+      </div>
+      <h3>EmptyState задвоен — два разных стиля для одного состояния</h3>
+      <div class="issue-body">
+        «Подключения не настроены»: в <code class="inline">MCPConnectionList</code> — голый <code class="inline">&lt;p&gt;</code>, в <code class="inline">ChannelSelector</code> — детальный warn-frame с CTA. На <code class="inline">/insights</code> — локальный <code class="inline">EmptyState</code> вместо глобального компонента.
+      </div>
+      <div class="issue-fix"><span>Один <code class="inline">EmptyState</code>-prop API: <code class="inline">icon / title / hint / cta</code>. Удалить локальные дубли.</span></div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="issue-tag high">HIGH</span>
+        <span class="issue-id">H-5</span>
+      </div>
+      <h3>Тех-комбинатор: <code class="inline">tailwind.config.ts</code> — мёртвый</h3>
+      <div class="issue-body">
+        <code class="inline">globals.css</code> на v4-импорте, но <code class="inline">@theme</code> нет. Все утилиты <code class="inline">bg-bg-1</code>, <code class="inline">duration-normal</code>, <code class="inline">ease-design-ease</code> — no-op. Везде костыли <code class="inline">bg-[var(--bg-1)]</code>.
+      </div>
+      <div class="issue-fix"><span>Либо <code class="inline">@theme inline { … }</code> в <code class="inline">globals.css</code>, либо явно жить на arbitrary-class — но тогда удалить config файл и подменять inline <code class="inline">style=</code> на класс через <code class="inline">font-mono</code> в config.</span></div>
+    </div>
+
+    <div class="issue">
+      <div class="issue-head">
+        <span class="issue-tag high">HIGH</span>
+        <span class="issue-id">H-6</span>
+      </div>
+      <h3>Focus-ring 1px — недостаточно для WCAG и для людей с пониженным зрением</h3>
+      <div class="issue-body">
+        <code class="inline">focus-visible:ring-1 ring-[var(--accent)]</code> везде. На signal-orange в light-теме 1px теряется в фоне. <code class="inline">--bg-hover</code> undefined → keyboard-focused list items в dropdown без визуального состояния. Нарушение WCAG 2.4.7.
+      </div>
+      <div class="issue-fix"><span><code class="inline">focus-visible:ring-2 ring-offset-2 ring-offset-[var(--bg-0)] ring-[var(--signal)]</code>. Для chips и icon-buttons — outline-style box-shadow вместо ring (компактнее).</span></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ LOGIC -->
+<section id="logic" class="section">
+  <div class="section-head">
+    <span class="index">03</span>
+    <h2>Логика и продуктовые пробелы</h2>
+    <span class="rule"></span>
+  </div>
+  <p class="section-lede">
+    UI-баги — поверхность. Под ней — <strong>шесть мест, где логика приложения сообщает пользователю меньше, чем должна</strong>. Это не про красоту, это про доверие: аналитик не понимает, что происходит, и теряет уверенность в инструменте.
+  </p>
+
+  <div class="gap-grid">
+
+    <div class="gap">
+      <div class="gap-head">
+        <span class="gap-num">01</span>
+        <span class="gap-title">Streaming ответ — чёрный ящик</span>
+      </div>
+      <div class="gap-body">
+        Сейчас: при отправке вопроса появляется <em>«Загрузка…»</em>, через 12 секунд — готовый markdown. Пользователь не видит, что модель делает: думает / ищет / вызывает 1С / форматирует. Если зависнет — непонятно, на чём именно.
+      </div>
+      <div class="gap-flow">
+        <span class="step">Вопрос</span>
+        <span class="arrow">→</span>
+        <span class="step new">Думает...</span>
+        <span class="arrow">→</span>
+        <span class="step new">Спрашивает 1С: <code class="inline" style="background:transparent;border:none;color:inherit;padding:0">getObjects(...)</code></span>
+        <span class="arrow">→</span>
+        <span class="step new">Получено 24 записи</span>
+        <span class="arrow">→</span>
+        <span class="step">Ответ</span>
+      </div>
+      <div class="issue-fix"><span>Streaming stages с подписями шагов и таймингами (<code class="inline">StreamingStages.tsx</code> уже есть — подключить).</span></div>
+    </div>
+
+    <div class="gap">
+      <div class="gap-head">
+        <span class="gap-num">02</span>
+        <span class="gap-title">Channel selector не отвечает на главный вопрос</span>
+      </div>
+      <div class="gap-body">
+        В dropdown'е показаны: имя, host:port, kind-badge, ping. <em>Не показано</em> главное — какая это конфигурация (УТ / ERP / УСО / самописная), сколько объектов в метаданных и когда последний раз обновлялся индекс.
+      </div>
+      <div class="gap-flow">
+        <span class="step">A4F2</span>
+        <span class="step">EMBEDDED</span>
+        <span class="step">●&nbsp;ONLINE</span>
+        <span class="arrow">→</span>
+        <span class="step new">УТ 11.5</span>
+        <span class="step new">2 134 объекта</span>
+        <span class="step new">обновлено 5 мин назад</span>
+      </div>
+      <div class="issue-fix"><span>В dropdown-item добавить второй ряд: тип конфигурации, размер метаданных, last-sync (кэшировать в SQLite, refresh при focus).</span></div>
+    </div>
+
+    <div class="gap">
+      <div class="gap-head">
+        <span class="gap-num">03</span>
+        <span class="gap-title">Tool trace показывается раскрытым на полный JSON</span>
+      </div>
+      <div class="gap-body">
+        Аналитик кликает «развернуть trace» — получает сырой <code class="inline">json-tree</code> с цветной подсветкой синтаксиса (purple/green/red, хардкод). Не понимает, что произошло: какая операция, сколько вернула, успешна ли.
+      </div>
+      <div class="gap-flow">
+        <span class="step">JSON-tree свёрнутый</span>
+        <span class="arrow">→</span>
+        <span class="step new">«Спросил у 1С: документы за май»</span>
+        <span class="step new">24 записи · 380 мс</span>
+        <span class="arrow">→</span>
+        <span class="step new">[Показать JSON]</span>
+      </div>
+      <div class="issue-fix"><span>Двухуровневая модель: summary line («что сделал → что получил») + opt-in raw JSON по клику.</span></div>
+    </div>
+
+    <div class="gap">
+      <div class="gap-head">
+        <span class="gap-num">04</span>
+        <span class="gap-title">Backend недоступен — совет про <code class="inline">docker compose up</code></span>
+      </div>
+      <div class="gap-body">
+        На <code class="inline">/settings</code>: «Backend недоступен. Запустите <code class="inline">docker compose up</code>». В Electron-сборке Docker нет. Совет вводит в заблуждение. Indicator показывается в углу, но без действия.
+      </div>
+      <div class="gap-flow">
+        <span class="step">Backend: недоступен</span>
+        <span class="arrow">→</span>
+        <span class="step new">Что я могу сделать?</span>
+        <span class="step new">[Перезапустить сервис]</span>
+        <span class="step new">[Открыть лог]</span>
+      </div>
+      <div class="issue-fix"><span>Контекстный fix: в Electron — кнопка перезапуска локального backend. В dev — ссылка на лог. Без советов о Docker.</span></div>
+    </div>
+
+    <div class="gap">
+      <div class="gap-head">
+        <span class="gap-num">05</span>
+        <span class="gap-title">Onboarding из одного диалога — линейный, без возврата</span>
+      </div>
+      <div class="gap-body">
+        <code class="inline">OnboardingDialog</code> — wizard вперёд. Нельзя вернуться, нельзя пропустить шаг и заполнить позже, нет состояния «ты уже всё настроил». Аналитик закрыл случайно — теряет прогресс.
+      </div>
+      <div class="gap-flow">
+        <span class="step">Шаг 1</span>
+        <span class="arrow">→</span>
+        <span class="step">Шаг 2</span>
+        <span class="arrow">→</span>
+        <span class="step">Шаг 3</span>
+        <span class="step new">↺ назад</span>
+        <span class="step new">⊘ пропустить</span>
+        <span class="step new">↻ сохранён prog</span>
+      </div>
+      <div class="issue-fix"><span>Stepper с back, skip, autosave в localStorage. Если пропустил — на главной чип «Завершите настройку (2/3)».</span></div>
+    </div>
+
+    <div class="gap">
+      <div class="gap-head">
+        <span class="gap-num">06</span>
+        <span class="gap-title">Удаление чата — <code class="inline">window.confirm()</code></span>
+      </div>
+      <div class="gap-body">
+        Native browser-confirm для удаления сессии. Выглядит как баг — внезапно появляется системный диалог поверх Stencil-интерфейса. Не уносит весь контекст (название сессии не в подписи), нет undo.
+      </div>
+      <div class="gap-flow">
+        <span class="step">Удалить чат</span>
+        <span class="arrow">→</span>
+        <span class="step new">Toast «Чат «A4F2 · продажи апрель» удалён»</span>
+        <span class="step new">[Отменить] · 5 сек</span>
+      </div>
+      <div class="issue-fix"><span>Optimistic delete с undo-toast 5 сек. Только при undo-окно истекло → реальный <code class="inline">DELETE</code>.</span></div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ VISUAL SYSTEM -->
+<section id="system" class="section">
+  <div class="section-head">
+    <span class="index">04</span>
+    <h2>Визуальная система — фиксы и расширения</h2>
+    <span class="rule"></span>
+  </div>
+  <p class="section-lede">
+    Палитра, типографика и токены, которые уже задекларированы в <code class="inline">.brand/BRAND.md</code>, плюс <strong>добавки</strong>: пропавшие state-токены, code-syntax, motion-токены. Это база для всех экранов и моушна ниже.
+  </p>
+
+  <div class="eyebrow" style="margin-top: 8px; margin-bottom: 14px;">Палитра — фиксированная</div>
+  <div class="swatches">
+    <div class="swatch"><div class="chip" style="background: #ff6a3d"></div><div class="info"><div class="name">SIGNAL</div><div class="hex">#FF6A3D</div></div></div>
+    <div class="swatch"><div class="chip" style="background: #ffb38a"></div><div class="info"><div class="name">TINT</div><div class="hex">#FFB38A</div></div></div>
+    <div class="swatch"><div class="chip" style="background: #c84a23"></div><div class="info"><div class="name">DEEP</div><div class="hex">#C84A23</div></div></div>
+    <div class="swatch"><div class="chip" style="background: #15161a; border-bottom-color: #2a2c30"></div><div class="info"><div class="name">INK</div><div class="hex">#15161A</div></div></div>
+    <div class="swatch"><div class="chip" style="background: #f3f1ec"></div><div class="info"><div class="name">SAND</div><div class="hex">#F3F1EC</div></div></div>
+    <div class="swatch"><div class="chip" style="background: #e7e4dc"></div><div class="info"><div class="name">SAND-2</div><div class="hex">#E7E4DC</div></div></div>
+  </div>
+
+  <div class="eyebrow" style="margin-top: 36px; margin-bottom: 14px;">Семантика — без хардкода</div>
+  <div class="swatches">
+    <div class="swatch"><div class="chip" style="background: #7cf0c4"></div><div class="info"><div class="name">SUCCESS</div><div class="hex">#7CF0C4 · mint</div></div></div>
+    <div class="swatch"><div class="chip" style="background: #f7c948"></div><div class="info"><div class="name">WARNING</div><div class="hex">#F7C948 · ochre</div></div></div>
+    <div class="swatch"><div class="chip" style="background: #f87171"></div><div class="info"><div class="name">ERROR</div><div class="hex">#F87171</div></div></div>
+    <div class="swatch"><div class="chip" style="background: #5fb8ff"></div><div class="info"><div class="name">INFO</div><div class="hex">#5FB8FF · new</div></div></div>
+    <div class="swatch"><div class="chip" style="background: #0d0e11"></div><div class="info"><div class="name">CODE-BG</div><div class="hex">#0D0E11</div></div></div>
+    <div class="swatch"><div class="chip" style="background: linear-gradient(90deg, #c84a23, #ff6a3d)"></div><div class="info"><div class="name">FOCUS-RING</div><div class="hex">signal · 2px</div></div></div>
+  </div>
+
+  <div class="eyebrow" style="margin-top: 36px; margin-bottom: 8px;">Типографика — Stencil/Mono</div>
+  <div style="border: 1px solid var(--bd-2); border-radius: 10px; padding: 4px 24px; background: var(--bg-1);">
+    <div class="type-row">
+      <div class="type-meta">
+        <div class="label">Display · Lockup hero</div>
+        <div class="spec">Plex Mono 600 · 48–64px · ls -0.01em</div>
+      </div>
+      <div style="font-family: var(--f-mono); font-weight: 600; font-size: 44px; line-height: 1.05; letter-spacing: -0.01em;">
+        <span class="marker" style="display:inline-block; vertical-align: 0.18em; margin-right: 0.5ch"></span>АНАЛИТИК <span style="color: var(--fg-4); font-weight: 500;">/</span> <span style="color: var(--fg-3); font-weight: 500;">1.2.4</span>
+      </div>
+    </div>
+    <div class="type-row">
+      <div class="type-meta">
+        <div class="label">H2 · Section title</div>
+        <div class="spec">Plex Mono 600 · 22px · ls +0.04em · UPPERCASE</div>
+      </div>
+      <div style="font-family: var(--f-mono); font-weight: 600; font-size: 22px; letter-spacing: 0.04em; text-transform: uppercase;">
+        Подключения и базы данных
+      </div>
+    </div>
+    <div class="type-row">
+      <div class="type-meta">
+        <div class="label">Eyebrow · Meta</div>
+        <div class="spec">JB Mono 500 · 10px · ls +0.18em · UPPERCASE</div>
+      </div>
+      <div style="font-family: var(--f-jb); font-weight: 500; font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--fg-3);">
+        База 1С &nbsp;·&nbsp; обновлено 5 мин назад &nbsp;·&nbsp; 2 134 объекта
+      </div>
+    </div>
+    <div class="type-row">
+      <div class="type-meta">
+        <div class="label">Body · Chat / forms</div>
+        <div class="spec">Plex Sans 400 · 14px · 1.55</div>
+      </div>
+      <div style="font-family: var(--f-sans); font-size: 14px; line-height: 1.55; max-width: 520px;">
+        Покажи продажи за апрель по контрагенту «Альфа-снаб» с разбивкой по складам и сравнением с мартом. Подсветь склады, где упало больше 15%.
+      </div>
+    </div>
+    <div class="type-row">
+      <div class="type-meta">
+        <div class="label">Mono · Code / values</div>
+        <div class="spec">Plex Mono 400/500 · tabular-nums</div>
+      </div>
+      <div style="font-family: var(--f-mono); font-size: 13px; line-height: 1.6;">
+        <span style="color: var(--fg-3)">channel</span> <span style="color: var(--signal-tint)">"a4f2-prod"</span>
+        <br><span style="color: var(--fg-3)">tools_called</span> <span style="color: var(--success)">24</span><span style="color: var(--fg-4)">/24</span> · <span style="color: var(--fg-3)">avg</span> <span style="color: var(--signal-tint)">312ms</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Motion tokens -->
+  <div class="eyebrow" style="margin-top: 36px; margin-bottom: 14px;">Моушн-токены — новые</div>
+  <div class="three-col">
+    <div style="border: 1px solid var(--bd-2); background: var(--bg-1); border-radius: 10px; padding: 18px 20px;">
+      <div class="eyebrow" style="margin-bottom: 6px;">Длительность</div>
+      <div style="font-family: var(--f-mono); font-size: 12.5px; line-height: 2;">
+        <div><span style="color: var(--fg-3)">--t-micro</span> · <span style="color: var(--signal-tint)">100ms</span> · hover</div>
+        <div><span style="color: var(--fg-3)">--t-fast</span>&nbsp; · <span style="color: var(--signal-tint)">160ms</span> · color, opacity</div>
+        <div><span style="color: var(--fg-3)">--t-norm</span> · <span style="color: var(--signal-tint)">240ms</span> · panels, popovers</div>
+        <div><span style="color: var(--fg-3)">--t-slow</span> · <span style="color: var(--signal-tint)">420ms</span> · page enter, layout</div>
+      </div>
+    </div>
+    <div style="border: 1px solid var(--bd-2); background: var(--bg-1); border-radius: 10px; padding: 18px 20px;">
+      <div class="eyebrow" style="margin-bottom: 6px;">Easing</div>
+      <div style="font-family: var(--f-mono); font-size: 12.5px; line-height: 2;">
+        <div><span style="color: var(--fg-3)">--ease</span> &nbsp; · 0.32, 0.72, 0, 1 — defаult</div>
+        <div><span style="color: var(--fg-3)">--ease-out</span> · 0.16, 1, 0.3, 1 — enter</div>
+        <div><span style="color: var(--fg-3)">--ease-spring</span> · 0.5, 1.4, 0.45, 1 — chip pop</div>
+      </div>
+    </div>
+    <div style="border: 1px solid var(--bd-2); background: var(--bg-1); border-radius: 10px; padding: 18px 20px;">
+      <div class="eyebrow" style="margin-bottom: 6px;">Правила</div>
+      <div style="font-size: 12.5px; line-height: 1.6; color: var(--fg-3);">
+        Респектить <code class="inline">prefers-reduced-motion</code>. <br>
+        Никакой анимации &gt; 500ms — кроме streaming pulse. <br>
+        Не анимировать size/layout одновременно с opacity.
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ SCREENS -->
+<section id="screens" class="section">
+  <div class="section-head">
+    <span class="index">05</span>
+    <h2>Редизайн ключевых экранов</h2>
+    <span class="rule"></span>
+  </div>
+  <p class="section-lede">
+    Пять экранов, перерисованных <strong>в фирменной системе</strong> с учётом всех находок. Слева — текущее состояние (как в коде), справа — целевое.
+  </p>
+
+  <!-- ====== Screen 1: Welcome ====== -->
+  <h3 style="font-family: var(--f-mono); font-weight: 600; font-size: 17px; letter-spacing: 0.04em; text-transform: uppercase; margin: 8px 0 6px;"><span class="marker"></span> &nbsp; 05.1 · Welcome screen</h3>
+  <p style="color: var(--fg-3); font-size: 13.5px; margin-bottom: 18px;">Сейчас — голый текст и две сине-подчёркнутые ссылки. Целевой — карточный hub с тремя путями: новый вопрос / последние сессии / шаблоны.</p>
+
+  <div class="ba">
+    <div class="ba-card before">
+      <div class="ba-head">
+        <span class="tag">До · текущее</span>
+        <span class="name">app/page.tsx · welcome</span>
+      </div>
+      <div class="ba-body" style="display:grid; place-items:center; text-align:center; padding: 40px;">
+        <div>
+          <h2 style="font-family: var(--f-sans); font-weight: 600; font-size: 22px; margin: 0 0 12px;">Готов отвечать на вопросы по 1С</h2>
+          <p style="color: var(--fg-3); font-size: 13px; line-height: 1.55; max-width: 380px; margin: 0 auto 20px;">
+            Напишите вопрос на русском — модель сама подберёт нужные инструменты 1С, выполнит запросы и покажет ответ с таблицей или карточкой объекта.
+          </p>
+          <button class="btn-primary" style="padding: 8px 14px;">+ Новый чат</button>
+          <p style="font-size: 12px; color: var(--fg-3); margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--bd-1);">
+            <span style="color: #5fb8ff; text-decoration: underline;">Подробнее о приложении</span> ·
+            <span style="color: #5fb8ff; text-decoration: underline;">Проверить диагностику</span>
+          </p>
+        </div>
+      </div>
+      <ul class="ba-notes">
+        <li>«инструменты 1С» — слово-жаргон; аналитик не знает, что это</li>
+        <li>Две сине-подчёркнутые ссылки = web-троп; те же действия уже есть в шапке</li>
+        <li>Пусто. Из чата нельзя начать с шаблона / последнего вопроса</li>
+      </ul>
+    </div>
+
+    <div class="ba-card after">
+      <div class="ba-head">
+        <span class="tag">После · редизайн</span>
+        <span class="name">Hub · 3 пути входа</span>
+      </div>
+      <div class="ba-body" style="padding: 24px;">
+        <div style="text-align: center; margin-bottom: 24px;">
+          <div class="eyebrow" style="margin-bottom: 8px;">База 1С · <span style="color: var(--success);">●</span> A4F2-PROD · УТ 11.5</div>
+          <h2 style="font-family: var(--f-mono); font-weight: 600; font-size: 22px; letter-spacing: 0; margin: 0 0 8px;">О чём спросим базу?</h2>
+          <p style="color: var(--fg-3); font-size: 13px; max-width: 420px; margin: 0 auto;">Свободная формулировка на русском — оформление и запросы возьмёт на себя.</p>
+        </div>
+
+        <!-- giant composer mock -->
+        <div style="border: 1px solid var(--bd-3); background: var(--bg-1); border-radius: 10px; padding: 14px 16px; position: relative; margin-bottom: 14px;">
+          <span style="position: absolute; top:-1px; left: 24px; width: 22px; height: 2px; background: var(--signal); display: block;"></span>
+          <div style="color: var(--fg-3); font-size: 13.5px;">Напишите вопрос или начните с шаблона<span style="display:inline-block; width:1.5px; height: 14px; background: var(--signal); margin-left: 2px; vertical-align: -2px; animation: blink 1.05s steps(1) infinite;"></span></div>
+          <div style="display: flex; justify-content: space-between; margin-top: 12px;">
+            <div style="display: flex; gap: 6px;">
+              <span style="font-family: var(--f-jb); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; background: var(--bg-2); border: 1px solid var(--bd-2); padding: 3px 8px; border-radius: 3px; color: var(--fg-3);">/ slash</span>
+              <span style="font-family: var(--f-jb); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; background: var(--bg-2); border: 1px solid var(--bd-2); padding: 3px 8px; border-radius: 3px; color: var(--fg-3);">@ объект</span>
+              <span style="font-family: var(--f-jb); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; background: var(--bg-2); border: 1px solid var(--bd-2); padding: 3px 8px; border-radius: 3px; color: var(--fg-3);">📎 файл</span>
+            </div>
+            <div style="display: flex; gap: 6px; align-items: center;">
+              <span style="font-family: var(--f-jb); font-size: 9px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-4);">0 / 4 000</span>
+              <div style="width: 32px; height: 28px; background: var(--bg-3); border: 1px solid var(--bd-2); border-radius: 5px; display: grid; place-items: center; color: var(--fg-3);">↵</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- chip-suggestions -->
+        <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px;">
+          <span style="font-family: var(--f-mono); font-size: 12px; padding: 5px 10px; background: var(--bg-1); border: 1px solid var(--bd-2); border-radius: 14px;">↺ повторить «продажи за апрель»</span>
+          <span style="font-family: var(--f-mono); font-size: 12px; padding: 5px 10px; background: var(--bg-1); border: 1px solid var(--bd-2); border-radius: 14px;">найти контрагента по ИНН</span>
+          <span style="font-family: var(--f-mono); font-size: 12px; padding: 5px 10px; background: var(--bg-1); border: 1px solid var(--bd-2); border-radius: 14px;">⚙ движения по регистру</span>
+          <span style="font-family: var(--f-mono); font-size: 12px; padding: 5px 10px; background: var(--bg-1); border: 1px solid var(--bd-2); border-radius: 14px;">+ ещё 4 шаблона</span>
+        </div>
+
+        <!-- recent strip -->
+        <div style="display: flex; justify-content: space-between; align-items: center; padding-top: 12px; border-top: 1px solid var(--bd-1);">
+          <span class="eyebrow">Последние чаты &nbsp;·&nbsp; 12</span>
+          <span style="font-family: var(--f-jb); font-size: 10px; letter-spacing: 0.14em; color: var(--signal); text-transform: uppercase;">смотреть все →</span>
+        </div>
+      </div>
+      <ul class="ba-notes">
+        <li>Composer = focal point. Вопрос можно задать прямо здесь, не «через кнопку».</li>
+        <li>Slash-команды (/) и mention (@объект) — affordance показан явно</li>
+        <li>Шаблоны и «повторить последний» — нулевой барьер для возвращения</li>
+        <li>База в eyebrow подтверждает контекст без лишнего chrome</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ====== Screen 2: Chat ====== -->
+  <h3 style="font-family: var(--f-mono); font-weight: 600; font-size: 17px; letter-spacing: 0.04em; text-transform: uppercase; margin: 56px 0 6px;"><span class="marker"></span> &nbsp; 05.2 · Chat — активная сессия</h3>
+  <p style="color: var(--fg-3); font-size: 13.5px; margin-bottom: 18px;">Tool trace раскрыт по умолчанию, но в human-readable форме. Streaming-stages вместо «Загрузка...». Карточка-таблица из брендовой системы.</p>
+
+  <div style="border: 1px solid var(--bd-2); border-radius: 12px; overflow: hidden; background: var(--bg-0);">
+    <!-- header -->
+    <div class="mock-header">
+      <div class="mock-brand">
+        <div class="mock-glyph">А</div>
+        <div class="mock-lockup">АНАЛИТИК<span class="slash">/</span><span class="ver">1.2.4</span></div>
+      </div>
+      <div class="mock-channel">
+        <span class="icon-db"></span>
+        <span class="eyebrow-cap">База 1С</span>
+        <span class="name">A4F2-prod</span>
+        <span class="dot"></span>
+      </div>
+      <div class="mock-toolbar">
+        <span style="font-family: var(--f-jb); font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--warning); background: var(--warning-12); border: 1px solid var(--warning-40); padding: 3px 8px; border-radius: 3px;">Аноним · вкл</span>
+        <span style="font-family: var(--f-jb); font-size: 9px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-3); background: var(--bg-2); border: 1px solid var(--bd-2); padding: 3px 8px; border-radius: 3px;">MIMO-V2.5-PRO</span>
+        <div class="mock-search">⌕ search <kbd>⌘K</kbd></div>
+      </div>
+    </div>
+
+    <!-- body -->
+    <div class="mock-body">
+      <!-- sidebar -->
+      <div class="mock-sidebar">
+        <div class="mock-newbtn"><span class="marker"></span>Новый чат<span class="plus">+</span></div>
+        <div class="mock-grouphead">Сегодня<span class="line"></span><span class="count">03</span></div>
+        <div class="mock-session active">
+          <div class="row"><span class="title">Продажи апрель · контрагент Альфа</span></div>
+          <div class="meta">A4F2 · 12 сообщ. · 14:32</div>
+        </div>
+        <div class="mock-session">
+          <div class="row"><span class="title">Остатки склад 003</span></div>
+          <div class="meta">A4F2 · 4 сообщ. · 11:08</div>
+        </div>
+        <div class="mock-session">
+          <div class="row"><span class="title">Журнал регистраций — ошибки</span></div>
+          <div class="meta">A4F2 · 7 сообщ. · 09:24</div>
+        </div>
+        <div class="mock-grouphead">Вчера<span class="line"></span><span class="count">02</span></div>
+        <div class="mock-session">
+          <div class="row"><span class="title">ERP · документы на согласовании</span></div>
+          <div class="meta">B91X · 22 сообщ.</div>
+        </div>
+      </div>
+
+      <!-- main -->
+      <div class="mock-main">
+        <div class="msg-row user"><div class="msg user">Покажи продажи за апрель по контрагенту «Альфа-снаб» с разбивкой по складам и сравнением с мартом. Подсветь склады, где упало больше 15%.</div></div>
+
+        <!-- trace -->
+        <div class="trace">
+          <div class="trace-head">
+            <span class="dot"></span>
+            <span>Анализ запроса</span>
+            <span style="margin-left: 12px;">●&nbsp;Выполнено</span>
+            <span class="ms">872 ms · 3 шага</span>
+          </div>
+          <div class="trace-step">
+            <span class="idx">01</span>
+            <div class="body">
+              <span class="op">Поиск контрагента</span> <span class="args">«Альфа-снаб»</span>
+              <span class="ok">· найдено 1: ИНН 7707083893</span>
+            </div>
+          </div>
+          <div class="trace-step">
+            <span class="idx">02</span>
+            <div class="body">
+              <span class="op">Регистр продаж</span> <span class="args">период = 01.04–30.04, март для сравнения</span>
+              <span class="ok">· 24 записи, 6 складов</span>
+            </div>
+          </div>
+          <div class="trace-step">
+            <span class="idx">03</span>
+            <div class="body">
+              <span class="op">Расчёт дельты</span> <span class="args">март → апрель, threshold 15%</span>
+              <span class="ok">· 2 склада попали в подсветку</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- data card -->
+        <div class="dc">
+          <div class="dc-head">
+            <span class="badge">Таблица</span>
+            <span class="title">Продажи · Альфа-снаб · апрель 2026</span>
+            <span class="meta">6 строк · экспорт CSV</span>
+          </div>
+          <table class="dc-table">
+            <thead><tr>
+              <th>Склад</th>
+              <th class="num">Март</th>
+              <th class="num">Апрель</th>
+              <th class="num">Δ %</th>
+            </tr></thead>
+            <tbody>
+              <tr><td>Центральный 001</td><td class="num">2 480 102</td><td class="num">2 590 880</td><td class="num delta-up">+ 4.5%</td></tr>
+              <tr style="background: var(--error-12);"><td>Склад 003</td><td class="num">1 824 500</td><td class="num">1 412 080</td><td class="num delta-down">− 22.6%</td></tr>
+              <tr><td>Юг 011</td><td class="num">980 230</td><td class="num">994 014</td><td class="num delta-up">+ 1.4%</td></tr>
+              <tr style="background: var(--error-12);"><td>Склад 014</td><td class="num">3 102 800</td><td class="num">2 540 200</td><td class="num delta-down">− 18.1%</td></tr>
+              <tr><td>Север 102</td><td class="num">740 920</td><td class="num">812 410</td><td class="num delta-up">+ 9.6%</td></tr>
+              <tr><td>Резерв 200</td><td class="num">152 080</td><td class="num">160 442</td><td class="num delta-up">+ 5.5%</td></tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div class="msg-row"><div class="msg assistant" style="font-size: 13.5px;">
+          Из шести складов Альфа-снаба провалились два: <strong>003 (–22.6%)</strong> и <strong>014 (–18.1%)</strong>. Оба превысили порог 15%, оба сидят на одной товарной группе «химия для металлообработки» — стоит проверить, не закончился ли договор с поставщиком на эту группу. Открыть журнал регистраций по этой группе?
+        </div></div>
+
+        <!-- composer -->
+        <div class="composer">
+          <div class="composer-row">
+            <div class="composer-input placeholder">Ответьте или продолжите расследование...<span class="caret"></span></div>
+            <div class="composer-tools">
+              <button>📎</button>
+              <button class="send">↑</button>
+            </div>
+          </div>
+          <div class="composer-foot">
+            <span>↵ ОТПРАВИТЬ · ⌘+/ КОМАНДЫ · @ ОБЪЕКТЫ</span>
+            <span>0 / 4 000 ТОКЕНОВ</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== Screen 3: Channel selector dropdown ====== -->
+  <h3 style="font-family: var(--f-mono); font-weight: 600; font-size: 17px; letter-spacing: 0.04em; text-transform: uppercase; margin: 56px 0 6px;"><span class="marker"></span> &nbsp; 05.3 · Селектор баз 1С — раскрытый</h3>
+  <p style="color: var(--fg-3); font-size: 13.5px; margin-bottom: 18px;">Каждая база — это <strong>конфигурация</strong> со своей метаинформацией. Аналитик должен видеть тип, размер, актуальность.</p>
+
+  <div class="ba">
+    <div class="ba-card before">
+      <div class="ba-head">
+        <span class="tag">До</span>
+        <span class="name">ChannelSelector dropdown</span>
+      </div>
+      <div class="ba-body" style="padding: 24px;">
+        <div style="background: var(--bg-1); border: 1px solid var(--bd-2); border-radius: 8px; padding: 8px; min-width: 280px;">
+          <div style="font-family: var(--f-jb); font-size: 10px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-3); padding: 6px 10px;">Канал</div>
+          <div style="border-top: 1px solid var(--bd-1);"></div>
+          <div style="display: grid; grid-template-columns: 14px 1fr auto; gap: 10px; padding: 8px 10px; align-items: center;">
+            <span style="width: 8px; height: 8px; background: var(--success); border-radius: 50%;"></span>
+            <div>
+              <div style="font-weight: 500;">A4F2 <span style="font-family: var(--f-jb); font-size: 9px; padding: 1px 5px; background: var(--bg-2); border-radius: 3px; color: var(--fg-3);">EMBEDDED</span></div>
+              <div style="font-family: var(--f-mono); font-size: 11px; color: var(--fg-3);">localhost:6010</div>
+              <div style="font-size: 11px; color: var(--fg-3);">Канал: tranzit-prod</div>
+              <div style="font-size: 11px; color: var(--fg-3);">24 инструментов</div>
+            </div>
+            <span style="color: var(--signal);">✓</span>
+          </div>
+        </div>
+      </div>
+      <ul class="ba-notes">
+        <li>«Канал: tranzit-prod» — технический термин виден пользователю</li>
+        <li>«24 инструментов» — окей, но не отвечает «что это за база»</li>
+        <li>Нет типа конфигурации (УТ / ERP), нет размера, нет last-sync</li>
+      </ul>
+    </div>
+    <div class="ba-card after">
+      <div class="ba-head">
+        <span class="tag">После</span>
+        <span class="name">Расширенная карточка базы</span>
+      </div>
+      <div class="ba-body" style="padding: 24px;">
+        <div style="background: var(--bg-1); border: 1px solid var(--bd-3); border-radius: 10px; padding: 4px; min-width: 320px;">
+          <div style="display: flex; justify-content: space-between; padding: 10px 12px 4px;">
+            <span class="eyebrow">Базы 1С &nbsp;·&nbsp; 3</span>
+            <span style="font-family: var(--f-jb); font-size: 9px; color: var(--signal); letter-spacing: 0.14em; text-transform: uppercase;">+ добавить</span>
+          </div>
+          <div style="border-top: 1px solid var(--bd-1); margin: 0 10px;"></div>
+
+          <!-- active item -->
+          <div style="display: grid; grid-template-columns: 14px 1fr auto; gap: 12px; padding: 12px; align-items: flex-start; background: var(--signal-08); border-radius: 6px; margin: 4px;">
+            <span style="width: 8px; height: 8px; background: var(--success); border-radius: 50%; margin-top: 5px; box-shadow: 0 0 0 3px var(--success-20);"></span>
+            <div>
+              <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 4px;">
+                <span style="font-family: var(--f-mono); font-weight: 600; font-size: 13px;">A4F2-prod</span>
+                <span style="font-family: var(--f-jb); font-size: 9px; padding: 2px 6px; background: var(--signal-12); color: var(--signal); border: 1px solid var(--signal-32); border-radius: 3px; letter-spacing: 0.14em; text-transform: uppercase;">УТ 11.5</span>
+              </div>
+              <div style="font-family: var(--f-jb); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-3);">
+                2 134 ОБЪЕКТА &nbsp;·&nbsp; 24 ИНСТРУМЕНТА &nbsp;·&nbsp; обновлено 5 МИН НАЗАД
+              </div>
+            </div>
+            <span style="color: var(--signal); font-size: 14px;">✓</span>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 14px 1fr auto; gap: 12px; padding: 12px; align-items: flex-start;">
+            <span style="width: 8px; height: 8px; background: var(--success); border-radius: 50%; margin-top: 5px;"></span>
+            <div>
+              <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 4px;">
+                <span style="font-family: var(--f-mono); font-weight: 600; font-size: 13px;">B91X-stage</span>
+                <span style="font-family: var(--f-jb); font-size: 9px; padding: 2px 6px; background: var(--bg-2); color: var(--fg-2); border: 1px solid var(--bd-2); border-radius: 3px; letter-spacing: 0.14em; text-transform: uppercase;">ERP 2.5</span>
+              </div>
+              <div style="font-family: var(--f-jb); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-3);">
+                4 820 ОБЪЕКТОВ &nbsp;·&nbsp; 31 ИНСТРУМЕНТ &nbsp;·&nbsp; ОБНОВЛЕНО ЧАС НАЗАД
+              </div>
+            </div>
+          </div>
+
+          <div style="display: grid; grid-template-columns: 14px 1fr auto; gap: 12px; padding: 12px; align-items: flex-start; opacity: 0.65;">
+            <span style="width: 8px; height: 8px; background: var(--error); border-radius: 50%; margin-top: 5px;"></span>
+            <div>
+              <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 4px;">
+                <span style="font-family: var(--f-mono); font-weight: 600; font-size: 13px;">C71-old</span>
+                <span style="font-family: var(--f-jb); font-size: 9px; padding: 2px 6px; background: var(--bg-2); color: var(--fg-3); border: 1px solid var(--bd-2); border-radius: 3px; letter-spacing: 0.14em; text-transform: uppercase;">УСО</span>
+              </div>
+              <div style="font-family: var(--f-jb); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--error);">
+                ОФФЛАЙН &nbsp;·&nbsp; ПОСЛЕДНЯЯ СВЯЗЬ 2 ДНЯ НАЗАД &nbsp;·&nbsp; ↻ ПЕРЕПРОВЕРИТЬ
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <ul class="ba-notes">
+        <li>Тип конфигурации в badge — главный признак, что это «УТ» или «ERP»</li>
+        <li>Размер метаданных + last-sync = доверие к актуальности</li>
+        <li>Active item подсвечен signal-фоном — focus читается мгновенно</li>
+        <li>Оффлайн карточка не исчезает — у неё есть свой CTA «перепроверить»</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ====== Screen 4: Onboarding ====== -->
+  <h3 style="font-family: var(--f-mono); font-weight: 600; font-size: 17px; letter-spacing: 0.04em; text-transform: uppercase; margin: 56px 0 6px;"><span class="marker"></span> &nbsp; 05.4 · Onboarding — stepper c автосохранением</h3>
+  <p style="color: var(--fg-3); font-size: 13.5px; margin-bottom: 18px;">Можно вернуться назад, пропустить шаг, закрыть и продолжить — прогресс сохраняется.</p>
+
+  <div class="onboard">
+    <div class="onboard-steps">
+      <div class="eyebrow" style="margin-bottom: 12px;">Подключение · 2 / 3</div>
+      <div class="onboard-step done">
+        <span class="n">✓</span>
+        <div><span class="lbl">Шаг 01</span><span class="title">База 1С</span></div>
+      </div>
+      <div class="onboard-step active">
+        <span class="n">2</span>
+        <div><span class="lbl">Шаг 02</span><span class="title">Модель ИИ</span></div>
+      </div>
+      <div class="onboard-step">
+        <span class="n">3</span>
+        <div><span class="lbl">Шаг 03</span><span class="title">Первый вопрос</span></div>
+      </div>
+
+      <div style="margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--bd-1); font-size: 11px; color: var(--fg-4); line-height: 1.6;">
+        <span style="color: var(--success);">●</span> Прогресс сохраняется автоматически. Можно закрыть.
+      </div>
+    </div>
+
+    <div class="onboard-form">
+      <div>
+        <div class="eyebrow" style="margin-bottom: 8px;">Шаг 02 / 03</div>
+        <h3>Подключение модели ИИ</h3>
+        <p>Любой OpenAI-совместимый endpoint. По умолчанию — Xiaomi MiMo v2.5 Pro. Ключ хранится только локально, на сервер не уходит.</p>
+      </div>
+
+      <div class="field">
+        <span class="field-label">Провайдер модели</span>
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
+          <div style="border: 1px solid var(--signal); background: var(--signal-08); border-radius: 6px; padding: 10px 12px;">
+            <div style="font-family: var(--f-mono); font-weight: 600; font-size: 13px;">Xiaomi MiMo</div>
+            <div style="font-family: var(--f-jb); font-size: 9.5px; color: var(--signal); margin-top: 2px; letter-spacing: 0.14em; text-transform: uppercase;">Рекомендовано</div>
+          </div>
+          <div style="border: 1px solid var(--bd-2); background: var(--bg-2); border-radius: 6px; padding: 10px 12px;">
+            <div style="font-family: var(--f-mono); font-weight: 600; font-size: 13px;">OpenAI</div>
+            <div style="font-family: var(--f-jb); font-size: 9.5px; color: var(--fg-3); margin-top: 2px; letter-spacing: 0.14em; text-transform: uppercase;">GPT-4o</div>
+          </div>
+          <div style="border: 1px solid var(--bd-2); background: var(--bg-2); border-radius: 6px; padding: 10px 12px;">
+            <div style="font-family: var(--f-mono); font-weight: 600; font-size: 13px;">Custom</div>
+            <div style="font-family: var(--f-jb); font-size: 9.5px; color: var(--fg-3); margin-top: 2px; letter-spacing: 0.14em; text-transform: uppercase;">свой URL</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="field">
+        <span class="field-label">API-ключ</span>
+        <div class="field-input" style="display: flex; align-items: center; gap: 8px;">
+          <span class="mono" style="color: var(--fg-3); flex:1">sk-•••••••••••••••••••••a7f3</span>
+          <span style="font-family: var(--f-jb); font-size: 9.5px; color: var(--success); letter-spacing: 0.14em; text-transform: uppercase;">● проверен · 312ms</span>
+        </div>
+        <span class="field-hint">Ключ сохраняется только в браузере. <span style="color: var(--signal);">Как получить ключ?</span></span>
+      </div>
+
+      <div class="onboard-cta">
+        <button class="btn-ghost">← Назад</button>
+        <button class="btn-primary">Продолжить →</button>
+        <button class="btn-ghost" style="margin-left: auto;">Пропустить шаг</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ====== Screen 5: Status ====== -->
+  <h3 style="font-family: var(--f-mono); font-weight: 600; font-size: 17px; letter-spacing: 0.04em; text-transform: uppercase; margin: 56px 0 6px;"><span class="marker"></span> &nbsp; 05.5 · Status / диагностика</h3>
+  <p style="color: var(--fg-3); font-size: 13.5px; margin-bottom: 18px;">Высокоуровневое «всё работает» без терминов <code class="inline">MCP / channel / endpoint</code>. Технические подробности — под раскладкой «Подробнее».</p>
+
+  <div style="border: 1px solid var(--bd-2); background: var(--bg-1); border-radius: 12px; padding: 28px 32px;">
+    <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 24px;">
+      <div style="width: 12px; height: 12px; background: var(--success); border-radius: 50%; box-shadow: 0 0 0 4px var(--success-20);"></div>
+      <div>
+        <h2 style="font-family: var(--f-mono); font-weight: 600; font-size: 22px; letter-spacing: 0.02em; margin: 0;">Всё в порядке</h2>
+        <div class="eyebrow" style="margin-top: 4px;">3 проверки пройдено · последняя 18 сек назад</div>
+      </div>
+      <button class="btn-ghost" style="margin-left: auto;">↻ перепроверить</button>
+    </div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
+      <div style="background: var(--bg-2); border: 1px solid var(--bd-2); border-radius: 8px; padding: 16px;">
+        <div class="eyebrow" style="color: var(--success); margin-bottom: 8px;">● Базы 1С</div>
+        <div style="font-family: var(--f-mono); font-weight: 600; font-size: 18px;">2 из 3</div>
+        <div style="font-size: 12px; color: var(--fg-3); margin-top: 4px;">A4F2 · B91X · <span style="color: var(--error);">C71</span> офлайн</div>
+      </div>
+      <div style="background: var(--bg-2); border: 1px solid var(--bd-2); border-radius: 8px; padding: 16px;">
+        <div class="eyebrow" style="color: var(--success); margin-bottom: 8px;">● Модель ИИ</div>
+        <div style="font-family: var(--f-mono); font-weight: 600; font-size: 18px;">MiMo v2.5 Pro</div>
+        <div style="font-size: 12px; color: var(--fg-3); margin-top: 4px;">отклик 312 мс · ключ валиден</div>
+      </div>
+      <div style="background: var(--bg-2); border: 1px solid var(--bd-2); border-radius: 8px; padding: 16px;">
+        <div class="eyebrow" style="color: var(--success); margin-bottom: 8px;">● Серверная часть</div>
+        <div style="font-family: var(--f-mono); font-weight: 600; font-size: 18px;">v1.2.4 · здорова</div>
+        <div style="font-size: 12px; color: var(--fg-3); margin-top: 4px;">SQLite · 1.4 МБ · 142 сессии</div>
+      </div>
+    </div>
+
+    <details style="margin-top: 24px; border-top: 1px solid var(--bd-1); padding-top: 18px;">
+      <summary style="font-family: var(--f-jb); font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--fg-3); cursor: pointer;">▸ Технические подробности (для разработчика)</summary>
+      <div style="margin-top: 14px; font-family: var(--f-mono); font-size: 11.5px; line-height: 1.8; color: var(--fg-2); background: var(--code-bg); padding: 14px; border-radius: 6px; border: 1px solid var(--bd-2);">
+        <div><span style="color: var(--fg-4)">mcp_endpoint   </span> <span style="color: var(--signal-tint)">http://localhost:6010/mcp</span></div>
+        <div><span style="color: var(--fg-4)">channel        </span> <span style="color: var(--signal-tint)">"tranzit-prod"</span></div>
+        <div><span style="color: var(--fg-4)">mcp_version    </span> <span style="color: var(--success)">2024-11-05</span></div>
+        <div><span style="color: var(--fg-4)">tools_loaded   </span> <span style="color: var(--success)">24</span> <span style="color: var(--fg-4)">in 247ms</span></div>
+        <div><span style="color: var(--fg-4)">llm_endpoint   </span> <span style="color: var(--signal-tint)">https://mimo.xiaomi.com/v1</span></div>
+      </div>
+    </details>
+  </div>
+
+</section>
+
+<!-- ============================================================ MOTION -->
+<section id="motion" class="section">
+  <div class="section-head">
+    <span class="index">06</span>
+    <h2>Motion Lab — живые анимации</h2>
+    <span class="rule"></span>
+  </div>
+  <p class="section-lede">
+    Сейчас в интерфейсе живут только <strong>spinner refresh</strong> и <strong>native dropdown-fade</strong>. Это пресно. Ниже — восемь точек, где моушн рассказывает историю и снимает напряжение. <strong>Наведи / кликни — оживёт.</strong>
+  </p>
+
+  <div class="motion-grid">
+
+    <!-- 1. Skeleton shimmer -->
+    <div class="motion-card">
+      <div class="motion-head">
+        <div class="name">01 · Skeleton shimmer</div>
+        <div class="specs">1.6s · linear · loop</div>
+      </div>
+      <div class="motion-body">
+        <div class="sk">
+          <div class="sk-line" style="width: 70%; height: 14px;"></div>
+          <div class="sk-line" style="width: 90%;"></div>
+          <div class="sk-line" style="width: 50%;"></div>
+          <div class="sk-line" style="width: 80%;"></div>
+        </div>
+      </div>
+      <div class="motion-foot">
+        <span class="descr">Применяется в чате во время первого ожидания. Заменяет «Загрузка…».</span>
+      </div>
+    </div>
+
+    <!-- 2. Streaming pulse -->
+    <div class="motion-card">
+      <div class="motion-head">
+        <div class="name">02 · Streaming stages</div>
+        <div class="specs">stages · 320ms enter · ease-out</div>
+      </div>
+      <div class="motion-body" style="padding: 16px;">
+        <div id="streamDemo" style="width: 100%; font-family: var(--f-mono); font-size: 11.5px;">
+          <div class="trace-step" style="padding: 6px 4px; border-bottom: 1px solid var(--bd-1); animation: stageIn 0.32s var(--ease-out) both;">
+            <span class="idx">01</span>
+            <div class="body">
+              <span class="op">Думаю над вопросом</span>
+              <span class="ok">·  готово</span>
+            </div>
+          </div>
+          <div class="trace-step" style="padding: 6px 4px; border-bottom: 1px solid var(--bd-1); animation: stageIn 0.32s 0.4s var(--ease-out) both;">
+            <span class="idx">02</span>
+            <div class="body">
+              <span class="op">Спрашиваю 1С</span>
+              <span class="ok">· 24 записи</span>
+            </div>
+          </div>
+          <div class="trace-step" style="padding: 6px 4px; animation: stageIn 0.32s 0.8s var(--ease-out) both;">
+            <span class="idx">03</span>
+            <div class="body">
+              <span class="op">Считаю дельту</span>
+              <span class="pending stream-dot">●</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="motion-foot">
+        <span class="descr">Шаги вылетают по очереди, последний пульсирует точкой — модель «думает».</span>
+        <button class="motion-btn" onclick="restartAnim('streamDemo')">↻ повтор</button>
+      </div>
+    </div>
+
+    <!-- 3. Sparkline draw -->
+    <div class="motion-card">
+      <div class="motion-head">
+        <div class="name">03 · Sparkline · draw-in</div>
+        <div class="specs">1.6s · ease-out · once</div>
+      </div>
+      <div class="motion-body" style="padding: 14px;">
+        <div class="spark" id="sparkDemo" style="width: 100%;">
+          <svg viewBox="0 0 320 56" preserveAspectRatio="none">
+            <defs>
+              <linearGradient id="sparkfill" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#ff6a3d" stop-opacity="0.32"/>
+                <stop offset="100%" stop-color="#ff6a3d" stop-opacity="0"/>
+              </linearGradient>
+            </defs>
+            <path class="area" d="M 0,40 L 28,38 56,30 84,32 112,20 140,24 168,12 196,18 224,8 252,14 280,6 320,10 L 320,56 L 0,56 Z"/>
+            <path class="line" d="M 0,40 L 28,38 56,30 84,32 112,20 140,24 168,12 196,18 224,8 252,14 280,6 320,10"/>
+          </svg>
+        </div>
+      </div>
+      <div class="motion-foot">
+        <span class="descr">В метрик-карточках. Линия «рисуется» — данные «прорастают», а не вспыхивают.</span>
+        <button class="motion-btn" onclick="restartAnim('sparkDemo')">↻ повтор</button>
+      </div>
+    </div>
+
+    <!-- 4. Button send -->
+    <div class="motion-card">
+      <div class="motion-head">
+        <div class="name">04 · Send · ready → flight</div>
+        <div class="specs">spring · 240ms</div>
+      </div>
+      <div class="motion-body">
+        <div id="sendDemo" style="position: relative; height: 80px; width: 200px;">
+          <div style="position: absolute; bottom: 6px; right: 6px; height: 36px; width: 36px; border-radius: 6px; background: var(--signal); border: 1px solid var(--signal); display: grid; place-items: center; color: var(--ink); font-size: 16px; font-weight: 700; cursor: pointer;"
+               onclick="this.style.transform='translate(-160px, -40px) scale(0.4)'; this.style.opacity='0.2'; setTimeout(()=>{this.style.transition='transform 480ms var(--ease-spring), opacity 280ms var(--ease)'; this.style.transform=''; this.style.opacity=''; setTimeout(()=>this.style.transition='all 240ms var(--ease-spring)',500)},480); this.style.transition='all 240ms var(--ease-spring)'"
+               style="transition: all 240ms var(--ease-spring);">↑</div>
+        </div>
+      </div>
+      <div class="motion-foot">
+        <span class="descr">Кнопка «отправить» проигрывает короткое сжатие + отлёт сообщения вверх.</span>
+        <button class="motion-btn" onclick="document.querySelector('#sendDemo > div').click()">отправить ↑</button>
+      </div>
+    </div>
+
+    <!-- 5. Ping dot pulse -->
+    <div class="motion-card">
+      <div class="motion-head">
+        <div class="name">05 · Connection pulse</div>
+        <div class="specs">2s · ease · loop</div>
+      </div>
+      <div class="motion-body">
+        <div style="display: flex; gap: 32px; align-items: center;">
+          <div style="text-align: center;">
+            <div style="width: 14px; height: 14px; background: var(--success); border-radius: 50%; box-shadow: 0 0 0 4px var(--success-20); animation: pulse 2s ease infinite; margin: 0 auto;"></div>
+            <div class="eyebrow" style="margin-top: 12px; color: var(--success);">Online</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="width: 14px; height: 14px; background: var(--warning); border-radius: 50%; animation: blinkdot 1s linear infinite; margin: 0 auto;"></div>
+            <div class="eyebrow" style="margin-top: 12px; color: var(--warning);">Проверяется</div>
+          </div>
+          <div style="text-align: center;">
+            <div style="width: 14px; height: 14px; background: var(--error); border-radius: 50%; box-shadow: 0 0 0 4px var(--error-12); margin: 0 auto;"></div>
+            <div class="eyebrow" style="margin-top: 12px; color: var(--error);">Офлайн</div>
+          </div>
+        </div>
+      </div>
+      <div class="motion-foot">
+        <span class="descr">Три статуса базы 1С. Pulse = живой канал, blink = ping, статика = офлайн.</span>
+      </div>
+    </div>
+
+    <!-- 6. Drag overlay -->
+    <div class="motion-card">
+      <div class="motion-head">
+        <div class="name">06 · Drag-over composer</div>
+        <div class="specs">200ms · ease-out · scale 1.02</div>
+      </div>
+      <div class="motion-body" style="padding: 16px;">
+        <div id="dragDemo" style="border: 2px dashed var(--bd-2); background: var(--bg-1); border-radius: 8px; padding: 18px; text-align: center; color: var(--fg-3); font-size: 12px; transition: all 240ms var(--ease-out); cursor: grab;"
+             onclick="this.style.borderColor='var(--signal)'; this.style.background='var(--signal-08)'; this.style.color='var(--signal)'; this.style.transform='scale(1.02)'; this.innerText='Отпустите файл — прикрепится к сообщению'; setTimeout(()=>{this.style.borderColor=''; this.style.background=''; this.style.color=''; this.style.transform=''; this.innerText='Перетащи файл сюда (или кликни — демо)';},1400)">
+          Перетащи файл сюда (или кликни — демо)
+        </div>
+      </div>
+      <div class="motion-foot">
+        <span class="descr">Composer-зона при <code class="inline">dragover</code> подсвечивается signal-рамкой и слегка увеличивается.</span>
+      </div>
+    </div>
+
+    <!-- 7. Sidebar slide -->
+    <div class="motion-card">
+      <div class="motion-head">
+        <div class="name">07 · Sidebar collapse</div>
+        <div class="specs">320ms · ease · width + opacity</div>
+      </div>
+      <div class="motion-body" style="padding: 12px; align-items: stretch;">
+        <div style="display: grid; grid-template-columns: var(--sw, 110px) 1fr; gap: 8px; width: 100%; height: 110px; transition: grid-template-columns 320ms var(--ease);" id="sidebarDemo">
+          <div style="background: var(--bg-2); border-radius: 6px; border: 1px solid var(--bd-2); padding: 10px; overflow: hidden; font-family: var(--f-mono); font-size: 10px;">
+            <div style="font-family: var(--f-jb); font-size: 8px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--fg-4); margin-bottom: 6px;">Сегодня</div>
+            <div style="padding: 3px 6px; border-radius: 3px; background: var(--bg-3); position: relative;">
+              <span style="position:absolute; left: -10px; top: 50%; transform: translateY(-50%); width: 2px; height: 10px; background: var(--signal);"></span>
+              Продажи апрель
+            </div>
+            <div style="padding: 3px 6px; color: var(--fg-3); margin-top: 4px;">Склад 003</div>
+          </div>
+          <div style="background: var(--bg-3); border-radius: 6px; border: 1px solid var(--bd-2);"></div>
+        </div>
+      </div>
+      <div class="motion-foot">
+        <span class="descr">Сайдбар сворачивается, не дёргая чат — grid-columns ease переход.</span>
+        <button class="motion-btn" onclick="
+          const el = document.getElementById('sidebarDemo');
+          const c = getComputedStyle(el).getPropertyValue('--sw').trim();
+          el.style.setProperty('--sw', c === '36px' ? '110px' : '36px');
+        ">↹ свернуть</button>
+      </div>
+    </div>
+
+    <!-- 8. Toast undo -->
+    <div class="motion-card">
+      <div class="motion-head">
+        <div class="name">08 · Undo toast · 5s</div>
+        <div class="specs">slide-up + progress + auto-dismiss</div>
+      </div>
+      <div class="motion-body">
+        <div id="toastDemo" style="height: 80px; width: 100%; position: relative;">
+          <!-- empty by default -->
+        </div>
+      </div>
+      <div class="motion-foot">
+        <span class="descr">Удаление чата — optimistic + 5 сек на отмену. Прогресс-бар закрывается, окно сворачивается.</span>
+        <button class="motion-btn" onclick="showToast()">удалить →</button>
+      </div>
+    </div>
+
+  </div>
+
+  <p style="margin-top: 32px; font-size: 13.5px; color: var(--fg-3); max-width: 720px;">
+    Эти восемь моушн-паттернов покрывают <strong>90% точек, где сейчас «пусто»</strong>: skeleton вместо пустых ожиданий, streaming stages вместо «Загрузка...», sparkline draw-in вместо вспышки, send-flight вместо clik-and-pray, pulse вместо статичных точек, drag-feedback, sidebar smoothness, undo вместо нативного confirm. Всё через CSS — без библиотек.
+  </p>
+</section>
+
+<!-- ============================================================ MICRO -->
+<section id="micro" class="section">
+  <div class="section-head">
+    <span class="index">07</span>
+    <h2>Микровзаимодействия — детали полировки</h2>
+    <span class="rule"></span>
+  </div>
+  <p class="section-lede">
+    Двенадцать точек, где интерфейс может говорить чуть тише, но точнее. <strong>Кликни / наведи</strong> — увидишь.
+  </p>
+
+  <div class="two-col">
+    <div style="border: 1px solid var(--bd-2); background: var(--bg-1); border-radius: 10px; padding: 22px;">
+      <div class="eyebrow" style="margin-bottom: 14px;">Hover · Send-button</div>
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <button class="hover-send" style="width: 44px; height: 44px; border-radius: 8px; background: var(--signal); color: var(--ink); border: none; font-size: 18px; font-weight: 700; cursor: pointer; transition: all 160ms var(--ease);">↑</button>
+        <div style="font-size: 13px; color: var(--fg-3); line-height: 1.5;">Hover делает кнопку чуть светлее <strong style="color: var(--signal-tint);">--signal-tint</strong>, чуть «тяжелее» — <code class="inline">scale(1.04)</code>, тень под низом.</div>
+      </div>
+    </div>
+
+    <div style="border: 1px solid var(--bd-2); background: var(--bg-1); border-radius: 10px; padding: 22px;">
+      <div class="eyebrow" style="margin-bottom: 14px;">Copy-button · success</div>
+      <div style="display: flex; align-items: center; gap: 16px;">
+        <button id="copyBtn" style="display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 6px; background: var(--bg-2); border: 1px solid var(--bd-2); color: var(--fg-2); font-family: var(--f-mono); font-size: 12px; cursor: pointer; transition: all 160ms var(--ease);"
+          onclick="this.innerHTML='<span style=\'color: var(--success)\'>✓</span> скопировано'; this.style.borderColor='var(--success-40)'; this.style.color='var(--success)'; setTimeout(()=>{this.innerHTML='⎘ копировать'; this.style.borderColor=''; this.style.color=''; }, 1600)">
+          ⎘ копировать
+        </button>
+        <div style="font-size: 13px; color: var(--fg-3); line-height: 1.5;">Текст и иконка меняются на ✓ + «скопировано». Возврат через 1.6 сек. <strong>Никаких toast'ов.</strong></div>
+      </div>
+    </div>
+
+    <div style="border: 1px solid var(--bd-2); background: var(--bg-1); border-radius: 10px; padding: 22px;">
+      <div class="eyebrow" style="margin-bottom: 14px;">Input · token counter</div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <textarea id="tokInput" oninput="
+          const n = Math.ceil(this.value.length / 4);
+          const cnt = document.getElementById('tokCount');
+          cnt.textContent = n.toLocaleString('ru') + ' / 4 000';
+          cnt.style.color = n > 3600 ? 'var(--warning)' : n > 4000 ? 'var(--error)' : 'var(--fg-4)';
+          const bar = document.getElementById('tokBar');
+          bar.style.width = Math.min(100, n/40) + '%';
+          bar.style.background = n > 3600 ? 'var(--warning)' : 'var(--signal)';
+        " placeholder="Печатай — счётчик токенов оживает..." style="background: var(--bg-2); border: 1px solid var(--bd-2); border-radius: 6px; padding: 10px; color: var(--fg-1); font-family: var(--f-sans); font-size: 13px; min-height: 60px; resize: none;"></textarea>
+        <div style="height: 2px; background: var(--bg-2); border-radius: 1px; overflow: hidden;">
+          <div id="tokBar" style="height: 100%; width: 0; background: var(--signal); transition: width 100ms linear, background 240ms ease;"></div>
+        </div>
+        <div style="display: flex; justify-content: space-between; font-family: var(--f-jb); font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase;">
+          <span style="color: var(--fg-4);">~1 ТОКЕН ≈ 4 СИМВ</span>
+          <span id="tokCount" style="color: var(--fg-4);">0 / 4 000</span>
+        </div>
+      </div>
+    </div>
+
+    <div style="border: 1px solid var(--bd-2); background: var(--bg-1); border-radius: 10px; padding: 22px;">
+      <div class="eyebrow" style="margin-bottom: 14px;">Cmd+K · палитра входа</div>
+      <div style="background: var(--bg-0); border: 1px solid var(--bd-3); border-radius: 8px; padding: 0; box-shadow: 0 12px 32px rgba(0,0,0,0.4);">
+        <div style="display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--bd-1);">
+          <span style="color: var(--fg-4);">⌕</span>
+          <span style="font-size: 13px; color: var(--fg-1);">прод...</span>
+          <span style="display:inline-block; width:1.5px; height: 14px; background: var(--signal); animation: blink 1.05s steps(1) infinite;"></span>
+          <span style="margin-left: auto; font-family: var(--f-jb); font-size: 9px; letter-spacing: 0.14em; color: var(--fg-4); border: 1px solid var(--bd-2); padding: 1px 6px; border-radius: 3px;">ESC</span>
+        </div>
+        <div style="padding: 6px;">
+          <div style="display: flex; gap: 10px; padding: 8px 10px; border-radius: 5px; background: var(--bg-2); align-items: center; font-size: 12px;">
+            <span class="eyebrow" style="color: var(--signal); min-width: 60px;">ЧАТ</span>
+            <span>Продажи апрель · Альфа-снаб</span>
+            <span style="margin-left: auto; font-family: var(--f-jb); font-size: 9px; color: var(--fg-4); letter-spacing: 0.14em;">↵ ОТКРЫТЬ</span>
+          </div>
+          <div style="display: flex; gap: 10px; padding: 8px 10px; border-radius: 5px; align-items: center; font-size: 12px;">
+            <span class="eyebrow" style="min-width: 60px;">ОБЪЕКТ</span>
+            <span>Контрагент «Альфа-снаб» · 7707083893</span>
+          </div>
+          <div style="display: flex; gap: 10px; padding: 8px 10px; border-radius: 5px; align-items: center; font-size: 12px;">
+            <span class="eyebrow" style="min-width: 60px;">КОМАНДА</span>
+            <span><code class="inline" style="font-size: 11px;">/clear</code> — очистить чат</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- More micro tiles -->
+  <div class="three-col" style="margin-top: 16px;">
+    <div style="border: 1px solid var(--bd-2); background: var(--bg-1); border-radius: 10px; padding: 18px;">
+      <div class="eyebrow" style="margin-bottom: 10px;">Empty state · общий</div>
+      <div style="text-align: center; padding: 12px 0;">
+        <div style="width: 36px; height: 36px; margin: 0 auto 10px; border: 1px solid var(--bd-2); border-radius: 50%; display: grid; place-items: center; color: var(--fg-4);">∅</div>
+        <div style="font-family: var(--f-mono); font-size: 13.5px; font-weight: 500;">Пусто, но не страшно</div>
+        <div style="font-size: 12px; color: var(--fg-3); margin-top: 4px;">Один компонент <code class="inline" style="font-size: 10.5px;">EmptyState</code>, четыре пропса.</div>
+      </div>
+    </div>
+
+    <div style="border: 1px solid var(--bd-2); background: var(--bg-1); border-radius: 10px; padding: 18px;">
+      <div class="eyebrow" style="margin-bottom: 10px;">Inline-validation</div>
+      <div style="display: flex; flex-direction: column; gap: 8px;">
+        <input value="не URL" style="background: var(--bg-2); border: 1px solid var(--error-40); border-radius: 5px; padding: 8px 10px; color: var(--fg-1); font-family: var(--f-mono); font-size: 13px;" />
+        <div style="display: flex; align-items: center; gap: 6px; font-size: 11.5px; color: var(--error);">
+          <span style="color: var(--error);">⚠</span> Должен начинаться с http:// или https://
+        </div>
+      </div>
+    </div>
+
+    <div style="border: 1px solid var(--bd-2); background: var(--bg-1); border-radius: 10px; padding: 18px;">
+      <div class="eyebrow" style="margin-bottom: 10px;">Tooltip · disabled</div>
+      <div style="text-align: center; padding: 4px;">
+        <button disabled style="padding: 6px 14px; background: var(--bg-3); border: 1px solid var(--bd-2); color: var(--fg-4); font-family: var(--f-jb); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; border-radius: 5px; cursor: not-allowed;">Тест ⓘ</button>
+        <div style="position: relative; display: inline-block; margin-top: 12px;">
+          <div style="font-family: var(--f-mono); font-size: 11.5px; background: var(--bg-3); border: 1px solid var(--bd-3); padding: 6px 10px; border-radius: 4px; color: var(--fg-2); max-width: 220px;">
+            Сохраните подключение, чтобы можно было его проверить
+          </div>
+          <div style="position: absolute; top: -5px; left: 24px; width: 8px; height: 8px; background: var(--bg-3); border-left: 1px solid var(--bd-3); border-top: 1px solid var(--bd-3); transform: rotate(45deg);"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+<!-- ============================================================ ROADMAP -->
+<section id="roadmap" class="section">
+  <div class="section-head">
+    <span class="index">08</span>
+    <h2>Дорожная карта — 4 спринта</h2>
+    <span class="rule"></span>
+  </div>
+  <p class="section-lede">
+    От текущего <strong>47/100</strong> до целевого <strong>86/100</strong> — за четыре спринта примерно по 1–3 дня каждый. Первые два спринта чинят то, что ломает релиз. Третий — приводит к бренд-консистентности. Четвёртый — добавляет моушн и продуктовую глубину.
+  </p>
+
+  <div class="roadmap">
+
+    <div class="sprint s1">
+      <div class="sprint-head"><span class="n">Спринт · 01</span><span class="duration">1–2 дня</span></div>
+      <div class="sprint-title">Чинить релиз</div>
+      <div class="eyebrow" style="color: var(--error);">5 блокеров · score +18</div>
+      <ul class="sprint-list">
+        <li>B-1: <code>--bg-hover</code> определить в обеих темах</li>
+        <li>B-2: codemod хардкод-цветов → токены</li>
+        <li>B-3: запрещённые термины — «канал» → «база», «tool calls» → «запросы», «MCP» в expert</li>
+        <li>B-4: убрать дубль «Модель ИИ»</li>
+        <li>B-5: light-theme обход + scrollbar через токены</li>
+      </ul>
+    </div>
+
+    <div class="sprint s2">
+      <div class="sprint-head"><span class="n">Спринт · 02</span><span class="duration">2–3 дня</span></div>
+      <div class="sprint-title">Полировка форм и feedback</div>
+      <div class="eyebrow" style="color: var(--warning);">6 high · score +9</div>
+      <ul class="sprint-list">
+        <li>H-1: destructive variant через брендовые токены</li>
+        <li>H-2: inline-результат «Тест» + tool count + ms</li>
+        <li>H-3: settings унифицировать padding/radius</li>
+        <li>H-4: один <code>EmptyState</code> компонент</li>
+        <li>H-6: focus-ring 2px + offset + signal</li>
+        <li>Версия — single source of truth</li>
+      </ul>
+    </div>
+
+    <div class="sprint s3">
+      <div class="sprint-head"><span class="n">Спринт · 03</span><span class="duration">2–3 дня</span></div>
+      <div class="sprint-title">Бренд по всему телу</div>
+      <div class="eyebrow" style="color: var(--sev-medium);">redesign · score +8</div>
+      <ul class="sprint-list">
+        <li>Cards · LogCard, TableCard, ChartCard — Stencil-палитра</li>
+        <li>JSON-tree → human-readable trace summary + opt-in raw</li>
+        <li>Status — высокоуровневые карточки + expert-блок</li>
+        <li>Onboarding stepper + autosave</li>
+        <li>Welcome → composer-hub с шаблонами</li>
+      </ul>
+    </div>
+
+    <div class="sprint s4">
+      <div class="sprint-head"><span class="n">Спринт · 04</span><span class="duration">3–4 дня</span></div>
+      <div class="sprint-title">Моушн и глубина</div>
+      <div class="eyebrow" style="color: var(--success);">motion · product · score +4</div>
+      <ul class="sprint-list">
+        <li>Skeleton shimmer везде, где «Загрузка...»</li>
+        <li>Streaming stages с подписями шагов</li>
+        <li>Sparkline draw-in, send-flight, pulse-states</li>
+        <li>Optimistic delete + undo-toast</li>
+        <li>Channel-card: тип конф., размер, last-sync</li>
+      </ul>
+    </div>
+
+  </div>
+
+  <!-- Stepper visualization -->
+  <div style="margin-top: 56px; border: 1px solid var(--bd-2); background: var(--bg-1); border-radius: 10px; padding: 28px 32px;">
+    <div class="eyebrow" style="margin-bottom: 16px;">Прогресс score · от 47 к 86</div>
+    <div style="position: relative; height: 50px;">
+      <!-- track -->
+      <div style="position: absolute; top: 50%; left: 0; right: 0; height: 4px; background: var(--bg-2); border-radius: 2px;"></div>
+      <!-- progress -->
+      <div style="position: absolute; top: 50%; left: 0; height: 4px; background: linear-gradient(90deg, var(--signal-deep), var(--signal)); border-radius: 2px; width: 47%;"></div>
+      <!-- nodes -->
+      <div style="position: absolute; top: 50%; left: 0%; transform: translate(-50%, -50%); display: flex; flex-direction: column; align-items: center; gap: 14px;"><div style="width: 16px; height: 16px; border-radius: 50%; background: var(--signal); border: 3px solid var(--bg-0);"></div></div>
+      <div style="position: absolute; top: 50%; left: 47%; transform: translate(-50%, -50%);"><div style="width: 16px; height: 16px; border-radius: 50%; background: var(--signal); border: 3px solid var(--bg-0); box-shadow: 0 0 0 4px var(--signal-20);"></div></div>
+      <div style="position: absolute; top: 50%; left: 65%; transform: translate(-50%, -50%);"><div style="width: 12px; height: 12px; border-radius: 50%; background: var(--bg-3); border: 2px solid var(--bd-3);"></div></div>
+      <div style="position: absolute; top: 50%; left: 78%; transform: translate(-50%, -50%);"><div style="width: 12px; height: 12px; border-radius: 50%; background: var(--bg-3); border: 2px solid var(--bd-3);"></div></div>
+      <div style="position: absolute; top: 50%; left: 86%; transform: translate(-50%, -50%);"><div style="width: 16px; height: 16px; border-radius: 50%; background: var(--success); border: 3px solid var(--bg-0); box-shadow: 0 0 0 4px var(--success-20);"></div></div>
+      <div style="position: absolute; top: 50%; left: 100%; transform: translate(-50%, -50%);"><div style="width: 12px; height: 12px; border-radius: 50%; background: var(--bg-3); border: 2px solid var(--bd-3);"></div></div>
+    </div>
+    <div style="display: grid; grid-template-columns: auto 1fr 1fr 1fr 1fr auto; gap: 8px; margin-top: 12px; font-family: var(--f-jb); font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-3);">
+      <span style="color: var(--fg-1)">0</span>
+      <span style="text-align: center; color: var(--signal)">сейчас &nbsp;47</span>
+      <span style="text-align: center;">+ С1 &nbsp;65</span>
+      <span style="text-align: center;">+ С2 &nbsp;74</span>
+      <span style="text-align: center; color: var(--success)">+ С3 &nbsp;82 → С4 &nbsp;86</span>
+      <span style="color: var(--fg-1)">100</span>
+    </div>
+  </div>
+</section>
+
+<div class="footer">
+  <div><span class="marker" style="margin-right: 8px;"></span>АУДИТ &nbsp;·&nbsp; 1С АНАЛИТИК &nbsp;·&nbsp; 2026-05-23 &nbsp;·&nbsp; STENCIL/MONO V1.2.X</div>
+  <div>СЛЕДУЮЩИЙ ШАГ &nbsp;·&nbsp; СПРИНТ 01 &nbsp;·&nbsp; B-1 / B-2 / B-3</div>
+</div>
+
+</main>
+</div>
+
+<style>
+@keyframes stageIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes blinkdot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+.stream-dot { display: inline-block; animation: blinkdot 1s ease infinite; }
+.hover-send:hover {
+  background: var(--signal-tint);
+  transform: scale(1.04);
+  box-shadow: 0 6px 12px rgba(255, 106, 61, 0.32);
+}
+.hover-send:active { transform: scale(0.97); }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+</style>
+
+<script>
+// ============================== Nav scrollspy
+const links = document.querySelectorAll('.nav-link');
+const sections = [...links].map(l => document.querySelector(l.getAttribute('href')));
+function onScroll() {
+  const y = window.scrollY + 120;
+  let active = 0;
+  sections.forEach((s, i) => { if (s && s.offsetTop <= y) active = i; });
+  links.forEach((l, i) => l.classList.toggle('active', i === active));
+}
+window.addEventListener('scroll', onScroll, { passive: true });
+
+// ============================== Restart animation helper
+function restartAnim(id) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  const clone = el.cloneNode(true);
+  el.parentNode.replaceChild(clone, el);
+}
+
+// ============================== Undo toast demo
+function showToast() {
+  const host = document.getElementById('toastDemo');
+  host.innerHTML = '';
+  const t = document.createElement('div');
+  t.style.cssText = `
+    position: absolute;
+    left: 50%;
+    bottom: 8px;
+    transform: translateX(-50%) translateY(40px);
+    background: var(--bg-2);
+    border: 1px solid var(--bd-3);
+    border-radius: 8px;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    min-width: 280px;
+    box-shadow: 0 12px 24px rgba(0,0,0,0.4);
+    opacity: 0;
+    transition: all 280ms cubic-bezier(0.5, 1.4, 0.45, 1);
+  `;
+  t.innerHTML = `
+    <div style="display: flex; flex-direction: column; gap: 2px;">
+      <div style="font-family: var(--f-mono); font-size: 12px; font-weight: 500;">Чат удалён</div>
+      <div style="font-family: var(--f-jb); font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--fg-4);">«A4F2 · продажи апрель»</div>
+    </div>
+    <button style="margin-left: auto; background: transparent; border: 1px solid var(--bd-3); color: var(--signal); padding: 4px 10px; border-radius: 4px; font-family: var(--f-jb); font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; cursor: pointer;">↺ отменить</button>
+    <div class="progress" style="position: absolute; left: 0; bottom: 0; height: 2px; background: var(--signal); border-radius: 0 0 8px 8px; width: 100%; transform-origin: left; animation: progressShrink 5s linear forwards;"></div>
+  `;
+  host.appendChild(t);
+  requestAnimationFrame(() => {
+    t.style.opacity = '1';
+    t.style.transform = 'translateX(-50%) translateY(0)';
+  });
+  setTimeout(() => {
+    t.style.opacity = '0';
+    t.style.transform = 'translateX(-50%) translateY(40px) scale(0.96)';
+  }, 4800);
+  setTimeout(() => { t.remove(); }, 5400);
+}
+
+// Add progress keyframes
+const styleEl = document.createElement('style');
+styleEl.textContent = `@keyframes progressShrink { from { width: 100%; } to { width: 0; } }`;
+document.head.appendChild(styleEl);
+
+// Initialize scroll spy
+onScroll();
+</script>
+</body>
+</html>
