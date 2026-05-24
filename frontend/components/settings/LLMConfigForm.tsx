@@ -200,7 +200,13 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
 
     setLoading(true);
     try {
-      if (data.api_key) {
+      // 2026-05-24: если переключение на провайдер с embedded env-ключом
+      // (NVIDIA NIM) И пользователь не вводил свой ключ — очищаем legacy
+      // localStorage от чужого ключа (например, оставшегося от MiMo). Иначе
+      // backend получит MiMo-ключ при вызове NVIDIA — `401 Unauthorized`.
+      if (envKeyApplies && !apiKey) {
+        clearLLMApiKey();
+      } else if (data.api_key) {
         setLLMApiKey(data.api_key);
       }
 
@@ -217,6 +223,12 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
       }
 
       publishToast({ type: "info", message: "Настройки модели ИИ сохранены" });
+      // 2026-05-24: уведомляем шапку (ModelBadge) что конфиг сменился.
+      // Без этого ModelBadge оставался со старой моделью пока юзер не
+      // перезагрузит страницу — самый частый «не работает» сценарий.
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("llm-config-updated"));
+      }
       onSaved?.();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Ошибка сохранения";
@@ -232,6 +244,9 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
       await deleteLLMConfig();
       clearLLMApiKey();
       publishToast({ type: "info", message: "LLM конфиг удалён" });
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("llm-config-updated"));
+      }
       onSaved?.();
     } catch (err) {
       const message = err instanceof Error ? err.message : "Ошибка удаления";

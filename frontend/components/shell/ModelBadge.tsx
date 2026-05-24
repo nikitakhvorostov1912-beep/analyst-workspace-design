@@ -70,6 +70,19 @@ export function ModelBadge() {
 
   useEffect(() => {
     void refresh();
+    // 2026-05-24: слушаем CustomEvent от LLMConfigForm + от собственного
+    // handleSwitch (см. ниже). Без этого badge оставался со старой моделью
+    // после сохранения в Settings — пришёл в чат, а там старая.
+    function handleConfigUpdate() {
+      void refresh();
+    }
+    if (typeof window !== "undefined") {
+      window.addEventListener("llm-config-updated", handleConfigUpdate);
+      return () => {
+        window.removeEventListener("llm-config-updated", handleConfigUpdate);
+      };
+    }
+    return undefined;
   }, []);
 
   if (!info) return null;
@@ -96,6 +109,11 @@ export function ModelBadge() {
       // вернёт `has_env_api_key=true` после refresh если есть env-ключ.
       // Если ничего из двух — показываем warn-toast с подсказкой ввести ключ.
       await refresh();
+      // 2026-05-24: уведомляем Settings page (если открыта в фоне) и любых
+      // других подписчиков что конфиг сменился.
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new CustomEvent("llm-config-updated"));
+      }
       const cfg = await fetchLLMConfig();
       const hasEnv = Boolean(cfg?.has_env_api_key);
       const hasLocal = Boolean(getLLMApiKey());

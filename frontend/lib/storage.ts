@@ -85,25 +85,33 @@ export function setActiveChannelId(id: string | null): void {
   } else {
     ls.setItem(KEY_ACTIVE_CHANNEL, id);
   }
+  // 2026-05-24: уведомляем подписчиков (AnonymizationStatus, …) что
+  // активная база сменилась. Без этого header'овые chips оставались
+  // с данными предыдущего канала пока юзер не перезагрузит страницу.
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("active-channel-changed", { detail: { id } }),
+    );
+  }
 }
 
-// --- Anonymization toggle (Plan 04-01) ---
+// --- Anonymization toggle (Plan 04-01) — DEPRECATED 2026-05-24 ---
+//
+// Источник истины — `MCPConnection.anon_enabled` (приходит из обработки 1С
+// через backend ping). UI больше не имеет toggle. Legacy helper'ы оставлены
+// чтобы не сломать тесты `useChatStream.test.tsx` (mock'ает имена) —
+// при следующей чистке убрать вместе с моками.
 
 const KEY_ANON_ENABLED = "analyst.anon_enabled";
 
-/**
- * Читает флаг анонимизации из localStorage.
- * Возвращает false если не установлен или в SSR-контексте.
- */
+/** @deprecated Используй `MCPConnection.anon_enabled`. */
 export function getAnonEnabled(): boolean {
   const ls = safeLocalStorage();
   if (!ls) return false;
   return ls.getItem(KEY_ANON_ENABLED) === "true";
 }
 
-/**
- * Записывает флаг анонимизации в localStorage.
- */
+/** @deprecated Заданно в обработке 1С, UI не имеет права менять. */
 export function setAnonEnabled(enabled: boolean): void {
   const ls = safeLocalStorage();
   if (!ls) return;

@@ -7,7 +7,7 @@ import { BrandMark } from "./BrandMark";
 import { StencilLockup } from "./StencilLockup";
 import { ChannelSelector } from "./ChannelSelector";
 import { ModelBadge } from "./ModelBadge";
-import { AnonymizationToggle } from "./AnonymizationToggle";
+import { AnonymizationStatus } from "./AnonymizationStatus";
 import { ThemeToggle } from "./ThemeToggle";
 import { UpdateBanner } from "./UpdateBanner";
 
@@ -60,7 +60,7 @@ export function Header({
       <div className="flex items-center gap-1.5">
         {/* P1.4: UpdateBanner появляется только в Electron когда есть обновление */}
         <UpdateBanner />
-        <AnonymizationToggle />
+        <AnonymizationStatus activeChannelId={activeChannelId} />
         <ModelBadge />
         {onOpenCmdK && (
           <button

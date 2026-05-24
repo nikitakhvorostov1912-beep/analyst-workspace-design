@@ -1,9 +1,15 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { fetchChat, fetchLLMConfig, interruptChat, postChatClarify, postChatConfirm } from "@/lib/api";
+import {
+  fetchChat,
+  fetchConnections,
+  fetchLLMConfig,
+  interruptChat,
+  postChatClarify,
+  postChatConfirm,
+} from "@/lib/api";
 import { publishToast } from "@/lib/toast";
-import { getAnonEnabled } from "@/lib/storage";
 import type {
   CardEnvelope,
   ChatAttachment,
@@ -188,10 +194,20 @@ export function useChatStream({
           return;
         }
 
-        // Читаем флаг анонимизации в момент отправки (не кешируем — toggle мог измениться)
-        const anonHeaders: Record<string, string> = getAnonEnabled()
-          ? { "X-Anon-Enabled": "true" }
-          : {};
+        // 2026-05-24: источник истины для анонимизации — поле `anon_enabled`
+        // активного MCPConnection (задаётся в обработке 1С, синхронизируется
+        // через backend). Раньше читали из localStorage `analyst.anon_enabled`
+        // (user toggle) — это была некорректная модель, UI не должен решать.
+        let anonHeaders: Record<string, string> = {};
+        try {
+          const conns = await fetchConnections();
+          const active = conns.find((c) => c.id === channelId);
+          if (active?.anon_enabled) {
+            anonHeaders = { "X-Anon-Enabled": "true" };
+          }
+        } catch {
+          // backend недоступен — отправляем без anon-header (default behavior)
+        }
 
         const stream = fetchChat(
           {
