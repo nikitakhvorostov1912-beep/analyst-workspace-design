@@ -4,7 +4,10 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "analyst-backend"
-version = "0.1.0"
+# 2026-05-24 (FINDING-00 финальное закрытие): синхронизировано с desktop/package.json,
+# frontend/lib/version.ts и backend/app/config.py:app_version. Все 4 точки версии
+# обновляются вместе при релизе. См. .planning/RELEASE_v1.4.5_CHECKLIST.md.
+version = "1.4.5"
 description = "1С Аналитик — FastAPI backend"
 requires-python = ">=3.11"
 dependencies = [
