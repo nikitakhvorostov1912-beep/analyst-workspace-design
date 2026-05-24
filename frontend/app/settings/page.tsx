@@ -65,7 +65,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--bg)] p-6 max-w-2xl mx-auto">
+    <div className="min-h-screen bg-[var(--bg)] p-6 max-w-3xl mx-auto">
       {/* Навигация */}
       <div className="flex items-center gap-3 mb-8">
         <Link
@@ -98,10 +98,15 @@ export default function SettingsPage() {
       )}
 
       {!loading && !error && (
-        <>
+        <div className="space-y-6">
+          {/* Sprint 01 (HIGH-3) + Sprint 02 (Settings unification, 2026-05-24):
+              единая система paddings/radius — все главные секции в одном визуальном
+              слое (p-5 rounded-lg border-bd-2 bg-bg-1). Memory/Insights/Skills
+              перенесены в отдельную секцию «Дополнительно» как grid 3-cols. */}
+
           {/* Секция подключений 1С */}
-          <section className="mb-6">
-            <div className="border border-[var(--border)] rounded-lg p-5 bg-[var(--bg-elevated)]">
+          <section>
+            <div className="rounded-lg border border-[var(--bd-2)] bg-[var(--bg-1)] p-5">
               <h2 className="text-sm font-semibold text-[var(--fg)] mb-1">
                 Базы 1С
               </h2>
@@ -116,8 +121,8 @@ export default function SettingsPage() {
           </section>
 
           {/* Секция модели ИИ (LLM) */}
-          <section className="mb-6">
-            <div className="border border-[var(--border)] rounded-lg p-5 bg-[var(--bg-elevated)]">
+          <section>
+            <div className="rounded-lg border border-[var(--bd-2)] bg-[var(--bg-1)] p-5">
               <h2 className="text-sm font-semibold text-[var(--fg)] mb-1">
                 Модель ИИ
               </h2>
@@ -128,76 +133,80 @@ export default function SettingsPage() {
             </div>
           </section>
 
-          {/* Sprint 1 (Hermes): Постоянная память */}
+          {/* Локальные данные — privacy reset */}
           <section>
-            <Link
-              href="/settings/memory"
-              className="flex items-center gap-3 p-4 rounded-lg border border-[var(--bd-2)] bg-[var(--bg-1)] hover:bg-[var(--bg-2)] hover:border-[var(--bd-3)] transition-colors group"
-            >
-              <div className="h-9 w-9 rounded-md bg-[var(--accent-12)] flex items-center justify-center flex-shrink-0">
-                <Brain className="h-4 w-4 text-[var(--accent)]" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[14px] font-semibold text-[var(--fg-1)]">
-                  Постоянная память
-                </div>
-                <div className="text-[12.5px] text-[var(--fg-3)]">
-                  Заметки между сессиями — что ассистент помнит про базу и про вас
-                </div>
-              </div>
-              <ChevronRight className="h-4 w-4 text-[var(--fg-3)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-all" />
-            </Link>
-          </section>
-
-          {/* Sprint 4 (Hermes): Insights dashboard */}
-          <section>
-            <Link
-              href="/insights"
-              className="flex items-center gap-3 p-4 rounded-lg border border-[var(--bd-2)] bg-[var(--bg-1)] hover:bg-[var(--bg-2)] hover:border-[var(--bd-3)] transition-colors group"
-            >
-              <div className="h-9 w-9 rounded-md bg-[var(--accent-12)] flex items-center justify-center flex-shrink-0">
-                <BarChart3 className="h-4 w-4 text-[var(--accent)]" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[14px] font-semibold text-[var(--fg-1)]">
-                  Аналитика
-                </div>
-                <div className="text-[12.5px] text-[var(--fg-3)]">
-                  Сессии, инструменты, ошибки — за период
-                </div>
-              </div>
-              <ChevronRight className="h-4 w-4 text-[var(--fg-3)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-all" />
-            </Link>
-          </section>
-
-          {/* Sprint 3 (Hermes): Skills + Curator */}
-          <section>
-            <Link
-              href="/settings/skills"
-              className="flex items-center gap-3 p-4 rounded-lg border border-[var(--bd-2)] bg-[var(--bg-1)] hover:bg-[var(--bg-2)] hover:border-[var(--bd-3)] transition-colors group"
-            >
-              <div className="h-9 w-9 rounded-md bg-[var(--accent-12)] flex items-center justify-center flex-shrink-0">
-                <Sparkles className="h-4 w-4 text-[var(--accent)]" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[14px] font-semibold text-[var(--fg-1)]">
-                  Подсказки агента
-                </div>
-                <div className="text-[12.5px] text-[var(--fg-3)]">
-                  Накопленные шаблоны решений + автоматическая чистка устаревших
-                </div>
-              </div>
-              <ChevronRight className="h-4 w-4 text-[var(--fg-3)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-all" />
-            </Link>
-          </section>
-
-          {/* Phase 9.1: Локальные данные — privacy reset */}
-          <section>
-            <div className="border border-[var(--border)] rounded-lg p-5 bg-[var(--bg-elevated)]">
+            <div className="rounded-lg border border-[var(--bd-2)] bg-[var(--bg-1)] p-5">
               <LocalDataSection />
             </div>
           </section>
-        </>
+
+          {/* Дополнительно — Memory / Insights / Skills, единый визуальный слой */}
+          <section>
+            <h2
+              className="text-[10px] tracking-[0.18em] uppercase text-[var(--fg-3)] mb-3"
+              style={{
+                fontFamily: "var(--font-jb-mono), ui-monospace, monospace",
+              }}
+            >
+              Дополнительно
+            </h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <Link
+                href="/settings/memory"
+                className="flex items-start gap-3 p-4 rounded-lg border border-[var(--bd-2)] bg-[var(--bg-1)] hover:bg-[var(--bg-2)] hover:border-[var(--bd-3)] transition-colors group min-h-[96px]"
+              >
+                <div className="h-9 w-9 rounded-md bg-[var(--accent-12)] flex items-center justify-center flex-shrink-0">
+                  <Brain className="h-4 w-4 text-[var(--accent)]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[14px] font-semibold text-[var(--fg-1)] flex items-center gap-1">
+                    Постоянная память
+                    <ChevronRight className="h-3.5 w-3.5 text-[var(--fg-3)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-all" />
+                  </div>
+                  <div className="text-[12px] text-[var(--fg-3)] mt-1 leading-snug">
+                    Заметки между сессиями — что ассистент помнит про базу и про вас
+                  </div>
+                </div>
+              </Link>
+
+              <Link
+                href="/insights"
+                className="flex items-start gap-3 p-4 rounded-lg border border-[var(--bd-2)] bg-[var(--bg-1)] hover:bg-[var(--bg-2)] hover:border-[var(--bd-3)] transition-colors group min-h-[96px]"
+              >
+                <div className="h-9 w-9 rounded-md bg-[var(--accent-12)] flex items-center justify-center flex-shrink-0">
+                  <BarChart3 className="h-4 w-4 text-[var(--accent)]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[14px] font-semibold text-[var(--fg-1)] flex items-center gap-1">
+                    Аналитика
+                    <ChevronRight className="h-3.5 w-3.5 text-[var(--fg-3)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-all" />
+                  </div>
+                  <div className="text-[12px] text-[var(--fg-3)] mt-1 leading-snug">
+                    Сессии, инструменты, ошибки — за период
+                  </div>
+                </div>
+              </Link>
+
+              <Link
+                href="/settings/skills"
+                className="flex items-start gap-3 p-4 rounded-lg border border-[var(--bd-2)] bg-[var(--bg-1)] hover:bg-[var(--bg-2)] hover:border-[var(--bd-3)] transition-colors group min-h-[96px]"
+              >
+                <div className="h-9 w-9 rounded-md bg-[var(--accent-12)] flex items-center justify-center flex-shrink-0">
+                  <Sparkles className="h-4 w-4 text-[var(--accent)]" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-[14px] font-semibold text-[var(--fg-1)] flex items-center gap-1">
+                    Подсказки агента
+                    <ChevronRight className="h-3.5 w-3.5 text-[var(--fg-3)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-all" />
+                  </div>
+                  <div className="text-[12px] text-[var(--fg-3)] mt-1 leading-snug">
+                    Шаблоны решений + автоочистка устаревших
+                  </div>
+                </div>
+              </Link>
+            </div>
+          </section>
+        </div>
       )}
     </div>
   );
