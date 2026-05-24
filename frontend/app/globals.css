@@ -1,6 +1,94 @@
 @import "tailwindcss";
 @import "../styles/design-tokens.css";
 
+/* Sprint 01 (HIGH-1, 2026-05-24): Tailwind v4 @theme inline маппинг.
+ *
+ * Раньше код писал `bg-[var(--bg-1)]` повсюду — costly arbitrary-value
+ * syntax, не работают responsive variants, IDE не подсказывает. Теперь
+ * каждая CSS-переменная из design-tokens.css получает utility-класс:
+ *   --color-bg-1 → bg-bg-1, text-bg-1, border-bg-1
+ *   --color-accent-12 → bg-accent-12
+ *   --font-jb-mono → font-jb-mono
+ *   --duration-normal → duration-normal
+ *
+ * Legacy `bg-[var(--bg-1)]` синтаксис ТОЖЕ работает — это идентично
+ * новым utility-классам. Постепенный refactor можно делать поверх.
+ */
+@theme inline {
+  /* Backgrounds */
+  --color-bg-0: var(--bg-0);
+  --color-bg-1: var(--bg-1);
+  --color-bg-2: var(--bg-2);
+  --color-bg-3: var(--bg-3);
+  --color-bg-4: var(--bg-4);
+  --color-bg-hover: var(--bg-hover);
+  --color-bg-elevated: var(--bg-elevated);
+  --color-bg: var(--bg);
+
+  /* Foreground / text */
+  --color-fg-1: var(--fg-1);
+  --color-fg-2: var(--fg-2);
+  --color-fg-3: var(--fg-3);
+  --color-fg-4: var(--fg-4);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg: var(--fg);
+
+  /* Borders */
+  --color-bd-1: var(--bd-1);
+  --color-bd-2: var(--bd-2);
+  --color-bd-3: var(--bd-3);
+  --color-border: var(--border);
+
+  /* Accent (signal orange) */
+  --color-accent: var(--accent);
+  --color-accent-08: var(--accent-08);
+  --color-accent-12: var(--accent-12);
+  --color-accent-20: var(--accent-20);
+  --color-accent-32: var(--accent-32);
+
+  /* Semantic — success / warning / error / info */
+  --color-success: var(--success);
+  --color-success-12: var(--success-12);
+  --color-success-20: var(--success-20);
+  --color-success-40: var(--success-40);
+
+  --color-warning: var(--warning);
+  --color-warning-12: var(--warning-12);
+  --color-warning-20: var(--warning-20);
+  --color-warning-40: var(--warning-40);
+
+  --color-error: var(--error);
+  --color-error-12: var(--error-12);
+  --color-error-20: var(--error-20);
+  --color-error-40: var(--error-40);
+
+  --color-info: var(--info);
+  --color-info-12: var(--info-12);
+  --color-info-20: var(--info-20);
+  --color-info-40: var(--info-40);
+
+  /* Code editor */
+  --color-code-bg: var(--code-bg);
+  --color-code-fg: var(--code-fg);
+  --color-code-dim: var(--code-dim);
+
+  /* Fonts — brand stencil + body */
+  --font-plex-mono: var(--font-plex-mono);
+  --font-plex-sans: var(--font-plex-sans);
+  --font-jb-mono: var(--font-jb-mono);
+
+  /* Animation timing */
+  --duration-micro: 150ms;
+  --duration-normal: 200ms;
+  --duration-large: 300ms;
+
+  /* Density */
+  --spacing-row-h: var(--row-h);
+
+  /* Easing */
+  --ease-design-ease: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
 * {
   border-color: var(--bd-2);
   box-sizing: border-box;
