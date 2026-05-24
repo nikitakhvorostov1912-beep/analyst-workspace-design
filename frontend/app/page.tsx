@@ -9,6 +9,7 @@ import { ComposerHub } from "@/components/chat/ComposerHub";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog";
+import { OnboardingResumeBanner } from "@/components/onboarding/OnboardingResumeBanner";
 import { MemoryHint } from "@/components/memory/MemoryHint";
 import { fetchConnections, fetchLLMConfig } from "@/lib/api";
 import { useBackendHealth } from "@/lib/use-backend-health";
@@ -184,6 +185,39 @@ export default function HomePage() {
             setShowOnboarding(false);
             refreshAfterOnboarding();
           }}
+          // Sprint 04 (handoff O-5): юзер выбрал quick-start на финальном шаге.
+          // Создаём сессию и сохраняем pending-message — session page подхватит
+          // и автоматически отправит (тот же flow что у ComposerHub).
+          onCompleteWithQuestion={async (chId, question) => {
+            setShowOnboarding(false);
+            if (chId) {
+              setActiveChannelId(chId);
+              setLocalActiveChannelId(chId);
+            }
+            refreshAfterOnboarding();
+            try {
+              const ch = chId ?? getActiveChannelId() ?? "default";
+              const newSession = await store.createNew(ch);
+              if (typeof window !== "undefined") {
+                try {
+                  sessionStorage.setItem(
+                    `pending-message-${newSession.id}`,
+                    JSON.stringify({ message: question, attachments: null }),
+                  );
+                } catch {
+                  // privacy mode — fallback на пустую сессию
+                }
+              }
+              router.push(`/sessions/${newSession.id}`);
+            } catch (err) {
+              const reason =
+                err instanceof Error ? err.message : "Не удалось создать чат";
+              publishToast({
+                type: "error",
+                message: `Не удалось создать чат: ${reason}`,
+              });
+            }
+          }}
         />
         <BackendDownBanner
           visible={backendHealth.status === "unavailable"}
@@ -278,6 +312,13 @@ export default function HomePage() {
     ...(store.grouped?.earlier ?? []),
   ];
 
+  // Sprint 04 (handoff O-2): функция «перезапустить onboarding».
+  // Сбрасываем флаг — useEffect пересчитает и откроет диалог с сохранённым
+  // прогрессом из localStorage.
+  function handleResumeOnboarding(): void {
+    setShowOnboarding(true);
+  }
+
   return (
     <>
       <CommandPalette
@@ -296,6 +337,15 @@ export default function HomePage() {
           onChannelChange: handleChannelChange,
         }}
       >
+        {/* Sprint 04 (handoff O-2 + O-3): resume banner / config warning над
+            ComposerHub. SSR-safe — компонент сам читает localStorage в useEffect. */}
+        <div className="px-6 pt-4 max-w-2xl mx-auto w-full">
+          <OnboardingResumeBanner
+            onboardingCompleted={true}
+            onResume={handleResumeOnboarding}
+            hasFullConfig={hasConfig}
+          />
+        </div>
         <ComposerHub
           activeChannelId={activeChannelId}
           recentSessions={recentSessions}

@@ -21,7 +21,25 @@ interface OnboardingDialogProps {
   open: boolean;
   onComplete: (firstChannelId: string | null) => void;
   onSkip: () => void;
+  /**
+   * Sprint 04 (handoff O-5): юзер выбрал quick-start вопрос на финальном шаге.
+   * Если задан — completes onboarding и сразу создаёт сессию с этим вопросом.
+   * Если не задан — quick-start чипы скрыты, fallback на «Начать работу».
+   */
+  onCompleteWithQuestion?: (
+    firstChannelId: string | null,
+    question: string,
+  ) => void;
 }
+
+// Sprint 04 (handoff O-5): quick-start примеры вопросов, показываются на step=4.
+// Аналогичны WELCOME_TEMPLATES, но без «{пустота}» — это финальный onboarding,
+// нужны полные готовые вопросы.
+const QUICK_START_QUESTIONS = [
+  "Расскажи про базу — какая конфигурация и сколько объектов",
+  "Покажи последние документы за неделю",
+  "Какие пользователи самые активные сегодня",
+];
 
 type Step = 1 | 2 | 3 | 4;
 // Sprint 04 (handoff O-6): «Обучение» → «Память» — согласовано с Settings → Memory.
@@ -117,6 +135,7 @@ export function OnboardingDialog({
   open,
   onComplete,
   onSkip,
+  onCompleteWithQuestion,
 }: OnboardingDialogProps) {
   const [step, setStep] = useState<Step>(1);
   const [createdConnection, setCreatedConnection] =
@@ -187,6 +206,28 @@ export function OnboardingDialog({
     clearProgress();
     setOnboardingCompleted(true);
     onComplete(createdConnection?.id ?? null);
+  }
+
+  function handleStartWithQuestion(question: string) {
+    if (typeof window !== "undefined") {
+      try {
+        window.localStorage.setItem(
+          LEARN_STORAGE_KEY,
+          learnOn ? "true" : "false",
+        );
+      } catch {
+        // ignore
+      }
+    }
+    clearProgress();
+    setOnboardingCompleted(true);
+    // Если caller подписан на onCompleteWithQuestion — используем его,
+    // иначе fallback на обычный onComplete (потеряем question).
+    if (onCompleteWithQuestion) {
+      onCompleteWithQuestion(createdConnection?.id ?? null, question);
+    } else {
+      onComplete(createdConnection?.id ?? null);
+    }
   }
 
   async function handleMCPSaved(conn: MCPConnection) {
@@ -352,7 +393,7 @@ export function OnboardingDialog({
         )}
 
         {step === 4 && (
-          <div className="space-y-6 animate-fade-up" data-testid="onboarding-step-done">
+          <div className="space-y-5 animate-fade-up" data-testid="onboarding-step-done">
             <div>
               <div
                 className="h-12 w-12 rounded-full bg-[var(--success-12)] border border-[var(--success-20)] text-[var(--success)] inline-flex items-center justify-center mb-3"
@@ -374,22 +415,51 @@ export function OnboardingDialog({
                 {" "}модель ИИ готова к работе
                 {learnOn && (
                   <>
-                    , обучение{" "}
+                    , память{" "}
                     <span className="text-[var(--accent)] font-medium">
-                      включено
+                      включена
                     </span>
                   </>
                 )}
-                . Задайте первый вопрос, например: «Расскажи про базу».
+                .
               </p>
             </div>
+
+            {/* Sprint 04 (handoff O-5): quick-start примеры. Если caller
+                не передал onCompleteWithQuestion — чипы не показываем,
+                чтобы клик не «терял» вопрос. */}
+            {onCompleteWithQuestion && (
+              <div className="space-y-2">
+                <div
+                  className="text-[10px] tracking-[0.18em] uppercase text-[var(--fg-3)]"
+                  style={{
+                    fontFamily:
+                      "var(--font-jb-mono), ui-monospace, monospace",
+                  }}
+                >
+                  Попробуйте начать с одного из вопросов:
+                </div>
+                {QUICK_START_QUESTIONS.map((q) => (
+                  <button
+                    key={q}
+                    type="button"
+                    onClick={() => handleStartWithQuestion(q)}
+                    className="w-full text-left px-3 py-2 rounded-md border border-[var(--bd-2)] bg-[var(--bg-2)] hover:border-[var(--accent-32)] hover:bg-[var(--accent-08)] transition-colors text-[13px] text-[var(--fg-1)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-1)]"
+                  >
+                    {q}
+                  </button>
+                ))}
+              </div>
+            )}
 
             <div className="flex items-center justify-between gap-2">
               <Button variant="ghost" size="sm" onClick={handleBack}>
                 ← Назад
               </Button>
               <Button className="flex-1" onClick={handleComplete}>
-                Начать работу
+                {onCompleteWithQuestion
+                  ? "Начать с пустого чата"
+                  : "Начать работу"}
               </Button>
             </div>
           </div>

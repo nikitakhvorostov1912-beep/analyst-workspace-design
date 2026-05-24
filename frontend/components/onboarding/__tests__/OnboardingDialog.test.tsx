@@ -379,7 +379,8 @@ describe("OnboardingDialog", () => {
     await waitFor(() => {
       expect(screen.getByText("Готово!")).toBeInTheDocument();
     });
-    expect(screen.getByText(/обучение/)).toBeInTheDocument();
+    // Sprint 04 (O-4): «обучение включено» → «память включена»
+    expect(screen.getByText(/память/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: /начать работу/i }));
 
