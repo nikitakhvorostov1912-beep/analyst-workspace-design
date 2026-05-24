@@ -203,10 +203,11 @@ class Settings(BaseSettings):
         default="", validation_alias="DEFAULT_LLM_API_KEY_CLOUD_RU"
     )
 
-    # 2026-05-23: синхронизировано с desktop/package.json и frontend/lib/version.ts.
-    # До этого backend жил на 0.1.0, фронт ушёл вперёд → drift в /status. Теперь
+    # 2026-05-24 (FINDING-00): синхронизировано с desktop/package.json и
+    # frontend/lib/version.ts. До этого backend жил на 0.1.0 / 1.3.0, фронт
+    # уходил вперёд → drift в /health и /status «Серверная часть». Теперь
     # все три точки истины обновляются вместе при релизе.
-    app_version: str = "1.3.0"
+    app_version: str = "1.4.1"
 
     # Дефолтное MCP-подключение — встроенный сервер MCP_Toolkit EPF на :6010.
     # Создаётся при первом запуске чтобы аналитик мог сразу зайти в чат без

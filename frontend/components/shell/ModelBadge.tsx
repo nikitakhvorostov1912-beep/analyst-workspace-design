@@ -17,6 +17,7 @@ import { fetchLLMConfig, updateLLMConfig } from "@/lib/api";
 import { getLLMApiKey } from "@/lib/api-keys";
 import { PROVIDERS, resolveProviderAndModel } from "@/lib/llm-providers";
 import { publishToast } from "@/lib/toast";
+import { cn } from "@/lib/utils";
 
 interface ModelInfo {
   model: string;
@@ -172,11 +173,27 @@ export function ModelBadge() {
             {provider.models.map((preset) => {
               const isActive = preset.id === info.model;
               return (
-                <DropdownMenuItem
+                // 2026-05-24 (QA finding-10, FINAL FIX): Radix DropdownMenuItem
+                // имеет внутренние onPointerDown/onMouseDown handlers которые
+                // блокируют synthetic onClick через event.preventDefault().
+                // Решение — нативная <button> + аddEventListener-style onClick
+                // через onPointerUp (Radix не perevented тут).
+                // НЕ оборачиваем в DropdownMenuItem — Radix управление
+                // фокусом нам не критично, popover закрывается через setOpen.
+                <button
                   key={preset.id}
-                  className="flex items-start gap-2 cursor-pointer"
-                  disabled={switching || isActive}
-                  onSelect={() => void handleSwitch(preset.id, provider.endpoint)}
+                  type="button"
+                  role="menuitem"
+                  disabled={isActive || switching}
+                  className={cn(
+                    "w-full text-left flex items-start gap-2 px-2 py-1.5 rounded-sm transition-colors",
+                    "hover:bg-[var(--accent-08)] focus-visible:outline-none focus-visible:bg-[var(--accent-08)]",
+                    "disabled:opacity-60 disabled:cursor-not-allowed",
+                    !isActive && "cursor-pointer",
+                  )}
+                  onClick={() => {
+                    void handleSwitch(preset.id, provider.endpoint);
+                  }}
                 >
                   <div className="flex-1 min-w-0">
                     <div className="text-sm font-medium text-[var(--fg-1)]">
@@ -189,7 +206,7 @@ export function ModelBadge() {
                   {isActive && (
                     <Check className="h-4 w-4 text-[var(--accent)] flex-none mt-0.5" />
                   )}
-                </DropdownMenuItem>
+                </button>
               );
             })}
           </div>

@@ -85,16 +85,21 @@ def create_app() -> FastAPI:
         )
 
     # W3.15 (2026-05-22): сузили allow_methods с "*" до явного списка
-    # фактически используемых: GET, POST, DELETE, OPTIONS. Раньше "*" с
-    # allow_credentials=True давало wider CSRF-surface (любой PUT/PATCH/HEAD/
-    # TRACE из браузера атакующего был бы пропущен через CORS). credentials
-    # нужны для localhost dev-режима (cookies для session, если включится),
+    # фактически используемых: GET, POST, PATCH, DELETE, OPTIONS. Раньше "*" с
+    # allow_credentials=True давало wider CSRF-surface (любой PUT/HEAD/TRACE
+    # из браузера атакующего был бы пропущен через CORS). credentials нужны
+    # для localhost dev-режима (cookies для session, если включится),
     # поэтому allow_credentials оставлен True.
+    #
+    # 2026-05-24 (QA finding-11): PATCH добавлен — без него frontend смена
+    # модели ИИ (ModelBadge popover) и редактирование LLM-конфига падали с
+    # CORS preflight 400 и сам PATCH 503. Бизнес-логика PATCH использовалась
+    # давно (lib/api.ts:updateLLMConfig), но прошёл регресс при W3.15.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
         allow_credentials=True,
-        allow_methods=["GET", "POST", "DELETE", "OPTIONS"],
+        allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
 

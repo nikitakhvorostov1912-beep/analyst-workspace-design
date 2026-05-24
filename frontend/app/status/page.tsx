@@ -25,6 +25,7 @@ import {
 import type { LogPathResponse } from "@/lib/api";
 import { publishToast } from "@/lib/toast";
 import { getLLMApiKey } from "@/lib/api-keys";
+import { resolveProviderAndModel } from "@/lib/llm-providers";
 import { KindBadge } from "@/components/shell/KindBadge";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { Button } from "@/components/ui/button";
@@ -993,9 +994,14 @@ function aggregateLlm(checks: Check[]): StatusCardProps {
       subtitle: "проверяю...",
     };
   }
-  // Из summary вытаскиваем имя модели если есть.
-  const modelMatch = llm.summary.match(/модель\s+(\S+)/i);
-  const headline = modelMatch ? (modelMatch[1] ?? "—") : "—";
+  // 2026-05-24 (FINDING-05): берём model из fields «Модель» (mono raw id)
+  // и резолвим в human-readable label через resolveProviderAndModel.
+  // Раньше regex по summary возвращал raw id `deepseek-ai/deepseek-v4-flash`,
+  // что обрезалось до `deepseek-ai/deepsee…`. Аналитику не нужен api-id.
+  const modelField = llm.fields?.find((f) => f.label === "Модель");
+  const rawModelId = modelField?.value ?? "";
+  const matched = rawModelId ? resolveProviderAndModel(rawModelId) : null;
+  const headline = matched?.model.label ?? (rawModelId || "—");
   // Время отклика — из fields «Последний тест»
   const lastTest = llm.fields?.find((f) => f.label === "Последний тест");
   let subtitle = "";
