@@ -161,6 +161,7 @@
 **CHAT-02 (P0)** — Отправка сообщения из welcome composer.
 - Шаги: написать «привет», нажать Enter
 - Expected: создаётся сессия, redirect /sessions/{id}, сообщение появляется в thread, начинается стриминг
+- **REGRESSION GUARD (FINDING-12, v1.4.3):** на главной `/` НЕ должно появляться toast «Введите API ключ» когда env-ключ есть в backend (`/llm-config` отдаёт `has_env_api_key: true`). Если появляется — значит `hasEnvApiKey` снова hardcoded `false` в `app/page.tsx`. На странице сессии `/sessions/[id]` баг отдельный — там другой код, другой `useState`.
 
 **CHAT-03 (P0)** — SSE streaming показывает stages.
 - Pre: открыта сессия, отправлено сообщение

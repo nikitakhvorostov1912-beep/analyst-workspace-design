@@ -48,7 +48,13 @@ def _parse_retry_after(header_value: str | None) -> int | None:
 class LLMClient:
     """HTTP-клиент для OpenAI-совместимых LLM API (streaming)."""
 
-    def __init__(self, endpoint: str, model: str, timeout: float = 60.0) -> None:
+    def __init__(self, endpoint: str, model: str, timeout: float = 180.0) -> None:
+        # 2026-05-24 (FINDING-15): default timeout 60s → 180s. NVIDIA NIM
+        # cold-start больших MoE моделей (DeepSeek V4 Flash 284B / Pro 1.6T,
+        # GLM-5.1, Mistral Large 3) превышает 60s на первый запрос —
+        # httpx.ReadTimeout → llm_network_error → пользователь видит
+        # "Сетевая ошибка" вместо ответа. 180s покрывает реальный cold-start
+        # (~30-90s) + запас. Warm-call отвечает за 4-10s, штрафа нет.
         self.endpoint = endpoint.rstrip("/")
         self.model = model
         self._http = httpx.AsyncClient(base_url=self.endpoint, timeout=timeout)

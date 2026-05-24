@@ -38,6 +38,11 @@ export default function HomePage() {
   const [connections, setConnections] = useState<
     Array<{ id: string; name: string; config_type?: string | null }>
   >([]);
+  // 2026-05-24 P0: фикс «Введите API ключ» на главной. Раньше hasEnvApiKey={false}
+  // был жёстко вшит — даже когда backend имеет ключ в env, Input.tsx показывал
+  // toast и блокировал отправку. См. .planning/qa-prod-release-2026-05-24/FINDINGS.md
+  // FINDING-12. Подхватываем из llm.has_env_api_key (по аналогии с sessions/[id]).
+  const [hasEnvApiKey, setHasEnvApiKey] = useState(false);
   const store = useSessionsStore();
   const backendHealth = useBackendHealth();
 
@@ -74,6 +79,7 @@ export default function HomePage() {
 
         // hasConfig читается из backend (source-of-truth)
         setHasConfig(hasBoth);
+        setHasEnvApiKey(Boolean(llm?.has_env_api_key));
         // Сохраняем connections для ComposerHub eyebrow
         setConnections(
           conns.map((c) => ({
@@ -352,7 +358,7 @@ export default function HomePage() {
           totalSessionCount={totalSessionCount}
           activeConnectionName={activeConn?.name}
           activeConnectionConfigType={activeConn?.config_type ?? null}
-          hasEnvApiKey={false}
+          hasEnvApiKey={hasEnvApiKey}
         />
       </AppShell>
       <BackendDownBanner

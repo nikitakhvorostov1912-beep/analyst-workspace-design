@@ -171,8 +171,14 @@ class Settings(BaseSettings):
     )
     # P3.1 rev3 (2026-05-22): DeepSeek V4 Flash через NVIDIA NIM —
     # самая свежая coding-модель (релиз 24.04.2026), 284B MoE, 1M контекст.
+    # 2026-05-24 (FINDING-15): переключил дефолт на Nemotron Super 49B —
+    # cold-start больших MoE моделей (DeepSeek V4 Flash 284B / Pro 1.6T) на
+    # NVIDIA NIM превышает 30s, что давало "Сетевая ошибка" на первое
+    # сообщение нового аналитика. Nemotron Super 49B — компактнее, всегда
+    # warm на NIM, отвечает за 1-3s. DeepSeek V4 остаётся доступной через
+    # переключатель моделей в ModelBadge popover для тяжёлых задач.
     default_llm_model: str = Field(
-        default="deepseek-ai/deepseek-v4-flash",
+        default="nvidia/llama-3.3-nemotron-super-49b-v1.5",
         validation_alias="DEFAULT_LLM_MODEL",
     )
     default_llm_temperature: float = Field(
@@ -207,7 +213,7 @@ class Settings(BaseSettings):
     # frontend/lib/version.ts. До этого backend жил на 0.1.0 / 1.3.0, фронт
     # уходил вперёд → drift в /health и /status «Серверная часть». Теперь
     # все три точки истины обновляются вместе при релизе.
-    app_version: str = "1.4.1"
+    app_version: str = "1.4.4"
 
     # Дефолтное MCP-подключение — встроенный сервер MCP_Toolkit EPF на :6010.
     # Создаётся при первом запуске чтобы аналитик мог сразу зайти в чат без

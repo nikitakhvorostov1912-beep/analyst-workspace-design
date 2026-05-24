@@ -8,7 +8,7 @@ const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8010
 // REM-3 (2026-05-24): источник правды для UI-версии — `desktop/package.json`.
 // Раньше в коде было три разных значения (Header lockup default, About page text,
 // frontend/package.json). Теперь все читают через APP_VERSION → version из desktop.
-let pkgVersion = "1.4.0";
+let pkgVersion = "1.4.4";
 try {
   const desktopPkg = JSON.parse(
     fs.readFileSync(path.join(process.cwd(), "..", "desktop", "package.json"), "utf-8"),
@@ -49,6 +49,14 @@ const securityHeaders = isProd
 const isStandalone = process.env.NEXT_OUTPUT === "standalone";
 const nextConfig: NextConfig = {
   ...(isStandalone ? { output: "standalone" as const } : {}),
+  // 2026-05-24 (FINDING-13): в dev React Strict Mode делает double-mount
+  // useEffect — cleanup первого mount зовёт `abortRef.current?.abort()` в
+  // useChatStream, пока send() ещё в полёте. Юзер видит "signal is aborted
+  // without reason" сразу после Enter с главной. В production (Electron) StrictMode
+  // неактивен по дизайну React — но локальный smoke в Chrome MCP попадает на
+  // dev-сервер, и это даёт false-negative. Отключаем strict в dev чтобы
+  // smoke совпадал с реальным prod-поведением.
+  reactStrictMode: false,
   env: {
     NEXT_PUBLIC_APP_VERSION: pkgVersion,
   },

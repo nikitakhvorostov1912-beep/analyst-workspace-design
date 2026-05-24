@@ -80,26 +80,34 @@ export const PROVIDERS: Provider[] = [
     keyDocsUrl: "build.nvidia.com (вкладка «API keys»)",
     embedKeyAvailable: true,
     compliance: { russian_dc: false, fz152: false },
+    // 2026-05-24 (FINDING-16): полный аудит каталога против `GET
+    // https://integrate.api.nvidia.com/v1/models`. Были найдены 5 невалидных
+    // ID (HTTP 404 при /chat/completions): `zhipuai/glm-5.1`, `qwen/qwen3-coder-plus`,
+    // `minimax-ai/minimax-m2.7`, `nvidia/nemotron-3-nano-omni`,
+    // `meta/llama-4-scout-17b-16e-instruct`. Заменены на актуальные ID из
+    // живого каталога. `qwen3-coder-plus` удалена (нет аналога). Default
+    // переведён на Nemotron Super 49B — единственная всегда-warm модель,
+    // у больших MoE моделей cold-start 30-90s, что > frontend timeout.
     models: [
+      {
+        id: "nvidia/llama-3.3-nemotron-super-49b-v1.5",
+        label: "Nemotron Super 49B",
+        description: "Рекомендуется · NVIDIA · 49B · самый быстрый отклик",
+      },
       {
         id: "deepseek-ai/deepseek-v4-flash",
         label: "DeepSeek V4 Flash",
-        description: "Рекомендуется · 284B MoE · 1M контекст · быстрый кодинг",
+        description: "284B MoE · 1M контекст · быстрый кодинг",
       },
       {
         id: "deepseek-ai/deepseek-v4-pro",
-        label: "DeepSeek V4 Pro",
-        description: "Флагман · 1.6T MoE · 1M контекст · для сложного reasoning",
+        label: "DeepSeek V4 Pro ⏳",
+        description: "Флагман · 1.6T MoE · перегружена на dev-tier (часто >3 мин)",
       },
       {
-        id: "zhipuai/glm-5.1",
+        id: "z-ai/glm-5.1",
         label: "GLM-5.1",
-        description: "Флагман Zhipu · агенты, кодинг, long-horizon задачи",
-      },
-      {
-        id: "qwen/qwen3-coder-plus",
-        label: "Qwen3 Coder Plus",
-        description: "Alibaba · coding-агент с tool_calls и кодом",
+        description: "Флагман Z-AI · агенты, кодинг, long-horizon задачи",
       },
       {
         id: "qwen/qwen3-coder-480b-a35b-instruct",
@@ -107,19 +115,19 @@ export const PROVIDERS: Provider[] = [
         description: "Open-source MoE 480B · сильна в BSL/SQL",
       },
       {
-        id: "minimax-ai/minimax-m2.7",
+        id: "minimaxai/minimax-m2.7",
         label: "MiniMax M2.7",
         description: "230B · кодинг, reasoning, офисные задачи",
       },
       {
-        id: "nvidia/nemotron-3-nano-omni",
+        id: "nvidia/nemotron-3-nano-omni-30b-a3b-reasoning",
         label: "Nemotron 3 Nano Omni",
         description: "NVIDIA omni-modal · текст + изображения + видео + аудио",
       },
       {
-        id: "meta/llama-4-scout-17b-16e-instruct",
-        label: "Llama 4 Scout",
-        description: "Meta · флагман 2026 · открытый MoE",
+        id: "meta/llama-4-maverick-17b-128e-instruct",
+        label: "Llama 4 Maverick",
+        description: "Meta · флагман 2026 · открытый MoE 128 экспертов",
       },
       {
         id: "mistralai/mistral-large-3-675b-instruct-2512",

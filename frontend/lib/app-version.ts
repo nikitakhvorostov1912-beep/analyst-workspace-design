@@ -13,4 +13,4 @@
  *
  * Если env не доступен (например, в jest без mock'а) — fallback на "1.4.0".
  */
-export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "1.4.0";
+export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "1.4.4";

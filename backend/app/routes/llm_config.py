@@ -28,8 +28,12 @@ _DEFAULT_ALIAS = "default"
 # 2026-05-23: поднят с 10s до 30s — NVIDIA NIM при cold start на больших MoE
 # моделях (DeepSeek V4 Pro 1.6T, GLM-5.1, Mistral Large 3) первый запрос
 # отвечает 12-25 секунд. 10s давало false-negative «timeout» на валидных ключах.
-# 30s — компромисс между UX (юзер ждёт) и реальностью cold start крупных моделей.
-_TEST_TIMEOUT_S = 30.0
+# 2026-05-24 (FINDING-15+): поднят 30s → 180s — после переключения дефолта
+# на Nemotron Super 49B (warm) тяжёлые модели (DeepSeek V4 Pro 1.6T, MiniMax M2.7,
+# Llama 4 Maverick) остались доступны как опции. Их cold-start доходит до 60-90s,
+# и Тест в Settings должен дождаться ответа, иначе пользователь видит false
+# negative и думает что модель сломана. 180s покрывает реальный cold-start.
+_TEST_TIMEOUT_S = 180.0
 
 # T-05-05: обрезаем error_message до 200 символов
 _ERROR_MSG_MAX = 200
