@@ -7,4 +7,4 @@
  * (например, /status, отчёт об ошибке, заголовок HTTP) подтянуть значение
  * из одного места. Связано с desktop/package.json — должно совпадать.
  */
-export const APP_VERSION = "1.3.0";
+export const APP_VERSION = "1.4.0";

@@ -9,8 +9,8 @@
  *
  * Теперь — единый импорт `APP_VERSION` из этого модуля. Значение прокидывается
  * через `next.config.ts → env.NEXT_PUBLIC_APP_VERSION`, который читает
- * `desktop/package.json` (там реальная семантическая версия v1.3.0).
+ * `desktop/package.json` (там реальная семантическая версия v1.4.0).
  *
- * Если env не доступен (например, в jest без mock'а) — fallback на "1.3.0".
+ * Если env не доступен (например, в jest без mock'а) — fallback на "1.4.0".
  */
-export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "1.3.0";
+export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION ?? "1.4.0";
