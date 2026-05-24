@@ -9,11 +9,19 @@
 import asyncio
 import json
 import logging
+import sys
 from dataclasses import dataclass, field
 
 from app.clients.mcp import MCPDisconnectedError, MCPError, MCPSession
 
 logger = logging.getLogger(__name__)
+
+# 2026-05-24 (FINDING-17): Windows-only флаг чтобы дочерний java.exe
+# (bsl-context JAR через bundled JRE) не открывал отдельное консольное окно.
+# Когда backend запускается из Electron production (windowsHide:true) —
+# у родителя console нет, дочерний java.exe создаёт **свою** консоль и она
+# мигает поверх UI на каждом spawn. На *nix константа отсутствует — оставляем 0.
+_CREATE_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
 
 
 @dataclass
@@ -60,6 +68,7 @@ class StdioMCPClient:
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 env=full_env,
+                creationflags=_CREATE_NO_WINDOW,
             )
         except FileNotFoundError as e:
             raise MCPDisconnectedError(

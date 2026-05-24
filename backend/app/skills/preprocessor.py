@@ -15,9 +15,14 @@ from __future__ import annotations
 import logging
 import re
 import subprocess  # noqa: S404 — намеренно для inline shell, см. shell_enabled
+import sys
 from datetime import UTC, datetime
 
 logger = logging.getLogger(__name__)
+
+# 2026-05-24 (FINDING-17): на Windows подавляем создание консольного окна
+# для дочерних shell-вызовов (когда backend запущен из Electron windowsHide).
+_CREATE_NO_WINDOW = 0x08000000 if sys.platform == "win32" else 0
 
 
 # ${VAR} pattern. Не поддерживаем ${VAR:-default} — это не bash, namespace простой.
@@ -80,6 +85,7 @@ def preprocess_skill_body(
                 result = subprocess.run(  # noqa: S602 — opt-in
                     cmd, shell=True, capture_output=True,
                     text=True, timeout=5.0, check=False,
+                    creationflags=_CREATE_NO_WINDOW,
                 )
                 output = (result.stdout or result.stderr or "").strip()
                 return output[:200]

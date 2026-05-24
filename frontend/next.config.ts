@@ -8,7 +8,7 @@ const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8010
 // REM-3 (2026-05-24): источник правды для UI-версии — `desktop/package.json`.
 // Раньше в коде было три разных значения (Header lockup default, About page text,
 // frontend/package.json). Теперь все читают через APP_VERSION → version из desktop.
-let pkgVersion = "1.4.4";
+let pkgVersion = "1.4.5";
 try {
   const desktopPkg = JSON.parse(
     fs.readFileSync(path.join(process.cwd(), "..", "desktop", "package.json"), "utf-8"),
