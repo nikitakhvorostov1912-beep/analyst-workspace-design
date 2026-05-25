@@ -1,12 +1,19 @@
 ---
 milestone: M-K0
-status: in_progress
+status: done
 started_at: "2026-05-25T10:30:00Z"
+finished_at: "2026-05-25T22:00:00Z"
 branch: "feature/m-k0-stabilization"
 phases_total: 10
-phases_done: 7
+phases_done: 10
 findings_total: 28
 findings_done: 28
+re_audit_findings: 2  # +2 HIGH из M-K0.9 (SEC-LOGINJ + SEC-3-re)
+re_audit_findings_done: 2
+final_commit: "2e27522"
+final_tests_backend: 972
+final_tests_frontend: 322
+coverage_backend_pct: 87.3
 ---
 
 # M-K0 Stabilization — STATE
@@ -22,16 +29,21 @@ findings_done: 28
 | **M-K0.5** | **Frontend Wave 4 (3 findings)** | **✅ DONE** | 1 commit |
 | **M-K0.6** | **Arch Wave 5 (1 finding)** | **✅ DONE** | 1 commit |
 | **M-K0.7** | **Docs+DevOps Wave 6 (4 findings)** | **✅ DONE** | 1 commit |
-| M-K0.8 | Coverage push 60%+ | pending | — |
-| M-K0.9 | Security re-audit | pending | — |
-| M-K0.10 | SUMMARY + handoff | pending | — |
+| **M-K0.8** | **Coverage push 60%+** | **✅ DONE** | + 4 test fixes (87.3% уже) |
+| **M-K0.9** | **Security re-audit (+ 2 HIGH)** | **✅ DONE** | SEC-LOGINJ + SEC-3-re в коммите 2e27522 |
+| **M-K0.10** | **SUMMARY + handoff** | **✅ DONE** | SUMMARY.md создан |
 
-## Текущая задача
+## Финальный статус
 
-**🎯 ВСЕ 28/28 findings закрыты (100%)**. Остались последние 3 фазы:
-- **M-K0.8** Coverage push 60%+ (текущее ~30%, нужно добить тесты на критичных модулях)
-- **M-K0.9** Security re-audit (прогон security-reviewer на новый код)
-- **M-K0.10** SUMMARY + handoff в M-K1
+**🎯 M-K0 ЗАКРЫТ — 28/28 findings + 2 HIGH из re-audit (100%)**. См. `SUMMARY.md`.
+
+- Backend pytest: **972 passed, 0 failed** (3:05)
+- Frontend vitest: **322 passed**
+- Build: **green**
+- Coverage backend: **87.3%** (>> цель 60%)
+- Регрессий: **0**
+
+Branch `feature/m-k0-stabilization` готов к merge.
 
 ## Commits в M-K0
 
