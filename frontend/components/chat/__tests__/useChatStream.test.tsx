@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { useChatStream } from "../useChatStream";
 import type { SSEEvent } from "@/lib/types";
 
-// Мокаем fetchChat, postChatConfirm и fetchLLMConfig из api.ts
+// Мокаем fetchChat, postChatConfirm, fetchLLMConfig, fetchConnections из api.ts
 vi.mock("@/lib/api", () => ({
   fetchChat: vi.fn(),
   postChatConfirm: vi.fn().mockResolvedValue(undefined),
@@ -14,6 +14,11 @@ vi.mock("@/lib/api", () => ({
     model: "test-model",
     temperature: 0.3,
   }),
+  // PERF-3 (M-K0.3): через useConfigCache fallback в тестах. По умолчанию
+  // anon выключен — anonHeaders пусты, поведение как раньше.
+  fetchConnections: vi.fn().mockResolvedValue([]),
+  postChatClarify: vi.fn().mockResolvedValue(undefined),
+  interruptChat: vi.fn().mockResolvedValue(undefined),
 }));
 
 // Мокаем getAnonEnabled из storage (getLLMConfig больше не используется в useChatStream, Plan 5.4)

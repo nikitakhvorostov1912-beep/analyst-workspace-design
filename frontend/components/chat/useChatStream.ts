@@ -3,12 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   fetchChat,
-  fetchConnections,
-  fetchLLMConfig,
   interruptChat,
   postChatClarify,
   postChatConfirm,
 } from "@/lib/api";
+import { useConfigCache } from "@/lib/config-cache";
 import { publishToast } from "@/lib/toast";
 import type {
   CardEnvelope,
@@ -74,6 +73,9 @@ export function useChatStream({
   onBannerShow,
   onBannerHide,
 }: UseChatStreamOptions): UseChatStreamReturn {
+  // PERF-3 (M-K0.3): кэш llm-config и connections через React Context —
+  // раньше каждый send делал 2 лишних HTTP roundtrip.
+  const configCache = useConfigCache();
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [isStreaming, setIsStreaming] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -177,9 +179,9 @@ export function useChatStream({
       abortRef.current = ac;
 
       try {
-        // Получаем LLM конфиг из backend (source-of-truth, Plan 5.4 UX-04)
-        // Один дополнительный round-trip при отправке — приемлемо (T-05-14 accept)
-        const llmConfig = await fetchLLMConfig();
+        // PERF-3 (M-K0.3): через configCache — кэш в провайдере, fallback на
+        // прямой fetch когда провайдер не подключён (тесты, isolated render).
+        const llmConfig = await configCache.getLLMConfig();
         if (!llmConfig) {
           setError("LLM не настроен. Откройте Настройки.");
           setMessages((prev) => {
@@ -200,7 +202,7 @@ export function useChatStream({
         // (user toggle) — это была некорректная модель, UI не должен решать.
         let anonHeaders: Record<string, string> = {};
         try {
-          const conns = await fetchConnections();
+          const conns = await configCache.getConnections();
           const active = conns.find((c) => c.id === channelId);
           if (active?.anon_enabled) {
             anonHeaders = { "X-Anon-Enabled": "true" };
@@ -371,7 +373,7 @@ export function useChatStream({
         }
       }
     },
-    [isStreaming, sessionId, channelId, onBannerShow, onBannerHide],
+    [isStreaming, sessionId, channelId, onBannerShow, onBannerHide, configCache],
   );
 
   const resolveConfirm = useCallback(

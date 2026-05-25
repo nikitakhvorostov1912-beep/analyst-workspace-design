@@ -15,6 +15,7 @@ import {
 import { MCPConnectionForm } from "./MCPConnectionForm";
 import { KindBadge } from "@/components/shell/KindBadge";
 import { deleteConnection, fetchConnections, pingConnection } from "@/lib/api";
+import { useConfigCache } from "@/lib/config-cache";
 import { publishToast } from "@/lib/toast";
 import type { MCPConnection } from "@/lib/types";
 
@@ -47,6 +48,8 @@ export function MCPConnectionList({
   initialConnections,
   onChanged,
 }: MCPConnectionListProps) {
+  // PERF-3 (M-K0.3): invalidate кэш после delete + reload.
+  const configCache = useConfigCache();
   const [connections, setConnections] =
     useState<MCPConnection[]>(initialConnections);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -98,6 +101,7 @@ export function MCPConnectionList({
   async function handleDelete(id: string) {
     try {
       await deleteConnection(id);
+      configCache.invalidateConnections();
       publishToast({ type: "info", message: "Подключение удалено" });
       await reload();
     } catch (err) {

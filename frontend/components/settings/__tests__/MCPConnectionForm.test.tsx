@@ -6,6 +6,11 @@ vi.mock("@/lib/api", () => ({
   createConnection: vi.fn(),
   updateConnection: vi.fn(),
   pingConnection: vi.fn(),
+  // PERF-3 (M-K0.3): useConfigCache fallback использует эти fetches.
+  fetchLLMConfig: vi.fn().mockResolvedValue(null),
+  fetchConnections: vi.fn().mockResolvedValue([]),
+  getConnectionDiagnostics: vi.fn(),
+  MCPPingError: class MCPPingError extends Error {},
 }));
 
 vi.mock("@/lib/toast", () => ({

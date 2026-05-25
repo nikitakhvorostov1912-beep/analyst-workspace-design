@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { IBM_Plex_Sans, IBM_Plex_Mono, JetBrains_Mono } from "next/font/google";
 import { Toaster } from "@/components/ui/toast";
 import { UndoToastHost } from "@/components/ui/UndoToastHost";
+import { ConfigCacheProvider } from "@/lib/config-cache";
 import "./globals.css";
 import "./prism.css";
 
@@ -60,9 +61,11 @@ export default function RootLayout({
         />
       </head>
       <body>
-        {children}
-        <Toaster />
-        <UndoToastHost />
+        <ConfigCacheProvider>
+          {children}
+          <Toaster />
+          <UndoToastHost />
+        </ConfigCacheProvider>
       </body>
     </html>
   );

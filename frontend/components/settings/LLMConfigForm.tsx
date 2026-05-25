@@ -32,6 +32,7 @@ import {
   deleteLLMConfig,
   testLLMConfig,
 } from "@/lib/api";
+import { useConfigCache } from "@/lib/config-cache";
 import { llmConfigSchema, llmConfigUpdateSchema } from "@/lib/form-schemas";
 import {
   getLLMApiKey,
@@ -102,6 +103,9 @@ function translateErrorCode(code: string | null | undefined): string {
 }
 
 export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
+  // PERF-3 (M-K0.3): invalidate кэш конфига после save/update/delete —
+  // следующий send в чат сделает fresh fetch вместо использования stale.
+  const configCache = useConfigCache();
   const storedKey = getLLMApiKey();
   const hasExisting = initial !== null;
   // Backend получит ключ из env DEFAULT_LLM_API_KEY (зашитый при сборке инсталлятора —
@@ -331,6 +335,7 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
         await saveLLMConfig(configPayload);
       }
 
+      configCache.invalidateLLMConfig();
       publishToast({ type: "info", message: "Настройки модели ИИ сохранены" });
       // 2026-05-24: уведомляем шапку (ModelBadge) что конфиг сменился.
       // Без этого ModelBadge оставался со старой моделью пока юзер не
@@ -351,6 +356,7 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
     setShowDeleteDialog(false);
     try {
       await deleteLLMConfig();
+      configCache.invalidateLLMConfig();
       clearLLMApiKey();
       // 2026-05-25: чистим и backend-хранилище. Раньше LLM конфиг удалялся,
       // но `user_secrets` оставались — при повторной настройке пользователь

@@ -7,6 +7,9 @@ vi.mock("@/lib/api", () => ({
   updateLLMConfig: vi.fn(),
   deleteLLMConfig: vi.fn(),
   testLLMConfig: vi.fn(),
+  // PERF-3 (M-K0.3): useConfigCache fallback использует эти fetches.
+  fetchLLMConfig: vi.fn().mockResolvedValue(null),
+  fetchConnections: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("@/lib/toast", () => ({

@@ -13,6 +13,7 @@ import {
   getConnectionDiagnostics,
   MCPPingError,
 } from "@/lib/api";
+import { useConfigCache } from "@/lib/config-cache";
 import { mcpConnectionSchema } from "@/lib/form-schemas";
 import { publishToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -98,6 +99,9 @@ export function MCPConnectionForm({
   onSaved,
   onCancel,
 }: MCPConnectionFormProps) {
+  // PERF-3 (M-K0.3): invalidate кэш подключений после save —
+  // useChatStream увидит fresh anon_enabled в следующем send.
+  const configCache = useConfigCache();
   const parsed = useMemo(
     () =>
       initial
@@ -202,6 +206,7 @@ export function MCPConnectionForm({
         ? await updateConnection(initial.id, payload)
         : await createConnection(payload);
 
+      configCache.invalidateConnections();
       publishToast({ type: "info", message: "Подключение сохранено" });
       onSaved(saved);
     } catch (err) {
