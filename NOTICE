@@ -1,0 +1,161 @@
+"1С Аналитик" — Third-Party Attributions
+=========================================
+
+Copyright 2026 Никита Хворостов
+Licensed under the Apache License, Version 2.0 (see LICENSE file).
+
+This product includes / references the following third-party software,
+data, and documentation. Each is acknowledged here as required by the
+respective upstream license.
+
+--------------------------------------------------------------------------------
+1. БСП (Библиотека стандартных подсистем) — sources for Knowledge Layer
+--------------------------------------------------------------------------------
+
+  Project:        БСП 3.1.x (Standard Subsystems Library by 1C)
+  Source paths:   tools/ssl_3_1/, tools/ssl_3_2/
+  License:        CC-BY-4.0 (текст лицензии в каждой папке)
+  Use in product: Read-only reference for L5 RAG (БСП API parser, M-K2).
+                  Used as searchable corpus, code samples for analysis.
+                  NOT redistributed in the Core itself; downloaded on
+                  first use or bundled in EPF/CFE installers.
+
+  Attribution:    Materials from БСП are © 1С-Софт, used under CC-BY-4.0
+                  with required attribution to the original authors.
+
+--------------------------------------------------------------------------------
+2. sfaqer/v8std — ИТС Standards corpus
+--------------------------------------------------------------------------------
+
+  Project:        v8std — 317 ITS standards in Markdown
+  Source path:    tools/v8std/
+  Upstream:       https://github.com/sfaqer/v8std
+  License:        MIT (per upstream)
+  Use in product: Knowledge corpus for L5 RAG (ITS standards search).
+                  Embeddings computed locally via FastEmbed (ADR-003).
+                  Citations include hyperlinks to original ITS pages.
+
+  Attribution:    Curated by sfaqer team, MIT-licensed. Original ITS texts
+                  © 1С, used under fair use / publicly accessible.
+
+--------------------------------------------------------------------------------
+3. OnesTemplates — production BSL snippets
+--------------------------------------------------------------------------------
+
+  Project:        OnesTemplates by comol/ai_rules_1c
+  Source path:    tools/OnesTemplates/
+  License:        MIT (per upstream)
+  Use in product: Reference templates for BSL code review and suggestions
+                  in M-K3 (Antipattern Detector hints).
+
+--------------------------------------------------------------------------------
+4. BSL Language Server
+--------------------------------------------------------------------------------
+
+  Project:        BSL Language Server (1c-syntax)
+  Source path:    tools/bsl-language-server-0.29.0-exec.jar
+  Upstream:       https://github.com/1c-syntax/bsl-language-server
+  License:        MIT
+  Use in product: Subprocess for BSL static analysis (M-K3 Phase 15,
+                  detector mode). Not bundled in Core installer — either
+                  download-on-first-use or bundled in CFE installer.
+
+--------------------------------------------------------------------------------
+5. sqlite-vec (Apache 2.0)
+--------------------------------------------------------------------------------
+
+  Project:        sqlite-vec by Alex Garcia
+  Upstream:       https://github.com/asg017/sqlite-vec
+  License:        Apache 2.0 / MIT (dual)
+  Use in product: Vector storage extension for SQLite (ADR-001).
+                  Loaded via `SELECT load_extension(...)`.
+
+--------------------------------------------------------------------------------
+6. BAAI/bge-m3 (Apache 2.0)
+--------------------------------------------------------------------------------
+
+  Project:        BGE-M3 multilingual embedding model
+  Upstream:       https://huggingface.co/BAAI/bge-m3
+  License:        Apache 2.0
+  Use in product: Default embeddings model for L5 RAG (ADR-003).
+                  Downloaded on first run, not bundled in installer.
+
+--------------------------------------------------------------------------------
+7. FastEmbed (Apache 2.0)
+--------------------------------------------------------------------------------
+
+  Project:        FastEmbed by Qdrant
+  Upstream:       https://github.com/qdrant/fastembed
+  License:        Apache 2.0
+  Use in product: ONNX runtime for BGE-M3 (ADR-003). CPU-only inference.
+
+--------------------------------------------------------------------------------
+8. MCP Toolkit для 1С (proprietary or upstream license)
+--------------------------------------------------------------------------------
+
+  Project:        1С MCP Toolkit v1.7.x (внешняя обработка EPF)
+  Upstream:       (per Toolkit website)
+  License:        per upstream
+  Use in product: Primary 1С MCP source on port :6010. Standalone
+                  external dependency — not bundled in Core.
+
+--------------------------------------------------------------------------------
+9. 1С:Напарник (1c-buddy MCP)
+--------------------------------------------------------------------------------
+
+  Project:        1С:Напарник + feenlace/mcp-1c
+  Upstream:       https://github.com/feenlace/mcp-1c
+  License:        per upstream (free до 01.10.2026, далее commercial)
+  Use in product: Primary L5 RAG source (Q-NEW resolved). Connected via
+                  MCP on port :6002. Standalone external dependency — not
+                  bundled in Core.
+
+--------------------------------------------------------------------------------
+10. mcp-bsl-context (MIT)
+--------------------------------------------------------------------------------
+
+  Project:        mcp-bsl-context (BSL platform API)
+  Upstream:       https://github.com/alkoleft/mcp-bsl-platform-context
+  License:        MIT
+  Use in product: Built-in BSL function help (one of 3 MCP sources).
+                  Java 17 dependency.
+
+--------------------------------------------------------------------------------
+11. Electron + electron-builder + electron-updater
+--------------------------------------------------------------------------------
+
+  Licenses:       MIT (Electron), MIT (electron-builder),
+                  Public Domain (electron-updater base components)
+  Use in product: Desktop wrapper for the Core + auto-update infra.
+                  See desktop/package.json for full dependency list.
+
+--------------------------------------------------------------------------------
+12. Other dependencies
+--------------------------------------------------------------------------------
+
+  Backend Python: FastAPI (MIT), Pydantic (MIT), uvicorn (BSD),
+                  aiosqlite (MIT), httpx (BSD), slowapi (MIT),
+                  PyInstaller (GPL with exception for bundled apps —
+                  exception explicitly applied).
+
+  Frontend:       Next.js (MIT), React (MIT), shadcn/ui (MIT),
+                  Tailwind CSS (MIT), Radix UI (MIT), IBM Plex
+                  fonts (OFL-1.1).
+
+  See backend/requirements.txt and frontend/package.json for full
+  list of npm and PyPI dependencies and their licenses.
+
+--------------------------------------------------------------------------------
+
+Disclaimer
+----------
+
+This NOTICE file is part of the project and must be distributed alongside
+the LICENSE (Apache 2.0) for the Core components. EPF and CFE components
+have separate licenses (see LICENSE-EPF and LICENSE-CFE).
+
+Any third-party material referenced but not bundled retains its upstream
+license. Removal of attribution from this NOTICE during redistribution
+may violate one or more of the upstream licenses.
+
+Updated: 2026-05-25 (M-K1.2 pre-flight, Q6 dual license).
