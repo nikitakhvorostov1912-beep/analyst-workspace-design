@@ -18,6 +18,7 @@ from app.routes import connections as connections_router
 from app.routes import diagnostics as diagnostics_router
 from app.routes import health as health_router
 from app.routes import insights as insights_router
+from app.routes import knowledge as knowledge_router
 from app.routes import llm_config as llm_config_router
 from app.routes import log_cards as log_cards_router
 from app.routes import mcp as mcp_router
@@ -180,6 +181,8 @@ def create_app() -> FastAPI:
     app.include_router(insights_router.router)
     # P2.1 (2026-05-23): backend-only API key store
     app.include_router(user_secrets_router.router)
+    # M-K1.13: Knowledge Layer API — первый endpoint /knowledge/{channel}/dossier/{path}
+    app.include_router(knowledge_router.router)
 
     return app
 
