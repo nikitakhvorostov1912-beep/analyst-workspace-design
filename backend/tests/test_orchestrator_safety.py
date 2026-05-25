@@ -151,20 +151,23 @@ def test_scan_sql_injection_via_query():
 # ===== register / resolve pending confirmation =====
 
 
-def test_register_resolve_pending():
-    ev = register_pending_confirmation("c1")
-    assert ev is not None
+@pytest.mark.asyncio
+async def test_register_resolve_pending():
+    # BE-1 (M-K0.2): register теперь требует running loop (asyncio.Future
+    # вместо Event), поэтому тест переведён в async.
+    fut = register_pending_confirmation("c1")
+    assert fut is not None
 
     # resolve возвращает True (запись найдена)
     result = resolve_pending_confirmation("c1", True)
     assert result is True
 
-    # повторный resolve → False (запись уже удалена через wait или timeout)
-    # Но wait не был вызван — запись ещё в dict, но event уже set
-    # Проверяем что повторный вызов без wait_for_confirmation работает без краша
-    # Примечание: _pending не удаляет запись при resolve — только wait делает pop
-    # Поэтому второй resolve возвращает True (запись есть, event уже set)
-    # Но смысл теста: resolve unknown id → False
+    # Даём event loop время на call_soon_threadsafe → set_result
+    await asyncio.sleep(0)
+    assert fut.done()
+    assert fut.result() is True
+
+    # resolve unknown id → False
     result2 = resolve_pending_confirmation("unknown_id", False)
     assert result2 is False
 

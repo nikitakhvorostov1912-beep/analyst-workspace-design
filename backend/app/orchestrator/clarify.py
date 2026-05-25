@@ -64,7 +64,14 @@ class ClarifyRegistry:
         allow_custom: bool = True,
         multi: bool = False,
     ) -> PendingClarify:
-        loop = asyncio.get_event_loop()
+        """Регистрирует pending clarify. Должен вызываться из async-контекста.
+
+        BE-1 (M-K0.2): asyncio.get_event_loop() → get_running_loop().
+        Старый get_event_loop() deprecated в Python 3.10+ и удалён в 3.12
+        для не-running loop. Поднимает RuntimeError если нет running loop —
+        это правильное поведение (register должен быть только из async).
+        """
+        loop = asyncio.get_running_loop()
         future = loop.create_future()
         with self._lock:
             pending = PendingClarify(
@@ -75,19 +82,39 @@ class ClarifyRegistry:
                 multi=multi,
                 future=future,
             )
+            # BE-1: храним loop в pending для thread-safe resolve из другого
+            # endpoint (POST /chat/clarify может прийти в другом worker'е).
+            pending._loop = loop  # type: ignore[attr-defined]
             self._items[clarify_id] = pending
             return pending
 
     def resolve(self, clarify_id: str, answer: str | list[str]) -> bool:
-        """Записывает ответ пользователя — pending Future становится done."""
+        """Записывает ответ пользователя — pending Future становится done.
+
+        BE-1: thread-safe через call_soon_threadsafe. Если Future была
+        создана в другом event loop'е (multi-worker scenario) — корректно
+        диспатчит set_result в нужный loop.
+        """
         with self._lock:
             pending = self._items.pop(clarify_id, None)
         if pending is None:
             return False
-        if pending.future and not pending.future.done():
-            pending.future.set_result(answer)
-            return True
-        return False
+        if pending.future is None or pending.future.done():
+            return False
+
+        # Thread-safe set_result через сохранённый loop.
+        loop = getattr(pending, "_loop", None)
+        try:
+            if loop is not None and loop.is_running():
+                loop.call_soon_threadsafe(_set_clarify_result_safe, pending.future, answer)
+            else:
+                # Fallback: тот же loop — direct set_result (safe).
+                if not pending.future.done():
+                    pending.future.set_result(answer)
+        except RuntimeError:
+            # Loop закрыт — silently skip.
+            return False
+        return True
 
     def cancel(self, clarify_id: str) -> bool:
         with self._lock:
@@ -95,13 +122,44 @@ class ClarifyRegistry:
         if pending is None:
             return False
         if pending.future and not pending.future.done():
-            pending.future.cancel()
-            return True
+            # BE-1: thread-safe cancel
+            loop = getattr(pending, "_loop", None)
+            try:
+                if loop is not None and loop.is_running():
+                    loop.call_soon_threadsafe(_cancel_clarify_safe, pending.future)
+                else:
+                    pending.future.cancel()
+                return True
+            except RuntimeError:
+                return False
         return False
 
     def active_count(self) -> int:
         with self._lock:
             return len(self._items)
+
+
+# BE-1 helpers — thread-safe operations on Future.
+# Используются через call_soon_threadsafe чтобы безопасно set_result/cancel
+# Future из другого thread/loop.
+
+
+def _set_clarify_result_safe(future: asyncio.Future, answer: str | list[str]) -> None:
+    """Helper для call_soon_threadsafe — set_result с защитой от done."""
+    if not future.done():
+        try:
+            future.set_result(answer)
+        except asyncio.InvalidStateError:
+            pass
+
+
+def _cancel_clarify_safe(future: asyncio.Future) -> None:
+    """Helper для call_soon_threadsafe — cancel с защитой от done."""
+    if not future.done():
+        try:
+            future.cancel()
+        except asyncio.InvalidStateError:
+            pass
 
 
 # Глобальный реестр.

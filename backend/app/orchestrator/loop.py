@@ -142,6 +142,15 @@ logger = logging.getLogger(__name__)
 # Эту константу можно вынести в Settings когда появятся другие провайдеры.
 VISION_MODEL = "mimo-v2-omni"
 
+
+# BE-2 (M-K0.2, 2026-05-25): module-level set для fire-and-forget tasks.
+# asyncio.create_task без сохранения ссылки → GC может собрать task до
+# выполнения. Храним ссылку до завершения через add_done_callback(.discard).
+# Сейчас используется для auto-title; расширяется по мере появления других
+# background tasks (skill review, etc.).
+_AUTO_TITLE_TASKS: set[asyncio.Task] = set()
+_BACKGROUND_TASKS: set[asyncio.Task] = set()
+
 # Tool iterations — фактически unlimited для аналитика.
 # 100 — soft safety net, обычно не достигается (сложные find_references
 # укладываются в 20-30). Главная защита — DUPLICATE_TOOL_CALL_THRESHOLD ниже.
@@ -1453,17 +1462,40 @@ async def run_chat_loop(
     # (load_history_for_llm) даёт auto-title шанс запуститься раньше и
     # в тестах с FakeLLM (shared counter) съесть первый stub. После
     # завершения основного цикла LLMClient уже не используется — безопасно.
+    #
+    # BE-2 (M-K0.2, 2026-05-25): fire-and-forget task защищён от GC.
+    # Раньше: asyncio.create_task(_run_auto_title()) без сохранения ссылки.
+    # При SSE disconnect (browser tab close, AbortController) до запуска task —
+    # Python GC мог собрать task до выполнения; auto-title тихо терялся.
+    # Также db connection передавался через closure — мог быть закрыт к
+    # моменту вызова.
+    # Теперь: храним ссылку в module-level set; add_done_callback убирает её
+    # после завершения. Это держит task живым до завершения независимо от GC.
     if schedule_auto_title:
         async def _run_auto_title() -> None:
             try:
                 llm = LLMClient(endpoint=llm_endpoint, model=llm_model)
-                new_title = await generate_title(request.message, llm, api_key)
-                await update_session_title(db, session_id, new_title)
-                await llm.aclose()
+                try:
+                    new_title = await generate_title(request.message, llm, api_key)
+                    await update_session_title(db, session_id, new_title)
+                finally:
+                    # aclose в finally — даже если generate_title упал,
+                    # httpx connection корректно закроется (не leak).
+                    await llm.aclose()
             except Exception:
-                logger.warning("Auto-title background task failed for session %s", session_id)
+                logger.warning(
+                    "Auto-title background task failed for session %s",
+                    session_id,
+                    exc_info=True,
+                )
 
-        asyncio.create_task(_run_auto_title())
+        task = asyncio.create_task(
+            _run_auto_title(),
+            name=f"auto_title_{session_id}",
+        )
+        # Защита от GC: храним ссылку до завершения task'а.
+        _AUTO_TITLE_TASKS.add(task)
+        task.add_done_callback(_AUTO_TITLE_TASKS.discard)
 
     # Sprint 1 (Hermes): post-turn memory sync + trajectory log.
     # Best-effort — exceptions logged, не roняют ответ пользователю.
