@@ -112,10 +112,12 @@ class TestDefaultEndpointAndModel:
         s = _settings()
         assert s.default_llm_endpoint == "https://integrate.api.nvidia.com/v1"
 
-    def test_default_model_is_deepseek_v4_flash(self) -> None:
-        """P3.1 rev3: дефолтная модель — DeepSeek V4 Flash через NVIDIA NIM."""
+    def test_default_model_is_nemotron_super_49b(self) -> None:
+        """v1.4.4 (2026-05-24): default переключён на Nemotron Super 49B —
+        тёплая компактная модель (1-3s), пока DeepSeek V4 cold-start > 30s.
+        DeepSeek V4 остаётся через ModelBadge popover."""
         s = _settings()
-        assert s.default_llm_model == "deepseek-ai/deepseek-v4-flash"
+        assert s.default_llm_model == "nvidia/llama-3.3-nemotron-super-49b-v1.5"
 
     def test_cloud_ru_field_exists(self) -> None:
         """default_llm_api_key_cloud_ru — обязательное поле Settings."""

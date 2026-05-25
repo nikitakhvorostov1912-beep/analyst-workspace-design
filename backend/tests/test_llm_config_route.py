@@ -48,7 +48,9 @@ async def test_get_empty_returns_default_when_nvidia_key_in_env(
         assert data is not None, "ожидался дефолт, а не null"
         assert data["id"] == "default"
         assert data["endpoint"] == "https://integrate.api.nvidia.com/v1"
-        assert data["model"] == "deepseek-ai/deepseek-v4-flash"
+        # v1.4.4 (2026-05-24): default переключён с deepseek-v4-flash на Nemotron Super 49B
+        # из-за cold-start больших MoE > 30s. См. config.py:175-179.
+        assert data["model"] == "nvidia/llama-3.3-nemotron-super-49b-v1.5"
         assert data["has_env_api_key"] is True
         assert data["updated_at"] is None  # БД пуста → нет реальной даты
     finally:

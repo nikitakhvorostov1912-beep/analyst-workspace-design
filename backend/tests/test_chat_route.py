@@ -318,7 +318,9 @@ async def test_chat_llm_429_returns_rate_limit_with_retry_after_s(client: AsyncC
     # Создаём канал через API чтобы использовать БД приложения
     create_resp = await client.post(
         "/connections",
-        json={"name": "Тест 429", "endpoint": "http://fake-mcp/mcp"},
+        # SEC-1 SSRF guard: hostname "fake-mcp" может резолвиться через Windows DNS suffix
+        # в loopback-диапазон (127.0.0.200) и блокироваться. Используем явный 127.0.0.1.
+        json={"name": "Тест 429", "endpoint": "http://127.0.0.1:9999/mcp"},
     )
     assert create_resp.status_code == 201
     channel_id = create_resp.json()["id"]

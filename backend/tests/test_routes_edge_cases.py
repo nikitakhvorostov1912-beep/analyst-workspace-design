@@ -170,10 +170,12 @@ async def test_connections_ping_mcp_error_502(client: AsyncClient, monkeypatch):
 
     monkeypatch.setattr(connections_module, "MCPClient", BrokenMCPClient)
 
-    # Создаём connection
+    # Создаём connection.
+    # SEC-1 SSRF guard блокирует произвольные hostnames, разрешает только loopback/private (см. mcp_endpoint_validator.py).
+    # Используем 127.0.0.1 как разрешённый адрес — MCP всё равно не ответит (BrokenMCPClient мок).
     create_resp = await client.post(
         "/connections",
-        json={"name": "Broken", "endpoint": "http://broken:9999/mcp"},
+        json={"name": "Broken", "endpoint": "http://127.0.0.1:9999/mcp"},
     )
     assert create_resp.status_code == 201
     conn_id = create_resp.json()["id"]
@@ -181,6 +183,60 @@ async def test_connections_ping_mcp_error_502(client: AsyncClient, monkeypatch):
     # Ping должен вернуть 502
     ping_resp = await client.post(f"/connections/{conn_id}/ping")
     assert ping_resp.status_code == 502
+
+
+# ---------------------------------------------------------------------------
+# SEC-LOGINJ (M-K0.9 re-audit): X-Request-Id log injection
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "malicious_header",
+    [
+        # JSON escape — кавычка ломает formatter `"request": "%(request_id)s"`
+        'foo","level":"CRITICAL","injected":"yes',
+        # CRLF — добавить целую новую строку в лог
+        "foo\r\nFAKE LOG LINE",
+        # Newline alone
+        "foo\nFAKE",
+        # Control char NUL
+        "foo\x00bar",
+        # Слишком длинный (> 64) — должен быть отвергнут
+        "a" * 65,
+        # Пустой не должен браться
+        "",
+    ],
+)
+async def test_request_id_log_injection_blocked(client: AsyncClient, malicious_header: str):
+    """SEC-LOGINJ: middleware валидирует X-Request-Id и не пропускает
+    кавычки / CRLF / unicode controls в JSON formatter — иначе атакующий
+    мог бы инжектить произвольные log lines.
+
+    Невалидный header → backend генерирует свой uuid (12 hex chars).
+    """
+    response = await client.get("/health", headers={"X-Request-Id": malicious_header})
+    assert response.status_code == 200
+    returned = response.headers.get("X-Request-Id", "")
+    # Невалидный header → backend подменил на собственный uuid (regex matches).
+    import re as _re
+    assert _re.fullmatch(r"[a-zA-Z0-9_\-]{1,64}", returned), (
+        f"X-Request-Id содержит небезопасные символы: {returned!r}"
+    )
+    # И уж точно — не вернул присланную малицию буква в букву.
+    assert returned != malicious_header, (
+        f"Backend echo-нул небезопасный header вместо генерации: {returned!r}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_request_id_valid_header_preserved(client: AsyncClient):
+    """SEC-LOGINJ: валидный X-Request-Id (alphanumeric + dash/underscore)
+    должен сохраниться без изменений — для трассировки через сервисы."""
+    valid = "trace-abc-123_XYZ"
+    response = await client.get("/health", headers={"X-Request-Id": valid})
+    assert response.status_code == 200
+    assert response.headers.get("X-Request-Id") == valid
 
 
 # ---------------------------------------------------------------------------

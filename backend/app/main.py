@@ -1,4 +1,5 @@
 import logging
+import re
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -41,6 +42,12 @@ logging.basicConfig(
 for _handler in logging.getLogger().handlers:
     _handler.addFilter(ContextFilter())
 logger = logging.getLogger(__name__)
+
+# SEC-LOGINJ (M-K0.9 re-audit): whitelist для X-Request-Id.
+# Только ASCII letters/digits/underscore/hyphen, длина 1..64.
+# Защищает JSON formatter `"request": "%(request_id)s"` от log injection
+# через кавычки / CRLF / unicode controls в incoming header.
+_VALID_REQUEST_ID = re.compile(r"[a-zA-Z0-9_\-]{1,64}")
 
 
 @asynccontextmanager
@@ -117,10 +124,16 @@ def create_app() -> FastAPI:
     # позволяет фильтровать логи по конкретному запросу при диагностике.
     # Также: уважаем входящий заголовок X-Request-Id если он есть (для
     # трассировки через несколько сервисов / Electron→backend).
+    #
+    # SEC-LOGINJ (M-K0.9 re-audit, confidence 80): incoming X-Request-Id
+    # вставляется в JSON-formatter `"request": "%(request_id)s"`. Если в нём
+    # есть `"` или `\n` — следующая строка лога ломается / атакующий может
+    # внедрить произвольный JSON. Жёсткий whitelist: только `[a-zA-Z0-9_\-]{1,64}`.
+    # Невалидный заголовок → генерируем свой uuid (не падаем).
     @app.middleware("http")
     async def _request_id_middleware(request: Request, call_next):
-        incoming = request.headers.get("X-Request-Id")
-        req_id = incoming if incoming and len(incoming) <= 64 else generate_request_id()
+        incoming = request.headers.get("X-Request-Id", "")
+        req_id = incoming if _VALID_REQUEST_ID.fullmatch(incoming) else generate_request_id()
         token = request_id_var.set(req_id)
         try:
             response = await call_next(request)

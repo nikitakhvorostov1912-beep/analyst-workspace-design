@@ -73,6 +73,24 @@ _THREAT_PATTERNS: list[tuple[re.Pattern[str], str]] = [
 ]
 
 
+# SEC-3 re-audit (M-K0.9): zero-width / format characters обходили regex,
+# вставляясь между букв ключевого слова: `i​gnore​previous` не матчил
+# `\bignore\s+previous\b` потому что NFKD не удаляет U+200B (ZWSP), U+200C (ZWNJ),
+# U+200D (ZWJ), U+FEFF (BOM), U+2060 (WJ) и bidi controls U+202A..U+202E, U+2066..U+2069.
+# Confidence: 78 (HIGH). Фикс — strip перед нормализацией только для scan-pass.
+_INVISIBLE_RE = re.compile(
+    r"[​-‏‪-‮⁠-⁤⁦-⁩﻿]"
+)
+
+
+def _strip_invisibles(text: str) -> str:
+    """Удалить zero-width / format / bidi-override символы.
+
+    Не применяется к оригиналу — только к canonical форме для scan/sanitize.
+    """
+    return _INVISIBLE_RE.sub("", text)
+
+
 def _normalize(text: str) -> str:
     """SEC-3: канонизация unicode для defeats homoglyph-атак.
 
@@ -81,9 +99,12 @@ def _normalize(text: str) -> str:
     homoglyphs (NFKD не превратит кириллическую `о` в латинскую `o`), но
     закрывает большой класс fullwidth/circled/superscript injection-tricks.
 
+    SEC-3 re-audit: перед NFKD удаляем zero-width / bidi controls — иначе
+    `i\\u200Bgnore` обходил бы regex `\\bignore\\s+...`.
+
     Также lower-case применяется самими паттернами (re.IGNORECASE).
     """
-    return unicodedata.normalize("NFKD", text or "")
+    return unicodedata.normalize("NFKD", _strip_invisibles(text or ""))
 
 
 # SEC-3: ручной алиас-map для cross-script homoglyph defense.
