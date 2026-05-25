@@ -1343,20 +1343,35 @@ async def run_chat_loop(
                         multi=multi,
                         allow_custom=True,
                     ))
+                    # BE-4 (M-K0.2, 2026-05-25): try/finally вокруг wait_for.
+                    # Раньше: только except (TimeoutError, CancelledError) →
+                    # при GeneratorExit (browser tab close, AbortController)
+                    # CancelledError поднимался до try-блока, CLARIFY.cancel
+                    # НЕ вызывался, PendingClarify оставался в registry навсегда.
+                    # CLARIFY.active_count() рос до restart backend.
+                    # Теперь: finally гарантирует cleanup в любом исходе
+                    # (success / timeout / cancel / GeneratorExit / unexpected).
+                    # CLARIFY.cancel idempotent — повторный вызов после resolve
+                    # вернёт False и не упадёт.
                     try:
-                        answer = await asyncio.wait_for(
-                            pending.future, timeout=CLARIFY_TIMEOUT_S
-                        )
-                    except (TimeoutError, asyncio.CancelledError):
+                        try:
+                            answer = await asyncio.wait_for(
+                                pending.future, timeout=CLARIFY_TIMEOUT_S
+                            )
+                        except (TimeoutError, asyncio.CancelledError):
+                            yield format_sse("error", ErrorEvent(
+                                message=(
+                                    f"Уточнение не получено за "
+                                    f"{int(CLARIFY_TIMEOUT_S / 60)} минут."
+                                ),
+                                code="clarify_timeout",
+                            ))
+                            return
+                    finally:
+                        # ГАРАНТИРОВАННЫЙ cleanup — защита от leak при любом
+                        # завершении (timeout / cancel / GeneratorExit /
+                        # успешный resolve).
                         CLARIFY.cancel(clarify_id)
-                        yield format_sse("error", ErrorEvent(
-                            message=(
-                                f"Уточнение не получено за "
-                                f"{int(CLARIFY_TIMEOUT_S / 60)} минут."
-                            ),
-                            code="clarify_timeout",
-                        ))
-                        return
 
                     duration_ms = int((time.monotonic() - start_ts) * 1000)
                     answer_str = (
