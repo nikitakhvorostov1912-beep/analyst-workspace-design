@@ -509,3 +509,76 @@ async def test_loop_tool_args_accumulate_across_chunks(mem_db, monkeypatch):
     tool_call_events = [e for e in events if e["event"] == "tool_call"]
     assert tool_call_events
     assert tool_call_events[0]["data"]["args"] == {"query": "SELECT 1"}
+
+
+# --- PERF-2 regression guard: LLMClient reuse через все итерации ---
+
+@pytest.mark.asyncio
+async def test_loop_llm_client_instantiated_once_across_iterations(mem_db, monkeypatch):
+    """PERF-2 (M-K0.3): LLMClient создаётся ровно ОДИН раз на весь loop,
+    даже если tool-calling делает 3+ итерации.
+
+    До PERF-2: LLMClient(...) вызывался ВНУТРИ while True — новый httpx
+    pool на каждой итерации (TCP handshake + TLS warmup × N).
+
+    После PERF-2: один экземпляр на loop, переиспользует httpx connection pool.
+    aclose выполняется ровно один раз в outer finally.
+    """
+    import app.orchestrator.loop as loop_module
+
+    init_count = [0]
+    aclose_count = [0]
+    stream_count = [0]
+
+    class CountingLLM:
+        def __init__(self, *a, **kw):
+            init_count[0] += 1
+
+        def stream_chat_completion(self, *a, **kw):
+            stream_count[0] += 1
+            # 3 итерации: tool → tool → text
+            if stream_count[0] == 1:
+                return stub_llm_stream(
+                    make_tool_call_chunk(0, "tc1", "get_metadata", "{}"),
+                    make_tool_calls_finish_chunk(),
+                )
+            if stream_count[0] == 2:
+                return stub_llm_stream(
+                    make_tool_call_chunk(0, "tc2", "execute_query", '{"query":"SELECT 1"}'),
+                    make_tool_calls_finish_chunk(),
+                )
+            return stub_llm_stream(make_text_chunk("Готово"), make_stop_chunk())
+
+        async def aclose(self):
+            aclose_count[0] += 1
+
+    fake_mcp = FakeMCPClient(
+        tool_map={
+            "get_metadata": {"summary": {"catalogs": 1}},
+            "execute_query": {"columns": [], "rows": []},
+        }
+    )
+    monkeypatch.setattr(loop_module, "LLMClient", CountingLLM)
+    monkeypatch.setattr(loop_module, "MCPClient", lambda *a, **kw: fake_mcp)
+
+    request = make_request()
+    events = await collect_sse(loop_module.run_chat_loop(
+        mem_db, request, "api-key", "http://llm", "model"
+    ))
+
+    # Sanity: реально было 3 итерации
+    assert stream_count[0] == 3, f"Ожидали 3 итерации stream, получили {stream_count[0]}"
+
+    # PERF-2 contract: __init__ ровно один раз
+    assert init_count[0] == 1, (
+        f"PERF-2 регрессия: LLMClient инстанцировался {init_count[0]} раз "
+        f"вместо 1 — httpx pool пересоздаётся на каждой итерации"
+    )
+    # aclose тоже один раз — в outer finally
+    assert aclose_count[0] == 1, (
+        f"LLMClient.aclose() вызван {aclose_count[0]} раз вместо 1 "
+        f"(должен быть единственный — в outer finally)"
+    )
+
+    # Loop отработал нормально
+    assert "done" in [e["event"] for e in events]

@@ -1054,19 +1054,18 @@ async def run_chat_loop(
             )
             aux_compressor_client = None
 
-    # W1.5 verified (2026-05-22): аудит подозревал утечку LLMClient при
-    # GeneratorExit (закрытие SSE — навигация / browser tab close / AbortController).
-    # Проверено:
-    # - LLMClient инстанцируется per-iteration (loop.py:654) и закрывается
-    #   в inner try/finally (loop.py:704-705) — даже при exception/cancel
-    #   соответствующий .aclose() гарантированно вызывается.
-    # - AuxiliaryClient (auxiliary.py:87) использует `async with httpx.AsyncClient`
-    #   per-call — state не хранит, утечки нет.
-    # - outer finally (loop.py:1056-1059) закрывает только mcp; этого достаточно
-    #   потому что LLMClient уже закрыт в inner блоке.
-    # Если в будущем AuxiliaryClient перейдёт на reuse httpx (W3.4 perf
-    # optimization) — обязательно добавить здесь outer finally блок для его
-    # aclose().
+    # PERF-2 (M-K0.3): один LLMClient на весь loop вместо нового на каждой
+    # итерации. Tool-calling типично занимает 2-10 итераций; раньше каждая
+    # пересоздавала httpx.AsyncClient (TCP handshake + TLS + connection pool
+    # warmup) — заметная задержка на cold open. Endpoint и model константны
+    # на всём loop'е (effective_llm_model вычисляется выше в _resolve_effective_model),
+    # поэтому reuse безопасен.
+    #
+    # Lifecycle: создаём ДО outer try чтобы покрыть его finally — aclose()
+    # выполнится при любом завершении generator'а (success, exception,
+    # GeneratorExit при закрытии SSE на навигации браузера).
+    llm = LLMClient(endpoint=llm_endpoint, model=effective_llm_model)
+
     try:
         while True:
             # --- Iteration budget gate ---
@@ -1120,58 +1119,56 @@ async def run_chat_loop(
             think_scrubber = ThinkScrubber()
 
             try:
-                llm = LLMClient(endpoint=llm_endpoint, model=effective_llm_model)
-                try:
-                    async for chunk in llm.stream_chat_completion(
-                        messages=messages,
-                        api_key=api_key,
-                        tools=openai_tools if openai_tools else None,
-                    ):
-                        delta = chunk.get("delta", {})
+                # PERF-2: llm уже создан ДО outer try, переиспользуем connection
+                # pool httpx на всех итерациях. aclose в outer finally.
+                async for chunk in llm.stream_chat_completion(
+                    messages=messages,
+                    api_key=api_key,
+                    tools=openai_tools if openai_tools else None,
+                ):
+                    delta = chunk.get("delta", {})
 
-                        # Накапливаем текстовый контент
-                        content_piece = delta.get("content")
-                        if content_piece:
-                            # Sprint 4 (G7): прячем <think>/<thinking>/<reasoning> теги
-                            # из streamed view; в accumulated_content тоже идёт уже clean.
-                            safe_piece = think_scrubber.feed(content_piece)
-                            chunk_content += safe_piece
-                            if safe_piece:
-                                yield format_sse("delta", DeltaEvent(content=safe_piece))
+                    # Накапливаем текстовый контент
+                    content_piece = delta.get("content")
+                    if content_piece:
+                        # Sprint 4 (G7): прячем <think>/<thinking>/<reasoning> теги
+                        # из streamed view; в accumulated_content тоже идёт уже clean.
+                        safe_piece = think_scrubber.feed(content_piece)
+                        chunk_content += safe_piece
+                        if safe_piece:
+                            yield format_sse("delta", DeltaEvent(content=safe_piece))
 
-                        # Reasoning-content (Xiaomi MiMo, DeepSeek R1) — для thinking mode:
-                        # модель требует вернуть свой reasoning обратно в следующем round
-                        # вместе с tool_calls (иначе 400 "Param Incorrect").
-                        # Юзеру не показываем — это внутренняя цепь рассуждений.
-                        reasoning_piece = delta.get("reasoning_content")
-                        if reasoning_piece:
-                            chunk_reasoning += reasoning_piece
+                    # Reasoning-content (Xiaomi MiMo, DeepSeek R1) — для thinking mode:
+                    # модель требует вернуть свой reasoning обратно в следующем round
+                    # вместе с tool_calls (иначе 400 "Param Incorrect").
+                    # Юзеру не показываем — это внутренняя цепь рассуждений.
+                    reasoning_piece = delta.get("reasoning_content")
+                    if reasoning_piece:
+                        chunk_reasoning += reasoning_piece
 
-                        # Накапливаем tool_calls по index (arguments приходят частями).
-                        # `or []` — некоторые LLM (Xiaomi MiMo, reasoning-модели)
-                        # возвращают `"tool_calls": null` в delta вместо отсутствующего ключа.
-                        tool_calls_delta = delta.get("tool_calls") or []
-                        for tc in tool_calls_delta:
-                            idx = tc.get("index", 0)
-                            if idx not in chunk_tool_calls:
-                                chunk_tool_calls[idx] = {
-                                    "id": tc.get("id", ""),
-                                    "name": tc.get("function", {}).get("name", ""),
-                                    "arguments": "",
-                                }
-                            if tc.get("id"):
-                                chunk_tool_calls[idx]["id"] = tc["id"]
-                            fn = tc.get("function", {})
-                            if fn.get("name"):
-                                chunk_tool_calls[idx]["name"] = fn["name"]
-                            if fn.get("arguments"):
-                                chunk_tool_calls[idx]["arguments"] += fn["arguments"]
+                    # Накапливаем tool_calls по index (arguments приходят частями).
+                    # `or []` — некоторые LLM (Xiaomi MiMo, reasoning-модели)
+                    # возвращают `"tool_calls": null` в delta вместо отсутствующего ключа.
+                    tool_calls_delta = delta.get("tool_calls") or []
+                    for tc in tool_calls_delta:
+                        idx = tc.get("index", 0)
+                        if idx not in chunk_tool_calls:
+                            chunk_tool_calls[idx] = {
+                                "id": tc.get("id", ""),
+                                "name": tc.get("function", {}).get("name", ""),
+                                "arguments": "",
+                            }
+                        if tc.get("id"):
+                            chunk_tool_calls[idx]["id"] = tc["id"]
+                        fn = tc.get("function", {})
+                        if fn.get("name"):
+                            chunk_tool_calls[idx]["name"] = fn["name"]
+                        if fn.get("arguments"):
+                            chunk_tool_calls[idx]["arguments"] += fn["arguments"]
 
-                        fr = chunk.get("finish_reason")
-                        if fr:
-                            finish_reason = fr
-                finally:
-                    await llm.aclose()
+                    fr = chunk.get("finish_reason")
+                    if fr:
+                        finish_reason = fr
             except LLMRateLimitError as exc:
                 logger.warning("LLM rate limit (429): retry_after_s=%s", exc.retry_after_s)
                 yield format_sse("error", ErrorEvent(
@@ -1473,6 +1470,12 @@ async def run_chat_loop(
         # Sprint 2 (C9): снимаем флаг interrupt — даже если loop завершился сам.
         INTERRUPTS.clear(session_id)
         await mcp.aclose()
+        # PERF-2 (M-K0.3): закрываем переиспользуемый LLMClient (httpx pool).
+        # Best-effort — если aclose упадёт, mcp/aux всё равно должны закрыться.
+        try:
+            await llm.aclose()
+        except Exception:
+            logger.debug("LLMClient.aclose() в finally упал — игнорируем", exc_info=True)
         # W3.4 (2026-05-22): aux_compressor_client теперь реально stateful
         # (переиспользуемый httpx). Закрываем в finally чтобы httpx connection
         # pool не оставался открытым после завершения loop.
