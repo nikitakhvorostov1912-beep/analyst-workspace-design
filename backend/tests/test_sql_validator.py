@@ -63,7 +63,7 @@ class TestAllowedQueries:
     @pytest.mark.parametrize(
         "query",
         [
-            "WITH cte AS (SELECT * FROM users) SELECT * FROM cte",
+            # SEC-4 (M-K0): WITH удалён из allow-list (см. ниже отдельный тест).
             "EXPLAIN SELECT * FROM users",
             "EXPLAIN ANALYZE SELECT id FROM accounts",
             "SHOW TABLES",
@@ -74,6 +74,66 @@ class TestAllowedQueries:
     def test_other_readonly_passes(self, query: str) -> None:
         result = validate_query(query)
         assert result.status == ValidationStatus.OK, f"expected OK for {query!r}, got {result}"
+
+
+# ===== SEC-4: CTE (WITH) теперь BLOCKED как первый токен =====
+
+
+class TestSEC4WithCteBlocked:
+    """SEC-4 (M-K0): WITH удалён из allow-list.
+
+    Раньше `WITH cte AS (INSERT...RETURNING) SELECT * FROM cte` обходил
+    first-token check. Решение: запретить WITH совсем (1С не использует;
+    direct-SQL WITH+SELECT переписывается как обычный SELECT).
+
+    Plus RETURNING добавлен в forbidden keywords для defence-in-depth.
+    """
+
+    def test_with_cte_select_blocked(self) -> None:
+        """Даже легитимный read-only WITH...SELECT теперь BLOCKED."""
+        result = validate_query(
+            "WITH cte AS (SELECT * FROM users) SELECT * FROM cte"
+        )
+        assert result.status == ValidationStatus.BLOCKED
+        assert "WITH" in result.reason or "не разрешён" in result.reason
+
+    def test_with_cte_insert_returning_bypass_blocked(self) -> None:
+        """Главная атака: WITH cte AS (INSERT...RETURNING) SELECT — bypass."""
+        result = validate_query(
+            "WITH cte AS (INSERT INTO users VALUES (1, 'evil') RETURNING id) "
+            "SELECT * FROM cte"
+        )
+        assert result.status == ValidationStatus.BLOCKED
+
+    def test_with_cte_update_returning_blocked(self) -> None:
+        result = validate_query(
+            "WITH cte AS (UPDATE users SET role='admin' WHERE id=1 RETURNING id) "
+            "SELECT * FROM cte"
+        )
+        assert result.status == ValidationStatus.BLOCKED
+
+    def test_with_cte_delete_returning_blocked(self) -> None:
+        result = validate_query(
+            "WITH cte AS (DELETE FROM users WHERE id=1 RETURNING id) "
+            "SELECT * FROM cte"
+        )
+        assert result.status == ValidationStatus.BLOCKED
+
+    def test_returning_in_plain_select_blocked(self) -> None:
+        """RETURNING вне CTE — тоже сигнал DML, blocked."""
+        # Селект не должен содержать RETURNING — это глагол DML.
+        result = validate_query(
+            "INSERT INTO users VALUES (1, 'evil') RETURNING id"
+        )
+        assert result.status == ValidationStatus.BLOCKED
+
+    def test_lowercase_with_blocked(self) -> None:
+        """Регистр-инсенситивно — WITH/with/With все BLOCKED."""
+        for variant in ("with", "With", "WITH", "wItH"):
+            result = validate_query(f"{variant} cte AS (SELECT 1) SELECT * FROM cte")
+            assert result.status == ValidationStatus.BLOCKED, (
+                f"variant {variant!r} прошёл (должен быть BLOCKED)"
+            )
 
 
 # ===== Negative: DML/DDL должны быть BLOCKED =====

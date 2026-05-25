@@ -50,10 +50,15 @@ except ImportError:  # pragma: no cover
 # Разрешённые «глаголы» — только read-only запросы.
 # Включаем русские (язык запросов 1С) + английские (DBMS direct, на случай
 # escape hatch через MCP Toolkit).
+#
+# SEC-4 (M-K0): WITH удалён из allow-list. CTE-форма `WITH cte AS (INSERT...
+# RETURNING ...) SELECT * FROM cte` позволяла обходить first-token check —
+# первый токен был WITH (разрешён), а DML внутри CTE срабатывал на DBMS.
+# 1С-язык запросов WITH не использует; direct-SQL WITH...SELECT перепишется
+# как обычный SELECT с подзапросами.
 _ALLOWED_FIRST_TOKENS: frozenset[str] = frozenset(
     {
         "SELECT",
-        "WITH",  # CTE начинается с WITH ... SELECT (read-only)
         "ВЫБРАТЬ",
         "SHOW",  # информация о схеме, read-only
         "DESCRIBE",
@@ -82,6 +87,10 @@ _FORBIDDEN_KEYWORDS: frozenset[str] = frozenset(
         "CALL",
         "MERGE",
         "REPLACE",
+        # SEC-4 (M-K0): RETURNING — это PostgreSQL/SQLite 3.35+ ключевое слово
+        # для возврата изменённых строк из INSERT/UPDATE/DELETE. Не имеет
+        # смысла в read-only запросе, но было «дыркой» в WITH-cte bypass.
+        "RETURNING",
         # Stored procedures / dynamic SQL
         "SP_EXECUTESQL",
         "XP_CMDSHELL",
