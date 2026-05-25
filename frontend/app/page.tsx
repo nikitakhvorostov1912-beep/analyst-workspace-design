@@ -14,6 +14,38 @@ import { MemoryHint } from "@/components/memory/MemoryHint";
 import { fetchConnections, fetchLLMConfig } from "@/lib/api";
 import { useBackendHealth } from "@/lib/use-backend-health";
 import { BackendDownBanner } from "@/components/shell/BackendDownBanner";
+
+// 2026-05-25: таймаут на initial bootstrap-fetch чтобы Skeleton не висел
+// вечно если backend подвис (memory leak / event loop blocked / asyncio
+// fire-and-forget deadlock — см. M-K0 Wave 1, BE-1..BE-4).
+//
+// Раньше fetchConnections/fetchLLMConfig вызывались без timeout/signal —
+// при подвисшем backend Promise.all не резолвился, ready=false навсегда,
+// у пользователя чёрный экран с тремя серыми skeleton-полосками без
+// возможности что-либо сделать. Закрыть приложение можно было только
+// через Task Manager.
+//
+// Теперь после INIT_FETCH_TIMEOUT_MS падаем в catch → setReady(true).
+// `useBackendHealth` (отдельный hook с пингом /health каждые ~5 c) подцепит
+// факт что backend лежит и покажет BackendDownBanner с кнопкой Retry.
+// Пользователь как минимум видит UI и может попробовать перезайти.
+const INIT_FETCH_TIMEOUT_MS = 10_000;
+
+class InitFetchTimeoutError extends Error {
+  constructor() {
+    super(`Backend не ответил за ${INIT_FETCH_TIMEOUT_MS / 1000} с`);
+    this.name = "InitFetchTimeoutError";
+  }
+}
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) =>
+      setTimeout(() => reject(new InitFetchTimeoutError()), ms),
+    ),
+  ]);
+}
 import { migrateLegacyApiKey } from "@/lib/api-keys";
 import { useSessionsStore } from "@/lib/sessions-store";
 import { getActiveChannelId, setActiveChannelId } from "@/lib/storage";
@@ -56,11 +88,13 @@ export default function HomePage() {
       const flag = getOnboardingCompleted();
 
       try {
-        // Загружаем актуальные данные из backend (source-of-truth, Plan 5.4 UX-04)
-        const [conns, llm] = await Promise.all([
-          fetchConnections(),
-          fetchLLMConfig(),
-        ]);
+        // Загружаем актуальные данные из backend (source-of-truth, Plan 5.4 UX-04).
+        // 2026-05-25: с таймаутом INIT_FETCH_TIMEOUT_MS — иначе подвисший
+        // backend оставлял Skeleton навсегда (см. комментарий к константе).
+        const [conns, llm] = await withTimeout(
+          Promise.all([fetchConnections(), fetchLLMConfig()]),
+          INIT_FETCH_TIMEOUT_MS,
+        );
         if (cancelled) return;
 
         const hasBoth = conns.length > 0 && llm !== null;
@@ -100,9 +134,19 @@ export default function HomePage() {
             setLocalActiveChannelId(firstId);
           }
         }
-      } catch {
-        // Backend недоступен — не блокируем пользователя onboarding'ом
+      } catch (err) {
+        // Backend недоступен (HTTP-ошибка ИЛИ таймаут) — не блокируем
+        // пользователя onboarding'ом и не оставляем Skeleton навсегда.
+        // BackendDownBanner внизу страницы сам подцепит факт что бэк лежит.
         if (!cancelled) {
+          if (err instanceof InitFetchTimeoutError) {
+            // Сигнализируем в console — для разработчика в DevTools
+            // (production-сборка console.error всё равно собирает).
+            console.error(
+              "[HomePage] initial fetch timed out — backend hung. " +
+                "Showing UI with empty state.",
+            );
+          }
           setShowOnboarding(false);
           setHasConfig(false);
         }
@@ -135,11 +179,16 @@ export default function HomePage() {
     void store.refresh();
   }
 
-  // Перезагружает состояние после завершения onboarding (Plan 5.4: backend source-of-truth)
+  // Перезагружает состояние после завершения onboarding (Plan 5.4: backend source-of-truth).
+  // 2026-05-25: тот же withTimeout что в initial useEffect — иначе после
+  // onboarding'а можно было снова уйти в висящий fetch и потерять контроль над UI.
   function refreshAfterOnboarding() {
     void (async () => {
       try {
-        const [conns, llm] = await Promise.all([fetchConnections(), fetchLLMConfig()]);
+        const [conns, llm] = await withTimeout(
+          Promise.all([fetchConnections(), fetchLLMConfig()]),
+          INIT_FETCH_TIMEOUT_MS,
+        );
         setHasConfig(conns.length > 0 && llm !== null);
       } catch {
         setHasConfig(false);
