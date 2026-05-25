@@ -111,23 +111,49 @@ async def chat(
         except Exception as exc:  # noqa: BLE001 — БД может быть недоступна на старте
             logger.warning("get_user_secret(%s) failed: %s", provider_id, exc)
 
-    effective_api_key = (
-        stored_key
-        or (x_llm_api_key or "").strip()
-        or settings.resolve_default_api_key(llm_endpoint)
-    )
+    # SEC-12 (M-K0, 2026-05-25): отслеживаем какой путь сработал, чтобы
+    # отдать Deprecation header если это header path.
+    header_key_used = False
+    stripped_header_key = (x_llm_api_key or "").strip()
+    if stored_key:
+        effective_api_key = stored_key
+    elif stripped_header_key:
+        effective_api_key = stripped_header_key
+        header_key_used = True
+    else:
+        effective_api_key = settings.resolve_default_api_key(llm_endpoint)
+
     if not effective_api_key:
         raise HTTPException(status_code=400, detail="missing api key")
 
     anon_enabled = (x_anon_enabled or "").strip().lower() == "true"
 
+    # SEC-12: response headers — Cache-Control + opt-in Deprecation hint.
+    response_headers: dict[str, str] = {
+        "Cache-Control": "no-cache",
+        "X-Accel-Buffering": "no",
+    }
+    if header_key_used:
+        # RFC 8594 (Sunset Header) + Deprecation indicator. Frontend / админ
+        # видит warning в Network tab и в response headers. После v1.5.0
+        # этот path удалится — мигрируйте на POST /user-secrets.
+        # Дата sunset = 31.12.2026 — даёт ~7 месяцев на миграцию клиентов.
+        response_headers["Deprecation"] = "true"
+        response_headers["Sunset"] = "Thu, 31 Dec 2026 00:00:00 GMT"
+        response_headers["Link"] = (
+            '</user-secrets>; rel="successor-version"; '
+            'title="Migrate to POST /user-secrets (backend-only encrypted storage)"'
+        )
+        logger.warning(
+            "SEC-12 deprecated path: X-LLM-API-Key header used (provider=%s). "
+            "Migrate to POST /user-secrets before v1.5.0 / 2026-12-31.",
+            provider_id or "unknown",
+        )
+
     return StreamingResponse(
         run_chat_loop(db, body, effective_api_key, llm_endpoint, llm_model, x_anon_enabled=anon_enabled),
         media_type="text/event-stream",
-        headers={
-            "Cache-Control": "no-cache",
-            "X-Accel-Buffering": "no",
-        },
+        headers=response_headers,
     )
 
 

@@ -93,6 +93,80 @@ async def test_chat_missing_channel_id_returns_422(client: AsyncClient):
 
 
 @pytest.mark.asyncio
+async def test_chat_returns_deprecation_header_when_using_x_llm_api_key(
+    client: AsyncClient, monkeypatch
+):
+    """SEC-12: использование header X-LLM-API-Key → response содержит Deprecation hint.
+
+    P2.1 (2026-05-23) сделал backend-only encrypted storage через
+    POST /user-secrets. Header path оставлен как backward compat. SEC-12
+    добавляет видимый UI/admin signal что путь deprecated и будет удалён.
+
+    Headers: Deprecation: true, Sunset: ..., Link: ...
+    """
+    import app.orchestrator.loop as loop_module
+
+    class StubLLMClient:
+        def __init__(self, *_args, **_kwargs) -> None:
+            pass
+
+        def stream_chat_completion(self, *_args, **_kwargs):
+            return stub_llm_stream(make_text_chunk("hi"), make_stop_chunk())
+
+        async def aclose(self) -> None:
+            pass
+
+    monkeypatch.setattr(loop_module, "LLMClient", StubLLMClient)
+    monkeypatch.setattr(loop_module, "MCPClient", lambda *a, **kw: FakeMCPClient())
+
+    response = await client.post(
+        "/chat",
+        json={"message": "hello", "channel_id": "test-ch"},
+        headers={"X-LLM-API-Key": "test-key"},
+    )
+
+    assert response.status_code == 200
+    # SEC-12 Deprecation indicators
+    assert response.headers.get("Deprecation") == "true"
+    assert "Sunset" in response.headers
+    assert "/user-secrets" in response.headers.get("Link", "")
+
+
+@pytest.mark.asyncio
+async def test_chat_no_deprecation_header_when_using_env_key(
+    client: AsyncClient, monkeypatch
+):
+    """SEC-12: env-fallback path НЕ помечается deprecated (это legitimate path)."""
+    import app.orchestrator.loop as loop_module
+    from app.config import get_settings
+
+    class StubLLMClient:
+        def __init__(self, *_args, **_kwargs) -> None:
+            pass
+
+        def stream_chat_completion(self, *_args, **_kwargs):
+            return stub_llm_stream(make_text_chunk("hi"), make_stop_chunk())
+
+        async def aclose(self) -> None:
+            pass
+
+    monkeypatch.setattr(loop_module, "LLMClient", StubLLMClient)
+    monkeypatch.setattr(loop_module, "MCPClient", lambda *a, **kw: FakeMCPClient())
+    monkeypatch.setenv("DEFAULT_LLM_API_KEY", "env-key-fallback")
+    get_settings.cache_clear()
+
+    response = await client.post(
+        "/chat",
+        json={"message": "hi", "channel_id": "test-ch"},
+        # Намеренно НЕ передаём X-LLM-API-Key — env fallback должен сработать
+    )
+
+    assert response.status_code == 200
+    # Env path — legitimate, без Deprecation
+    assert response.headers.get("Deprecation") is None
+
+
+@pytest.mark.asyncio
 async def test_chat_returns_sse_with_status_and_delta(client: AsyncClient, monkeypatch):
     """POST /chat возвращает SSE поток с events: status, done."""
     import app.orchestrator.loop as loop_module
