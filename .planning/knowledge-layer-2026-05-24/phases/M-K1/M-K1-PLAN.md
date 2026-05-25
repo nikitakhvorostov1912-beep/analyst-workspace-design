@@ -1,9 +1,18 @@
-# M-K1 — Foundation: Decisions + Quick Wins
+# M-K1 — Foundation: Decisions + Multi-MCP + Quick Wins
 
 **Milestone:** M-K1  
-**Срок:** 1-2 недели, до **15.06.2026**  
-**Parent plan:** `../../PLAN.md`  
+**Срок:** 2-3 недели (расширено M6 handoff), до **20.07.2026**  
+**Parent plan:** `../../PLAN.md` v1.2  
+**Integrated plan:** `../../../milestones/M6-INTEGRATED-PLAN.md`  
 **Branch:** `feature/m-k1-foundation` (создаётся при kickoff)
+
+## Зафиксированные решения пользователя (2026-05-25)
+
+- **Q3 EPF first**: Phase 13a (EPF) до Phase 13b (CFE) в M-K3
+- **Q6 Dual license**: Apache 2.0 для Core + Proprietary для EPF/CFE/Rulebook
+  + tools_ui_1c GPL-3.0 как opt-in. LICENSE-* + NOTICE создаются в M-K1.
+
+См. `../../../milestones/INTEGRATION-DECISIONS.md` для деталей.
 
 ---
 
@@ -40,21 +49,38 @@
 
 ---
 
-## Phases внутри M-K1
+## Phases внутри M-K1 (объединённые с M6 Phase 12)
 
 ```
-M-K1.1 — ADR (3 решения)              [0.5d]  ●○○○○○○○○ pending
-M-K1.2 — OPEN-VS-CLOSED.md            [0.5d]  ●○○○○○○○○ pending  
-M-K1.3 — Module skeleton              [0.5d]  ●○○○○○○○○ pending
-M-K1.4 — Storage Layout (X-3)         [0.5d]  ●○○○○○○○○ pending
-M-K1.5 — Configuration Fingerprint    [0.5d]  ●○○○○○○○○ pending  (L1-4)
-M-K1.6 — Metadata Cache filler        [0.5d]  ●○○○○○○○○ pending  (L1-1)
-M-K1.7 — Object Dossier API           [1.0d]  ●○○○○○○○○ pending  (L1-2)
-M-K1.8 — UC «расскажи про объект»     [0.5d]  ●○○○○○○○○ pending  (L1-3)
-M-K1.9 — SUMMARY + smoke + handoff    [0.5d]  ●○○○○○○○○ pending
-                                       ────
-                                       5.0d  (~1-2 недели календарно)
+M-K1.1 — ADR-001..003 + ADR-004 Capability     [0.5d]  pending
+M-K1.2 — OPEN-VS-CLOSED.md + LICENSE-*+NOTICE  [0.5d]  pending  (Q6 dual)
+M-K1.3 — Module skeleton backend/app/knowledge [0.5d]  pending
+M-K1.4 — Storage Layout (X-3)                  [0.5d]  pending
+M-K1.5 — Configuration Fingerprint             [0.5d]  pending  (L1-4)
+
+— ниже M6 Phase 12 (новое) —
+M-K1.6 — MCPConnection extended fields         [1.0d]  pending  (5 полей + миграция v11)
+M-K1.7 — Capability Discovery Service          [1.5d]  pending  (M6 Phase 12.2)
+M-K1.8 — MCP Orchestrator unified registry     [2.0d]  pending  (M6 Phase 12.3)
+M-K1.9 — Backend MCP clients refactor          [1.5d]  pending  (HTTP+stdio base)
+M-K1.10 — Frontend useCapability hooks         [0.5d]  pending  (M6 Phase 12.7)
+M-K1.11 — SourceSelector refactor              [1.0d]  pending  (channel → source)
+
+— возврат к KL —
+M-K1.12 — Metadata Cache filler                [0.5d]  pending  (L1-1)
+M-K1.13 — Object Dossier API                   [1.0d]  pending  (L1-2)
+M-K1.14 — UC «расскажи про объект»             [0.5d]  pending  (L1-3)
+M-K1.15 — Seed 3 MCP (Toolkit/buddy/context)   [0.5d]  pending  (METR/EDT disabled)
+M-K1.16 — E2E smoke Multi-MCP                  [1.0d]  pending  (M6 Phase 12.11)
+M-K1.17 — SUMMARY + handoff to M-K2            [0.5d]  pending
+                                                ────
+                                                13.0d  (~2-3 недели календарно)
 ```
+
+**Расширение vs исходного M-K1 (5d → 13d):** +8 дней за счёт M6 Phase 12
+(Multi-MCP Orchestrator + Capability Discovery + SourceSelector). Это оправдано
+тем что вся последующая архитектура (M-K2 Triple RAG, M-K3 EPF/CFE) строится
+на capability-based pattern.
 
 Dependencies:
 

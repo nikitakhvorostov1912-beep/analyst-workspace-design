@@ -13,7 +13,7 @@
 |-----------|--------|--------|
 | ✅ Принято без вопросов | 9 | Влиты в M-K1..M-K5 |
 | 🔄 Слиты с моим планом | 6 | Merged как лучшее из двух |
-| ⚠️ Ждут решения пользователя | 4 | **Q&A ниже** |
+| ⚠️ Ждут решения пользователя | 2 (было 4) | Q1, Q2 (Q3✅, Q6✅ resolved) |
 | ❌ Отклонены с обоснованием | 3 | Документировано |
 
 ---
@@ -135,33 +135,51 @@
 **Влияет на:** M-K3 scope, Reference Configurations Library в M-K5.
 **Мой выбор по умолчанию:** **C** — общее ядро с фича-флагами внутри CFE.
 
-### ⚠️ Q3. EPF first или CFE first? *(блокирующий для M-K1)*
+### ✅ Q3. EPF first или CFE first? — РЕШЕНО (2026-05-25)
 
-**Варианты:**
-- **A.** EPF сначала (Phase 13a → 13b) — быстрый MVP для демо. CFE строится
-  поверх. **Рекомендуется handoff'ом.**
-- **B.** CFE сразу (Phase 13b → 13a) — полный функционал сразу. EPF потом.
-- **C.** Только CFE — отказаться от EPF (требовать установку расширения).
+**Ответ пользователя:** **A. EPF first**
 
-**Влияет на:** M-K3 порядок задач, onboarding flow, time-to-demo.
-**Мой выбор по умолчанию:** **A** — быстрее работающее демо, CFE инкрементально.
+**Что это значит:**
+- M-K3 начинаем с EPF (`АналитикLite.epf` ~3 MB) — quick start без правки конфигурации
+- CFE (`АналитикПлюс.cfe` ~8 MB) строится **поверх** EPF инкрементально:
+  - Общие модули EPF → переиспользуются в CFE
+  - Capability response → общая инфраструктура
+  - Migration EPF→CFE без потери истории сессий
+- Time-to-demo: ~2 недели после M-K0 (vs ~4 недель для CFE-first)
+- Onboarding step 1.5 (выбор EPF/CFE) — EPF как default-selected
 
-### ⚠️ Q6. Бизнес-модель / лицензирование? *(блокирующий для tools_ui_1c)*
+**Влияет на:**
+- M-K3 декомпозиция: Phase 13a (EPF) до Phase 13b (CFE)
+- Frontend onboarding text: «Начни с .epf — установка 5 секунд»
+- Marketing pitch: «Скачай файл, открой в 1С — за минуту получи AI-чат»
 
-**Контекст:** `tools_ui_1c` — GPL-3.0 (1000⭐ репо). Если включаем его как
-встроенный в EPF/CFE — наш продукт становится GPL-3.0 (виральная лицензия).
+### ✅ Q6. Бизнес-модель / лицензирование? — РЕШЕНО (2026-05-25)
 
-**Варианты:**
-- **A.** Open source MIT — придётся **убрать tools_ui_1c** или переписать
-  с нуля основные tools.
-- **B.** Коммерческий closed source — GPL-3.0 не подходит, та же проблема.
-- **C.** **Dual license** (моя рекомендация):
-  - Core (Multi-MCP, RAG, BSL LS, Knowledge Layer) — **Apache 2.0**
-  - CFE / EPF — proprietary (свой код + указание авторов заимствований)
-  - `tools_ui_1c` обработки — GPL-3.0 опт-ин (если включаем) или альтернативы
+**Ответ пользователя:** **C. Dual license**
 
-**Влияет на:** структура репо, EPF/CFE содержимое в M-K3, public marketing.
-**Мой выбор по умолчанию:** **C**.
+**Что это значит:**
+
+| Компонент | Лицензия | Где живёт |
+|-----------|----------|-----------|
+| Core: Multi-MCP, RAG, BSL LS, Knowledge Layer | **Apache 2.0** | `backend/app/*`, `frontend/*` |
+| EPF (`АналитикLite.epf`) | **Proprietary** | `epf-src/АналитикLite/` |
+| CFE (`АналитикПлюс.cfe`) | **Proprietary** | `cfe-src/АналитикПлюс/` |
+| Reference Configurations Library (L6-3) | **Proprietary** | M-K5 |
+| Diagnose rulebook (L4-1 YAML) | **Proprietary** | `backend/app/knowledge/rulebook/` |
+| `tools_ui_1c` обработки (GPL-3.0) | **Opt-in** | Установка отдельно через UI «Расширить EPF» |
+
+**Действия:**
+- Создать LICENSE-CORE (Apache 2.0) для backend/ frontend/ knowledge/
+- Создать LICENSE-EPF, LICENSE-CFE (proprietary) для EPF/CFE папок
+- Создать NOTICE с list атрибуций (БСП CC-BY-4.0, OnesTemplates, sfaqer/v8std, etc.)
+- В EPF/CFE installer — отдельная checkbox «Включить tools_ui_1c (GPL-3.0)» с
+  явным warning что это сделает их GPL-3.0 (виральная заразность)
+- Marketing: «Open core + commercial extensions» как USP
+
+**Влияет на:**
+- Структура репо в M-K1 (LICENSE-* файлы + NOTICE)
+- M-K3 EPF/CFE installer UX (opt-in checkbox)
+- Public README (открыть GitHub репо как Apache 2.0)
 
 ### Дополнительные вопросы (не блокирующие):
 
