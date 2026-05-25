@@ -31,31 +31,16 @@ import type {
 } from "./types";
 import { getLLMApiKey } from "./api-keys";
 import { parseSSEStream } from "./sse";
+// 2026-05-25 HOTFIX v1.4.7: getBackend вынесен в backend-url.ts чтобы
+// разорвать circular dependency с api-keys.ts. Раньше getBackend жил здесь,
+// api-keys.ts его импортировал, при этом api.ts импортировал getLLMApiKey
+// из api-keys.ts → cycle. В dev/vitest было OK, в Next 15 production build
+// один из re-exports становился undefined → TypeError → blank screen в
+// Electron-сборке v1.4.6. Re-export ниже сохраняет обратную совместимость
+// для модулей которые делали `import { getBackend } from "@/lib/api"`.
+import { getBackend } from "./backend-url";
 
-/**
- * Backend URL resolution priority:
- *   1. window.__BACKEND_URL__ — runtime-injected server-component в layout.tsx
- *      (актуально для Electron-сборки, где backend стартует на random порту).
- *   2. process.env.NEXT_PUBLIC_BACKEND_URL — server-side рендеринг.
- *   3. http://localhost:8010 — dev/docker fallback.
- *
- * Use getter (не const на module level), иначе значение зафиксируется в client bundle на build-time.
- *
- * Экспортируется — нужен в api-keys.ts (saveSecretToBackend / fetchSecretStatus)
- * иначе в Electron-сборке те две функции уходят на пустой prefix (process.env
- * пустой в client-bundle) и POST /user-secrets возвращает 404 → ключ якобы
- * «не сохранился», хотя backend был доступен. Исправлено 2026-05-25.
- */
-export function getBackend(): string {
-  if (typeof window !== "undefined") {
-    const w = window as Window & { __BACKEND_URL__?: string };
-    if (w.__BACKEND_URL__) return w.__BACKEND_URL__;
-  }
-  if (typeof process !== "undefined" && process.env.NEXT_PUBLIC_BACKEND_URL) {
-    return process.env.NEXT_PUBLIC_BACKEND_URL;
-  }
-  return "http://localhost:8010";
-}
+export { getBackend };
 
 /**
  * Проверяет доступность backend.

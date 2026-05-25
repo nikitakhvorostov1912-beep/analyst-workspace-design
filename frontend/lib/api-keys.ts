@@ -8,10 +8,21 @@
  *    desktop installer (см. ROADMAP Phase 7), где нет third-party XSS векторов и
  *    нет shared browser context. Trade-off: на чистом веб-деплое ключ доступен из
  *    любого JS на origin — но web-деплой не поддерживается.
+ *  - 2026-05-25 v1.4.6: добавлены backend-storage helpers (saveSecretToBackend /
+ *    fetchSecretStatus / deleteSecretFromBackend) — ключ пишется в backend
+ *    SQLite зашифрованным (AES-256 GCM через user_secrets endpoint),
+ *    переживает перезаход Electron-сборки.
+ *  - 2026-05-25 v1.4.7 HOTFIX: импорт getBackend перенесён в начало файла +
+ *    взят из lib/backend-url.ts. Раньше импорт стоял посреди файла и брался
+ *    из api.ts — это создавало circular dependency (api.ts ↔ api-keys.ts),
+ *    из-за которой production-bundle падал с TypeError на инициализации
+ *    (blank screen в Electron).
  *
  * При запуске приложения миграция переносит sessionStorage → localStorage если
  * там есть legacy ключ.
  */
+
+import { getBackend } from "./backend-url";
 
 const KEY_LLM_API_KEY = "analyst.llm_api_key";
 // Старый ключ внутри JSON в localStorage (до Plan 5.4)
@@ -54,8 +65,9 @@ export function clearLLMApiKey(): void {
  * напрямую — в Electron client-bundle это пустая строка, и POST уходил на
  * относительный URL → 404 → ключ якобы «не сохранился», хотя backend был
  * доступен. Это был главный корень бага «ключ слетает при перезаходе».
+ *
+ * v1.4.7: import getBackend перенесён в начало файла (см. шапку модуля).
  */
-import { getBackend } from "./api";
 
 export async function saveSecretToBackend(
   provider_id: string,
