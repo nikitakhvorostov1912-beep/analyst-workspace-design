@@ -557,6 +557,15 @@ async def _execute_mcp_tool(
         built = build_card_from_tool_result(tool_name, tool_args, gated_result)
         if built is not None:
             card = built
+            # BE-5 (M-K0.2, 2026-05-25): инжектируем tool_call_id в payload
+            # для точного матчинга в _persist_card_states. Раньше: при 2
+            # execute_query в одном turn _TOOL_FOR_CARD_TYPE.get("table")
+            # возвращал "execute_query" и брался ПЕРВЫЙ matching tc (break),
+            # вторая карточка получала args первого → load-more показывал
+            # неверные данные. Теперь: payload.tool_call_id уникален per card
+            # → matching по id, не по имени tool.
+            if isinstance(card.get("payload"), dict):
+                card["payload"]["tool_call_id"] = tool_id
 
     accumulated_entry = {
         "id": tool_id,
@@ -683,12 +692,29 @@ async def _persist_card_states(
 
         tool_name_for_card = _TOOL_FOR_CARD_TYPE.get(card_type, "")
 
-        # Находим соответствующий tool_call для args
+        # BE-5 (M-K0.2, 2026-05-25): сначала пытаемся точный матчинг по
+        # tool_call_id (если payload был обогащён в _execute_mcp_tool).
+        # Fallback на legacy матчинг по name — для backward compat со
+        # старыми сессиями где payload.tool_call_id отсутствует.
+        card_payload = card.get("payload", {}) if isinstance(card.get("payload"), dict) else {}
+        target_tool_call_id = card_payload.get("tool_call_id")
         card_tool_args: dict = {}
-        for tc in accumulated_tool_calls:
-            if tc.get("name") == tool_name_for_card:
-                card_tool_args = tc.get("args", {})
-                break
+
+        if target_tool_call_id:
+            # Точный матчинг — нет race при 2× execute_query в одном turn.
+            for tc in accumulated_tool_calls:
+                if tc.get("id") == target_tool_call_id:
+                    card_tool_args = tc.get("args", {})
+                    # Также обновляем tool_name_for_card на актуальный из tc,
+                    # на случай если _TOOL_FOR_CARD_TYPE неполный.
+                    tool_name_for_card = tc.get("name") or tool_name_for_card
+                    break
+        else:
+            # Legacy fallback — берём первый по имени.
+            for tc in accumulated_tool_calls:
+                if tc.get("name") == tool_name_for_card:
+                    card_tool_args = tc.get("args", {})
+                    break
 
         # Вычисляем anon_tokens если anon режим
         anon_tokens: list[str] | None = None
