@@ -4,9 +4,9 @@ status: in_progress
 started_at: "2026-05-25T10:30:00Z"
 branch: "feature/m-k0-stabilization"
 phases_total: 10
-phases_done: 3
+phases_done: 4
 findings_total: 28
-findings_done: 18
+findings_done: 20
 ---
 
 # M-K0 Stabilization — STATE
@@ -18,7 +18,7 @@ findings_done: 18
 | **M-K0.1** | **Security Wave 0 (8 findings)** | **✅ DONE** | 7 commits |
 | **M-K0.2** | **Backend Wave 1 (6 findings)** | **✅ DONE** | 5 commits |
 | **M-K0.3** | **Perf Wave 2 (3 findings)** | **✅ DONE** | 3 commits |
-| M-K0.4 | Prompts Wave 3 (3 findings, PROMPT-2 уже бонус в SEC-3) | pending | — |
+| **M-K0.4** | **Prompts Wave 3 (3 findings)** | **✅ DONE** | 2 commits (PROMPT-2 в SEC-3) |
 | M-K0.5 | Frontend Wave 4 (3 findings) | pending | — |
 | M-K0.6 | Arch Wave 5 — ARCH-2 globals | pending | — |
 | M-K0.7 | Docs+DevOps Wave 6 (4 findings) | pending | — |
@@ -28,8 +28,8 @@ findings_done: 18
 
 ## Текущая задача
 
-**M-K0.4 → PROMPT-1 Few-shot tool decision tree** (PROMPT-2 уже закрыт бонусом в SEC-3).
-Затем PROMPT-3 Memory recall trigger.
+**M-K0.5 → FE-1 prefers-reduced-motion** (CRITICAL).
+Затем FE-3 контраст --fg-4, FE-4 attachment keys.
 
 ## Commits в M-K0
 
@@ -60,7 +60,14 @@ Wave 2 Performance (3 commits):
 b1a378a PERF-3  React Context cache llm-config + connections     HIGH
 ```
 
-15 атомарных коммитов, 18 findings закрыто (8 SEC + 6 BE + 3 PERF + 1 bonus PROMPT-2).
+Wave 3 Prompts (2 commits, +1 bonus в SEC-3):
+```
+afd26a8 PROMPT-1 Few-shot tool decision tree (19 examples)       CRITICAL
+4e89944 PROMPT-3 Memory recall trigger (read first + when save)  CRITICAL
+f9807e6 PROMPT-2 уже сделан как бонус в SEC-3                    (CRITICAL)
+```
+
+17 атомарных коммитов, 20 findings закрыто (8 SEC + 6 BE + 3 PERF + 3 PROMPT).
 
 ## Findings progress
 
@@ -84,9 +91,9 @@ b1a378a PERF-3  React Context cache llm-config + connections     HIGH
 | PERF-1 | CRITICAL | SQLite single connection | ✅ done |
 | PERF-2 | CRITICAL | LLMClient recreate per iter | ✅ done |
 | PERF-3 | HIGH | 2 HTTP roundtrip per send | ✅ done |
-| PROMPT-1 | CRITICAL | Few-shot tool decision tree | pending ← следующий |
-| PROMPT-3 | CRITICAL | Memory recall trigger | pending |
-| FE-1 | CRITICAL | prefers-reduced-motion | pending |
+| PROMPT-1 | CRITICAL | Few-shot tool decision tree | ✅ done |
+| PROMPT-3 | CRITICAL | Memory recall trigger | ✅ done |
+| FE-1 | CRITICAL | prefers-reduced-motion | pending ← следующий |
 | FE-3 | HIGH | --fg-4 контраст | pending |
 | FE-4 | HIGH | attachment keys | pending |
 | ARCH-2 | HIGH | globals → contextvars | pending |
