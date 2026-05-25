@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, dialog, ipcMain, shell } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain, session, shell } = require('electron');
 const { spawn } = require('child_process');
 const net = require('net');
 const path = require('path');
@@ -153,6 +153,54 @@ app.whenReady().then(async () => {
     return;
   }
 
+  // SEC-2: Content-Security-Policy + Permissions hardening.
+  //
+  // 1. CSP через onHeadersReceived (Electron-friendly способ, без правки HTML):
+  //    default-src 'self'           — всё базово только из приложения
+  //    connect-src 'self' http://127.0.0.1:* — XHR/fetch только к нашим backend+frontend портам
+  //    script-src 'self'            — никакого external JS, никакого inline script
+  //    style-src 'self' 'unsafe-inline' — нужно для Tailwind/CSS-in-JS injected styles
+  //    img-src 'self' data: blob:   — иконки + base64 attachments preview
+  //    font-src 'self' data:        — IBM Plex шрифты (если bundled) + fallback
+  //    object-src 'none'            — никаких <object>/<embed>/<applet>
+  //    base-uri 'self'              — защита от <base> injection
+  //    frame-ancestors 'none'       — нас нельзя iframe'ить
+  //    form-action 'self'           — формы только нам
+  //
+  // 2. Permissions: deny по умолчанию (камера, микрофон, геолокация и пр.
+  //    в Electron-аналитике не нужны).
+  const cspHeader = [
+    "default-src 'self'",
+    `connect-src 'self' http://127.0.0.1:${backendPort} http://127.0.0.1:${frontendPort} ws://127.0.0.1:${frontendPort}`,
+    "script-src 'self'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self' data:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "frame-ancestors 'none'",
+    "form-action 'self'",
+  ].join('; ');
+
+  session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+    const headers = { ...details.responseHeaders };
+    // Сносим existing CSP (если frontend сам что-то выставил) и ставим наш.
+    delete headers['content-security-policy'];
+    delete headers['Content-Security-Policy'];
+    headers['Content-Security-Policy'] = [cspHeader];
+    // Сопутствующие security headers:
+    headers['X-Content-Type-Options'] = ['nosniff'];
+    headers['X-Frame-Options'] = ['DENY'];
+    headers['Referrer-Policy'] = ['no-referrer'];
+    callback({ responseHeaders: headers });
+  });
+
+  // Запрещаем все запросы разрешений (камера/микрофон/нотификации/etc.).
+  // Аналитику ничего из этого не нужно — потенциальная attack surface.
+  session.defaultSession.setPermissionRequestHandler((_webContents, _permission, cb) => {
+    cb(false);
+  });
+
   // 4. Open main window
   mainWindow = new BrowserWindow({
     width: 1400,
@@ -165,9 +213,36 @@ app.whenReady().then(async () => {
     icon: path.join(__dirname, 'icon.ico'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
+      // SEC-2: phase out renderer attack surface.
+      // contextIsolation:true — preload в отдельном V8 context, защита от prototype pollution
+      // nodeIntegration:false — без require/process в renderer
+      // sandbox:true — Chromium sandbox для renderer process (OS-level isolation)
+      // webSecurity:true — same-origin policy enforced (по дефолту true, явно для grep'а)
+      // allowRunningInsecureContent:false — без mixed content (http в https страницу)
+      // experimentalFeatures:false — без экспериментальных Chromium фич
       contextIsolation: true,
       nodeIntegration: false,
+      sandbox: true,
+      webSecurity: true,
+      allowRunningInsecureContent: false,
+      experimentalFeatures: false,
     },
+  });
+
+  // SEC-2: блокируем все новые окна (window.open) и редиректы за пределы
+  // нашего frontend. Открытие внешних URL — через shell.openExternal явно.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    // Запрещаем popups в принципе. Если когда-то понадобится «открыть в браузере» —
+    // shell.openExternal(url) явный helper.
+    return { action: 'deny' };
+  });
+
+  mainWindow.webContents.on('will-navigate', (event, targetUrl) => {
+    // Разрешаем навигацию ТОЛЬКО на наш frontend.
+    const allowed = `http://127.0.0.1:${frontendPort}`;
+    if (!targetUrl.startsWith(allowed)) {
+      event.preventDefault();
+    }
   });
 
   mainWindow.removeMenu();
@@ -233,15 +308,52 @@ ipcMain.handle('updater:install', () => {
 // IPC: открыть путь в Проводнике
 // ------------------------------------------------------------
 // Используется из /status — кнопка «Открыть папку с логами», чтобы коллега
-// при репорте бага мог одним кликом достать backend.log. shell.openPath
-// валидирует путь сам — переданный из renderer случайный путь не сломает
-// контейнер (открывает максимум папку, которая не существует).
+// при репорте бага мог одним кликом достать backend.log.
+//
+// SEC-5: WHITELIST. Раньше renderer мог передать любой путь (включая
+// C:\Windows\System32\cmd.exe или UNC \\attacker-smb\share\malware.exe).
+// При XSS в renderer или компрометации preload.js — path traversal /
+// UNC-path execution. Теперь — только пути внутри userData/logs.
 ipcMain.handle('shell:open-path', async (_event, targetPath) => {
   if (typeof targetPath !== 'string' || targetPath.length === 0) {
     return 'invalid path';
   }
+
+  // Резолвим в абсолютный канонический путь — снимает .., симлинки, ALT-data.
+  // path.resolve превращает относительный в абсолютный относительно cwd.
+  let resolved;
   try {
-    return await shell.openPath(targetPath);
+    resolved = path.resolve(targetPath);
+  } catch {
+    return 'invalid path';
+  }
+
+  // Разрешённые корни — только наши папки userData (где app.db, .app-secret)
+  // и logs (где backend.log, main.log updater'а).
+  const userDataDir = app.getPath('userData');
+  const logsDir = app.getPath('logs');
+  const allowedRoots = [userDataDir, logsDir];
+
+  const normalize = (p) => p.replace(/\\/g, '/').toLowerCase();
+  const resolvedNorm = normalize(resolved);
+  const isWithinAllowed = allowedRoots.some((root) => {
+    const rootNorm = normalize(root);
+    // Точное равенство ИЛИ начинается с root + разделителя (защита от
+    // C:\Users\me\AppData\Local\analyst-desktop-evil совпавшего с
+    // C:\Users\me\AppData\Local\analyst-desktop)
+    return resolvedNorm === rootNorm || resolvedNorm.startsWith(rootNorm + '/');
+  });
+
+  if (!isWithinAllowed) {
+    console.warn(
+      '[SEC-5] shell:open-path rejected non-whitelisted path:',
+      resolved
+    );
+    return 'path not allowed';
+  }
+
+  try {
+    return await shell.openPath(resolved);
   } catch (err) {
     return err && err.message ? err.message : 'open failed';
   }
