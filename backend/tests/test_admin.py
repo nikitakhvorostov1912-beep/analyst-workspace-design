@@ -107,3 +107,25 @@ async def test_reset_returns_only_existing_tables(client):
     assert "mcp_connections" not in cleared
     assert "llm_settings" not in cleared
     assert "schema_version" not in cleared
+
+
+@pytest.mark.asyncio
+async def test_reset_rate_limited_to_3_per_hour(client):
+    """SEC-7: 4-й вызов /admin/reset-local-db в час → 429.
+
+    Защита от:
+    - автоматический re-trigger при UI-баге
+    - double-submit
+    - DoS-попытка из корп-сети / ngrok exposure
+    """
+    headers = {"X-Confirm-Reset": "true"}
+    # Первые 3 вызова разрешены.
+    for i in range(3):
+        r = await client.post("/admin/reset-local-db", headers=headers)
+        assert r.status_code == 200, f"call #{i+1} should pass, got {r.status_code}"
+
+    # 4-й — rate-limited.
+    r4 = await client.post("/admin/reset-local-db", headers=headers)
+    assert r4.status_code == 429
+    body = r4.json()
+    assert body.get("code") == "rate_limit_exceeded" or "rate" in str(body).lower()

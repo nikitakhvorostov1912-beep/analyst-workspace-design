@@ -64,6 +64,22 @@ def _reset_pending():
         pass
 
 
+@pytest.fixture(autouse=True)
+def _reset_rate_limiter():
+    """Сбрасываем slowapi limiter между тестами.
+
+    SEC-7 (M-K0): /admin/reset-local-db лимитирован 3/hour. Без сброса
+    после 3 тестов 4-й бы упал с 429. Также чистит счётчики /chat
+    (был установлен раньше для W1.4 = 30/minute).
+    """
+    yield
+    try:
+        from app.routes.chat import chat_limiter
+        chat_limiter.reset()
+    except (ImportError, AttributeError):
+        pass
+
+
 @pytest_asyncio.fixture
 async def db():
     """Отдельное aiosqlite соединение для тестов БД."""

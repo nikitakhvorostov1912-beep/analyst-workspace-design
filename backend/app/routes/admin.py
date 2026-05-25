@@ -5,14 +5,28 @@ Phase 9.1: POST /admin/reset-local-db — очищает все данные п�
 подключений (mcp_connections) и LLM (llm_settings).
 
 Requires explicit `X-Confirm-Reset: true` header to prevent accidental calls.
+
+SEC-7 (M-K0, 2026-05-25): добавлен rate-limit 3/hour. Destructive endpoint
+не должен вызываться часто — это backup/restore сценарий, не «нажми кнопку
+если запутался». Защита от:
+- автоматический re-trigger при UI-баге
+- случайный double-submit (нажал кнопку, страница reload)
+- worst-case: атакующий через ngrok/RDP / в корп-сети находит endpoint
+  и пытается заDDoS-ить wipe operation.
 """
 
 import logging
 from typing import Annotated
 
 import aiosqlite
-from fastapi import APIRouter, Depends, Header, HTTPException, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 
+# SEC-7: используем тот же Limiter что и /chat — slowapi регистрирует один
+# Limiter per app.state.limiter, разные эндпоинты вешают разные `limit(...)`
+# на тот же инстанс. Это позволяет иметь @chat_limiter.limit("30/minute") на
+# /chat и @chat_limiter.limit("3/hour") на /admin/reset-local-db
+# без конфликтов и без двойной регистрации в main.py.
+from app.routes.chat import chat_limiter
 from app.storage.db import get_db
 
 logger = logging.getLogger(__name__)
@@ -29,7 +43,9 @@ RESET_TABLES: tuple[str, ...] = (
 
 
 @router.post("/reset-local-db", status_code=status.HTTP_200_OK)
+@chat_limiter.limit("3/hour")
 async def reset_local_db(
+    request: Request,  # noqa: ARG001 — нужен slowapi для key_func(remote_address)
     db: Annotated[aiosqlite.Connection, Depends(get_db)],
     x_confirm_reset: Annotated[
         str,
@@ -43,6 +59,8 @@ async def reset_local_db(
 
     Очищаются: messages, sessions, card_states, metadata_cache.
     Сохраняются: mcp_connections, llm_settings, schema_version.
+
+    Rate-limit: 3 вызова в час с одного IP (SEC-7).
 
     Returns:
         {"status": "ok", "cleared": [список реально очищенных таблиц]}
