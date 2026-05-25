@@ -4,9 +4,9 @@ status: in_progress
 started_at: "2026-05-25T10:30:00Z"
 branch: "feature/m-k0-stabilization"
 phases_total: 10
-phases_done: 4
+phases_done: 7
 findings_total: 28
-findings_done: 20
+findings_done: 28
 ---
 
 # M-K0 Stabilization — STATE
@@ -19,17 +19,19 @@ findings_done: 20
 | **M-K0.2** | **Backend Wave 1 (6 findings)** | **✅ DONE** | 5 commits |
 | **M-K0.3** | **Perf Wave 2 (3 findings)** | **✅ DONE** | 3 commits |
 | **M-K0.4** | **Prompts Wave 3 (3 findings)** | **✅ DONE** | 2 commits (PROMPT-2 в SEC-3) |
-| M-K0.5 | Frontend Wave 4 (3 findings) | pending | — |
-| M-K0.6 | Arch Wave 5 — ARCH-2 globals | pending | — |
-| M-K0.7 | Docs+DevOps Wave 6 (4 findings) | pending | — |
+| **M-K0.5** | **Frontend Wave 4 (3 findings)** | **✅ DONE** | 1 commit |
+| **M-K0.6** | **Arch Wave 5 (1 finding)** | **✅ DONE** | 1 commit |
+| **M-K0.7** | **Docs+DevOps Wave 6 (4 findings)** | **✅ DONE** | 1 commit |
 | M-K0.8 | Coverage push 60%+ | pending | — |
 | M-K0.9 | Security re-audit | pending | — |
 | M-K0.10 | SUMMARY + handoff | pending | — |
 
 ## Текущая задача
 
-**M-K0.5 → FE-1 prefers-reduced-motion** (CRITICAL).
-Затем FE-3 контраст --fg-4, FE-4 attachment keys.
+**🎯 ВСЕ 28/28 findings закрыты (100%)**. Остались последние 3 фазы:
+- **M-K0.8** Coverage push 60%+ (текущее ~30%, нужно добить тесты на критичных модулях)
+- **M-K0.9** Security re-audit (прогон security-reviewer на новый код)
+- **M-K0.10** SUMMARY + handoff в M-K1
 
 ## Commits в M-K0
 
@@ -67,7 +69,27 @@ afd26a8 PROMPT-1 Few-shot tool decision tree (19 examples)       CRITICAL
 f9807e6 PROMPT-2 уже сделан как бонус в SEC-3                    (CRITICAL)
 ```
 
-17 атомарных коммитов, 20 findings закрыто (8 SEC + 6 BE + 3 PERF + 3 PROMPT).
+Wave 4 Frontend (1 commit, все 3 finding в одном):
+```
+70e4fb1 FE-1 prefers-reduced-motion universal + FE-3 WCAG AA       CRITICAL+HIGH+HIGH
+        контраст --fg-2/3/4 solid colors + FE-4 stable attachment
+        keys composite hash
+```
+
+Wave 5 Architecture (1 commit):
+```
+99e59b2 ARCH-2 contextvars session_id+request_id для structured    HIGH
+        logging (per-task isolation, middleware, log filter)
+```
+
+Wave 6 Docs+DevOps (1 commit, все 4 finding в одном):
+```
+f956a21 DOC-1 ARCHITECTURE.md ревизия + DOC-2 STATE цифры +        HIGH+MED+HIGH+MED
+        DEVOPS-1 CERT-PROCESS roadmap + DEVOPS-5 semverGt
+        downgrade guard в main.js
+```
+
+**21 атомарных коммитов (включая 4 docs/audit), 28 findings закрыто (8 SEC + 6 BE + 3 PERF + 3 PROMPT + 3 FE + 1 ARCH + 4 DOC/DEVOPS).**
 
 ## Findings progress
 
@@ -93,14 +115,14 @@ f9807e6 PROMPT-2 уже сделан как бонус в SEC-3                 
 | PERF-3 | HIGH | 2 HTTP roundtrip per send | ✅ done |
 | PROMPT-1 | CRITICAL | Few-shot tool decision tree | ✅ done |
 | PROMPT-3 | CRITICAL | Memory recall trigger | ✅ done |
-| FE-1 | CRITICAL | prefers-reduced-motion | pending ← следующий |
-| FE-3 | HIGH | --fg-4 контраст | pending |
-| FE-4 | HIGH | attachment keys | pending |
-| ARCH-2 | HIGH | globals → contextvars | pending |
-| DOC-1 | HIGH | ARCHITECTURE.md ревизия | pending |
-| DOC-2 | MEDIUM | STATE.md loop.py цифр | pending |
-| DEVOPS-1 | HIGH | EV/OV cert process init | pending |
-| DEVOPS-5 | MEDIUM | Auto-update semver.gt | pending |
+| FE-1 | CRITICAL | prefers-reduced-motion | ✅ done |
+| FE-3 | HIGH | --fg-4 контраст | ✅ done |
+| FE-4 | HIGH | attachment keys | ✅ done |
+| ARCH-2 | HIGH | globals → contextvars | ✅ done (re-interpreted: structured logging) |
+| DOC-1 | HIGH | ARCHITECTURE.md ревизия | ✅ done |
+| DOC-2 | MEDIUM | STATE.md loop.py цифр | ✅ done |
+| DEVOPS-1 | HIGH | EV/OV cert process init | ✅ done (docs/CERT-PROCESS.md) |
+| DEVOPS-5 | MEDIUM | Auto-update semver.gt | ✅ done |
 
 ## Метрики Wave 0
 
