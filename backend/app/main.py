@@ -95,12 +95,32 @@ def create_app() -> FastAPI:
     # модели ИИ (ModelBadge popover) и редактирование LLM-конфига падали с
     # CORS preflight 400 и сам PATCH 503. Бизнес-логика PATCH использовалась
     # давно (lib/api.ts:updateLLMConfig), но прошёл регресс при W3.15.
+    #
+    # SEC-6 (M-K0, 2026-05-25): allow_headers сужен с "*" до explicit list.
+    # CORS spec: allow_headers=["*"] с allow_credentials=True — нарушение,
+    # некоторые Chromium-версии пропускают (расхождение реализаций).
+    # Wider attack surface через preflight с произвольными нестандартными
+    # headers. Теперь — только те headers что мы реально читаем.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
         allow_credentials=True,
         allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
-        allow_headers=["*"],
+        allow_headers=[
+            # Стандартные browser-injected headers, нужные для JSON request:
+            "Content-Type",
+            "Accept",
+            "Accept-Language",
+            "Authorization",
+            # Custom LLM headers — frontend пробрасывает в /chat, /llm-config/test:
+            "X-LLM-API-Key",
+            "X-LLM-Endpoint",
+            "X-LLM-Model",
+            # MCP anonymization toggle (header в /chat):
+            "X-Anon-Enabled",
+            # Защита от случайного DROP базы — /admin/reset-local-db требует:
+            "X-Confirm-Reset",
+        ],
     )
 
     app.include_router(health_router.router)
