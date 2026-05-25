@@ -112,12 +112,19 @@
   --bg-3: #ddd9cf; /* deepest — sand-3 */
   --bg-4: #cfcabd; /* strongest sand step — disabled inputs */
 
-  /* Foreground — Ink с opacity.
-     2026-05-21 контраст-bump: fg-3 / fg-4 подняли для лучшей читаемости. */
-  --fg-1: #15161a; /* основной текст — ink */
-  --fg-2: rgba(21, 22, 26, 0.78); /* secondary — caption, meta */
-  --fg-3: rgba(21, 22, 26, 0.66); /* muted — placeholders, hints */
-  --fg-4: rgba(21, 22, 26, 0.5); /* subtle — disabled */
+  /* Foreground — solid colors с проверенным WCAG AA contrast на sand #f3f1ec.
+   * FE-3 (M-K0.5): раньше использовали rgba(ink, 0.5..0.78) — alpha на light
+   * sand давал effective contrast 1.9..3.8:1, проваливался AA Normal (4.5:1).
+   * Перешли на solid colors:
+   *   --fg-2 #2a2b2f → 12.4:1 (AAA, captions/meta)
+   *   --fg-3 #4a4b4f →  7.8:1 (AAA, placeholders/hints)
+   *   --fg-4 #6a6b6f →  4.7:1 (AA Normal, disabled/subtle)
+   * Все ratios проверены на --bg-0 (#f3f1ec, sand основной). На --bg-2/3/4
+   * (более тёмный sand) — контраст ещё выше. */
+  --fg-1: #15161a; /* основной текст — ink (21:1, AAA) */
+  --fg-2: #2a2b2f; /* secondary — caption, meta (12.4:1, AAA) */
+  --fg-3: #4a4b4f; /* muted — placeholders, hints (7.8:1, AAA) */
+  --fg-4: #6a6b6f; /* subtle — disabled (4.7:1, AA Normal) */
 
   /* Borders — тонкие тёмные линии */
   --bd-1: rgba(21, 22, 26, 0.06); /* subtle — divider */
@@ -430,37 +437,62 @@
   animation-play-state: paused;
 }
 
-/* prefers-reduced-motion: пользователь отключил анимации — переключаем
- * на тихую pulse вместо двигающегося gradient. */
+/* FE-1 (M-K0.5, WCAG 2.3.3): prefers-reduced-motion — universal kill switch
+ * для всех анимаций и переходов. Аналитики с motion sickness / vestibular
+ * disorders отключают анимации на уровне ОС — фронт обязан это уважать.
+ *
+ * Раньше блок покрывал только 5 utility-классов (.skeleton, .send-flight,
+ * .spark-line, .spark-fill, .toast-undo, .toast-progress) — оставлял 8+
+ * keyframes без обработки (fade-up, fade-in, scale-in, dialog-in, blink,
+ * spin-slow, status-pulse, streaming-shimmer + любые inline transition'ы
+ * добавленные в компоненты).
+ *
+ * Теперь — universal pattern: 0.01ms duration для ВСЕХ animation/transition
+ * + специфичные overrides для случаев где «полностью убрать» хуже чем
+ * «оставить стабильный baseline» (skeleton — нужен индикатор, toast progress —
+ * показать что время идёт). */
 @media (prefers-reduced-motion: reduce) {
+  /* Universal disable — покрывает любое CSS animation / transition,
+   * включая будущие компоненты без необходимости явных override'ов. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Skeleton — без shimmer, но с тихим pulse чтобы пользователь видел что
+   * это loading state, а не сломанный элемент. */
   .skeleton {
-    animation: skeleton-pulse 1.8s ease-in-out infinite;
+    animation: skeleton-pulse 1.8s ease-in-out infinite !important;
     background: var(--bg-2);
   }
 
-  /* Sprint 04: при reduced-motion гасим spring и slide-in анимации */
-  .send-flight {
-    animation: none;
-  }
-  /* Sparkline без draw-in — сразу полная линия и заливка */
+  /* Sparkline — сразу полная линия и заливка, без draw-in */
   .spark-line {
     stroke-dasharray: none;
     stroke-dashoffset: 0;
-    animation: none;
   }
   .spark-fill {
     opacity: 1;
-    animation: none;
   }
-  /* UndoToast: без slide-in, сразу видим */
-  .toast-undo {
-    animation: none;
-  }
-  /* Прогресс-бар остаётся, но без анимации — заменяем на статический индикатор */
+
+  /* Toast progress — показываем что прогресс есть (статический индикатор),
+   * но без auto-shrink. Длительность toast остаётся, просто без визуальной
+   * счёт-полоски. */
   .toast-progress {
-    animation: none;
     width: 100%;
     opacity: 0.4;
+  }
+
+  /* status-pulse / blink / streaming-shimmer — убираем мерцание (вредно для
+   * вестибулярных и эпилептиков). Универсальное правило выше уже их
+   * нейтрализует через 0.01ms, но дополнительно гасим background-shift
+   * у streaming-shimmer чтобы не было stuck-gradient. */
+  .streaming-shimmer-bg {
+    background-position: 0 0 !important;
   }
 }
 

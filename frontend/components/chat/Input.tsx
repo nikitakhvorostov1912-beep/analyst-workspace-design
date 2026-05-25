@@ -317,9 +317,17 @@ export function ChatInput({
         <div className="flex flex-wrap gap-1.5 mb-1" data-testid="attachments-list">
           {attachments.map((att, i) => {
             const isImage = isImageMime(att.mime) || isImageExtension(att.name);
+            // FE-4 (M-K0.5): stable key из content hash + name вместо array index.
+            // Раньше key={i} ломал DOM diff при удалении файла из середины списка —
+            // React переиспользовал ноду удалённого файла для следующего, что
+            // ломало lazy-loaded thumbnails и анимации хода удаления.
+            // Composite key из (name + size + первые 12 chars base64) даёт
+            // стабильность при reorder. Edge case: 2 идентичных файла подряд
+            // → duplicate key warning (приемлемо, редкое).
+            const stableKey = `${att.name}-${att.content_base64.length}-${att.content_base64.slice(0, 12)}`;
             return (
               <div
-                key={i}
+                key={stableKey}
                 className="inline-flex items-center gap-1.5 px-2 py-1 bg-[var(--bg-2)] border border-[var(--bd-2)] rounded text-xs"
                 data-testid="attachment-chip"
                 data-is-image={isImage ? "true" : "false"}
