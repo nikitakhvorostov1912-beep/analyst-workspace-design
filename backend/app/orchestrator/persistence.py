@@ -488,6 +488,7 @@ async def save_card_state(
     original_args: dict,
     channel_id: str,
     anon_tokens: list[str] | None = None,
+    commit: bool = True,
 ) -> None:
     """Сохраняет состояние карточки для load-more и deanonymize endpoint.
 
@@ -499,6 +500,8 @@ async def save_card_state(
         original_args: исходные аргументы вызова инструмента
         channel_id: ID MCP-подключения
         anon_tokens: список anon-токенов найденных в payload (опциональный, v4)
+        commit: BE-6 (M-K0.2) — если False, не делать commit (caller сам коммитит
+            батчем). По умолчанию True для backward compat.
     """
     anon_tokens_json = json.dumps(anon_tokens, ensure_ascii=False) if anon_tokens is not None else None
     await db.execute(
@@ -517,7 +520,8 @@ async def save_card_state(
             anon_tokens_json,
         ),
     )
-    await db.commit()
+    if commit:
+        await db.commit()
 
 
 async def get_card_state(

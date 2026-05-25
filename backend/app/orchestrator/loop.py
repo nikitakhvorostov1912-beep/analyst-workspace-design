@@ -722,6 +722,11 @@ async def _persist_card_states(
             anon_tokens = _extract_anon_tokens_from_payload(card.get("payload", {}))
 
         try:
+            # BE-6 (M-K0.2, 2026-05-25): commit=False — батч commit в конце
+            # цикла. Раньше: save_card_state делал db.commit() для каждой
+            # карточки → при 5-10 cards в одном turn = 5-10 SQLite write
+            # transactions, что под WAL даёт write contention с другими
+            # вкладками. Теперь: одна транзакция на весь batch.
             await save_card_state(
                 db,
                 card_id=card_id,
@@ -731,9 +736,18 @@ async def _persist_card_states(
                 original_args=card_tool_args,
                 channel_id=channel_id,
                 anon_tokens=anon_tokens,
+                commit=False,
             )
         except Exception:
             logger.warning("Не удалось сохранить card_state для card %s", card_id)
+
+    # BE-6: единый commit для всех card_states этого turn'а.
+    # try/except — если commit не нужен (ни одна карточка не сохранилась),
+    # SQLite просто игнорирует commit без активной транзакции.
+    try:
+        await db.commit()
+    except Exception:
+        logger.warning("Не удалось закоммитить batch card_states", exc_info=True)
 
 
 def _finalize_streamed_tool_calls(chunk_tool_calls: dict[int, dict]) -> list[dict]:
