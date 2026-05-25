@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from slowapi.errors import RateLimitExceeded
 
 from app.config import get_settings
+from app.context import ContextFilter, generate_request_id, request_id_var
 from app.log_setup import setup_file_logging
 from app.routes import admin as admin_router
 from app.routes import chat as chat_router
@@ -28,8 +29,17 @@ from app.storage.db import close_db, init_db
 
 logging.basicConfig(
     level=logging.INFO,
-    format='{"time": "%(asctime)s", "level": "%(levelname)s", "name": "%(name)s", "message": "%(message)s"}',
+    format=(
+        '{"time": "%(asctime)s", "level": "%(levelname)s", '
+        '"name": "%(name)s", "session": "%(session_id)s", '
+        '"request": "%(request_id)s", "message": "%(message)s"}'
+    ),
 )
+# ARCH-2 (M-K0.6): ContextFilter добавляет session_id + request_id из
+# contextvars в каждую LogRecord. Без него basicConfig formatter упадёт с
+# KeyError на %(session_id)s при первом же log call.
+for _handler in logging.getLogger().handlers:
+    _handler.addFilter(ContextFilter())
 logger = logging.getLogger(__name__)
 
 
@@ -101,6 +111,24 @@ def create_app() -> FastAPI:
     # некоторые Chromium-версии пропускают (расхождение реализаций).
     # Wider attack surface через preflight с произвольными нестандартными
     # headers. Теперь — только те headers что мы реально читаем.
+    # ARCH-2 (M-K0.6): request_id middleware — генерирует короткий uuid на
+    # каждый incoming HTTP request и ставит в contextvar. Все логи в рамках
+    # обработки этого запроса получат этот id (через ContextFilter) —
+    # позволяет фильтровать логи по конкретному запросу при диагностике.
+    # Также: уважаем входящий заголовок X-Request-Id если он есть (для
+    # трассировки через несколько сервисов / Electron→backend).
+    @app.middleware("http")
+    async def _request_id_middleware(request: Request, call_next):
+        incoming = request.headers.get("X-Request-Id")
+        req_id = incoming if incoming and len(incoming) <= 64 else generate_request_id()
+        token = request_id_var.set(req_id)
+        try:
+            response = await call_next(request)
+            response.headers["X-Request-Id"] = req_id
+            return response
+        finally:
+            request_id_var.reset(token)
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,

@@ -1092,6 +1092,14 @@ async def run_chat_loop(
             db, request.session_id, request.channel_id, request.message[:60]
         )
 
+        # ARCH-2 (M-K0.6): ставим session_id в contextvar — все логи внутри
+        # run_chat_loop (а также все вложенные tool calls, persistence, и т.д.)
+        # автоматически получат этот session_id в JSON-поле "session".
+        # Reset не нужен — generator завершается → контекст async task'а
+        # очищается автоматически.
+        from app.context import session_id_var
+        session_id_var.set(session_id)
+
         # Считаем сообщения ДО сохранения нового — чтобы знать первое ли это
         msg_count_before = await count_session_messages(db, session_id)
 

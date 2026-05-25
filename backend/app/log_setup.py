@@ -19,6 +19,8 @@ import os
 import sys
 from pathlib import Path
 
+from app.context import ContextFilter
+
 
 def _default_log_dir() -> Path:
     """Подбирает каталог для логов по платформе.
@@ -97,8 +99,13 @@ def setup_file_logging() -> Path | None:
     handler.setFormatter(
         logging.Formatter(
             '{"time": "%(asctime)s", "level": "%(levelname)s", '
-            '"name": "%(name)s", "message": "%(message)s"}'
+            '"name": "%(name)s", "session": "%(session_id)s", '
+            '"request": "%(request_id)s", "message": "%(message)s"}'
         )
     )
+    # ARCH-2 (M-K0.6): ContextFilter добавляет session_id + request_id из
+    # contextvars в каждую LogRecord. Без filter'а formatter упадёт с
+    # KeyError на %(session_id)s.
+    handler.addFilter(ContextFilter())
     root.addHandler(handler)
     return log_path
