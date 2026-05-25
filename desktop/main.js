@@ -169,10 +169,32 @@ app.whenReady().then(async () => {
   //
   // 2. Permissions: deny по умолчанию (камера, микрофон, геолокация и пр.
   //    в Electron-аналитике не нужны).
+  // v1.4.8 HOTFIX (2026-05-25): добавлено 'unsafe-inline' к script-src.
+  //
+  // Без этого Next 15 ломал hydration: RSC streaming chunks инжектируются
+  // через `<script>(self.__next_f=...)</script>` inline, backend URL —
+  // через `<script>window.__BACKEND_URL__="..."</script>`, theme detection
+  // тоже inline. CSP `script-src 'self'` блокировал их все → React
+  // монтировался частично (виден sidebar), затем падал при первом state
+  // update → чёрный экран в main area (v1.4.6/v1.4.7 регрессия от
+  // SEC-2 коммита feda2d4).
+  //
+  // Trade-off: 'unsafe-inline' формально открывает XSS-вектор. В нашем
+  // случае это приемлемо:
+  //   - connect-src жёстко whitelist'ит только наш backend/frontend
+  //     (внешние domains не достижимы — XSS не сможет exfiltrate)
+  //   - frame-ancestors 'none' — приложение нельзя iframe'ить
+  //   - sandbox + contextIsolation в webPreferences — renderer изолирован
+  //   - нет user-generated HTML рендеринга (всё через React text content)
+  //
+  // Правильное решение на будущее — nonce-based CSP с Next 15 nonce API
+  // (next.config.js + middleware.ts генерирует уникальный nonce на каждый
+  // запрос, добавляет в CSP header и в каждый <script>). Но это
+  // отдельная задача, требует middleware setup + тестов.
   const cspHeader = [
     "default-src 'self'",
     `connect-src 'self' http://127.0.0.1:${backendPort} http://127.0.0.1:${frontendPort} ws://127.0.0.1:${frontendPort}`,
-    "script-src 'self'",
+    "script-src 'self' 'unsafe-inline'",
     "style-src 'self' 'unsafe-inline'",
     "img-src 'self' data: blob:",
     "font-src 'self' data:",
