@@ -4,49 +4,60 @@ status: in_progress
 started_at: "2026-05-25T10:30:00Z"
 branch: "feature/m-k0-stabilization"
 phases_total: 10
-phases_done: 0
+phases_done: 1
 findings_total: 28
-findings_done: 0
+findings_done: 9
 ---
 
 # M-K0 Stabilization — STATE
 
 ## Активность
 
-| Phase | Subject | Status | Started | Commit |
-|-------|---------|--------|---------|--------|
-| M-K0.1 | Security Wave 0 (8 findings) | in_progress | 2026-05-25 | — |
-| M-K0.2 | Backend Wave 1 (6 findings) | pending | — | — |
-| M-K0.3 | Perf Wave 2 (3 findings) | pending | — | — |
-| M-K0.4 | Prompts Wave 3 (3 findings) | pending | — | — |
-| M-K0.5 | Frontend Wave 4 (3 findings) | pending | — | — |
-| M-K0.6 | Arch Wave 5 — ARCH-2 globals | pending | — | — |
-| M-K0.7 | Docs+DevOps Wave 6 (4 findings) | pending | — | — |
-| M-K0.8 | Coverage push 60%+ | pending | — | — |
-| M-K0.9 | Security re-audit | pending | — | — |
-| M-K0.10 | SUMMARY + handoff | pending | — | — |
+| Phase | Subject | Status | Commits |
+|-------|---------|--------|---------|
+| **M-K0.1** | **Security Wave 0 (8 findings)** | **✅ DONE** | 7 commits |
+| M-K0.2 | Backend Wave 1 (6 findings) | pending | — |
+| M-K0.3 | Perf Wave 2 (3 findings) | pending | — |
+| M-K0.4 | Prompts Wave 3 (3 findings, PROMPT-2 уже бонус в SEC-3) | pending | — |
+| M-K0.5 | Frontend Wave 4 (3 findings) | pending | — |
+| M-K0.6 | Arch Wave 5 — ARCH-2 globals | pending | — |
+| M-K0.7 | Docs+DevOps Wave 6 (4 findings) | pending | — |
+| M-K0.8 | Coverage push 60%+ | pending | — |
+| M-K0.9 | Security re-audit | pending | — |
+| M-K0.10 | SUMMARY + handoff | pending | — |
 
 ## Текущая задача
 
-**M-K0.1 → SEC-1 SSRF guard** (первая из 8 security findings)
+**M-K0.2 → BE-1 _pending dict race condition** (первая из 6 backend quality findings)
 
 ## Commits в M-K0
 
-(нет пока)
+```
+c4f7602 SEC-1  SSRF guard для MCP endpoint                       CRITICAL
+feda2d4 SEC-2  Electron CSP + sandbox + SEC-5 IPC whitelist      HIGH×2
+8811287 SEC-4  SQL validator WITH+CTE bypass + RETURNING         HIGH
+d2d68d7 SEC-6  CORS allow_headers wildcard → explicit            HIGH
+ecb7e7d SEC-7  admin/reset rate-limit 3/hour                     HIGH
+7f06bf9 SEC-12 X-LLM-API-Key deprecation indicators              LOW
+f9807e6 SEC-3 + PROMPT-2 prompt injection hardening              HIGH×2
+```
+
+7 атомарных коммитов, 9 findings закрыто (8 SEC + 1 bonus PROMPT-2).
 
 ## Findings progress
 
 | ID | Severity | Subject | Status |
 |----|----------|---------|--------|
-| SEC-1 | CRITICAL | SSRF: валидация MCP endpoint | in_progress |
-| SEC-2 | HIGH | Electron CSP + sandbox | pending |
-| SEC-3 | HIGH | Prompt injection unicode + history | pending |
-| SEC-4 | HIGH | SQL validator WITH + RETURNING | pending |
-| SEC-5 | HIGH | shell:open-path IPC whitelist | pending |
-| SEC-6 | HIGH | CORS allow_headers wildcard | pending |
-| SEC-7 | HIGH | admin/reset rate-limit + CSRF | pending |
-| SEC-12 | LOW | X-LLM-API-Key deprecation | pending |
-| BE-1 | CRITICAL | _pending dict race | pending |
+| SEC-1 | CRITICAL | SSRF: валидация MCP endpoint | ✅ done |
+| SEC-2 | HIGH | Electron CSP + sandbox + webSecurity | ✅ done |
+| SEC-3 | HIGH | Prompt injection unicode + history | ✅ done |
+| SEC-4 | HIGH | SQL validator WITH + RETURNING | ✅ done |
+| SEC-5 | HIGH | shell:open-path IPC whitelist | ✅ done |
+| SEC-6 | HIGH | CORS allow_headers wildcard | ✅ done |
+| SEC-7 | HIGH | admin/reset rate-limit + CSRF | ✅ done |
+| SEC-12 | LOW | X-LLM-API-Key deprecation | ✅ done |
+| PROMPT-2 | CRITICAL | Indirect injection tool_results | ✅ done (bonus в SEC-3) |
+| BE-1 | CRITICAL | _pending dict race | pending ← следующий |
 | BE-2 | CRITICAL | _run_auto_title task leak | pending |
 | BE-3 | HIGH | Silent failures (message_id=unknown) | pending |
 | BE-4 | HIGH | CLARIFY leak GeneratorExit | pending |
@@ -56,7 +67,6 @@ findings_done: 0
 | PERF-2 | CRITICAL | LLMClient recreate per iter | pending |
 | PERF-3 | HIGH | 2 HTTP roundtrip per send | pending |
 | PROMPT-1 | CRITICAL | Few-shot tool decision tree | pending |
-| PROMPT-2 | CRITICAL | Indirect injection tool_results | pending |
 | PROMPT-3 | CRITICAL | Memory recall trigger | pending |
 | FE-1 | CRITICAL | prefers-reduced-motion | pending |
 | FE-3 | HIGH | --fg-4 контраст | pending |
@@ -66,3 +76,25 @@ findings_done: 0
 | DOC-2 | MEDIUM | STATE.md loop.py цифр | pending |
 | DEVOPS-1 | HIGH | EV/OV cert process init | pending |
 | DEVOPS-5 | MEDIUM | Auto-update semver.gt | pending |
+
+## Метрики Wave 0
+
+- **Findings закрыто**: 9 (8 SEC + 1 PROMPT bonus) из 28 = **32%**
+- **CRITICAL закрыто**: 2 из 9 (SEC-1, PROMPT-2)
+- **HIGH закрыто**: 6 из 19
+- **Тесты добавлено**: 31 unit (SSRF) + 5 integration (connections) +
+  6 (SEC-4 WITH/RETURNING) + 1 (SEC-7 rate-limit) + 2 (SEC-12 deprecation) +
+  6 (SEC-3 homoglyph) = **51 новый тест**
+- **Backend pytest**: 896 passed (баseline 825 → +71 от sqlparse активации + мои)
+- **Регрессии**: 0
+- **Pre-existing flaky**: 2 (test_default_model, test_get_empty_NVIDIA_key — не моя зона)
+
+## Что дальше (M-K0.2 Backend Quality)
+
+Wave 1 — 6 findings, ~4 дня:
+- BE-1 _pending race (CRITICAL) — самый сложный, asyncio loop affinity
+- BE-2 _run_auto_title task leak (CRITICAL)
+- BE-3 silent failures
+- BE-4 CLARIFY leak GeneratorExit
+- BE-5 _TOOL_FOR_CARD_TYPE matching
+- BE-6 SQLite batch commit
