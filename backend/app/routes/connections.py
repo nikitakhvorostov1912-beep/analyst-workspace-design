@@ -88,7 +88,23 @@ async def _cache_is_fresh(db, channel_id: str) -> bool:
 
 
 def _row_to_full(row: dict) -> MCPConnectionFull:
-    """Конвертирует строку SQLite в MCPConnectionFull."""
+    """Конвертирует строку SQLite в MCPConnectionFull.
+
+    M-K1.6: добавлены capability fields (mode/configuration/platform/
+    ext_version/capabilities/fingerprint). Backward compat — все Optional,
+    fallback defaults для legacy rows которые ещё не прошли capability discovery.
+    """
+    # capabilities хранится как JSON string в SQLite — десериализуем
+    capabilities_raw = row.get("capabilities")
+    if capabilities_raw:
+        try:
+            caps = json.loads(capabilities_raw)
+            capabilities = caps if isinstance(caps, list) else []
+        except (json.JSONDecodeError, TypeError):
+            capabilities = []
+    else:
+        capabilities = []
+
     return MCPConnectionFull(
         id=row["id"],
         name=row["name"],
@@ -98,15 +114,32 @@ def _row_to_full(row: dict) -> MCPConnectionFull:
         kind=(row.get("kind") or "embedded"),  # backward compat для старых записей
         last_seen_at=row["last_seen_at"],
         created_at=row["created_at"],
+        # M-K1.6 (v11) capability fields
+        mode=(row.get("mode") or "mcp_only"),
+        configuration=row.get("configuration"),
+        platform=row.get("platform"),
+        ext_version=row.get("ext_version"),
+        capabilities=capabilities,
+        fingerprint=row.get("fingerprint"),
     )
 
 
 # Колонки в фиксированном порядке для всех SELECT — гарантирует, что
 # _row_to_full получает одинаковую структуру независимо от cursor.
-_CONNECTION_COLUMNS = "id, name, endpoint, channel, anon_enabled, kind, last_seen_at, created_at"
+# M-K1.6 (v11): добавлены mode, configuration, platform, ext_version,
+# capabilities, fingerprint.
+_CONNECTION_COLUMNS = (
+    "id, name, endpoint, channel, anon_enabled, kind, last_seen_at, created_at, "
+    "mode, configuration, platform, ext_version, capabilities, fingerprint"
+)
 
 
 def _row_tuple_to_dict(row: tuple) -> dict:
+    """M-K1.6 (v11): добавлены 6 capability fields в конец tuple.
+
+    Порядок индексов жёстко привязан к `_CONNECTION_COLUMNS` — не менять
+    отдельно от SELECT.
+    """
     return {
         "id": row[0],
         "name": row[1],
@@ -116,6 +149,13 @@ def _row_tuple_to_dict(row: tuple) -> dict:
         "kind": row[5],
         "last_seen_at": row[6],
         "created_at": row[7],
+        # v11 capability fields (порядок из _CONNECTION_COLUMNS)
+        "mode": row[8] if len(row) > 8 else None,
+        "configuration": row[9] if len(row) > 9 else None,
+        "platform": row[10] if len(row) > 10 else None,
+        "ext_version": row[11] if len(row) > 11 else None,
+        "capabilities": row[12] if len(row) > 12 else None,
+        "fingerprint": row[13] if len(row) > 13 else None,
     }
 
 

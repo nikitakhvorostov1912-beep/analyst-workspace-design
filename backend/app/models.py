@@ -58,6 +58,12 @@ class HealthResponse(BaseModel):
 # только пока его 1С открыта, proxy — пока обработка запущена на удалённом сервере.
 MCPKind = Literal["embedded", "proxy"]
 
+# M-K1.6 (migration v11): ChannelMode для дискриминации EPF / CFE / raw MCP Toolkit.
+# Дублирует app.types.capabilities.ChannelMode чтобы не создавать circular import
+# через models.py ← orchestrator ← capabilities.
+# При расхождении — обновлять оба места (sanity-check в `test_capabilities.py`).
+MCPMode = Literal["mcp_only", "epf", "cfe"]
+
 
 class MCPConnection(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -70,6 +76,14 @@ class MCPConnection(BaseModel):
     kind: MCPKind = "embedded"
     last_seen_at: datetime | None = None
     created_at: datetime | None = None
+    # M-K1.6 (migration v11) — capability-aware fields. None если канал ещё
+    # не прошёл MCP initialize / capability discovery (legacy connections).
+    mode: MCPMode = "mcp_only"
+    configuration: str | None = None  # "УТ 11.5" / "ERP 2.5" / ...
+    platform: str | None = None  # "8.3.27.1989"
+    ext_version: str | None = None  # версия нашего расширения
+    capabilities: list[str] = Field(default_factory=list)  # serialized from JSON
+    fingerprint: str | None = None  # 12-char slug
 
 
 class MCPConnectionCreate(BaseModel):
@@ -121,6 +135,13 @@ class MCPConnectionFull(BaseModel):
     kind: MCPKind = "embedded"
     last_seen_at: datetime | None = None
     created_at: datetime
+    # M-K1.6 (migration v11) — capability fields, см. MCPConnection
+    mode: MCPMode = "mcp_only"
+    configuration: str | None = None
+    platform: str | None = None
+    ext_version: str | None = None
+    capabilities: list[str] = Field(default_factory=list)
+    fingerprint: str | None = None
 
 
 class MCPConnectionList(BaseModel):

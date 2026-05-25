@@ -74,7 +74,7 @@ MIGRATIONS_V3 = [
     """,
 ]
 
-CURRENT_VERSION = 10
+CURRENT_VERSION = 11
 
 # Миграция v4: расширение card_states — добавление колонки anon_tokens JSON
 MIGRATIONS_V4 = [
@@ -211,6 +211,38 @@ MIGRATIONS_V10 = [
 ]
 
 
+# Миграция v11: M-K1 capability-aware MCP connections (M6 Phase 12 / ADR-004).
+# Добавляет 6 полей в mcp_connections для дискриминации EPF vs CFE vs raw MCP
+# Toolkit и хранения capability response от MCP initialize:
+#
+#   - mode             TEXT   — 'mcp_only' | 'epf' | 'cfe' (ChannelMode)
+#   - configuration    TEXT   — "УТ 11.5" / "ERP 2.5" / ... (отображение)
+#   - platform         TEXT   — "8.3.27.1989" (полная версия)
+#   - ext_version      TEXT   — версия нашего расширения АналитикПлюс (1.0.0)
+#   - capabilities     TEXT   — JSON array of capability strings из experimental.*
+#   - fingerprint      TEXT   — 12-char slug от compute_fingerprint() (см. M-K1.5)
+#
+# Backfill: для существующих connections — mode='mcp_only' (по умолчанию,
+# когда capability discovery ещё не запускался). Остальные NULL — заполнятся
+# при первом /connections/{id}/ping после M-K1.7 (Capability Discovery Service).
+#
+# ADR-005 рекомендация: продолжать DDL миграции, без alembic.
+MIGRATIONS_V11 = [
+    "ALTER TABLE mcp_connections ADD COLUMN mode TEXT DEFAULT 'mcp_only'",
+    "ALTER TABLE mcp_connections ADD COLUMN configuration TEXT",
+    "ALTER TABLE mcp_connections ADD COLUMN platform TEXT",
+    "ALTER TABLE mcp_connections ADD COLUMN ext_version TEXT",
+    "ALTER TABLE mcp_connections ADD COLUMN capabilities TEXT",  # JSON array
+    "ALTER TABLE mcp_connections ADD COLUMN fingerprint TEXT",
+    # Backfill mode для существующих NULL → 'mcp_only' (защита от строк где
+    # ALTER TABLE по какой-то причине пропустил DEFAULT)
+    "UPDATE mcp_connections SET mode = 'mcp_only' WHERE mode IS NULL",
+    # Индекс по fingerprint — будет использоваться для группировки connections
+    # одной типовой (один knowledge corpus shared)
+    "CREATE INDEX IF NOT EXISTS idx_mcp_connections_fingerprint ON mcp_connections(fingerprint)",
+]
+
+
 MIGRATIONS_V9 = [
     """
     CREATE TABLE IF NOT EXISTS user_secrets (
@@ -340,5 +372,17 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
             (10,),
+        )
+        await db.commit()
+
+    if current < 11:
+        # Capability-aware MCP connections (v11, M-K1.6 / M6 Phase 12 / ADR-004)
+        # Добавляет mode/configuration/platform/ext_version/capabilities/fingerprint
+        # в mcp_connections + backfill mode='mcp_only' + индекс по fingerprint
+        for stmt in MIGRATIONS_V11:
+            await db.execute(stmt)
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (11,),
         )
         await db.commit()
