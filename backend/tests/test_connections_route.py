@@ -60,6 +60,97 @@ async def test_create_connection_empty_name(client: AsyncClient):
     assert response.status_code == 422
 
 
+# ---------------------------------------------------------------------------
+# SEC-1: SSRF guard integration
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_create_connection_blocks_aws_metadata(client: AsyncClient):
+    """SEC-1: POST с AWS metadata IP должен вернуть 400 (link-local blocked)."""
+    response = await client.post(
+        "/connections",
+        json={
+            "name": "Pwn me",
+            "endpoint": "http://169.254.169.254/latest/meta-data/",
+        },
+    )
+    assert response.status_code == 400
+    payload = response.json()
+    assert payload["detail"]["error_code"] == "unsafe_endpoint"
+    # Сообщение должно ссылаться на link-local / небезопасный IP.
+    msg = payload["detail"]["message"].lower()
+    assert "link-local" in msg or "небезопасн" in msg or "169.254" in msg
+
+
+@pytest.mark.asyncio
+async def test_create_connection_blocks_private_ip(client: AsyncClient):
+    """SEC-1: POST с private IP (192.168.x) должен вернуть 400."""
+    response = await client.post(
+        "/connections",
+        json={
+            "name": "Router",
+            "endpoint": "http://192.168.1.1/",
+        },
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"]["error_code"] == "unsafe_endpoint"
+
+
+@pytest.mark.asyncio
+async def test_create_connection_blocks_localhost_redis(client: AsyncClient):
+    """SEC-1: 127.0.0.1 разрешён (whitelist), даже если порт Redis.
+
+    Это намеренно: для аналитика legitimate use-case — MCP Toolkit EPF на
+    той же машине. Защита уровня «не давать атаковать чужие сети», а не
+    «не давать стрелять себе в ногу».
+    """
+    response = await client.post(
+        "/connections",
+        json={
+            "name": "Local MCP",
+            "endpoint": "http://127.0.0.1:6379/",  # Redis port, но localhost
+        },
+    )
+    # 201 потому что localhost — whitelist
+    # (если хочется блокировать opasные порты, нужен отдельный port-list).
+    assert response.status_code == 201
+
+
+@pytest.mark.asyncio
+async def test_create_connection_blocks_file_scheme(client: AsyncClient):
+    """SEC-1: file:// URL должен быть отклонён."""
+    response = await client.post(
+        "/connections",
+        json={
+            "name": "evil",
+            "endpoint": "file:///etc/passwd",
+        },
+    )
+    # 422 (Pydantic) ИЛИ 400 (SSRF guard) — оба валидны.
+    # Pydantic должен поймать первым потому что не http/https.
+    assert response.status_code in (400, 422)
+
+
+@pytest.mark.asyncio
+async def test_update_connection_blocks_unsafe_endpoint(client: AsyncClient):
+    """SEC-1: PUT с unsafe endpoint должен вернуть 400."""
+    # Сначала создаём валидное.
+    create_resp = await client.post(
+        "/connections",
+        json={"name": "Test", "endpoint": "http://localhost:6010/mcp"},
+    )
+    assert create_resp.status_code == 201
+    conn_id = create_resp.json()["id"]
+
+    # Пытаемся подменить на unsafe.
+    update_resp = await client.put(
+        f"/connections/{conn_id}",
+        json={"endpoint": "http://10.0.0.1/admin"},
+    )
+    assert update_resp.status_code == 400
+    assert update_resp.json()["detail"]["error_code"] == "unsafe_endpoint"
+
+
 @pytest.mark.asyncio
 async def test_list_connections_after_create(client: AsyncClient):
     """GET /connections после POST → возвращает 1 connection."""

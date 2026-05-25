@@ -1,5 +1,6 @@
 """REST CRUD endpoints для mcp_connections: GET/POST/PUT/DELETE /connections."""
 
+import asyncio
 import logging
 import os
 import time
@@ -18,6 +19,10 @@ from app.models import (
     MCPPingWithTimestampResponse,
     MetadataSuggestItem,
     MetadataSuggestResponse,
+)
+from app.security.mcp_endpoint_validator import (
+    MCPEndpointError,
+    validate_mcp_endpoint,
 )
 
 TTL_SECONDS = int(os.environ.get("METADATA_CACHE_TTL_S", 3600))
@@ -125,6 +130,27 @@ async def list_connections(request: Request) -> MCPConnectionList:
     return MCPConnectionList(connections=connections)
 
 
+async def _validate_endpoint_ssrf(endpoint: str) -> None:
+    """SEC-1 SSRF guard. Запускается в thread pool — DNS resolve blocking.
+
+    Бросает HTTPException(400) если endpoint небезопасный — приватный IP,
+    link-local (AWS metadata), loopback (кроме 127.0.0.1), reserved, etc.
+    """
+    try:
+        # validate_mcp_endpoint делает socket.getaddrinfo — blocking I/O.
+        # Прячем в thread pool чтобы не блокировать event loop.
+        await asyncio.to_thread(validate_mcp_endpoint, endpoint)
+    except MCPEndpointError as exc:
+        logger.warning("SEC-1: rejected endpoint %s — %s", endpoint, exc)
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error_code": "unsafe_endpoint",
+                "message": exc.user_message,
+            },
+        ) from exc
+
+
 @router.post("", response_model=MCPConnectionFull, status_code=201)
 async def create_connection(
     body: MCPConnectionCreate,
@@ -136,7 +162,12 @@ async def create_connection(
     создавать N копий «Моя база → http://localhost:6010/mcp». При совпадении —
     возвращаем 409 Conflict с указанием уже существующей записи, чтобы клиент
     мог предложить «Редактировать существующее» вместо «Создать ещё одно».
+
+    SEC-1: SSRF guard на endpoint до записи в БД.
     """
+    # SSRF guard — до DB writes, чтобы не оставлять «ядовитые» записи в БД.
+    await _validate_endpoint_ssrf(body.endpoint)
+
     db = request.app.state.db
     async with db.execute(
         "SELECT id, name FROM mcp_connections WHERE endpoint = ? LIMIT 1",
@@ -192,7 +223,14 @@ async def update_connection(
     body: MCPConnectionUpdate,
     request: Request,
 ) -> MCPConnectionFull:
-    """Обновляет поля MCP-подключения (partial update)."""
+    """Обновляет поля MCP-подключения (partial update).
+
+    SEC-1: если endpoint меняется — проходит SSRF guard.
+    """
+    # SSRF guard на новый endpoint (если он указан).
+    if body.endpoint is not None:
+        await _validate_endpoint_ssrf(body.endpoint)
+
     db = request.app.state.db
 
     async with db.execute(
