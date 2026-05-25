@@ -16,6 +16,8 @@ import {
   type ConnectionStatus,
 } from "@/components/ui/StatusDot";
 import { KindBadge } from "@/components/shell/KindBadge";
+import { ModeBadge } from "@/components/shell/ModeBadge";
+import type { ChannelMode } from "@/lib/capabilities";
 import { fetchConnections, pingConnection } from "@/lib/api";
 import { getMCPConnections, setActiveChannelId, syncMCPConnections } from "@/lib/storage";
 import {
@@ -323,6 +325,10 @@ export function ChannelSelector({ activeId, onChange }: Props) {
                       </span>
                     )}
                     <KindBadge kind={conn.kind} />
+                    {/* M-K1.11: бейдж режима канала (mcp_only/epf/cfe) из
+                        capability discovery (M-K1.7). Скрывается если поле
+                        отсутствует (legacy connection до v11). */}
+                    <ModeBadge mode={conn.mode as ChannelMode | undefined} />
                   </div>
                   {/* Row 2: meta (объекты · инструменты · sync). Скрыто если offline. */}
                   {!isOffline && (
