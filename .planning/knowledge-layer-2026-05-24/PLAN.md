@@ -1,15 +1,37 @@
 # PLAN — Knowledge Layer для 1С Аналитик
 
-**Версия:** 1.0  
-**Создан:** 2026-05-24  
+**Версия:** 1.2  
+**Создан:** 2026-05-24, обновлён 2026-05-25 (M6 handoff integration)  
 **Owner:** Никита Хворостов  
-**Status:** Approved, ready to execute  
+**Status:** Approved, ready to execute (M-K0 in progress, Wave 0 ✅)  
 **Linked Excel:** `Knowledge_Layer_1С_Аналитик_2026-05-24.xlsx`
 
 > Этот документ — стратегический и операционный план развития Knowledge Layer  
 > поверх существующего приложения **1С Аналитик** (`analyst-workspace-design/`).  
 > Он живёт вместе с уже работающим продуктом v1.4.5 и НЕ заменяет основной  
 > roadmap (`ROADMAP.md` в корне проекта).
+
+## 🔗 Связь с M6 Handoff (2026-05-25)
+
+2026-05-25 получен handoff от другой сессии — **M6 Quality Expansion**
+(`C:/CLOUDE_PR/M6-Handoff-2026-05-25.zip`). Это **ортогональный план**:
+- **Этот PLAN** = «что Аналитик умеет **понять** про базу» (L0-L6 intelligence)
+- **M6 Handoff** = «как Аналитик **интегрируется** с 1С технически»
+  (Multi-MCP + EPF/CFE + тройной RAG + BSL LS live)
+
+**Интегрированный roadmap:** `../milestones/M6-INTEGRATED-PLAN.md` (единый view)
+**Решения по интеграции:** `../milestones/INTEGRATION-DECISIONS.md`
+(9 принято / 6 слито / 4 ждут пользователя / 3 отклонено).
+
+**Ключевое:** M6 фазы 12-18 **мапятся** на M-K1..M-K5 (нумерация моя сохраняется):
+- M6 Phase 12 (Multi-MCP + Capabilities) → влит в **M-K1**
+- M6 Phase 14 (Triple RAG) → влит в **M-K2**
+- M6 Phase 13a/13b/15/17 (EPF/CFE + BSL LS + UX) → влит в **M-K3**
+- M6 Phase 16 + 17b (MetaVision + Activity Stream) → влит в **M-K4**
+- M6 Phase 18 (Distribution v2.0) → влит в **M-K5**
+
+**Расширение сроков:** +1.5 месяца суммарно (M-K5 финиш 15.01.2027 vs 20.12.2026).
+Оправдано scope: добавлены EPF/CFE delivery + Multi-MCP + Triple RAG + visual graph.
 
 ---
 
@@ -758,6 +780,12 @@ Options:
 
 ### Changelog
 
+- **1.2** (2026-05-25): Интегрирован M6 Handoff. Добавлен раздел «Связь с M6  
+  Handoff» в начале. M6 фазы 12-18 мапятся на M-K1..M-K5 без смены  
+  нумерации. Срок M-K1: 1-2 → 2-3 нед (Multi-MCP). M-K2: 3-4 → 4-5 нед  
+  (Triple RAG). M-K3: 4-6 → 6-8 нед (EPF/CFE + BSL LS streaming).  
+  Финальный M-K5: 20.12.2026 → 15.01.2027 (+1.5 мес). Детали:  
+  `../milestones/M6-INTEGRATED-PLAN.md` и `INTEGRATION-DECISIONS.md`.
 - **1.1** (2026-05-25): Добавлен M-K0 Stabilization как первый милстоун перед  
   M-K1. Содержание — 28 critical+high findings из общего аудита проекта.  
   Сдвинуты все даты M-K1..M-K6 на +3-4 недели. Раздел 6.6 обновлён —  

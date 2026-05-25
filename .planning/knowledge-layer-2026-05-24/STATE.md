@@ -1,9 +1,12 @@
 ---
-plan_version: 1.1
+plan_version: 1.2
 milestone: M-K0
 milestone_name: "Stabilization — закрытие технического долга"
-status: pending_kickoff
-last_updated: "2026-05-25T10:00:00Z"
+status: in_progress
+last_updated: "2026-05-25T12:00:00Z"
+m6_handoff_integrated: true
+m6_handoff_doc: "../milestones/M6-INTEGRATED-PLAN.md"
+m6_handoff_decisions: "../milestones/INTEGRATION-DECISIONS.md"
 progress:
   m_k0_total: 28        # 9 CRITICAL + 19 HIGH/MEDIUM из общего аудита
   m_k0_done: 0
