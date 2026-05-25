@@ -40,8 +40,13 @@ import { parseSSEStream } from "./sse";
  *   3. http://localhost:8010 — dev/docker fallback.
  *
  * Use getter (не const на module level), иначе значение зафиксируется в client bundle на build-time.
+ *
+ * Экспортируется — нужен в api-keys.ts (saveSecretToBackend / fetchSecretStatus)
+ * иначе в Electron-сборке те две функции уходят на пустой prefix (process.env
+ * пустой в client-bundle) и POST /user-secrets возвращает 404 → ключ якобы
+ * «не сохранился», хотя backend был доступен. Исправлено 2026-05-25.
  */
-function getBackend(): string {
+export function getBackend(): string {
   if (typeof window !== "undefined") {
     const w = window as Window & { __BACKEND_URL__?: string };
     if (w.__BACKEND_URL__) return w.__BACKEND_URL__;
@@ -224,8 +229,34 @@ export async function deleteConnection(id: string): Promise<void> {
 }
 
 /**
+ * Структурированная ошибка ping подключения. Бросается из pingConnection
+ * когда backend вернул новый формат detail (с error_code/hint/diagnostics).
+ *
+ * UI ловит её, чтобы:
+ *   - показать `hint` с конкретной подсказкой (вместо обрезка исключения);
+ *   - подсветить кнопку «Собрать диагностику»;
+ *   - распознать error_code (`tcp_refused` / `dns_failed` / ...) для иконки.
+ */
+export class MCPPingError extends Error {
+  constructor(
+    message: string,
+    public readonly errorCode: string,
+    public readonly hint: string,
+    public readonly diagnostics: Record<string, unknown> | null,
+  ) {
+    super(message);
+    this.name = "MCPPingError";
+  }
+}
+
+/**
  * Пингует MCP-подключение по его id в backend.
  * Обновляет last_seen_at при успехе.
+ *
+ * При 502 backend (с 2026-05-25) возвращает объект:
+ *   { error_code, message, hint, diagnostics }
+ * — бросаем `MCPPingError` чтобы UI мог взять hint без regex-парсинга.
+ * Legacy формат (строка) тоже поддерживаем для обратной совместимости.
  */
 export async function pingConnection(
   id: string,
@@ -236,20 +267,53 @@ export async function pingConnection(
     signal,
   });
   if (!response.ok) {
-    // Извлекаем detail из backend — для 502 это «MCP не отвечает: …», что
-    // понятнее аналитику чем сырое «MCP ping вернул 502». До 2026-05-21 мы
-    // показывали raw status code → пользователи писали «не работает» без
-    // деталей.
-    let detail = "";
+    let detail: unknown = "";
     try {
       const body = await response.json();
-      detail = typeof body?.detail === "string" ? body.detail : "";
+      detail = body?.detail;
     } catch {
       /* not json */
     }
-    throw new Error(detail || `Сервер ответил ${response.status}`);
+    if (detail && typeof detail === "object") {
+      const d = detail as {
+        error_code?: string;
+        message?: string;
+        hint?: string;
+        diagnostics?: Record<string, unknown>;
+      };
+      throw new MCPPingError(
+        d.message || `Сервер ответил ${response.status}`,
+        d.error_code ?? "unknown",
+        d.hint ?? "",
+        d.diagnostics ?? null,
+      );
+    }
+    const detailStr = typeof detail === "string" ? detail : "";
+    throw new Error(detailStr || `Сервер ответил ${response.status}`);
   }
   return response.json() as Promise<MCPPingResponse>;
+}
+
+/**
+ * Запрашивает полный диагностический отчёт по подключению.
+ * В отличие от ping — endpoint ВСЕГДА отвечает 200, даже если ping упал
+ * внутри (детали ошибки уезжают в поля error_class/hint/exception_*).
+ *
+ * Используется кнопкой «Собрать диагностику» в MCPConnectionForm — фронт
+ * парсит JSON и скачивает его как файл `diagnostics-<name>-<ts>.json`.
+ */
+export async function getConnectionDiagnostics(
+  id: string,
+  signal?: AbortSignal,
+): Promise<Record<string, unknown>> {
+  const response = await fetch(`${getBackend()}/diagnostics/connection/${id}`, {
+    method: "POST",
+    signal,
+  });
+  if (!response.ok) {
+    throw new Error(`Диагностика недоступна: HTTP ${response.status}`);
+  }
+  return response.json() as Promise<Record<string, unknown>>;
 }
 
 // --- Sessions API (Plan 02-03) ---

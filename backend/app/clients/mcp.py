@@ -62,6 +62,13 @@ def _is_local_endpoint(endpoint: str) -> bool:
     return any(host in url for host in _LOCAL_HOSTS)
 
 
+# Публичные алиасы — для использования в `app.clients.mcp_errors`,
+# `app.routes.connections`, `app.routes.diagnostics`. Приватные имена
+# с подчёркиванием оставлены для обратной совместимости с тестами.
+normalize_local_endpoint = _normalize_local_endpoint
+is_local_endpoint = _is_local_endpoint
+
+
 class MCPClient:
     """MCP Streamable HTTP клиент.
 

@@ -1,12 +1,18 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { FieldError } from "@/components/ui/FieldError";
 import { LiveTestResult } from "@/components/ui/LiveTestResult";
-import { createConnection, updateConnection, pingConnection } from "@/lib/api";
+import {
+  createConnection,
+  updateConnection,
+  pingConnection,
+  getConnectionDiagnostics,
+  MCPPingError,
+} from "@/lib/api";
 import { mcpConnectionSchema } from "@/lib/form-schemas";
 import { publishToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
@@ -125,6 +131,12 @@ export function MCPConnectionForm({
   const [testMs, setTestMs] = useState<number | undefined>(undefined);
   const [testDetail, setTestDetail] = useState<string | undefined>(undefined);
   const [testError, setTestError] = useState<string | undefined>(undefined);
+  // 2026-05-25: подсказка для конкретного класса ошибки и код для UI.
+  // Раньше отображалось только обрезанное message — пользователь не знал
+  // что чинить. Backend теперь возвращает структурированный detail с hint.
+  const [testHint, setTestHint] = useState<string | undefined>(undefined);
+  const [testErrorCode, setTestErrorCode] = useState<string | undefined>(undefined);
+  const [downloadingDiagnostics, setDownloadingDiagnostics] = useState(false);
   // Advanced раскрывается автоматически, если редактируется proxy-подключение —
   // там поля для канала и адреса прокси.
   const [advancedOpen, setAdvancedOpen] = useState(parsed.kind === "proxy");
@@ -216,6 +228,8 @@ export function MCPConnectionForm({
     setTesting(true);
     setTestState("testing");
     setTestError(undefined);
+    setTestHint(undefined);
+    setTestErrorCode(undefined);
     const t0 = performance.now();
     try {
       const result = await pingConnection(initial.id);
@@ -228,12 +242,61 @@ export function MCPConnectionForm({
         message: `База 1С отвечает · ${result.tool_count} инструментов · ${result.duration_ms} мс`,
       });
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Ошибка теста";
-      setTestError(message);
-      setTestState("error");
-      publishToast({ type: "error", message });
+      if (err instanceof MCPPingError) {
+        // Новый формат — у нас есть hint и error_code, показываем полное.
+        setTestError(err.message);
+        setTestHint(err.hint);
+        setTestErrorCode(err.errorCode);
+        setTestState("error");
+        publishToast({ type: "error", message: err.message });
+      } else {
+        const message = err instanceof Error ? err.message : "Ошибка теста";
+        setTestError(message);
+        setTestState("error");
+        publishToast({ type: "error", message });
+      }
     } finally {
       setTesting(false);
+    }
+  }
+
+  /**
+   * Скачивает полный диагностический отчёт как JSON-файл. Доступно только
+   * для сохранённого подключения (для несохранённого нет ID). Файл удобен
+   * для отправки разработчику — содержит endpoint, классификацию ошибки,
+   * resolved DNS, proxy_env, probe соседних портов 1С на 127.0.0.1, версии.
+   */
+  async function handleDownloadDiagnostics() {
+    if (!initial?.id) return;
+    setDownloadingDiagnostics(true);
+    try {
+      const report = await getConnectionDiagnostics(initial.id);
+      const safeName = (initial.name || "connection").replace(
+        /[^A-Za-zА-Яа-я0-9_-]+/g,
+        "_",
+      );
+      const ts = new Date().toISOString().replace(/[:.]/g, "-");
+      const blob = new Blob([JSON.stringify(report, null, 2)], {
+        type: "application/json",
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `diagnostics-${safeName}-${ts}.json`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      publishToast({
+        type: "info",
+        message: "Диагностика скачана. Пришлите файл разработчику.",
+      });
+    } catch (err) {
+      const message =
+        err instanceof Error ? err.message : "Не удалось собрать диагностику";
+      publishToast({ type: "error", message });
+    } finally {
+      setDownloadingDiagnostics(false);
     }
   }
 
@@ -422,6 +485,50 @@ export function MCPConnectionForm({
           errorMessage={testError}
         />
       </div>
+
+      {/* Расширенная подсказка под кнопками при ошибке Тест.
+          Раньше пользователь видел обрезок исключения «All connection attempts
+          failed» и не понимал что чинить. Теперь backend присылает hint —
+          конкретный список проверок (порт совпадает / антивирус / 127.0.0.1
+          вместо localhost). */}
+      {testState === "error" && testHint && (
+        <div
+          data-testid="ping-error-hint"
+          className="rounded-md border border-[var(--error-40)] bg-[var(--error-08)] p-3 text-sm text-[var(--fg-1)]"
+        >
+          <div className="flex items-start gap-2">
+            <div className="flex-1">
+              <div className="text-xs uppercase tracking-wide text-[var(--error)] mb-1 font-mono">
+                {testErrorCode ?? "unknown_error"}
+              </div>
+              <div className="leading-relaxed whitespace-pre-line">{testHint}</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Кнопка «Собрать диагностику» — отдельный ряд под основными действиями.
+          Доступна для сохранённого подключения. Подсвечивается accent-цветом
+          когда тест упал — это сигнал «нажми меня и пришли разработчику». */}
+      {initial?.id && (
+        <div className="flex items-center gap-2 pt-1 flex-wrap">
+          <Button
+            variant={testState === "error" ? "default" : "ghost"}
+            size="sm"
+            onClick={handleDownloadDiagnostics}
+            disabled={downloadingDiagnostics}
+            data-testid="download-diagnostics"
+            title="Собрать полный диагностический отчёт (endpoint, классификация ошибки, DNS, прокси, probe соседних портов 1С). Пришлите файл разработчику если ошибка не очевидна."
+          >
+            <Download className="h-3.5 w-3.5 mr-1.5" />
+            {downloadingDiagnostics
+              ? "Собираю..."
+              : testState === "error"
+                ? "Собрать диагностику для разработчика"
+                : "Собрать диагностику"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

@@ -1453,9 +1453,30 @@ async def run_chat_loop(
             x_anon_enabled=x_anon_enabled,
         )
 
-    except Exception:
-        logger.exception("Ошибка сохранения assistant message")
-        message_id = "unknown"
+    except Exception as exc:
+        # BE-3 (M-K0.2, 2026-05-25): silent failure → explicit error.
+        # Раньше: message_id='unknown' тихо передавался в done event, frontend
+        # молча работал с битым id. Теперь — явный SSE error для пользователя
+        # + structured log с session_id для диагностики.
+        logger.exception(
+            "Failed to save assistant message (session=%s, channel=%s)",
+            session_id,
+            request.channel_id,
+        )
+        yield format_sse(
+            "error",
+            ErrorEvent(
+                message=(
+                    "Не удалось сохранить ответ. Попробуйте повторить запрос. "
+                    f"Если повторится — пришлите session_id={session_id} разработчику."
+                ),
+                code="message_save_failed",
+            ),
+        )
+        # Возврат — далее в коде есть auto-title / memory sync / schedule_review,
+        # они опираются на корректный message_id. Без сохранения они тоже упадут
+        # каскадом, поэтому return сразу — чище.
+        return
 
     # --- Auto-title background task для первого сообщения ---
     # Шедулим здесь, а не на старте orchestrator-а: иначе async I/O ниже
@@ -1529,7 +1550,17 @@ async def run_chat_loop(
                 aux_client=aux_compressor_client,
             )
         except Exception:
-            logger.debug("schedule_review failed", exc_info=True)
+            # BE-3 (M-K0.2, 2026-05-25): logger.debug → warning.
+            # Self-Learning skill pipeline критичен для качества — silent debug
+            # скрывал регрессии (skills не создавались, никто не знал почему).
+            # warning попадает в logs+Sentry в проде → быстрее ловим регрессии.
+            logger.warning(
+                "schedule_review failed (session=%s, channel=%s) — "
+                "skill learning pipeline degraded for this turn",
+                session_id,
+                request.channel_id,
+                exc_info=True,
+            )
 
     yield format_sse("done", DoneEvent(
         message_id=message_id,

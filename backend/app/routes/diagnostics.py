@@ -4,16 +4,30 @@
 (stdio) не персистятся в БД — настраиваются через env vars. Этот endpoint
 показывает их состояние аналитику, чтобы /status видел весь стек, а не только
 основную базу.
+
+POST /diagnostics/connection/{conn_id} — полный отчёт по конкретному
+подключению, для UI «Собрать диагностику». Возвращает JSON со всеми полями
+которые нужны разработчику чтобы понять что у клиента сломалось — без
+необходимости лезть в backend.log.
 """
 
 import logging
+import platform as pyplatform
+import sys
+import time
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Request
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from app.clients.mcp import MCPDisconnectedError
+from app.clients.mcp import (
+    MCPClient,
+    MCPDisconnectedError,
+    is_local_endpoint,
+    normalize_local_endpoint,
+)
+from app.clients.mcp_errors import classify_ping_error, collect_local_diagnostics
 from app.config import Settings, get_settings
 from app.log_setup import get_log_dir, get_log_file_path
 from app.models import (
@@ -30,6 +44,48 @@ class LogPathResponse(BaseModel):
     log_dir: str
     log_file: str
     exists: bool
+
+
+class ConnectionDiagnosticsReport(BaseModel):
+    """Полный диагностический отчёт по MCP-подключению.
+
+    Собирается одним вызовом POST /diagnostics/connection/{id} — аналитик
+    скачивает его как JSON и присылает разработчику без необходимости
+    лезть в backend.log и набирать команды netstat.
+
+    Структура намеренно плоская — чтобы при просмотре в текстовом редакторе
+    разработчик увидел всё сразу: endpoint, класс ошибки, hint, DNS, прокси,
+    probe соседних портов.
+    """
+
+    conn_id: str
+    conn_name: str
+    raw_endpoint: str
+    normalized_endpoint: str
+    is_local: bool
+
+    # Результаты ping
+    ping_ok: bool
+    ping_duration_ms: int
+    server_name: str | None = None
+    tool_count: int | None = None
+
+    # Классификация ошибки (None если ping_ok=True)
+    error_class: str | None = None
+    hint: str | None = None
+    exception_type: str | None = None
+    exception_message: str | None = None
+
+    # Локальная сетевая диагностика (только для is_local=True)
+    resolved_addresses: list[str] = Field(default_factory=list)
+    proxy_env: dict[str, str] = Field(default_factory=dict)
+    probe_ports_local: dict[str, bool] = Field(default_factory=dict)
+
+    # Контекст системы
+    platform: dict[str, str] = Field(default_factory=dict)
+    app_version: str
+    generated_at: str
+
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/diagnostics", tags=["diagnostics"])
@@ -168,3 +224,103 @@ async def log_path() -> LogPathResponse:
         log_file=str(file_path),
         exists=file_path.exists(),
     )
+
+
+@router.post("/connection/{conn_id}", response_model=ConnectionDiagnosticsReport)
+async def connection_diagnostics(
+    conn_id: str,
+    request: Request,
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> ConnectionDiagnosticsReport:
+    """Полный диагностический отчёт по MCP-подключению.
+
+    Делает то же что POST /connections/{id}/ping, но НЕ бросает HTTP 502 при
+    ошибке: возвращает структурированный JSON с классификацией для UI
+    «Собрать диагностику». Это значит endpoint всегда отвечает 200, даже если
+    ping упал.
+
+    Для local endpoints дополнительно собирает:
+        - resolved_addresses (что socket.getaddrinfo возвращает для хоста)
+        - proxy_env (значения *_PROXY env vars пользователя)
+        - probe_ports_local (какие из стандартных портов 6003/6010/6080 слушаются)
+
+    Аналитик скачивает отчёт как JSON и присылает разработчику одним файлом.
+    """
+    db = request.app.state.db
+    async with db.execute(
+        "SELECT name, endpoint FROM mcp_connections WHERE id = ?",
+        (conn_id,),
+    ) as cursor:
+        row = await cursor.fetchone()
+
+    if row is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"Подключение '{conn_id}' не найдено",
+        )
+
+    name = row[0]
+    endpoint = row[1]
+    normalized = normalize_local_endpoint(endpoint)
+    local = is_local_endpoint(normalized)
+    local_diag = collect_local_diagnostics(normalized) if local else {}
+
+    started_at = time.monotonic()
+    ping_ok = False
+    server_name: str | None = None
+    tool_count: int | None = None
+    error_class: str | None = None
+    hint: str | None = None
+    exception_type: str | None = None
+    exception_message: str | None = None
+
+    try:
+        async with MCPClient(endpoint) as client:
+            session = await client.initialize()
+            tools = await client.list_tools()
+        ping_ok = True
+        server_name = session.server_name or None
+        tool_count = len(tools)
+    except Exception as exc:  # noqa: BLE001 — нам нужно поймать ЛЮБОЕ
+        failure = classify_ping_error(exc, normalized)
+        error_class = failure.error_class
+        hint = failure.hint
+        exception_type = failure.exception_type
+        exception_message = failure.exception_message
+
+    duration_ms = int((time.monotonic() - started_at) * 1000)
+
+    return ConnectionDiagnosticsReport(
+        conn_id=conn_id,
+        conn_name=name,
+        raw_endpoint=endpoint,
+        normalized_endpoint=normalized,
+        is_local=local,
+        ping_ok=ping_ok,
+        ping_duration_ms=duration_ms,
+        server_name=server_name,
+        tool_count=tool_count,
+        error_class=error_class,
+        hint=hint,
+        exception_type=exception_type,
+        exception_message=exception_message,
+        resolved_addresses=local_diag.get("resolved_addresses", []),
+        proxy_env=local_diag.get("proxy_env", {}),
+        probe_ports_local=local_diag.get("probe_ports_local", {}),
+        platform={
+            "system": pyplatform.system(),
+            "release": pyplatform.release(),
+            "version": pyplatform.version(),
+            "machine": pyplatform.machine(),
+            "python": sys.version.split()[0],
+        },
+        app_version=settings.app_version,
+        generated_at=datetime_utcnow_iso(),
+    )
+
+
+def datetime_utcnow_iso() -> str:
+    """Текущее UTC время в ISO-формате, без зависимости от timezone-aware datetime."""
+    from datetime import UTC, datetime
+
+    return datetime.now(UTC).isoformat()

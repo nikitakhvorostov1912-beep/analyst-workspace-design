@@ -1,16 +1,18 @@
 """REST CRUD endpoints для mcp_connections: GET/POST/PUT/DELETE /connections."""
 
 import asyncio
+import json
 import logging
 import os
 import time
 from datetime import datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import uuid4
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 
-from app.clients.mcp import MCPClient
+from app.clients.mcp import MCPClient, is_local_endpoint, normalize_local_endpoint
+from app.clients.mcp_errors import classify_ping_error, collect_local_diagnostics
 from app.models import (
     MCPConnectionCreate,
     MCPConnectionFull,
@@ -329,11 +331,37 @@ async def ping_connection(
             session = await client.initialize()
             tools = await client.list_tools()
     except Exception as exc:
-        short = str(exc)[:200]
-        logger.warning("MCP ping failed for %s: %s", conn_id, short)
+        # 2026-05-25: расширенная диагностика. Раньше тут было `str(exc)[:200]`
+        # — обрезок без endpoint, без типа исключения, без подсказки. Клиент
+        # присылал backend.log и в нём была только строка
+        # «All connection attempts failed» — невозможно понять что чинить.
+        # Теперь лог содержит структурированный JSON: класс ошибки, hint,
+        # resolved DNS, proxy env, probe соседних портов 1С на 127.0.0.1.
+        normalized = normalize_local_endpoint(endpoint)
+        failure = classify_ping_error(exc, normalized)
+        diag: dict[str, Any] = {
+            "conn_id": conn_id,
+            "raw_endpoint": endpoint,
+            "normalized_endpoint": normalized,
+            "exception_type": failure.exception_type,
+            "exception_message": failure.exception_message,
+            "error_class": failure.error_class,
+            "hint": failure.hint,
+        }
+        if is_local_endpoint(normalized):
+            diag.update(collect_local_diagnostics(normalized))
+        logger.warning(
+            "MCP ping failed: %s",
+            json.dumps(diag, ensure_ascii=False, default=str),
+        )
         raise HTTPException(
             status_code=502,
-            detail=f"MCP не отвечает: {short}",
+            detail={
+                "error_code": failure.error_class,
+                "message": f"MCP не отвечает: {failure.hint}",
+                "hint": failure.hint,
+                "diagnostics": diag,
+            },
         ) from exc
 
     duration_ms = int((time.monotonic() - started_at) * 1000)
