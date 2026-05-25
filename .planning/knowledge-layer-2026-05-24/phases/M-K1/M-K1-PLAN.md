@@ -8,11 +8,30 @@
 
 ## Зафиксированные решения пользователя (2026-05-25)
 
+- **Q1 CFE именование**: подсистема `АналитикПлюс` + префикс `АП_` для критичных
+  общих модулей. В M-K1 — задача создать `backend/app/types/capabilities.py`
+  использует те же conventions для namespaced features (`cfe.activity_stream` и т.д.)
+- **Q2 типовые**: УТ + ERP + КА + БГУ + ЗУП (5 на БСП 3.1+). M-K1 capability
+  matrix включает все 23 features включая БГУ/ЗУП-specific (если применимо).
+  M-K1 SUMMARY должен зафиксировать каких capabilities ещё не хватает для
+  БГУ/ЗУП — это backlog для M-K3.
 - **Q3 EPF first**: Phase 13a (EPF) до Phase 13b (CFE) в M-K3
+- **Q4 MetaVision**: Spike 3 дня в M-K4 Phase 16.0. На M-K1 не влияет (граф
+  делается в M-K3 17.1 как primary независимо).
 - **Q6 Dual license**: Apache 2.0 для Core + Proprietary для EPF/CFE/Rulebook
-  + tools_ui_1c GPL-3.0 как opt-in. LICENSE-* + NOTICE создаются в M-K1.
+  + tools_ui_1c GPL-3.0 как opt-in. LICENSE-* + NOTICE создаются в M-K1.2.
+- **Q-NEW 1С:Напарник**: Primary + наш RAG fallback. В M-K1 — задача
+  M-K1.15 «seed 3 MCP» включает 1c-buddy на :6002 с healthcheck +
+  auto-restart (см. R-06 в RISKS.md).
 
 См. `../../../milestones/INTEGRATION-DECISIONS.md` для деталей.
+
+## Pre-flight (выполнено в M-K0.10)
+
+- ✅ ADR-001..005 созданы в `../../adr/`
+- ✅ RISKS.md initial population
+- ✅ CHECKLIST.md
+- ✅ M-K0 finalised, ветка `feature/m-k0-stabilization` готова к merge
 
 ---
 

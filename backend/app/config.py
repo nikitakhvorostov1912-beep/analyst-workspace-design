@@ -242,6 +242,34 @@ class Settings(BaseSettings):
     # Среда — backend держит для будущих gates (фронтенд CSP читает NODE_ENV напрямую)
     environment: Literal["dev", "prod"] = "dev"
 
+    # === Aux MCP: 1С:Напарник (1c-buddy) ===
+    # G1 (M-K0.10): pre-flight для M-K1.15 «seed 3 MCP».
+    # Q-NEW resolved: Напарник = primary L5 источник (бесплатно до 01.10.2026),
+    # наш RAG = fallback. См. ADR-004 + INTEGRATION-DECISIONS.md.
+    #
+    # При SEED_ON_STARTUP=true и доступном endpoint — backend автоматически
+    # добавляет MCP connection «1c-buddy» при первом запуске (M-K1.15).
+    # Healthcheck (R-06): periodic ping каждые 30s, на 3 fails подряд — circuit
+    # breaker → frontend получает degraded mode warning.
+    buddy_mcp_endpoint: str = Field(
+        default="http://127.0.0.1:6002/mcp",
+        validation_alias="BUDDY_MCP_ENDPOINT",
+    )
+    buddy_mcp_enabled: bool = Field(
+        default=True,
+        validation_alias="BUDDY_MCP_ENABLED",
+        description="Опциональный seed 1c-buddy MCP при старте. False = не сидим, "
+        "пользователь добавит вручную если нужно.",
+    )
+    buddy_mcp_healthcheck_interval_s: int = Field(
+        default=30,
+        validation_alias="BUDDY_MCP_HEALTHCHECK_INTERVAL_S",
+        ge=5,
+        le=600,
+        description="Периодичность healthcheck (5..600 sec). На 3 фейла подряд — "
+        "circuit breaker.",
+    )
+
     # === Aux MCP: bsl-context (справочник API платформы 1С) ===
     # Если все три пути доступны (JAR, Java, платформа 1С), orchestrator подключит
     # bsl-context как дополнительный источник tools (search/info/getMember/
