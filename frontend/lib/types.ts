@@ -202,6 +202,19 @@ export type MCPConnection = {
   metadata_last_sync?: string | null;
   /** Количество tools, отданных MCP при ping'е (зеркалит ping.tool_count). */
   tool_count?: number | null;
+  // === M-K1.6 (migration v11) · Capability-aware fields ===
+  /** ChannelMode — mcp_only (default) / epf / cfe. Определяет какие cards доступны. */
+  mode?: 'mcp_only' | 'epf' | 'cfe';
+  /** Версия конфигурации УТ/ERP/КА — «УТ 11.5» / «ERP 2.5» / null. */
+  configuration?: string | null;
+  /** Версия платформы 1С — «8.3.27.1989». */
+  platform?: string | null;
+  /** Версия нашего расширения АналитикПлюс (для CFE канала). */
+  ext_version?: string | null;
+  /** Capability strings из MCP experimental.analyst-1c.features — 23 capability matrix. */
+  capabilities?: string[];
+  /** 12-char slug fingerprint для shared knowledge corpus. */
+  fingerprint?: string | null;
 };
 
 // --- Advanced card types (Plan 04-02) ---
