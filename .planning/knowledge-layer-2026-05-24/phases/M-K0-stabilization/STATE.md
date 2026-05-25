@@ -4,9 +4,9 @@ status: in_progress
 started_at: "2026-05-25T10:30:00Z"
 branch: "feature/m-k0-stabilization"
 phases_total: 10
-phases_done: 2
+phases_done: 3
 findings_total: 28
-findings_done: 15
+findings_done: 18
 ---
 
 # M-K0 Stabilization — STATE
@@ -17,7 +17,7 @@ findings_done: 15
 |-------|---------|--------|---------|
 | **M-K0.1** | **Security Wave 0 (8 findings)** | **✅ DONE** | 7 commits |
 | **M-K0.2** | **Backend Wave 1 (6 findings)** | **✅ DONE** | 5 commits |
-| M-K0.3 | Perf Wave 2 (3 findings) | pending | — |
+| **M-K0.3** | **Perf Wave 2 (3 findings)** | **✅ DONE** | 3 commits |
 | M-K0.4 | Prompts Wave 3 (3 findings, PROMPT-2 уже бонус в SEC-3) | pending | — |
 | M-K0.5 | Frontend Wave 4 (3 findings) | pending | — |
 | M-K0.6 | Arch Wave 5 — ARCH-2 globals | pending | — |
@@ -28,9 +28,8 @@ findings_done: 15
 
 ## Текущая задача
 
-**M-K0.3 → PERF-1 SQLite single connection** (первая из 3 performance findings).
-
-После Wave 2 (PERF) — Wave 3 (PROMPT-1 + PROMPT-3, **PROMPT-2 уже сделан** в SEC-3).
+**M-K0.4 → PROMPT-1 Few-shot tool decision tree** (PROMPT-2 уже закрыт бонусом в SEC-3).
+Затем PROMPT-3 Memory recall trigger.
 
 ## Commits в M-K0
 
@@ -54,7 +53,14 @@ Wave 1 Backend Quality (5 commits):
 <BE-6 commit>    BE-6 SQLite batch commit                        HIGH
 ```
 
-12 атомарных коммитов, 15 findings закрыто (8 SEC + 6 BE + 1 bonus PROMPT-2).
+Wave 2 Performance (3 commits):
+```
+506a193 PERF-1  SQLite connection pool (5 conns + WAL)           CRITICAL
+1f8ae78 PERF-2  LLMClient reuse через все итерации loop          CRITICAL
+b1a378a PERF-3  React Context cache llm-config + connections     HIGH
+```
+
+15 атомарных коммитов, 18 findings закрыто (8 SEC + 6 BE + 3 PERF + 1 bonus PROMPT-2).
 
 ## Findings progress
 
@@ -75,10 +81,10 @@ Wave 1 Backend Quality (5 commits):
 | BE-4 | HIGH | CLARIFY leak GeneratorExit | ✅ done |
 | BE-5 | HIGH | _TOOL_FOR_CARD_TYPE 2× execute_query | ✅ done |
 | BE-6 | HIGH | SQLite batch commit | ✅ done |
-| PERF-1 | CRITICAL | SQLite single connection | pending ← следующий |
-| PERF-2 | CRITICAL | LLMClient recreate per iter | pending |
-| PERF-3 | HIGH | 2 HTTP roundtrip per send | pending |
-| PROMPT-1 | CRITICAL | Few-shot tool decision tree | pending |
+| PERF-1 | CRITICAL | SQLite single connection | ✅ done |
+| PERF-2 | CRITICAL | LLMClient recreate per iter | ✅ done |
+| PERF-3 | HIGH | 2 HTTP roundtrip per send | ✅ done |
+| PROMPT-1 | CRITICAL | Few-shot tool decision tree | pending ← следующий |
 | PROMPT-3 | CRITICAL | Memory recall trigger | pending |
 | FE-1 | CRITICAL | prefers-reduced-motion | pending |
 | FE-3 | HIGH | --fg-4 контраст | pending |
