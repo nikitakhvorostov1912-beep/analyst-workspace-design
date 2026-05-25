@@ -41,6 +41,50 @@ note: "COMMERCE-PLAN-2026-05-23 Phase 1-3 в основном закрыты (10
 
 ---
 
+## Update — M-K0 Stabilization in progress (2026-05-25)
+
+**Ветка:** `feature/m-k0-stabilization` — ~25 commits, 24/28 findings закрыто (86%).
+
+### M-K0 milestone summary (живой)
+
+| Wave | Subject | Status |
+|---|---|---|
+| 0 | Security (8 findings: SSRF, CSP, SQL validator, CORS, rate-limit, deprecation, injection) | ✅ DONE |
+| 1 | Backend Quality (6 findings: pending race, task GC, silent failures, leak, card matching, batch commit) | ✅ DONE |
+| 2 | Performance (3 findings: SQLite pool, LLMClient reuse, React Context cache) | ✅ DONE |
+| 3 | Prompts (3 findings: few-shot tools, memory recall + bonus injection в SEC-3) | ✅ DONE |
+| 4 | Frontend (3 findings: prefers-reduced-motion, WCAG AA контраст, stable attachment keys) | ✅ DONE |
+| 5 | Architecture (1 finding: contextvars для structured logging) | ✅ DONE |
+| 6 | Docs+DevOps (4 findings: DOC-1 ARCHITECTURE rev, DOC-2 цифры, DEVOPS-1 cert process, DEVOPS-5 semver guard) | 🟡 в работе |
+| 7 | Coverage push 60%+ | pending |
+| 8 | Security re-audit | pending |
+| 9 | SUMMARY + handoff | pending |
+
+### Цифры (актуальные на 2026-05-25)
+
+- **Backend pytest:** ~970 passed (+ ~123 от M-K0); **1 pre-existing deselect**
+  (`test_chat_llm_429_returns_rate_limit_with_retry_after_s` — Windows DNS
+  suffix резолвит `fake-mcp` → `127.0.0.200`, SSRF guard корректно блокирует
+  как DNS rebinding; тест нужно переписать на `http://127.0.0.1:1/mcp`).
+- **Frontend vitest:** 322 / 322 (42 файла, +1 `config-cache.test.tsx`).
+- **Build (`npx next build`):** PASS, 0 regressions.
+- **loop.py:** **~1835 строк** (vs 870 → 689 в P1.2). PROMPT-1 + PROMPT-3 +
+  ARCH-2 + few-shot блоки добавили ~250 строк system_prompt + декомпозиции.
+  **ARCH-1 decompose loop.py (688→≤400)** перенесён в M-K3.0 preparatory.
+
+### Связь с Knowledge Layer + M6 Handoff
+
+- Knowledge Layer план: `.planning/knowledge-layer-2026-05-24/PLAN.md` v1.2
+  (M-K0..M-K6 roadmap).
+- M6 handoff (от параллельной сессии): `.planning/handoff/m6-quality-
+  expansion/` (12 файлов).
+- Unified roadmap: `.planning/milestones/M6-INTEGRATED-PLAN.md`.
+- 22 решения + 6 user resolutions: `INTEGRATION-DECISIONS.md`.
+- 15 gap'ов после ревизии: `.planning/milestones/AUDIT-GAPS.md` →
+  13 tracked tasks (G1-G15) привязаны к M-K1..M-K5 фазам.
+
+---
+
 ## Honesty gap — заявления M6 → реальность (2026-05-22)
 
 Прошлая запись STATE.md заявляла M6 «100% / 30/30 фич». Глубокое ревью 9 направлений (architecture/backend/frontend/security/tests/UX/perf/completeness/devops) вскрыло:

@@ -16,6 +16,30 @@ try {
   console.warn('[updater] electron-updater не установлен, auto-update отключён');
 }
 
+// DEVOPS-5 (M-K0.7): semver.gt downgrade guard.
+// Минимальный self-contained compare — не добавляем npm dependency ради 8 строк.
+// Защита: если manifest update.yml на release сервере по ошибке (или из-за
+// атаки) указывает версию НИЖЕ текущей — мы не квитимся и не ставим
+// «обновление» которое на самом деле downgrade. electron-updater сам этого
+// не проверяет — допускает любую версию в latest.yml.
+function semverGt(a, b) {
+  if (!a || !b) return false;
+  const parse = (v) => String(v).replace(/^v/, '').split('.').map((x) => parseInt(x, 10) || 0);
+  const pa = parse(a);
+  const pb = parse(b);
+  for (let i = 0; i < 3; i++) {
+    const da = pa[i] || 0;
+    const db = pb[i] || 0;
+    if (da > db) return true;
+    if (da < db) return false;
+  }
+  return false;
+}
+
+// Версия которая была downloaded — сохраняем в module scope чтобы
+// перепроверить semver в ipc handler updater:install (downgrade attack guard).
+let downloadedUpdateVersion = null;
+
 let backendProc = null;
 let frontendProc = null;
 let mainWindow = null;
@@ -290,9 +314,11 @@ app.whenReady().then(async () => {
           }
         });
         autoUpdater.on('update-downloaded', (info) => {
+          // DEVOPS-5: запоминаем downloaded version для downgrade guard в install handler.
+          downloadedUpdateVersion = info && info.version ? String(info.version) : null;
           if (mainWindow && !mainWindow.isDestroyed()) {
             mainWindow.webContents.send('updater:downloaded', {
-              version: info && info.version,
+              version: downloadedUpdateVersion,
             });
           }
         });
@@ -315,15 +341,34 @@ app.whenReady().then(async () => {
 // → electron-updater закрывает приложение, ставит новую версию и
 // автоматически запускает её.
 ipcMain.handle('updater:install', () => {
-  if (autoUpdater) {
-    try {
-      autoUpdater.quitAndInstall();
-      return { ok: true };
-    } catch (err) {
-      return { ok: false, error: err && err.message };
-    }
+  if (!autoUpdater) {
+    return { ok: false, error: 'updater not available' };
   }
-  return { ok: false, error: 'updater not available' };
+  // DEVOPS-5 (M-K0.7): downgrade guard. Если по любой причине downloaded
+  // version НЕ строго больше текущей — отказываем в установке. Это защищает
+  // от scenario: атакующий MITM update channel или ошибка в release manifest
+  // указывают latest.yml версию старее установленной. electron-updater сам
+  // не проверяет — он просто заменяет на «то что в manifest». Без этой
+  // проверки пользователь молча получил бы откат на v1.1.0 с v1.4.7 — с
+  // потерей фич, в худшем случае с известной CVE.
+  const currentVersion = app.getVersion();
+  if (downloadedUpdateVersion && !semverGt(downloadedUpdateVersion, currentVersion)) {
+    console.warn(
+      '[updater] downgrade rejected: downloaded=%s, current=%s',
+      downloadedUpdateVersion,
+      currentVersion,
+    );
+    return {
+      ok: false,
+      error: `downgrade rejected (downloaded ${downloadedUpdateVersion} ≤ current ${currentVersion})`,
+    };
+  }
+  try {
+    autoUpdater.quitAndInstall();
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err && err.message };
+  }
 });
 
 // ------------------------------------------------------------
