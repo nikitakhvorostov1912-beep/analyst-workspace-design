@@ -7,6 +7,7 @@ from typing import Annotated
 import httpx
 from fastapi import APIRouter, Header, HTTPException, Request
 
+from app.clients.llm_provider_resolver import detect_provider_id
 from app.config import get_settings
 from app.models import (
     LLMConfigCreate,
@@ -15,6 +16,7 @@ from app.models import (
     LLMConfigTestResponse,
     LLMConfigUpdate,
 )
+from app.storage.user_secrets_store import get_secret as get_user_secret
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/llm-config", tags=["llm-config"])
@@ -219,19 +221,37 @@ async def test_llm_config(
 ) -> LLMConfigTestResponse:
     """Валидирует LLM endpoint+model+ключ через 1-token completion.
 
-    API ключ принимается через header X-LLM-API-Key (T-05-04). Если header
-    пуст — env-fallback по endpoint (per-provider: NVIDIA → DEFAULT_LLM_API_KEY_NVIDIA,
-    OpenAI → DEFAULT_LLM_API_KEY_OPENAI, прочие → DEFAULT_LLM_API_KEY).
-    Таймаут T-05-03: 10 секунд.
-    error_message обрезается до 200 символов (T-05-05).
+    Резолв ключа (приоритет сверху-вниз, 2026-05-25):
+        1. header `X-LLM-API-Key` — если фронт явно передал
+        2. POST /user-secrets — backend-only AES-GCM ключ из БД
+           (Фронт пишет через `saveSecretToBackend(provider_id, ...)`)
+        3. env DEFAULT_LLM_API_KEY_* — embed-ключ из installer
+
+    Раньше шага 2 не было, и тест после перезахода падал «invalid_key»
+    даже если ключ был сохранён в `user_secrets` через POST /user-secrets.
     """
     started_at = time.monotonic()
-    api_key = (x_llm_api_key or "").strip() or get_settings().resolve_default_api_key(body.endpoint)
+    api_key = (x_llm_api_key or "").strip()
+    if not api_key:
+        # 2026-05-25: fallback на user_secrets — был только env-fallback,
+        # из-за чего «Тест» в Settings после перезахода падал на 'invalid_key'
+        # даже когда ключ зашифрован и лежит в БД.
+        provider_id = detect_provider_id(body.endpoint)
+        if provider_id:
+            db = request.app.state.db
+            try:
+                stored = await get_user_secret(db, provider_id)
+                if stored:
+                    api_key = stored
+            except Exception as exc:  # noqa: BLE001 — БД может быть недоступна
+                logger.warning("get_user_secret(%s) failed in /llm-config/test: %s", provider_id, exc)
+    if not api_key:
+        api_key = get_settings().resolve_default_api_key(body.endpoint)
     if not api_key:
         return LLMConfigTestResponse(
             ok=False,
             error_code="invalid_key",
-            error_message="API ключ не задан (ни через header, ни через .env для этого провайдера)",
+            error_message="API ключ не задан (ни через header, ни в user_secrets, ни в .env)",
             duration_ms=0,
         )
 

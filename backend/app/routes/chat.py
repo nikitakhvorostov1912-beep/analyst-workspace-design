@@ -11,6 +11,7 @@ from fastapi.responses import Response, StreamingResponse
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
+from app.clients.llm_provider_resolver import detect_provider_id as _detect_provider_id
 from app.config import get_settings
 from app.models import ChatRequest, ConfirmRequest
 from app.orchestrator.interrupt import INTERRUPTS
@@ -19,33 +20,9 @@ from app.orchestrator.safety import resolve_pending_confirmation
 from app.storage.db import get_db
 from app.storage.user_secrets_store import get_secret as get_user_secret
 
-
-# P2.1 (2026-05-23): mapping endpoint → provider_id из frontend/lib/llm-providers.ts.
-# Используется для подъёма ключа из user_secrets (если frontend сохранял ключ
-# через POST /user-secrets). Не падает если endpoint не найден — fallback на
-# resolve_default_api_key из Settings.
-_ENDPOINT_TO_PROVIDER: dict[str, str] = {
-    "foundation-models.api.cloud.ru": "cloud-ru-qwen3",
-    "integrate.api.nvidia.com": "nvidia-nim",
-    "api.openai.com": "openai",
-    "openrouter.ai": "openrouter",  # совпадает с anthropic-or, но это OK — один ключ
-    "api.deepseek.com": "deepseek",
-    "api.xiaomimimo.com": "xiaomi-mimo",
-    "api.groq.com": "groq",
-    "api.mistral.ai": "mistral",
-    "api.x.ai": "xai",
-}
-
-
-def _detect_provider_id(endpoint: str) -> str | None:
-    """Возвращает provider_id из endpoint URL или None если домен не известен."""
-    if not endpoint:
-        return None
-    lower = endpoint.lower()
-    for host, provider_id in _ENDPOINT_TO_PROVIDER.items():
-        if host in lower:
-            return provider_id
-    return None
+# P2.1 (2026-05-23): mapping endpoint → provider_id переехал в
+# app.clients.llm_provider_resolver — теперь им пользуется и /llm-config/test
+# для fallback на user_secrets. Подробнее — в docstring модуля.
 
 logger = logging.getLogger(__name__)
 router = APIRouter()

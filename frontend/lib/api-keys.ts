@@ -48,14 +48,21 @@ export function clearLLMApiKey(): void {
  *
  * provider_id определяется UI из выбранного провайдера (cloud-ru-qwen3,
  * nvidia-nim, и т.д., см. lib/llm-providers.ts).
+ *
+ * 2026-05-25: backend URL берётся из общего `getBackend()` (window.__BACKEND_URL__
+ * для Electron-сборки). Раньше использовалось `process.env.NEXT_PUBLIC_BACKEND_URL`
+ * напрямую — в Electron client-bundle это пустая строка, и POST уходил на
+ * относительный URL → 404 → ключ якобы «не сохранился», хотя backend был
+ * доступен. Это был главный корень бага «ключ слетает при перезаходе».
  */
+import { getBackend } from "./api";
+
 export async function saveSecretToBackend(
   provider_id: string,
   api_key: string,
 ): Promise<{ ok: boolean; error?: string }> {
   try {
-    const backend = process.env.NEXT_PUBLIC_BACKEND_URL ?? "";
-    const response = await fetch(`${backend}/user-secrets`, {
+    const response = await fetch(`${getBackend()}/user-secrets`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ provider_id, api_key }),
@@ -74,13 +81,31 @@ export async function saveSecretToBackend(
  */
 export async function fetchSecretStatus(): Promise<string[]> {
   try {
-    const backend = process.env.NEXT_PUBLIC_BACKEND_URL ?? "";
-    const response = await fetch(`${backend}/user-secrets/status`);
+    const response = await fetch(`${getBackend()}/user-secrets/status`);
     if (!response.ok) return [];
     const data = (await response.json()) as { providers?: string[] };
     return Array.isArray(data.providers) ? data.providers : [];
   } catch {
     return [];
+  }
+}
+
+/**
+ * Удаляет сохранённый ключ provider'а с backend. true если строка существовала.
+ * 2026-05-25: добавлено, чтобы UI Delete мог чистить и backend-хранилище,
+ * не только legacy localStorage.
+ */
+export async function deleteSecretFromBackend(
+  provider_id: string,
+): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `${getBackend()}/user-secrets/${encodeURIComponent(provider_id)}`,
+      { method: "DELETE" },
+    );
+    return response.status === 204;
+  } catch {
+    return false;
   }
 }
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,14 @@ import {
   testLLMConfig,
 } from "@/lib/api";
 import { llmConfigSchema, llmConfigUpdateSchema } from "@/lib/form-schemas";
-import { getLLMApiKey, setLLMApiKey, clearLLMApiKey } from "@/lib/api-keys";
+import {
+  getLLMApiKey,
+  setLLMApiKey,
+  clearLLMApiKey,
+  saveSecretToBackend,
+  fetchSecretStatus,
+  deleteSecretFromBackend,
+} from "@/lib/api-keys";
 import {
   CUSTOM_MODEL_ID,
   DEFAULT_PRESET_ID,
@@ -42,6 +49,32 @@ import {
 } from "@/lib/llm-providers";
 import { publishToast } from "@/lib/toast";
 import type { LLMConfigResponse } from "@/lib/types";
+
+/**
+ * Вычисляет `provider_id` для записи в `user_secrets` по текущему состоянию формы.
+ *
+ * - Для preset'ов (NVIDIA NIM, DeepSeek, MiMo, Cloud.ru) — `provider.id` из каталога
+ *   `lib/llm-providers.ts`. Это короткие стабильные строки (`"nvidia-nim"`, ...),
+ *   которые backend узнаёт через `detect_provider_id(endpoint)` и автоматически
+ *   подтягивает ключ из БД во время /chat и /llm-config/test.
+ * - Для custom-провайдера — `customEndpoint.rstrip('/')`. Backend для custom
+ *   `detect_provider_id` вернёт None и автоматический fallback не сработает —
+ *   custom юзеры пока зависят от header X-LLM-API-Key (legacy). Сохранение в
+ *   `user_secrets` всё равно делаем — это защищает от потери ключа при перезаходе.
+ *
+ * Возвращает null если ничего вменяемого не получилось (custom + пустой endpoint).
+ */
+function resolveProviderIdForSecret(
+  presetId: string,
+  customEndpoint: string,
+): string | null {
+  if (presetId !== CUSTOM_MODEL_ID) {
+    const match = resolveProviderAndModel(presetId);
+    return match?.provider.id ?? null;
+  }
+  const trimmed = customEndpoint.trim().replace(/\/$/, "");
+  return trimmed || null;
+}
 
 interface LLMConfigFormProps {
   initial: LLMConfigResponse | null;
@@ -85,6 +118,19 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
   const [customEndpoint, setCustomEndpoint] = useState(initial?.endpoint ?? "");
   const [temperature, setTemperature] = useState(initial?.temperature ?? 0.3);
   const [apiKey, setApiKey] = useState("");
+  // 2026-05-25: список provider_id для которых на backend есть зашифрованный
+  // ключ в user_secrets. Подгружается при mount через GET /user-secrets/status
+  // и обновляется после Save/Delete. Главный фикс бага «ключ слетает» —
+  // раньше backend-хранилище игнорировалось, всё шло в localStorage.
+  const [backendSavedProviders, setBackendSavedProviders] = useState<string[]>([]);
+
+  const currentProviderId = useMemo(
+    () => resolveProviderIdForSecret(presetId, customEndpoint),
+    [presetId, customEndpoint],
+  );
+  const hasBackendKey =
+    currentProviderId !== null && backendSavedProviders.includes(currentProviderId);
+
   const [showKeyInput, setShowKeyInput] = useState(
     !(hasExisting && storedKey) && !hasEnvApiKey,
   );
@@ -93,6 +139,20 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
   const [testing, setTesting] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(initialPresetId === CUSTOM_MODEL_ID);
+
+  // Подгружаем backend status один раз при mount.
+  // Любая ошибка fetch (backend недоступен) — degrades до пустого списка,
+  // тогда UI работает как раньше (полагается на localStorage / env).
+  useEffect(() => {
+    let cancelled = false;
+    void fetchSecretStatus().then((providers) => {
+      if (!cancelled) setBackendSavedProviders(providers);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   // Sprint 02 (handoff B · LiveTestResult): inline-чип результата теста — см. MCPConnectionForm.
   const [testState, setTestState] = useState<
     "idle" | "testing" | "success" | "error"
@@ -120,6 +180,21 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
   // Поэтому UI явно показывает env-плашку только для MiMo, иначе требует ввод.
   const envKeyApplies =
     hasEnvApiKey && Boolean(activePreset?.provider.embedKeyAvailable);
+
+  // 2026-05-25: если для активного провайдера ключ нашёлся на backend
+  // (или есть env-ключ, или legacy localStorage) — НЕ показываем input
+  // ввода поверх «✓ ключ задан». Раньше форма всегда открывалась с input'ом
+  // потому что storedKey пустой → впечатление «ключ слетел».
+  // Объявлен после `envKeyApplies` чтобы избежать TDZ при использовании
+  // в зависимостях useEffect.
+  useEffect(() => {
+    if (hasBackendKey || envKeyApplies || storedKey) {
+      setShowKeyInput(false);
+    } else {
+      setShowKeyInput(true);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasBackendKey, envKeyApplies]);
 
   function getEffectiveApiKey(): string {
     if (showKeyInput) return apiKey;
@@ -200,14 +275,48 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
 
     setLoading(true);
     try {
-      // 2026-05-24: если переключение на провайдер с embedded env-ключом
-      // (NVIDIA NIM) И пользователь не вводил свой ключ — очищаем legacy
-      // localStorage от чужого ключа (например, оставшегося от MiMo). Иначе
-      // backend получит MiMo-ключ при вызове NVIDIA — `401 Unauthorized`.
+      // 2026-05-25: главный фикс «ключ слетает». Раньше ключ писался ТОЛЬКО
+      // в localStorage — после перезахода в Electron он терялся (новый
+      // профиль Chromium / sandbox /  другой origin). Теперь основной
+      // путь — backend `user_secrets` (AES-GCM, лежит в SQLite, переживает
+      // переустановку приложения).
+      //
+      // Стратегия:
+      //   1) Если есть введённый api_key И известен provider_id —
+      //      POST /user-secrets. Если успешно — обновляем local-snapshot
+      //      `backendSavedProviders`, чтобы UI сразу показал «✓ ключ задан».
+      //   2) Дубль в localStorage оставляем (двойная запись) — это позволяет
+      //      legacy code path (chat.py при header X-LLM-API-Key) продолжать
+      //      работать. После v1.5 — удалить.
+      //   3) Если переключились на embedded-key провайдер без ввода ключа,
+      //      чистим localStorage от чужого ключа (как раньше).
       if (envKeyApplies && !apiKey) {
         clearLLMApiKey();
       } else if (data.api_key) {
+        let backendOk = false;
+        if (currentProviderId) {
+          const saveRes = await saveSecretToBackend(currentProviderId, data.api_key);
+          backendOk = saveRes.ok;
+          if (!saveRes.ok) {
+            // Не падаем, но честно сигнализируем — иначе пользователь снова
+            // получит «ключ слетел» при следующем перезаходе и не поймёт почему.
+            publishToast({
+              type: "warning",
+              message: `Ключ не сохранён в защищённом хранилище (${saveRes.error ?? "ошибка"}). Использую локальное хранилище — может потеряться при переустановке.`,
+            });
+          } else {
+            setBackendSavedProviders((prev) =>
+              prev.includes(currentProviderId)
+                ? prev
+                : [...prev, currentProviderId],
+            );
+          }
+        }
+        // Дубль в localStorage — для backward-compat с chat.py header path.
+        // Если backend ОК — это резерв, если нет — единственный путь.
         setLLMApiKey(data.api_key);
+        // После успешной записи в backend инпут больше не нужен.
+        if (backendOk) setShowKeyInput(false);
       }
 
       const configPayload = {
@@ -243,6 +352,15 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
     try {
       await deleteLLMConfig();
       clearLLMApiKey();
+      // 2026-05-25: чистим и backend-хранилище. Раньше LLM конфиг удалялся,
+      // но `user_secrets` оставались — при повторной настройке пользователь
+      // видел «✓ ключ задан» от прежнего провайдера и удивлялся откуда.
+      if (currentProviderId) {
+        await deleteSecretFromBackend(currentProviderId);
+        setBackendSavedProviders((prev) =>
+          prev.filter((p) => p !== currentProviderId),
+        );
+      }
       publishToast({ type: "info", message: "LLM конфиг удалён" });
       if (typeof window !== "undefined") {
         window.dispatchEvent(new CustomEvent("llm-config-updated"));
@@ -360,14 +478,19 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
         )}
       </div>
 
-      {/* API ключ. Логика отображения:
-          - envKeyApplies (выбран MiMo + есть ключ в .env) → зелёная плашка
-          - storedKey есть → •••• с кнопкой «Изменить ключ»
-          - иначе → поле ввода */}
+      {/* API ключ. Логика отображения (приоритет сверху-вниз):
+          - showKeyInput=true → поле ввода (пользователь нажал «Изменить ключ»
+            или ключа нигде нет)
+          - hasBackendKey → зелёная плашка «✓ ключ задан в защищённом хранилище»
+            (P2.1: backend user_secrets, AES-GCM, переживает перезаход)
+          - envKeyApplies → зелёная плашка «✓ ключ задан в окружении сервера»
+            (NVIDIA NIM с зашитым в installer ключом)
+          - иначе если есть legacy storedKey → •••• с кнопкой «Изменить»
+            (LocalStorage — после v1.5 удалить) */}
       <div>
         <div className="flex items-center justify-between mb-1">
           <label className="text-xs text-[var(--fg-muted)]">API ключ</label>
-          {(storedKey || envKeyApplies) && (
+          {(hasBackendKey || storedKey || envKeyApplies) && (
             <button
               type="button"
               className="text-xs text-[var(--accent)] hover:underline"
@@ -389,6 +512,14 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
                 : activePreset?.provider.keyHint ?? "sk-..."
             }
           />
+        ) : hasBackendKey ? (
+          <div
+            data-testid="key-stored-backend"
+            className="flex h-9 items-center px-3 rounded-md border border-[var(--success-40)] bg-[var(--success-12)] text-sm text-[var(--success)] font-mono"
+            title="Ключ зашифрован AES-256 GCM и сохранён в локальной БД backend. Переживает перезаход и переустановку приложения."
+          >
+            ✓ Ключ сохранён в защищённом хранилище
+          </div>
         ) : envKeyApplies && !storedKey ? (
           <div className="flex h-9 items-center px-3 rounded-md border border-[var(--success-40)] bg-[var(--success-12)] text-sm text-[var(--success)] font-mono">
             ✓ Ключ задан в окружении сервера (.env)

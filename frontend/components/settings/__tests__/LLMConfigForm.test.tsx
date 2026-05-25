@@ -17,6 +17,13 @@ vi.mock("@/lib/api-keys", () => ({
   getLLMApiKey: vi.fn().mockReturnValue(null),
   setLLMApiKey: vi.fn(),
   clearLLMApiKey: vi.fn(),
+  // 2026-05-25: добавлены backend-storage функции. По умолчанию backend
+  // отвечает «нет ключей» — тесты, тестирующие первичный ввод ключа, не
+  // должны видеть «✓ ключ задан». Тесты которые проверяют backend-flow
+  // явно перепереопределяют вернуть [provider_id].
+  saveSecretToBackend: vi.fn().mockResolvedValue({ ok: true }),
+  fetchSecretStatus: vi.fn().mockResolvedValue([]),
+  deleteSecretFromBackend: vi.fn().mockResolvedValue(true),
 }));
 
 // AlertDialog — мокаем чтобы диалог всегда рендерился в DOM
