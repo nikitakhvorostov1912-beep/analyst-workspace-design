@@ -7,6 +7,14 @@ from datetime import datetime, timedelta
 
 import aiosqlite
 
+# SEC-3 (M-K0, 2026-05-25): tool_content в БД хранится raw для UI карточек,
+# но при загрузке в LLM context — должен sanitize'нуться. Иначе injection
+# в полях 1С (комментарий документа = «ignore previous instructions»)
+# при первой обработке проходит через scan_sanitize_for_prompt в loop.py,
+# но при следующем turn load_history_for_llm подгружает RAW из БД =
+# injection активируется как «вторая попытка».
+from app.memory.injection_scan import sanitize_for_prompt as scan_sanitize_for_prompt
+
 logger = logging.getLogger(__name__)
 
 
@@ -441,6 +449,9 @@ async def load_history_for_llm(
 
         # Tool messages — по каждому tool_call. Старые результаты сильно
         # обрезаем (tool_content_cap), чтобы не раздувать контекст.
+        # SEC-3: ВСЕГДА прогоняем через injection scan ПЕРЕД подачей в LLM —
+        # БД хранит raw для UI карточек, но контекст модели должен быть
+        # стерилизован независимо от того, что было при первой обработке.
         for tc in tc_list:
             tc_id = tc.get("id", "") or ""
             if not tc_id:
@@ -450,6 +461,9 @@ async def load_history_for_llm(
                 tool_content = json.dumps(result, ensure_ascii=False)
             else:
                 tool_content = tc.get("error") or ""
+            # SEC-3: sanitize ДО truncate — homoglyph match не должен
+            # «съесть» только хвост, обрезанный по cap.
+            tool_content = scan_sanitize_for_prompt(tool_content)
             if len(tool_content) > tool_content_cap:
                 tool_content = tool_content[:tool_content_cap] + "...truncated"
             out.append({
