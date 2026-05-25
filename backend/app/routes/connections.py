@@ -13,6 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 
 from app.clients.mcp import MCPClient, is_local_endpoint, normalize_local_endpoint
 from app.clients.mcp_errors import classify_ping_error, collect_local_diagnostics
+from app.services.capability_discovery import discover_capabilities
 from app.models import (
     MCPConnectionCreate,
     MCPConnectionFull,
@@ -406,9 +407,38 @@ async def ping_connection(
 
     duration_ms = int((time.monotonic() - started_at) * 1000)
 
+    # M-K1.7: Capability Discovery — парсим experimental из MCP initialize и
+    # сохраняем mode/configuration/platform/ext_version/capabilities/fingerprint
+    # в БД (миграция v11). Это позволяет фронту знать какие фичи доступны на
+    # данном канале (ADR-004 + useCapability hook в M-K1.10).
+    #
+    # NB: discover_capabilities() гарантированно возвращает результат (fallback
+    # на mcp_only + base 8 caps если experimental пустой) — не блокирует ping.
+    discovery = discover_capabilities(session)
+    caps_json = json.dumps(discovery.capability_strings, ensure_ascii=False)
+    fingerprint_slug = discovery.fingerprint.slug if discovery.fingerprint else None
+
     await db.execute(
-        "UPDATE mcp_connections SET last_seen_at = CURRENT_TIMESTAMP WHERE id = ?",
-        (conn_id,),
+        """
+        UPDATE mcp_connections
+        SET last_seen_at = CURRENT_TIMESTAMP,
+            mode = ?,
+            configuration = ?,
+            platform = ?,
+            ext_version = ?,
+            capabilities = ?,
+            fingerprint = ?
+        WHERE id = ?
+        """,
+        (
+            discovery.mode,
+            discovery.configuration,
+            discovery.platform,
+            discovery.ext_version,
+            caps_json,
+            fingerprint_slug,
+            conn_id,
+        ),
     )
     await db.commit()
 

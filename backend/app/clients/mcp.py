@@ -28,12 +28,19 @@ class MCPDisconnectedError(Exception):
 
 @dataclass
 class MCPSession:
-    """Результат MCP initialize."""
+    """Результат MCP initialize.
+
+    M-K1.7 (ADR-004): добавлено `experimental` поле для capability discovery.
+    Хранит весь experimental dict из server response — парсинг по
+    namespaces (`analyst-1c.features`, `analyst-1c.mode`, etc.) делается
+    в `app.services.capability_discovery`.
+    """
 
     session_id: str
     mcp_version: str
     server_name: str
     tools: list[dict] = field(default_factory=list)
+    experimental: dict[str, object] = field(default_factory=dict)
 
 
 _LOCAL_HOSTS = ("127.0.0.1", "localhost", "0.0.0.0", "::1")
@@ -191,11 +198,19 @@ class MCPClient:
         self._check_error(response)
 
         result = response.get("result", {})
+        # M-K1.7: парсинг experimental field (ADR-004 Capability Discovery)
+        # MCP spec разрешает vendor-specific extensions в `experimental.*`.
+        # Сервер может вернуть `experimental.analyst-1c.features`/.mode/.configuration
+        # — это используется в capability_discovery.py для UPDATE mcp_connections.
+        # Старые серверы (без support) вернут пустой dict — graceful degradation.
+        experimental_raw = result.get("experimental", {})
+        experimental = experimental_raw if isinstance(experimental_raw, dict) else {}
         return MCPSession(
             session_id=self.session_id or "",
             mcp_version=result.get("protocolVersion", ""),
             server_name=result.get("serverInfo", {}).get("name", ""),
             tools=[],
+            experimental=experimental,
         )
 
     async def list_tools(self) -> list[dict]:
