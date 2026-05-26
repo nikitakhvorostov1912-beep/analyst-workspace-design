@@ -502,6 +502,31 @@ async def test_update_run_progress_noop_returns_true(db_ready):
     assert ok is True
 
 
+@pytest.mark.asyncio
+async def test_update_run_progress_items_total_recalculable(db_ready):
+    """items_total можно обновлять после create_run.
+
+    Use case: при создании run мы не знаем сколько объектов будет — fetch
+    идёт асинхронно. После discovery вызываем update_run_progress(items_total=N).
+    """
+    config = await create_configuration(
+        db_ready, TypicalConfigKind.UT_115, "11.5.18.193"
+    )
+    run = await create_run(db_ready, config.id, IndexingPhase.PARSE_BSL)
+    assert run.items_total == 0
+
+    await update_run_progress(db_ready, run.id, items_total=24040)
+    refetched = await get_run_by_id(db_ready, run.id)
+    assert refetched is not None
+    assert refetched.items_total == 24040
+
+    # И повторное обновление работает
+    await update_run_progress(db_ready, run.id, items_total=24050)
+    refetched = await get_run_by_id(db_ready, run.id)
+    assert refetched is not None
+    assert refetched.items_total == 24050
+
+
 # ---------- list_runs ----------
 
 

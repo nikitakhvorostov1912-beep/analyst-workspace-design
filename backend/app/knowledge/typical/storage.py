@@ -442,6 +442,7 @@ async def update_run_progress(
     run_id: int,
     *,
     items_processed: int | None = None,
+    items_total: int | None = None,
     progress_pct: int | None = None,
     status: IndexingRunStatus | None = None,
     error: str | None = None,
@@ -474,6 +475,10 @@ async def update_run_progress(
     if items_processed is not None:
         sets.append("items_processed = ?")
         params.append(items_processed)
+
+    if items_total is not None:
+        sets.append("items_total = ?")
+        params.append(items_total)
 
     if progress_pct is not None:
         sets.append("progress_pct = ?")
