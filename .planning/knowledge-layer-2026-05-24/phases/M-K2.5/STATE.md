@@ -3,14 +3,14 @@ milestone: M-K2.5
 milestone_name: "Typical Configurations Knowledge"
 status: in_progress
 started_at: "2026-05-26T23:50:00Z"
-last_updated: "2026-05-26T20:30:00Z"
+last_updated: "2026-05-26T22:00:00Z"
 branch: main (8 фаз merged FF)
 parent_milestone: "M-K2 (closed 2026-05-26)"
 parallel_with: "M-K3 (Relational + Behavioral)"
 phases_total: 9      # 8 build + 1 SUMMARY
-phases_done: 8       # 0-7 done + 8 частично (2/7 конфигураций)
-phase_8_done: 2      # БП 3.0 + КА 2.5 — полные графы + карточки
-phase_8_pending: 5   # УТ 11.5, ERP 2.5, ЗУП 3.1, УСО 2.5, Документооборот 3 — ждут снапшоты
+phases_done: 8       # 0-7 done + 8 частично (4/7 конфигураций)
+phase_8_done: 4      # БП 3.0 + КА 2.5 + УТ 11.5 + ERP 2.5 — полные
+phase_8_pending: 3   # ЗУП 3.1, УСО 2.5, Документооборот 3 — ждут снапшоты
 ---
 
 # M-K2.5 Typical Configurations Knowledge — STATE
@@ -57,7 +57,7 @@ M-K3 (граф) и M-K2.5 (типовые) используют один фун�
 | **M-K2.5.5** | **Object Cards Generator** | ✅ DONE (mock) | `a077035` | Migration v18 (`typical_object_cards`). card_models + card_storage + card_context + card_generator + prompt template v1. LLMCaller Protocol + MockLLMCaller (без расхода токенов). Идемпотентность через source_hash. 71 unit-тест. Pilot на БП 3.0 (10 объектов): 0.13 сек на генерацию, второй прогон 0 токенов (skip-hash работает). Бюджет полной БП через GPT-4o-mini: ~$2.40. Real LLM adapter — отдельным мини-коммитом с явным согласием пользователя |
 | **M-K2.5.6** | **LLM Tools** | ✅ DONE | `44468bf` | `typical/tool.py` — 6 OpenAI function schemas + dispatcher: list_typical_configurations / search_typical_objects / explain_typical_object / trace_typical_calls / trace_typical_movements / compare_with_typical. Интеграция в `loop.py` (_build_openai_tools + run_chat_loop dispatch). System prompt обновлён — добавлены инструкции когда вызывать typical tools vs MCP. 23 unit-теста. compare_with_typical — заглушка (требует client graph из M-K3) |
 | **M-K2.5.7** | **Frontend UI** | ✅ DONE | `a07ae28` | Backend: `GET /knowledge/typical/configurations` + `GET /knowledge/typical/{channel}/object/{qname}`. Frontend: `TypicalSelector.tsx` в Header (рядом с ChannelSelector), `TypicalObjectCard.tsx` (раскрывающаяся карточка в чат-потоке), `lib/api.ts` расширен (fetchTypicalConfigurations + fetchTypicalObject), `lib/storage.ts` с `setActiveTypicalChannelId`. 7 vitest тестов |
-| **M-K2.5.8** | **Run all 7 configurations** | 🟡 PARTIAL (2/7) | pending commit | **Phase 8 закрыт частично:** БП 3.0.138.24 (11713 объектов, 166769 nodes, 314008 edges, 11713 карточек) + КА 2.5.25.92 (19683 объекта, 300232 nodes, 559287 edges, 19683 карточки). 100% покрытие обеих типовых. Время: КА **7:11**, БП **3:49** — 30-50× быстрее оценки благодаря оптимизации `commit=False + RETURNING + WAL + batch`. **5/7 типовых ждут снапшоты:** УТ 11.5, ERP 2.5, ЗУП 3.1, УСО 2.5, Документооборот 3 |
+| **M-K2.5.8** | **Run all 7 configurations** | 🟡 PARTIAL (4/7) | `16ea8f3` + pending | **4 из 7 типовых полностью загружены:** БП 3.0.138.24 + КА 2.5.25.92 + УТ 11.5.17.226 (DemoTrd) + ERP 2.5.21.118 (DemoEnterprise206). **Итого: 917k nodes, 1.71M edges, 63 197 карточек, 100% покрытие на каждой**. Скорость pipeline: ~20-35 мин на конфигурацию (DESIGNER 15-25 мин + остальное 5-10 мин). **3/7 ждут снапшоты:** ЗУП 3.1, УСО 2.5, Документооборот 3 |
 | M-K2.5.7 | Frontend UI | pending | — | Селектор типовой в чате, карточка объекта раскрывающаяся, кнопка «Сравнить с типовой» |
 | M-K2.5.8 | Run all 7 configurations | pending | — | УТ 11.5 (пилот) → БП 3.0 → ЗУП 3.1 → ERP 2.5 → КА 2 → УСО 2.5 → Документооборот |
 
@@ -68,9 +68,12 @@ M-K3 (граф) и M-K2.5 (типовые) используют один фун�
 - 346+ новых unit-тестов нарастающим итогом (82 + 39 + 30 + 46 + 55 + 71 + 23) + 7 vitest
 - 347 typical/* теста + 46 graph_storage — все зелёные
 - Зависимости pyproject.toml: +tree-sitter +tree-sitter-bsl
-- **Полные графы 2 типовых в БД:**
+- **Полные графы 4 типовых в БД:**
   - КА 2.5.25.92: 300 232 nodes / 559 287 edges / 19 683 карточек (7:11)
   - БП 3.0.138.24: 166 769 nodes / 314 008 edges / 11 713 карточек (3:49)
+  - УТ 11.5.17.226: 147 868 nodes / 276 763 edges / 11 781 карточек (2:38)
+  - ERP 2.5.21.118: 302 462 nodes / 563 349 edges / 20 020 карточек (5:05)
+  - **Итого: 917 331 nodes / 1 713 407 edges / 63 197 карточек**
 - 6 LLM tools в orchestrator работают с реальными графами
 - Frontend TypicalSelector в Header + TypicalObjectCard готов к рендерингу
 
