@@ -92,8 +92,12 @@ async def run_pilot(
         )
 
         # Список MetadataObject node'ов
+        # Используем limit×3 чтобы был запас если есть фильтр kinds,
+        # но не меньше 100k чтобы покрыть полные типовые (КА 2 ~ 20k объектов).
+        fetch_limit = max(limit * 3, 100_000)
         nodes = await list_nodes(
-            db, channel_id=channel_id, node_kind="MetadataObject", limit=10000,
+            db, channel_id=channel_id, node_kind="MetadataObject",
+            limit=fetch_limit,
         )
         if kinds:
             nodes = [n for n in nodes if n.attributes.get("kind") in kinds]
