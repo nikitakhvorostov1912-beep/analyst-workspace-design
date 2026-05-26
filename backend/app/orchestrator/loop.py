@@ -98,6 +98,7 @@ from app.orchestrator.memory_integration import (
     memory_tool_schemas,
     sync_memory_post_turn,
 )
+from app.orchestrator.mentions_prefetch import prefetch_mentions
 from app.orchestrator.persistence import (
     count_session_messages,
     ensure_session,
@@ -999,11 +1000,17 @@ def _build_full_system_prompt(
     mem_block: str,
     skills_block: str,
     todos_block: str,
+    mentions_block: str = "",
 ) -> str:
     """Собирает финальный system prompt из статичного SYSTEM_PROMPT + опциональных блоков.
 
-    Порядок: статика → memory → skills → todos. Todos последние —
-    самый свежий контекст для модели.
+    Порядок: статика → memory → skills → mentions → todos. Mentions блок
+    идёт ПЕРЕД todos — это контекст текущего запроса, должен быть рядом
+    с самым свежим состоянием (todos), но до них чтобы LLM понимала
+    «юзер упомянул эти объекты, паспорта переданы карточками».
+
+    Mentions блок — M-K1.14, генерируется `mentions_prefetch.prefetch_mentions`
+    из @-mentions в user-сообщении.
 
     Pure function. Извлечено из run_chat_loop как часть P1.2 декомпозиции.
     """
@@ -1012,6 +1019,8 @@ def _build_full_system_prompt(
         prompt_parts.append(mem_block)
     if skills_block:
         prompt_parts.append(skills_block)
+    if mentions_block:
+        prompt_parts.append(mentions_block)
     if todos_block:
         prompt_parts.append(todos_block)
     return "\n\n".join(prompt_parts)
@@ -1147,6 +1156,29 @@ async def run_chat_loop(
         ))
         return
 
+    # --- M-K1.14: prefetch object dossiers для @-mentions ---
+    # Парсим `@Документ.ОПП` в сообщении, читаем dossiers из metadata_cache
+    # (M-K1.12+1.13). Cards эмитим сразу — юзер видит карту ДО LLM-итерации.
+    # System prompt дополняется списком найденных/ненайденных объектов —
+    # LLM понимает контекст и не дублирует get_metadata для уже известных.
+    #
+    # Best-effort: при любой ошибке продолжаем без mention-фичи (никогда
+    # не валим chat из-за knowledge layer).
+    mentions_cards: list[dict] = []
+    mentions_context_block: str = ""
+    try:
+        prefetch_result = await prefetch_mentions(
+            db, request.channel_id, request.message
+        )
+        mentions_cards = prefetch_result.cards
+        if prefetch_result.context_block:
+            mentions_context_block = prefetch_result.context_block
+    except Exception:
+        logger.exception(
+            "Mentions prefetch failed для канала %s — продолжаю без mention cards",
+            request.channel_id,
+        )
+
     # --- Получаем список инструментов (primary + aux MCPs) ---
     anon_headers = {"X-Anon-Enabled": "true"} if x_anon_enabled else None
     primary_mcp = MCPClient(mcp_endpoint, headers=anon_headers)
@@ -1196,12 +1228,15 @@ async def run_chat_loop(
         history_msgs = list(history_msgs)
         history_msgs[-1] = {"role": "user", "content": user_message_content}
 
-    # System prompt: статика → memory → skills → todo. Skills блок включает
-    # инкремент usage telemetry для попавших в prompt активных skills (Sprint 3 A9).
+    # System prompt: статика → memory → skills → mentions → todo. Skills
+    # блок включает инкремент usage telemetry для попавших в prompt активных
+    # skills (Sprint 3 A9). Mentions блок (M-K1.14) — список dossiers,
+    # уже отправленных юзеру карточками, чтобы LLM не дублировала get_metadata.
     full_system_prompt = _build_full_system_prompt(
         memory_system_block(memory_manager),
         _render_skills_block(skill_store, skill_usage),
         render_todos_for_prompt(session_id),
+        mentions_block=mentions_context_block,
     )
 
     messages: list[dict] = [
@@ -1212,6 +1247,16 @@ async def run_chat_loop(
     accumulated_content = ""
     accumulated_tool_calls: list[dict] = []
     accumulated_cards: list[dict] = []
+
+    # M-K1.14: emit mention cards (object dossiers из metadata_cache) ДО
+    # первого `status: thinking`. Юзер видит карту мгновенно, ещё до того
+    # как LLM начнёт работать. Cards также добавляются в accumulated_cards
+    # — это критично для save_assistant_message (cards персистятся вместе
+    # с финальным ответом, чтобы при перезагрузке сессии они отобразились).
+    for card in mentions_cards:
+        yield format_sse("card", CardEvent(type=card["type"], payload=card["payload"]))
+        accumulated_cards.append(card)
+
     # Reasoning из ПОСЛЕДНЕЙ итерации LLM. MiMo / R1 в thinking mode требуют
     # вернуть reasoning_content при follow-up запросе с этим assistant
     # сообщением в history, иначе 400 «must be passed back to the API».
