@@ -74,7 +74,7 @@ MIGRATIONS_V3 = [
     """,
 ]
 
-CURRENT_VERSION = 14
+CURRENT_VERSION = 15
 
 # Миграция v4: расширение card_states — добавление колонки anon_tokens JSON
 MIGRATIONS_V4 = [
@@ -353,6 +353,43 @@ MIGRATIONS_V14 = [
 ]
 
 
+# Миграция v15 (M-K2.8): обвязочная таблица для БСП RAG.
+# Хранит content + metadata каждого Экспорт-метода БСП CommonModules.
+# Vector в vec_objects (channel_id="_bsp", object_path="bsp:<ver>:<Mod>.<Method>"),
+# а текст и сигнатура — здесь. JOIN по object_path даёт LLM-friendly результат.
+#
+# Ключи:
+#   - PRIMARY KEY (id)
+#   - UNIQUE (object_path) — для JOIN с vec_objects
+#   - UNIQUE (module_name, method_name, version) — natural key защита от дублей
+#   - chunk_hash SHA-256 для idempotent re-index
+#
+# Версии: '3.1' | '3.2' (источник: zeegin/ssl_3_1, ssl_3_2 — CC-BY-4.0).
+MIGRATIONS_V15 = [
+    """
+    CREATE TABLE IF NOT EXISTS bsp_chunks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        object_path TEXT NOT NULL UNIQUE,
+        module_name TEXT NOT NULL,
+        method_name TEXT NOT NULL,
+        method_kind TEXT NOT NULL,
+        signature TEXT NOT NULL,
+        doc_comment TEXT NOT NULL,
+        content TEXT NOT NULL,
+        version TEXT NOT NULL,
+        source_path TEXT NOT NULL,
+        char_count INTEGER NOT NULL,
+        chunk_hash TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(module_name, method_name, version)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_bsp_chunks_module ON bsp_chunks(module_name)",
+    "CREATE INDEX IF NOT EXISTS idx_bsp_chunks_method ON bsp_chunks(method_name)",
+    "CREATE INDEX IF NOT EXISTS idx_bsp_chunks_version ON bsp_chunks(version)",
+]
+
+
 async def apply_migrations(db: aiosqlite.Connection) -> None:
     """Идемпотентно применяет миграции схемы БД."""
     # Создаём schema_version первым делом
@@ -516,5 +553,17 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
             (14,),
+        )
+        await db.commit()
+
+    if current < 15:
+        # bsp_chunks (v15, M-K2.8) — обвязочная таблица для БСП RAG.
+        # Экспортные методы CommonModules БСП 3.1/3.2 — для JOIN с vec_objects
+        # по object_path = "bsp:<ver>:<Mod>.<Method>".
+        for stmt in MIGRATIONS_V15:
+            await db.execute(stmt)
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (15,),
         )
         await db.commit()
