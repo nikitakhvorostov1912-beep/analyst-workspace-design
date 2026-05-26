@@ -107,8 +107,10 @@ async def test_migration_v17_idempotent():
             "SELECT version FROM schema_version ORDER BY version"
         )
         versions = [r[0] for r in await cursor.fetchall()]
-        # Версия 17 — последняя
-        assert max(versions) == 17
+        # Версия 17 присутствует (v18 от M-K2.5.5 уже добавлен,
+        # тест проверяет идемпотентность миграций — v17 не пропадает)
+        assert 17 in versions
+        assert max(versions) >= 17
     finally:
         await conn.close()
 

@@ -19,6 +19,42 @@ Phases:
 """
 
 from app.knowledge.typical.bsl_ast import parse_file, parse_module, parse_string
+from app.knowledge.typical.card_context import (
+    CardContext,
+    CardContextAttribute,
+    CardContextMethod,
+    CardContextRegisterRead,
+    CardContextTabularSection,
+    build_card_context,
+)
+from app.knowledge.typical.card_generator import (
+    CardGenerationError,
+    GenerationResult,
+    LLMCaller,
+    LLMResponse,
+    MockLLMCaller,
+    PROMPT_VERSION,
+    build_messages,
+    generate_card,
+    generate_card_for_channel,
+    load_prompt_template,
+)
+from app.knowledge.typical.card_models import (
+    CardAttribute,
+    CardMovement,
+    CardStatus,
+    TypicalObjectCard,
+    TypicalObjectCardRecord,
+)
+from app.knowledge.typical.card_storage import (
+    count_cards_by_channel,
+    delete_cards_by_channel,
+    get_card_by_qname,
+    get_existing_source_hash,
+    list_cards_by_channel,
+    update_card_status,
+    upsert_card,
+)
 from app.knowledge.typical.graph_builder import (
     GraphBuildStats,
     build_typical_graph,
@@ -146,4 +182,36 @@ __all__ = [
     # graph_builder
     "build_typical_graph",
     "GraphBuildStats",
+    # card_models
+    "TypicalObjectCard",
+    "TypicalObjectCardRecord",
+    "CardAttribute",
+    "CardMovement",
+    "CardStatus",
+    # card_storage
+    "upsert_card",
+    "get_card_by_qname",
+    "list_cards_by_channel",
+    "get_existing_source_hash",
+    "update_card_status",
+    "delete_cards_by_channel",
+    "count_cards_by_channel",
+    # card_context
+    "CardContext",
+    "CardContextAttribute",
+    "CardContextMethod",
+    "CardContextRegisterRead",
+    "CardContextTabularSection",
+    "build_card_context",
+    # card_generator
+    "LLMCaller",
+    "LLMResponse",
+    "MockLLMCaller",
+    "GenerationResult",
+    "CardGenerationError",
+    "PROMPT_VERSION",
+    "load_prompt_template",
+    "build_messages",
+    "generate_card",
+    "generate_card_for_channel",
 ]

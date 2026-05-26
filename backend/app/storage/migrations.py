@@ -74,7 +74,7 @@ MIGRATIONS_V3 = [
     """,
 ]
 
-CURRENT_VERSION = 17
+CURRENT_VERSION = 18
 
 # Миграция v4: расширение card_states — добавление колонки anon_tokens JSON
 MIGRATIONS_V4 = [
@@ -511,6 +511,63 @@ MIGRATIONS_V17 = [
 ]
 
 
+# Миграция v18 — Object Cards (M-K2.5.5, ADR-003 секция 3 "Embedding").
+#
+# Карточки — это LLM-генерируемые описания на русском языке для каждого
+# ключевого объекта типовой (Документ.X, Справочник.Y, Регистр.Z и т.д.).
+# Хранятся отдельно от графа, ссылаются на объект через
+# `channel_id + object_qualified_name`. Эмбедится **только** summary +
+# purpose + posting_flow (не сам код) — это политика legal-clean
+# embedding'а из ADR-003.
+#
+# `card_payload` — JSON со структурой:
+#   {
+#     "summary": "Документ продажи товаров...",
+#     "purpose": "Регистрирует факт реализации в БУ...",
+#     "key_attributes": [{"name": "Контрагент", "role": "получатель"}, ...],
+#     "movements": [{"register": "...", "direction": "расход", "condition": "..."}],
+#     "posting_flow": ["шаг 1", "шаг 2", ...],
+#     "typical_scenarios": ["...", "..."],
+#     "preconditions": ["..."],
+#     "related_objects": ["Документ.X", "Регистр.Y"],
+#     "its_links": [...]
+#   }
+#
+# `source_hash` — SHA-256 от концентрата (MetadataObject XML hash +
+# children edges из графа). При повторной генерации с тем же hash —
+# карточка идемпотентна (skip LLM call).
+#
+# `embedding_model` / `embedding_dim` — служебные поля чтобы при смене
+# embedding-провайдера пере-эмбедить старые карточки.
+MIGRATIONS_V18 = [
+    """
+    CREATE TABLE IF NOT EXISTS typical_object_cards (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        channel_id TEXT NOT NULL,
+        object_qualified_name TEXT NOT NULL,
+        object_kind TEXT NOT NULL,
+        card_payload TEXT NOT NULL DEFAULT '{}',
+        source_hash TEXT NOT NULL,
+        prompt_version TEXT NOT NULL DEFAULT 'v1',
+        llm_model TEXT,
+        token_usage_in INTEGER,
+        token_usage_out INTEGER,
+        embedding_model TEXT,
+        embedding_dim INTEGER,
+        status TEXT NOT NULL DEFAULT 'pending',
+        error TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(channel_id, object_qualified_name)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_typical_cards_channel ON typical_object_cards(channel_id)",
+    "CREATE INDEX IF NOT EXISTS idx_typical_cards_kind ON typical_object_cards(channel_id, object_kind)",
+    "CREATE INDEX IF NOT EXISTS idx_typical_cards_status ON typical_object_cards(status)",
+    "CREATE INDEX IF NOT EXISTS idx_typical_cards_hash ON typical_object_cards(source_hash)",
+]
+
+
 async def apply_migrations(db: aiosqlite.Connection) -> None:
     """Идемпотентно применяет миграции схемы БД."""
     # Создаём schema_version первым делом
@@ -709,5 +766,18 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
             (17,),
+        )
+        await db.commit()
+
+    if current < 18:
+        # Object Cards (v18, M-K2.5.5) — typical_object_cards с UNIQUE
+        # на (channel_id, object_qualified_name) для idempotent generation.
+        # source_hash для skip-если-неизменился. Эмбеддинг через embedding_*
+        # поля (само значение в vec_objects через cross-reference).
+        for stmt in MIGRATIONS_V18:
+            await db.execute(stmt)
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (18,),
         )
         await db.commit()
