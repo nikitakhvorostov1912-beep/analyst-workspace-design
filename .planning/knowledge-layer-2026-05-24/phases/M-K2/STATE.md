@@ -1,14 +1,16 @@
 ---
 milestone: M-K2
-status: in_progress
+status: complete
 started_at: "2026-05-26T09:30:00Z"
-last_updated: "2026-05-26T23:30:00Z"
-branch: "feature/m-k2-knowledge-badge"
-parent_branch_merged_to_main: "feature/m-k2-incremental-refresh (5792ef9)"
-phases_total: 13   # 11 content + smoke + summary
-phases_done: 11    # +M-K2.11 Privacy badge UI
-backend_tests_passed: 1472  # без изменений (фронт-фаза)
-frontend_tests_passed: 378  # +17 (10 useKnowledgeStatus + 7 KnowledgeBadge)
+completed_at: "2026-05-26T23:45:00Z"
+last_updated: "2026-05-26T23:45:00Z"
+branch: "feature/m-k2-summary"
+parent_branch_merged_to_main: "feature/m-k2-knowledge-badge (d10d72d)"
+phases_total: 13
+phases_done: 12        # 11 content phases + SUMMARY
+phases_deferred: 1     # M-K2.smoke (E2E Playwright)
+backend_tests_passed: 1472
+frontend_tests_passed: 378
 ---
 
 # M-K2 Knowledge Foundation — STATE
@@ -28,19 +30,15 @@ frontend_tests_passed: 378  # +17 (10 useKnowledgeStatus + 7 KnowledgeBadge)
 | **M-K2.9** | **Configuration Type Detection** | **✅ DONE** | config_detection.py: 7 known sigs (УТ/ERP/КА/БП/БГУ/ЗУП/УСО) + intersection scoring + custom fallback. Интегрировано в indexer.bulk_refresh post-success hook (best-effort UPDATE mcp_connections.configuration). 18 tests включая anti-conflict signature overlap test. |
 | **M-K2.10** | **UX-6 Indexing Progress UI** | **✅ DONE** | useIndexerStatus hook + IndexerProgress компонент + интеграция в ChannelSelector dropdown + 16 vitest тестов |
 | **M-K2.11** | **OPS-1 Privacy badge** | **✅ DONE** | KnowledgeBadge.tsx + useKnowledgeStatus.ts хук. Fetch /knowledge/its/status + /bsp/status параллельно через Promise.allSettled (один упал → второй всё равно). Компактный badge в Header: status dot (зелёный/жёлтый/серый) + label «ИТС 2543 · БСП 1820». Hover/click → popover с подробностями: chunks/methods counts, by_version разбивка БСП, кнопка-инструкция /reload если пусто. Privacy-нотификация: «данные локальные, query-text отправляется в OpenAI для embedding». frontend/lib/api.ts: getITSStatus / getBSPStatus + типы. Wired в shell/Header.tsx между UpdateBanner и AnonymizationStatus. 17 vitest (10 hook + 7 компонент): mount fetch, anyReady/bothReady логика, totalEntries sum, error tolerance (один из двух упал), popover open/close, privacy block visible. Frontend tests: 361 → 378. |
-| M-K2.smoke | E2E Playwright | pending | Перенесённый из M-K1.16 |
-| M-K2.SUMMARY | Финальный документ | pending | Handoff в M-K3 |
+| M-K2.smoke | E2E Playwright | ⏸ deferred → M-K3.smoke | Требует live backend + MCP fixture, CI ещё не настроен |
+| **M-K2.SUMMARY** | **Финальный документ** | **✅ DONE** | См. `SUMMARY.md` рядом — handoff в M-K3 |
 
-## Текущая задача
+## Финал
 
-Закрыто 11/13. Остались:
+M-K2 закрыт SUMMARY 2026-05-26. 12/13 done (M-K2.smoke deferred → M-K3.smoke).
 
-**M-K2.smoke** — E2E Playwright (multi-MCP + indexer + ИТС + БСП + cache hits +
-KnowledgeBadge popover smoke). Требует backend running + minimal MCP fixture.
-
-**M-K2.SUMMARY** — финальный handoff в M-K3 (Knowledge Graph + Behavioral).
-
-После закрытия 13/13 — milestone M-K2 закрывается SUMMARY, переход к M-K3.
+Следующая сессия Claude: M-K3.1 — TreeSitter BSL setup + AST extractor.
+См. `SUMMARY.md` для полного handoff'а.
 
 ## Готовые куски из M-K1
 

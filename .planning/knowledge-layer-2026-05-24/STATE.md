@@ -1,9 +1,9 @@
 ---
-plan_version: 1.6
+plan_version: 1.7
 milestone: M-K2
 milestone_name: "Knowledge Foundation — Indexer + Triple RAG"
-status: in_progress  # M-K2 9/13 phases done (M-K2.4 MCP Cache закрыт 2026-05-26)
-last_updated: "2026-05-26T22:30:00Z"
+status: complete  # M-K2 12/13 done + SUMMARY (1 deferred → M-K3.smoke). 2026-05-26.
+last_updated: "2026-05-26T23:45:00Z"
 m6_handoff_integrated: true
 m6_handoff_doc: "../milestones/M6-INTEGRATED-PLAN.md"
 m6_handoff_decisions: "../milestones/INTEGRATION-DECISIONS.md"
@@ -13,7 +13,7 @@ progress:
   m_k1_total: 17        # пересмотрен (было 9 — изменилось при детализации)
   m_k1_done: 15         # +SUMMARY (M-K1.17). 2 deferred (1.9, 1.16)
   m_k2_total: 13        # 11 content + smoke + SUMMARY
-  m_k2_done: 11         # 2.1+2.2+2.3+2.4+2.5+2.6+2.7+2.8+2.9+2.10+2.11 done; pending smoke/SUMMARY
+  m_k2_done: 12         # 11 content + SUMMARY done; M-K2.smoke deferred → M-K3.smoke
   m_k3_total: 16
   m_k3_done: 0
   m_k4_total: 10
@@ -25,45 +25,44 @@ progress:
   knowledge_layer_total: 73  # 17 M-K1 + 13 M-K2 + 16 + 10 + 10 + 7
   stabilization_total: 28
   grand_total: 101           # 73 KL + 28 M-K0
-  done: 54                   # 28 M-K0 + 15 M-K1 + 11 M-K2
-  percent: 53
+  done: 55                   # 28 M-K0 + 15 M-K1 + 12 M-K2
+  percent: 54
 ---
 
 # STATE — Knowledge Layer + Stabilization
 
 ## Где мы сейчас
 
-**Active milestone:** **M-K2 Knowledge Foundation + Triple RAG** — 11/13 phases done.
+**Active milestone:** ✅ **M-K2 Knowledge Foundation + Triple RAG — CLOSED SUMMARY 2026-05-26** (12/13 done + 1 deferred).
 
-**Closed phases:** 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7 (ИТС), 2.8 (БСП), 2.9, 2.10, 2.11 (Privacy badge).  
-**Pending:** smoke (E2E Playwright), SUMMARY (handoff в M-K3).
+**Closed phases:** 2.1, 2.2, 2.3 (Incremental), 2.4 (MCP Cache), 2.5, 2.6, 2.7 (ИТС), 2.8 (БСП), 2.9, 2.10, 2.11 (Privacy badge), **2.SUMMARY**.  
+**Deferred:** M-K2.smoke → M-K3.smoke (требует CI + live backend).
+
+**Next milestone:** **M-K3 Relational + Behavioral** (16 phases planned).
 
 **Predecessors closed:**
 - ✅ M-K0 Stabilization (28/28) — SUMMARY 2026-05-25
 - ✅ M-K1 Foundation (15/17, 2 deferred) — SUMMARY 2026-05-26
 
-**Last major delivery:** 2026-05-26 — **M-K2.8 БСП Pattern Index** (3 коммита
-в `feature/m-k2-bsp-index`). Полный pipeline ssl_3_1+ssl_3_2 → BSL parser →
-embed → vec_objects + bsp_chunks + `search_bsp` tool в LLM. +75 backend
-тестов. Migration v15. Один embedding client разделяется с ИТС RAG.
-
-Перед этим — M-K2.7 ИТС RAG (6 коммитов, +114 тестов, migration v14).
+**M-K2 final session (2026-05-26):** закрыты 6 phases подряд в одной сессии:
+M-K2.7 ИТС RAG (6 коммитов, +114 тестов, migration v14) → M-K2.8 БСП Pattern
+Index (3 коммита, +75 тестов, migration v15) → M-K2.4 MCP Cache (+34 теста)
+→ M-K2.3 Incremental refresh (+15 тестов) → M-K2.11 Privacy badge UI
+(+17 vitest) → M-K2.SUMMARY.
 
 ## Подсказка для следующей сессии Claude
 
-Открой `phases/M-K2/STATE.md` для актуального статуса.  
-План — `phases/M-K2/M-K2-PLAN.md` (полная декомпозиция 13 фаз).
+Открой `phases/M-K2/SUMMARY.md` для полного handoff'а в M-K3.
 
-Backend tests: 1417 (после M-K2.8). Frontend: 361. Coverage: ≥87%.  
-Branch: main (после FF merge feature/m-k2-bsp-index).
+Backend tests: 1472. Frontend: 378. Coverage: ≥87%.
+Branch: main.
 
-Следующие приоритеты:
-1. **M-K2.3 Incremental Update** — delta indexer (mtime/change events
-   для metadata; ИТС/БСП уже идемпотентны через chunk_hash).
-2. **M-K2.4 MCP Result Cache** — короткая фаза, TTL для get_metadata/execute_query.
-3. **M-K2.11 OPS-1 Privacy badge** — UI индикатор «Local Knowledge».
-4. **M-K2.smoke** — E2E Playwright (multi-MCP + indexer + ИТС + БСП tools).
-5. **M-K2.SUMMARY** — финальный handoff в M-K3.
+**Следующая фаза: M-K3.1 TreeSitter BSL setup** — AST extractor для
+Knowledge Graph (L2). См. ADR-002 для дизайн-решений по graph storage
+(SQLite + CTE вместо Neo4j).
+
+M-K3 milestone план — 16 phases, ~5-6 weeks. Стартовать с research
+последних TreeSitter BSL grammar статей + Spike интеграции.
 
 ---
 
