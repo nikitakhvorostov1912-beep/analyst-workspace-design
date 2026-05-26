@@ -59,6 +59,12 @@ async def _ensure_db(db_path: Path) -> aiosqlite.Connection:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = await aiosqlite.connect(str(db_path))
     await conn.execute("PRAGMA foreign_keys = ON")
+    # WAL mode — критично для bulk writes на полных типовых.
+    # На default rollback journal каждый commit делает fsync → ~3 мс.
+    # На WAL: writes идут в WAL файл sequentially, fsync только на
+    # CHECKPOINT (default ~1000 страниц). 3-5× ускорение на graph build.
+    await conn.execute("PRAGMA journal_mode = WAL")
+    await conn.execute("PRAGMA synchronous = NORMAL")  # WAL-safe, быстрее FULL
     await apply_migrations(conn)
     return conn
 

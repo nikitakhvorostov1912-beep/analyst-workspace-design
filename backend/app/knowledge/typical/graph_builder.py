@@ -85,7 +85,28 @@ from typing import Any, Callable
 
 import aiosqlite
 
-from app.knowledge.graph_storage import EdgeKind, NodeKind, insert_edge, insert_node
+from app.knowledge.graph_storage import EdgeKind, NodeKind
+from app.knowledge.graph_storage import insert_edge as _gs_insert_edge
+from app.knowledge.graph_storage import insert_node as _gs_insert_node
+
+
+# Bulk-wrapper'ы: commit=False для performance (на КА 2 с 600k операций
+# per-op commit добавлял ~10-20 минут). Builder делает explicit
+# `await db.commit()` на границах фаз и каждые N объектов в цикле.
+async def insert_node(db, **kwargs):
+    """Wrapper: insert_node без per-op commit. Используется только builder'ом."""
+    return await _gs_insert_node(db, commit=False, **kwargs)
+
+
+async def insert_edge(db, **kwargs):
+    """Wrapper: insert_edge без per-op commit. Используется только builder'ом."""
+    return await _gs_insert_edge(db, commit=False, **kwargs)
+
+
+# Каждые N структурных объектов делаем flush — чтобы не держать большие
+# WAL транзакции в памяти и иметь recoverable state при прерывании.
+_BATCH_COMMIT_OBJECTS = 500
+_BATCH_COMMIT_BSL_FILES = 50
 from app.knowledge.typical.bsl_ast import parse_file
 from app.knowledge.typical.bsl_models import BSLMethod, BSLModule
 from app.knowledge.typical.query_parser import extract_queries_from_method
@@ -611,6 +632,12 @@ async def _insert_structural_nodes(
         if progress_callback and (i % 100 == 0 or i == total):
             progress_callback("structural", i, total)
 
+        # Batch commit каждые N объектов чтобы не держать огромную
+        # незакрытую транзакцию (WAL grows).
+        if i % _BATCH_COMMIT_OBJECTS == 0:
+            await db.commit()
+
+    await db.commit()  # финальный flush Phase B
     return index
 
 
@@ -656,6 +683,11 @@ async def _build_references_edges(
 
         if progress_callback and (i % 200 == 0 or i == total):
             progress_callback("references", i, total)
+
+        if i % _BATCH_COMMIT_OBJECTS == 0:
+            await db.commit()
+
+    await db.commit()  # финальный flush Phase C
 
 
 async def _emit_references_from_type_def(
@@ -805,6 +837,11 @@ async def _build_bsl_edges(
 
         if progress_callback and (i % 50 == 0 or i == total):
             progress_callback("bsl", i, total)
+
+        if i % _BATCH_COMMIT_BSL_FILES == 0:
+            await db.commit()
+
+    await db.commit()  # финальный flush Phase D
 
 
 async def _emit_method_behavior_edges(
