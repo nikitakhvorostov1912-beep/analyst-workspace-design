@@ -583,6 +583,51 @@ export async function getIndexerStatus(channelId: string): Promise<IndexerStatus
   return response.json() as Promise<IndexerStatusResponse>;
 }
 
+// === M-K2.11: Knowledge status (ИТС + БСП индексы) ===
+
+export type ITSStatusResponse = {
+  chunks: number;
+  documents: number;
+  enabled: boolean;
+  ready: boolean;
+  provider: string;
+  model: string;
+  dim: number;
+  docs_root: string;
+};
+
+export type BSPStatusResponse = {
+  methods: number;
+  modules: number;
+  by_version: Record<string, number>;
+  enabled: boolean;
+  ready: boolean;
+  ssl_roots: string[];
+};
+
+/**
+ * GET /knowledge/its/status — счётчики ИТС-индекса + флаги.
+ * Безопасно вызывать часто (не делает MCP-вызовов).
+ */
+export async function getITSStatus(): Promise<ITSStatusResponse> {
+  const response = await fetch(`${getBackend()}/knowledge/its/status`);
+  if (!response.ok) {
+    throw new Error(`Ошибка ITS status: ${response.status}`);
+  }
+  return response.json() as Promise<ITSStatusResponse>;
+}
+
+/**
+ * GET /knowledge/bsp/status — счётчики БСП-индекса + флаги.
+ */
+export async function getBSPStatus(): Promise<BSPStatusResponse> {
+  const response = await fetch(`${getBackend()}/knowledge/bsp/status`);
+  if (!response.ok) {
+    throw new Error(`Ошибка BSP status: ${response.status}`);
+  }
+  return response.json() as Promise<BSPStatusResponse>;
+}
+
 /**
  * Переименовывает сессию.
  */

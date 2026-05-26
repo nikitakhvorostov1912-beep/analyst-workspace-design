@@ -13,7 +13,7 @@ progress:
   m_k1_total: 17        # пересмотрен (было 9 — изменилось при детализации)
   m_k1_done: 15         # +SUMMARY (M-K1.17). 2 deferred (1.9, 1.16)
   m_k2_total: 13        # 11 content + smoke + SUMMARY
-  m_k2_done: 10         # 2.1+2.2+2.3+2.4+2.5+2.6+2.7+2.8+2.9+2.10 done; pending 2.11/smoke/SUMMARY
+  m_k2_done: 11         # 2.1+2.2+2.3+2.4+2.5+2.6+2.7+2.8+2.9+2.10+2.11 done; pending smoke/SUMMARY
   m_k3_total: 16
   m_k3_done: 0
   m_k4_total: 10
@@ -25,18 +25,18 @@ progress:
   knowledge_layer_total: 73  # 17 M-K1 + 13 M-K2 + 16 + 10 + 10 + 7
   stabilization_total: 28
   grand_total: 101           # 73 KL + 28 M-K0
-  done: 53                   # 28 M-K0 + 15 M-K1 + 10 M-K2
-  percent: 52
+  done: 54                   # 28 M-K0 + 15 M-K1 + 11 M-K2
+  percent: 53
 ---
 
 # STATE — Knowledge Layer + Stabilization
 
 ## Где мы сейчас
 
-**Active milestone:** **M-K2 Knowledge Foundation + Triple RAG** — 10/13 phases done.
+**Active milestone:** **M-K2 Knowledge Foundation + Triple RAG** — 11/13 phases done.
 
-**Closed phases:** 2.1, 2.2, 2.3 (Incremental), 2.4 (MCP Cache), 2.5, 2.6, 2.7 (ИТС RAG), 2.8 (БСП Index), 2.9, 2.10.  
-**Pending:** 2.11 (Privacy badge UI), smoke (E2E Playwright), SUMMARY.
+**Closed phases:** 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7 (ИТС), 2.8 (БСП), 2.9, 2.10, 2.11 (Privacy badge).  
+**Pending:** smoke (E2E Playwright), SUMMARY (handoff в M-K3).
 
 **Predecessors closed:**
 - ✅ M-K0 Stabilization (28/28) — SUMMARY 2026-05-25

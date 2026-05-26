@@ -2,13 +2,13 @@
 milestone: M-K2
 status: in_progress
 started_at: "2026-05-26T09:30:00Z"
-last_updated: "2026-05-26T23:00:00Z"
-branch: "feature/m-k2-incremental-refresh"
-parent_branch_merged_to_main: "feature/m-k2-mcp-cache (8322171)"
+last_updated: "2026-05-26T23:30:00Z"
+branch: "feature/m-k2-knowledge-badge"
+parent_branch_merged_to_main: "feature/m-k2-incremental-refresh (5792ef9)"
 phases_total: 13   # 11 content + smoke + summary
-phases_done: 10    # +M-K2.3 Incremental refresh
-backend_tests_passed: 1472  # +15 incremental (1457 → 1472)
-frontend_tests_passed: 361
+phases_done: 11    # +M-K2.11 Privacy badge UI
+backend_tests_passed: 1472  # без изменений (фронт-фаза)
+frontend_tests_passed: 378  # +17 (10 useKnowledgeStatus + 7 KnowledgeBadge)
 ---
 
 # M-K2 Knowledge Foundation — STATE
@@ -27,17 +27,16 @@ frontend_tests_passed: 361
 | **M-K2.8** | **БСП Pattern Index** | **✅ DONE** | Полный pipeline ssl_3_1+ssl_3_2 → BSL parser → embed → vec_objects + bsp_chunks + search_bsp tool в LLM. Migration v15. Модули: bsp_loader.py (BSL parser с balanced parens, doc-comment collect, public region filter — 34 теста + 4 migration) + bsp_indexer.py (channel_id="_bsp", per-version hash cache, batch embed, multi-root support — 20 тестов) + bsp_search.py (semantic_search → JOIN + version_filter) + bsp_tool.py (OpenAI function schema с enum version + переиспользует embedding client от ИТС — 21 тест включая admin endpoints). Settings: BSP_ENABLED / BSP_SSL_ROOTS / is_bsp_ready. Endpoints: POST /knowledge/bsp/reload + GET /knowledge/bsp/status. LLM tool wired в loop.py рядом с search_its (отдельная dispatch ветка). Сумма: 75+ тестов. |
 | **M-K2.9** | **Configuration Type Detection** | **✅ DONE** | config_detection.py: 7 known sigs (УТ/ERP/КА/БП/БГУ/ЗУП/УСО) + intersection scoring + custom fallback. Интегрировано в indexer.bulk_refresh post-success hook (best-effort UPDATE mcp_connections.configuration). 18 tests включая anti-conflict signature overlap test. |
 | **M-K2.10** | **UX-6 Indexing Progress UI** | **✅ DONE** | useIndexerStatus hook + IndexerProgress компонент + интеграция в ChannelSelector dropdown + 16 vitest тестов |
-| M-K2.11 | OPS-1 Privacy badge | pending | «Local Knowledge» indicator |
+| **M-K2.11** | **OPS-1 Privacy badge** | **✅ DONE** | KnowledgeBadge.tsx + useKnowledgeStatus.ts хук. Fetch /knowledge/its/status + /bsp/status параллельно через Promise.allSettled (один упал → второй всё равно). Компактный badge в Header: status dot (зелёный/жёлтый/серый) + label «ИТС 2543 · БСП 1820». Hover/click → popover с подробностями: chunks/methods counts, by_version разбивка БСП, кнопка-инструкция /reload если пусто. Privacy-нотификация: «данные локальные, query-text отправляется в OpenAI для embedding». frontend/lib/api.ts: getITSStatus / getBSPStatus + типы. Wired в shell/Header.tsx между UpdateBanner и AnonymizationStatus. 17 vitest (10 hook + 7 компонент): mount fetch, anyReady/bothReady логика, totalEntries sum, error tolerance (один из двух упал), popover open/close, privacy block visible. Frontend tests: 361 → 378. |
 | M-K2.smoke | E2E Playwright | pending | Перенесённый из M-K1.16 |
 | M-K2.SUMMARY | Финальный документ | pending | Handoff в M-K3 |
 
 ## Текущая задача
 
-Закрыто 10/13. Остались:
+Закрыто 11/13. Остались:
 
-**M-K2.11 OPS-1 Privacy badge** — UI индикатор «Local Knowledge» (фронт).
-
-**M-K2.smoke** — E2E Playwright (multi-MCP + indexer + ИТС + БСП + cache hits).
+**M-K2.smoke** — E2E Playwright (multi-MCP + indexer + ИТС + БСП + cache hits +
+KnowledgeBadge popover smoke). Требует backend running + minimal MCP fixture.
 
 **M-K2.SUMMARY** — финальный handoff в M-K3 (Knowledge Graph + Behavioral).
 

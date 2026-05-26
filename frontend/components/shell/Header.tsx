@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { Activity, BookOpen, HelpCircle, PanelLeft, Search, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { KnowledgeBadge } from "@/components/knowledge/KnowledgeBadge";
 import { BrandMark } from "./BrandMark";
 import { StencilLockup } from "./StencilLockup";
 import { ChannelSelector } from "./ChannelSelector";
@@ -60,6 +61,8 @@ export function Header({
       <div className="flex items-center gap-1.5">
         {/* P1.4: UpdateBanner появляется только в Electron когда есть обновление */}
         <UpdateBanner />
+        {/* M-K2.11: Local Knowledge badge — счётчики ИТС + БСП + privacy. */}
+        <KnowledgeBadge />
         <AnonymizationStatus activeChannelId={activeChannelId} />
         <ModelBadge />
         {onOpenCmdK && (
