@@ -85,6 +85,12 @@ from app.orchestrator.events import (
     ToolResultEvent,
     format_sse,
 )
+from app.knowledge.bsp_tool import (
+    BSP_TOOL_SCHEMA,
+    dispatch_bsp_tool,
+    is_bsp_enabled,
+    is_bsp_tool,
+)
 from app.knowledge.its_tool import (
     ITS_TOOL_SCHEMA,
     dispatch_its_tool,
@@ -227,6 +233,8 @@ SYSTEM_PROMPT = """Ты — аналитик 1С. Работаешь ТОЛЬК�
 • submit_for_deanonymization — раскрытие анонимизированных значений в режиме маскировки.
 
 • search_its (если доступен) — семантический поиск по корпусу ИТС-стандартов 1С (zeegin/v8std). Для вопросов о МЕТОДОЛОГИИ (паттерны, БСП, RLS, диагностики BSL LS, оформление кода) — НЕ для данных конкретной базы. Возвращает топ-K фрагментов с цитатами на std396 / pattern-* / diag-* / metod* / lang-*. Приоритет: цитируй ИТС-стандарт явно в ответе.
+
+• search_bsp (если доступен) — поиск по экспортным методам БСП (Библиотека Стандартных Подсистем, 3.1 + 3.2). Для вопросов про КОНКРЕТНЫЕ API БСП («как запустить длительную операцию», «как сохранить пароль», «какие методы у длительных операций»). Возвращает топ-K методов с doc + сигнатура + body excerpt. Цитата: «БСП 3.2 → ДлительныеОперации.ВыполнитьФункцию (Функция)». search_bsp vs search_its: search_its — методология и стандарты, search_bsp — конкретные методы API.
 
 ═══════ ЭКСПЕРТНАЯ БАЗА ЗНАНИЙ 1С (ОБЯЗАТЕЛЬНО при составлении запросов и кода) ═══════
 
@@ -691,6 +699,8 @@ def _build_openai_tools(
     openai_tools = openai_tools + [CLARIFY_TOOL_SCHEMA]
     if settings is not None and is_its_enabled(settings):
         openai_tools = openai_tools + [ITS_TOOL_SCHEMA]
+    if settings is not None and is_bsp_enabled(settings):
+        openai_tools = openai_tools + [BSP_TOOL_SCHEMA]
     return openai_tools
 
 
@@ -1647,6 +1657,35 @@ async def run_chat_loop(
                     messages.append({
                         "role": "tool", "tool_call_id": tool_id,
                         "content": _cap_content(its_content),
+                    })
+                    continue
+
+                # M-K2.8: search_bsp — async internal tool аналогично search_its.
+                if is_bsp_tool(tool_name):
+                    bsp_ok, bsp_result, bsp_error = await dispatch_bsp_tool(
+                        db, settings, tool_name, tool_args,
+                    )
+                    duration_ms = int((time.monotonic() - start_ts) * 1000)
+                    bsp_event = ToolResultEvent(
+                        id=tool_id, ok=bsp_ok,
+                        result=bsp_result if bsp_ok else None,
+                        error=bsp_error,
+                        duration_ms=duration_ms,
+                    )
+                    yield format_sse("tool_result", bsp_event)
+                    accumulated_tool_calls.append({
+                        "id": tool_id, "name": tool_name, "args": tool_args,
+                        "result": bsp_result, "error": bsp_error,
+                        "duration_ms": duration_ms,
+                    })
+                    bsp_content = (
+                        json.dumps(bsp_result, ensure_ascii=False)
+                        if bsp_ok and bsp_result is not None
+                        else (bsp_error or "")
+                    )
+                    messages.append({
+                        "role": "tool", "tool_call_id": tool_id,
+                        "content": _cap_content(bsp_content),
                     })
                     continue
 

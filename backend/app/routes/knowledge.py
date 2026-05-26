@@ -11,6 +11,10 @@ M-K2.7: ИТС RAG endpoints:
 - POST /knowledge/its/reload — переиндексация ИТС-корпуса (sync, идемпотентно)
 - GET /knowledge/its/status — счётчики chunks/docs
 
+M-K2.8: БСП Pattern Index endpoints:
+- POST /knowledge/bsp/reload — переиндексация ssl_3_1/3_2 (sync, идемпотентно)
+- GET /knowledge/bsp/status — счётчики methods/modules + разбивка по версиям
+
 Будущие endpoints (M-K3+):
 - GET /knowledge/{channel}/search?q=... — semantic L5 search
 - GET /knowledge/{channel}/graph/{object} — L2 traversal
@@ -39,6 +43,12 @@ from app.knowledge.indexer_state import (
     get_current_running,
     get_latest_run,
     start_run,
+)
+from app.knowledge.bsp_indexer import (
+    count_bsp_by_version,
+    count_bsp_methods,
+    count_bsp_modules,
+    index_bsp_corpus,
 )
 from app.knowledge.its_indexer import (
     count_its_chunks,
@@ -386,6 +396,126 @@ async def reload_its(
         "chunks_total": progress.chunks_total,
         "chunks_embedded": progress.chunks_embedded,
         "chunks_skipped": progress.chunks_skipped,
+        "duration_ms": progress.duration_ms,
+        "started_at": progress.started_at,
+        "finished_at": progress.finished_at,
+        "error": progress.error,
+    }
+
+
+# ---------------- M-K2.8: БСП RAG endpoints ----------------
+
+
+@router.get("/bsp/status")
+async def get_bsp_status(
+    db=Depends(_get_db),  # noqa: B008
+) -> dict:
+    """Возвращает счётчики БСП-индекса + готовность embedding-клиента.
+
+    Returns:
+        {
+          "methods": int,
+          "modules": int,
+          "by_version": {"3.1": int, "3.2": int},
+          "enabled": bool,
+          "ready": bool,
+          "ssl_roots": [str, ...],
+        }
+    """
+    settings = get_settings()
+    try:
+        methods = await count_bsp_methods(db)
+        modules = await count_bsp_modules(db)
+        by_version = await count_bsp_by_version(db)
+    except Exception:  # noqa: BLE001
+        logger.exception("BSP status: count failed")
+        methods = 0
+        modules = 0
+        by_version = {}
+
+    return {
+        "methods": methods,
+        "modules": modules,
+        "by_version": by_version,
+        "enabled": settings.bsp_enabled,
+        "ready": settings.is_bsp_ready,
+        "ssl_roots": [str(p) for p in settings.bsp_ssl_roots_paths],
+    }
+
+
+@router.post("/bsp/reload")
+async def reload_bsp(
+    request: Request,
+    db=Depends(_get_db),  # noqa: B008
+) -> dict:
+    """Запускает (синхронно) полный re-index ssl_3_1 + ssl_3_2 корпусов.
+
+    Idempotent: уже актуальные методы (по chunk_hash) skip'аются.
+    force=true в query — переэмбедить всё.
+
+    Returns:
+        BSPIndexProgress dict.
+
+    Errors:
+        400 — settings.is_bsp_ready=False
+        500 — критическая ошибка indexer'а
+    """
+    settings = get_settings()
+    if not settings.is_bsp_ready:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "bsp_not_ready",
+                "message": "BSP RAG отключен или embedding-провайдер не настроен",
+                "hint": (
+                    "Задайте ITS_EMBEDDING_API_KEY (или DEFAULT_LLM_API_KEY_OPENAI), "
+                    "BSP_ENABLED=true и (опционально) BSP_SSL_ROOTS=path1,path2 в .env."
+                ),
+            },
+        )
+
+    force = request.query_params.get("force", "").lower() in ("1", "true", "yes")
+
+    ssl_roots = settings.bsp_ssl_roots_paths
+    # Filter to existing roots — indexer всё равно best-effort, но дадим
+    # пользователю явный feedback если ни одного пути нет.
+    existing_roots = [p for p in ssl_roots if p.exists()]
+    if not existing_roots:
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "bsp_ssl_roots_missing",
+                "message": (
+                    f"Ни один из БСП-каталогов не найден: {[str(p) for p in ssl_roots]}"
+                ),
+                "hint": (
+                    "Клонируйте zeegin/ssl_3_1 и/или ssl_3_2 в tools/ или "
+                    "укажите явный путь через BSP_SSL_ROOTS."
+                ),
+            },
+        )
+
+    try:
+        client = await get_embedding_client(settings)
+    except Exception as exc:  # noqa: BLE001
+        logger.exception("BSP reload: embedding client init failed")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "embedding_client_init_failed",
+                "message": str(exc),
+            },
+        ) from exc
+
+    progress = await index_bsp_corpus(
+        db, client, existing_roots, force_reindex=force,
+    )
+    return {
+        "status": progress.status,
+        "roots_total": progress.roots_total,
+        "methods_total": progress.methods_total,
+        "methods_embedded": progress.methods_embedded,
+        "methods_skipped": progress.methods_skipped,
         "duration_ms": progress.duration_ms,
         "started_at": progress.started_at,
         "finished_at": progress.finished_at,

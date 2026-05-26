@@ -363,6 +363,15 @@ class Settings(BaseSettings):
     # В Electron-проде придётся либо bundlить, либо указывать через env.
     its_docs_root: str = Field(default="", validation_alias="ITS_DOCS_ROOT")
 
+    # === M-K2.8: БСП Pattern Index ===
+    # search_bsp tool становится видимым LLM только если bsp_enabled=True
+    # И есть рабочий embedding-клиент (тот же resolved_its_api_key — модель
+    # и dim общие, чтобы один vec0 покрывал и ИТС, и БСП).
+    bsp_enabled: bool = Field(default=True, validation_alias="BSP_ENABLED")
+    # Пути к ssl_3_1 / ssl_3_2. Default: <repo>/tools/ssl_3_1 и <repo>/tools/ssl_3_2.
+    # Запятая-разделённый список через env BSP_SSL_ROOTS (тогда обе версии).
+    bsp_ssl_roots: str = Field(default="", validation_alias="BSP_SSL_ROOTS")
+
     model_config = {
         # env_file читается из .env + embedded.env. P3.1 rev2 (2026-05-23):
         # tuple — приоритет у первого. .env (private, личный, не в installer)
@@ -463,6 +472,37 @@ class Settings(BaseSettings):
         # backend/app/config.py → backend/app/ → backend/ → repo/
         repo_root = Path(__file__).resolve().parent.parent.parent
         return repo_root / "tools" / "v8std" / "docs"
+
+    @property
+    def bsp_ssl_roots_paths(self) -> list[Path]:
+        """Resolve пути к ssl_3_1 / ssl_3_2 каталогам.
+
+        Если BSP_SSL_ROOTS задан — парсим запятая-разделённый список.
+        Иначе — дефолтные ssl_3_1 и ssl_3_2 в <repo>/tools/ (для шаринга
+        с CLOUDE_PR repo). В Electron-проде нужно явно указывать через env.
+
+        Несуществующие пути не фильтруются здесь — это делает indexer
+        (best-effort skip).
+        """
+        if self.bsp_ssl_roots:
+            return [
+                Path(p.strip()).expanduser()
+                for p in self.bsp_ssl_roots.split(",")
+                if p.strip()
+            ]
+        # backend/app/config.py → backend/app/ → backend/ → analyst-workspace-design/
+        project_root = Path(__file__).resolve().parent.parent.parent
+        # Поднимаемся ещё на 2 уровня: projects/analyst-workspace-design → projects → CLOUDE_PR
+        cloude_pr_root = project_root.parent.parent
+        return [
+            cloude_pr_root / "tools" / "ssl_3_1",
+            cloude_pr_root / "tools" / "ssl_3_2",
+        ]
+
+    @property
+    def is_bsp_ready(self) -> bool:
+        """BSP RAG готов: enabled + ИТС client можно построить (общий)."""
+        return self.bsp_enabled and self.is_its_ready
 
     @property
     def trajectory_dir_path(self) -> Path:
