@@ -18,6 +18,14 @@ Phases:
 `.planning/.../M-K2.5/ADR-003-typical-configurations.md` для дизайн-решений.
 """
 
+from app.knowledge.typical.bsl_ast import parse_file, parse_module, parse_string
+from app.knowledge.typical.bsl_models import (
+    BSLMethod,
+    BSLMethodKind,
+    BSLModule,
+    BSLParameter,
+    BSLRegion,
+)
 from app.knowledge.typical.registry import (
     DISPLAY_NAMES,
     RESERVED_PREFIXES,
@@ -65,4 +73,14 @@ __all__ = [
     "create_run",
     "update_run_progress",
     "list_runs",
+    # bsl_ast — models
+    "BSLMethod",
+    "BSLMethodKind",
+    "BSLModule",
+    "BSLParameter",
+    "BSLRegion",
+    # bsl_ast — operations
+    "parse_module",
+    "parse_string",
+    "parse_file",
 ]
