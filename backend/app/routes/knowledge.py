@@ -7,6 +7,10 @@ M-K2.2: добавлены indexer endpoints:
 - POST /knowledge/{channel_id}/index/start — запускает background indexer
 - GET /knowledge/{channel_id}/index/status — последний run + текущий running
 
+M-K2.7: ИТС RAG endpoints:
+- POST /knowledge/its/reload — переиндексация ИТС-корпуса (sync, идемпотентно)
+- GET /knowledge/its/status — счётчики chunks/docs
+
 Будущие endpoints (M-K3+):
 - GET /knowledge/{channel}/search?q=... — semantic L5 search
 - GET /knowledge/{channel}/graph/{object} — L2 traversal
@@ -21,6 +25,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Path, Request
 
+from app.config import get_settings
 from app.knowledge.dossier import (
     DossierNotFoundError,
     ObjectDossier,
@@ -35,6 +40,12 @@ from app.knowledge.indexer_state import (
     get_latest_run,
     start_run,
 )
+from app.knowledge.its_indexer import (
+    count_its_chunks,
+    count_its_documents,
+    index_its_corpus,
+)
+from app.knowledge.its_tool import get_embedding_client
 
 logger = logging.getLogger(__name__)
 
@@ -257,4 +268,126 @@ async def get_indexer_status(
         "channel_id": channel_id,
         "latest": latest.to_response_dict() if latest else None,
         "running": running.to_response_dict() if running else None,
+    }
+
+
+# ---------------- M-K2.7: ИТС RAG endpoints ----------------
+
+
+@router.get("/its/status")
+async def get_its_status(
+    db=Depends(_get_db),  # noqa: B008
+) -> dict:
+    """Возвращает счётчики ИТС-индекса + готовность embedding-клиента.
+
+    Returns:
+        {
+          "chunks": int,           // фрагментов в its_chunks
+          "documents": int,        // уникальных doc_id
+          "enabled": bool,         // settings.its_enabled
+          "ready": bool,           // settings.is_its_ready (есть API key)
+          "provider": str,         // 'openai' | 'mock'
+          "model": str,            // 'text-embedding-3-small'
+          "dim": int,              // 1536
+          "docs_root": str,        // resolved path
+        }
+
+    Не делает MCP-вызовов, безопасно дергать часто.
+    """
+    settings = get_settings()
+    try:
+        chunks = await count_its_chunks(db)
+        docs = await count_its_documents(db)
+    except Exception:  # noqa: BLE001 — endpoint должен возвращать всё что может
+        logger.exception("ITS status: count failed")
+        chunks = 0
+        docs = 0
+
+    return {
+        "chunks": chunks,
+        "documents": docs,
+        "enabled": settings.its_enabled,
+        "ready": settings.is_its_ready,
+        "provider": settings.its_embedding_provider,
+        "model": settings.its_embedding_model,
+        "dim": settings.its_embedding_dim,
+        "docs_root": str(settings.its_docs_root_path),
+    }
+
+
+@router.post("/its/reload")
+async def reload_its(
+    request: Request,
+    db=Depends(_get_db),  # noqa: B008
+) -> dict:
+    """Запускает (синхронно) полный re-index ИТС-корпуса.
+
+    Idempotent: уже актуальные чанки skip'аются по chunk_hash. Полная
+    re-index можно форсировать через `?force=true` query param.
+
+    Сложность времени:
+      - mock provider: < 1 сек на корпус.
+      - openai provider: ≈ 30-90 сек на полный v8std (~1200 doc, ~2500 chunks).
+        Включает ~50 batch embedding calls по 50 chunks.
+
+    Returns:
+        ITSIndexProgress dict (status, docs/chunks counters, duration, error).
+
+    Errors:
+        400 — settings.is_its_ready == False (нет API key / disabled)
+        500 — критическая ошибка indexer'а (loader / DB / embedding)
+    """
+    settings = get_settings()
+    if not settings.is_its_ready:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "error": "its_not_ready",
+                "message": "ITS RAG отключен или embedding-провайдер не настроен",
+                "hint": (
+                    "Задайте ITS_EMBEDDING_API_KEY (или DEFAULT_LLM_API_KEY_OPENAI) "
+                    "и ITS_ENABLED=true в .env."
+                ),
+            },
+        )
+
+    force = request.query_params.get("force", "").lower() in ("1", "true", "yes")
+
+    docs_root = settings.its_docs_root_path
+    if not docs_root.exists():
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "its_docs_root_missing",
+                "message": f"ITS docs root не найден: {docs_root}",
+                "hint": "Задайте ITS_DOCS_ROOT в .env или клонируйте zeegin/v8std в tools/v8std.",
+            },
+        )
+
+    try:
+        client = await get_embedding_client(settings)
+    except Exception as exc:  # noqa: BLE001 — endpoint граница
+        logger.exception("ITS reload: не удалось построить embedding-клиент")
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "embedding_client_init_failed",
+                "message": str(exc),
+            },
+        ) from exc
+
+    progress = await index_its_corpus(
+        db, client, docs_root, force_reindex=force,
+    )
+    return {
+        "status": progress.status,
+        "docs_total": progress.docs_total,
+        "docs_processed": progress.docs_processed,
+        "chunks_total": progress.chunks_total,
+        "chunks_embedded": progress.chunks_embedded,
+        "chunks_skipped": progress.chunks_skipped,
+        "duration_ms": progress.duration_ms,
+        "started_at": progress.started_at,
+        "finished_at": progress.finished_at,
+        "error": progress.error,
     }
