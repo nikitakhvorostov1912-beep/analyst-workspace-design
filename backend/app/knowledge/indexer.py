@@ -245,20 +245,141 @@ async def write_cache_batch(
     return len(rows)
 
 
+@dataclass(frozen=True, slots=True)
+class CacheDiff:
+    """Diff между MCP get_metadata результатом и текущим metadata_cache.
+
+    M-K2.3: использован в `write_cache_batch_incremental` для применения
+    только реальных изменений (UPDATE-light вместо DELETE+INSERT всего канала).
+    """
+
+    added: list[NormalizedMetadata]   # есть в MCP, нет в cache
+    updated: list[NormalizedMetadata]  # есть в обоих, но изменилось значение
+    removed: list[str]                  # object_path есть в cache, но нет в MCP
+    unchanged: list[str]                # object_path в обоих с одинаковым значением
+
+    @property
+    def total_changes(self) -> int:
+        return len(self.added) + len(self.updated) + len(self.removed)
+
+
+def compute_cache_diff(
+    existing_rows: list[tuple[str, str, str, str | None]],
+    objects: list[NormalizedMetadata],
+) -> CacheDiff:
+    """Чистая функция: diff между текущими rows и новым набором objects.
+
+    Args:
+        existing_rows: list of (object_path, object_type, name, presentation)
+            из SELECT'а metadata_cache по channel_id (порядок не важен).
+        objects: новые NormalizedMetadata из MCP get_metadata.
+
+    Returns:
+        CacheDiff с разбивкой added / updated / removed / unchanged.
+
+    Сравнение: object_path — primary key (внутри канала). Объект считается
+    `updated` если object_type / name / presentation хоть один отличается.
+    """
+    by_path: dict[str, tuple[str, str, str | None]] = {
+        row[0]: (row[1], row[2], row[3]) for row in existing_rows
+    }
+    new_paths: set[str] = set()
+
+    added: list[NormalizedMetadata] = []
+    updated: list[NormalizedMetadata] = []
+    unchanged: list[str] = []
+
+    for obj in objects:
+        new_paths.add(obj.object_path)
+        current = by_path.get(obj.object_path)
+        if current is None:
+            added.append(obj)
+            continue
+        cur_type, cur_name, cur_presentation = current
+        if (
+            cur_type == obj.object_type
+            and cur_name == obj.name
+            and cur_presentation == obj.presentation
+        ):
+            unchanged.append(obj.object_path)
+        else:
+            updated.append(obj)
+
+    removed = [path for path in by_path if path not in new_paths]
+    return CacheDiff(
+        added=added,
+        updated=updated,
+        removed=removed,
+        unchanged=unchanged,
+    )
+
+
+async def write_cache_batch_incremental(
+    db: aiosqlite.Connection,
+    channel_id: str,
+    objects: list[NormalizedMetadata],
+) -> CacheDiff:
+    """Применяет diff к metadata_cache (M-K2.3): UPSERT changed/added, DELETE removed.
+
+    Vs `write_cache_batch(replace_existing=True)`:
+    - Сохраняет `fetched_at` для unchanged rows (полезно для UI «когда видели»)
+    - Меньше DB writes на больших базах (типично 90%+ unchanged)
+    - Никакой DELETE WHERE channel_id — нет lock-window на всю таблицу
+
+    Транзакция: единый commit в конце. При сбое — никаких частичных
+    изменений.
+
+    Returns:
+        CacheDiff с конкретными counts (для IndexerProgress).
+    """
+    cursor = await db.execute(
+        "SELECT object_path, object_type, name, presentation "
+        "FROM metadata_cache WHERE channel_id = ?",
+        (channel_id,),
+    )
+    existing_rows = list(await cursor.fetchall())
+    diff = compute_cache_diff(existing_rows, objects)
+
+    # 1. DELETE removed
+    if diff.removed:
+        placeholders = ",".join("?" * len(diff.removed))
+        await db.execute(
+            f"DELETE FROM metadata_cache "
+            f"WHERE channel_id = ? AND object_path IN ({placeholders})",
+            [channel_id, *diff.removed],
+        )
+
+    # 2. UPSERT added + updated (одним executemany — простой INSERT OR REPLACE)
+    upserts = diff.added + diff.updated
+    if upserts:
+        await db.executemany(
+            """
+            INSERT OR REPLACE INTO metadata_cache
+                (channel_id, object_path, object_type, name, presentation, fetched_at)
+            VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """,
+            [obj.as_cache_row(channel_id) for obj in upserts],
+        )
+
+    await db.commit()
+    return diff
+
+
 async def bulk_refresh_metadata_cache(
     db: aiosqlite.Connection,
     channel_id: str,
     mcp_endpoint: str,
     *,
     anon_headers: dict[str, str] | None = None,
+    incremental: bool = True,
 ) -> IndexerProgress:
-    """Full-refresh metadata_cache для канала через MCP `get_metadata`.
+    """Refresh metadata_cache для канала через MCP `get_metadata`.
 
     Шаги:
     1. Connect MCP → initialize → list_tools
     2. Проверить что `get_metadata` exposed
     3. Call get_metadata(detail=False) → parse → normalize
-    4. Транзакционно DELETE + INSERT batch
+    4. Транзакционно apply: incremental diff (M-K2.3) или full refresh
     5. Вернуть `IndexerProgress`
 
     Args:
@@ -266,14 +387,16 @@ async def bulk_refresh_metadata_cache(
         channel_id: канал (namespace + ID для logging)
         mcp_endpoint: HTTP endpoint MCP (для MCPClient)
         anon_headers: опциональные `X-Anon-Enabled` headers если нужно
+        incremental: True (default, M-K2.3) — diff-based update (UPSERT
+            added/changed + DELETE removed). Сохраняет `fetched_at` для
+            unchanged rows. False — full DELETE+INSERT (legacy поведение).
 
     Returns:
         IndexerProgress с метриками. На ошибке возвращается status='failed'
         + error message (не raise — caller сам решает что делать).
 
-    Не raise'ит IndexerError в текущем M-K2.1 — все ошибки попадают в
-    IndexerProgress.error. M-K2.2 добавит вариант where эскалация
-    нужна (например при попытке двойного запуска).
+    objects_written в incremental = added + updated.
+    objects_skipped в incremental = unchanged (M-K2.3 semantic).
     """
     started_dt = datetime.now(timezone.utc)
     started_iso = started_dt.isoformat()
@@ -319,12 +442,21 @@ async def bulk_refresh_metadata_cache(
             error=f"MCP вызов не удался: {exc}",
         )
 
-    # Best-effort statistics: parse_metadata_result уже отфильтровал
-    # невалидные — мы не знаем точное `skipped`, но можем оценить как 0
-    # (валидные = вернувшиеся). Для будущего incremental update сюда же
-    # попадут конфликты PRIMARY KEY (channel_id, object_path).
+    # M-K2.3: incremental по умолчанию — только diff vs cache.
+    # objects_written: count «реально записанных» (added + updated).
+    # objects_skipped: count «не тронутых» (unchanged).
+    written = 0
+    skipped = 0
     try:
-        written = await write_cache_batch(db, channel_id, objects, replace_existing=True)
+        if incremental:
+            diff = await write_cache_batch_incremental(db, channel_id, objects)
+            written = len(diff.added) + len(diff.updated)
+            skipped = len(diff.unchanged)
+        else:
+            written = await write_cache_batch(
+                db, channel_id, objects, replace_existing=True,
+            )
+            skipped = 0
     except Exception as exc:  # noqa: BLE001 — SQLite граница
         logger.exception(
             "bulk_refresh_metadata_cache: cache write failed для канала %s",
@@ -376,7 +508,7 @@ async def bulk_refresh_metadata_cache(
         channel_id=channel_id,
         objects_total=len(objects),
         objects_written=written,
-        objects_skipped=0,
+        objects_skipped=skipped,
         duration_ms=duration_ms,
         started_at=started_iso,
         finished_at=finished_dt.isoformat(),
