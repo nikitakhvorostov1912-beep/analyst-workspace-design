@@ -328,8 +328,9 @@ def main() -> int:
         help="Тип конфигурации (UT_115 / ERP_25 / KA_2 / ...)",
     )
     parser.add_argument(
-        "--version", required=True,
-        help="Версия (например 2.5.25.92)",
+        "--version", default=None,
+        help="Версия (например 2.5.25.92). Если не задана — авто-детект "
+             "из Configuration.xml/Properties/Version.",
     )
     parser.add_argument(
         "--snapshot", required=True,
@@ -356,11 +357,26 @@ def main() -> int:
     kind = TypicalConfigKind(args.kind)
     db_path = Path(args.db)
 
+    version = args.version
+    if not version:
+        # Авто-детект через parse_configuration_xml
+        from app.knowledge.typical import parse_configuration_xml
+        try:
+            parsed_cfg = parse_configuration_xml(config_file)
+        except Exception as exc:
+            parser.error(f"Не удалось прочитать {config_file}: {exc}")
+        version = parsed_cfg.version
+        if not version:
+            parser.error(
+                f"В {config_file} не найдена version. Передайте --version явно."
+            )
+        logger.info(f"Auto-detected version: {version} ({parsed_cfg.name})")
+
     try:
         result = asyncio.run(
             run_pilot(
                 kind=kind,
-                version=args.version,
+                version=version,
                 snapshot_dir=snapshot_dir,
                 db_path=db_path,
                 max_bsl_files=args.max_bsl_files,
