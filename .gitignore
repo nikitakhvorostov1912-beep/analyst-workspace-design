@@ -165,3 +165,4 @@ backend/dist/
 backend/build/
 backend/data/
 ~$*.xlsx
+coverage.json

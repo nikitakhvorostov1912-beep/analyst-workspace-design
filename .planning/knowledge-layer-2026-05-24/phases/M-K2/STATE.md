@@ -2,12 +2,12 @@
 milestone: M-K2
 status: in_progress
 started_at: "2026-05-26T09:30:00Z"
-last_updated: "2026-05-26T09:30:00Z"
+last_updated: "2026-05-26T10:00:00Z"
 branch: "feature/m-k2-indexer"
 parent_branch_merged_to_main: "feature/m-k1-summary (11575ab)"
 phases_total: 13   # 11 content + smoke + summary
-phases_done: 0
-backend_tests_passed: 1121
+phases_done: 2     # M-K2.1 indexer skeleton + M-K2.2 state machine + endpoints
+backend_tests_passed: 1200  # +29 indexer + +16 state + +7 routes vs 1121 (~tbd full)
 frontend_tests_passed: 345
 ---
 
@@ -17,8 +17,8 @@ frontend_tests_passed: 345
 
 | Phase | Subject | Status | Note |
 |-------|---------|--------|------|
-| M-K2.1 | Indexer Skeleton | 🔄 in_progress | Extract bulk-refresh + IndexerProgress + tests |
-| M-K2.2 | Indexer State Machine | pending | Migration v12 + endpoints + background task |
+| **M-K2.1** | **Indexer Skeleton** | **✅ DONE** | indexer.py + NormalizedMetadata + IndexerProgress + 29 tests |
+| **M-K2.2** | **Indexer State Machine + Endpoints** | **✅ DONE** | migration v12 + indexer_state.py + POST/GET /knowledge/{ch}/index/* + background asyncio task + 23 tests (16 state + 7 routes) |
 | M-K2.3 | Incremental Update | pending | mtime + delta indexer |
 | M-K2.4 | MCP Result Cache | pending | TTL для повторных вызовов |
 | M-K2.5 | Vector Store (sqlite-vec) | pending | Migration v13 + base API |
@@ -33,10 +33,15 @@ frontend_tests_passed: 345
 
 ## Текущая задача
 
-**M-K2.1 Indexer Skeleton.** Цель — вытащить bulk-refresh metadata_cache
-из inline кода `connections.metadata_suggest` в reusable модуль
-`backend/app/knowledge/indexer.py`. Это позволит M-K2.2 строить state
-machine и endpoint поверх чистой функции, не таская с собой HTTP-обвязку.
+**M-K2.3 Incremental Update** — delta indexer на основе mtime / change events.
+Альтернативно: **M-K2.5 Vector Store** (sqlite-vec init + миграция v13) —
+тоже подходит как параллельная ветка (не зависит от M-K2.3).
+
+Решение для следующей сессии (пользователь / триаж):
+- M-K2.3 если приоритет — UX «быстрое обновление при изменении одного объекта»
+- M-K2.5/2.6 если приоритет — RAG поверх metadata (embeddings + semantic search)
+
+M-K2.4 (MCP Result Cache) — короткая фаза, можно вклинить когда удобно.
 
 ## Готовые куски из M-K1
 

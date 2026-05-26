@@ -69,7 +69,7 @@ async def test_metadata_suggest_cache_miss_refreshes_via_mcp(client):
         {"name": "Контрагенты", "object_type": "Справочник", "full_path": "Справочник.Контрагенты"},
     ]
 
-    with patch("app.routes.connections.MCPClient") as MockMCP:
+    with patch("app.knowledge.indexer.MCPClient") as MockMCP:
         mock_client = AsyncMock()
         mock_client.initialize = AsyncMock(return_value=mock_session)
         mock_client.list_tools = AsyncMock(return_value=mock_tools)
@@ -118,7 +118,7 @@ async def test_metadata_suggest_cache_stale_refreshes(client):
         {"name": "Новый", "object_type": "Справочник", "full_path": "Справочник.Новый"}
     ]
 
-    with patch("app.routes.connections.MCPClient") as MockMCP:
+    with patch("app.knowledge.indexer.MCPClient") as MockMCP:
         mock_client = AsyncMock()
         mock_client.initialize = AsyncMock(return_value=mock_session)
         mock_client.list_tools = AsyncMock(return_value=mock_tools)
@@ -248,7 +248,7 @@ async def test_metadata_suggest_mcp_fails_returns_stale_with_flag(client):
     )
     await db.commit()
 
-    with patch("app.routes.connections.MCPClient") as MockMCP:
+    with patch("app.knowledge.indexer.MCPClient") as MockMCP:
         mock_client = AsyncMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)
@@ -271,7 +271,7 @@ async def test_metadata_suggest_mcp_fails_cache_empty_returns_502(client):
     )
     ch_id = r.json()["id"]
 
-    with patch("app.routes.connections.MCPClient") as MockMCP:
+    with patch("app.knowledge.indexer.MCPClient") as MockMCP:
         mock_client = AsyncMock()
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=False)

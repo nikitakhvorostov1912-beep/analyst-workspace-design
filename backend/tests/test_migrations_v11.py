@@ -11,9 +11,14 @@ from app.storage.migrations import CURRENT_VERSION, MIGRATIONS_V11, apply_migrat
 
 
 @pytest.mark.asyncio
-async def test_current_version_is_11() -> None:
-    """ADR-005: продолжаем DDL миграции, v11 = M-K1.6."""
-    assert CURRENT_VERSION == 11
+async def test_current_version_at_least_11() -> None:
+    """Smoke: CURRENT_VERSION ≥ 11 (M-K1.6 не откатывалась).
+
+    Раньше assert привязывался к точному числу 11, что делало тест
+    fragile при каждой новой миграции (M-K2.2 добавил v12). ADR-005:
+    миграции монотонные, версии только растут.
+    """
+    assert CURRENT_VERSION >= 11
 
 
 @pytest.mark.asyncio
@@ -72,7 +77,11 @@ async def test_migration_v11_fingerprint_index_created(tmp_path: Path) -> None:
 
 @pytest.mark.asyncio
 async def test_migration_v11_idempotent(tmp_path: Path) -> None:
-    """Повторный запуск apply_migrations не падает (schema_version проверка)."""
+    """Повторный запуск apply_migrations не падает (schema_version проверка).
+
+    Проверяем что версия = CURRENT_VERSION (не hardcoded 11) — иначе тест
+    падает при добавлении новых миграций (v12+).
+    """
     db_path = tmp_path / "test.db"
     async with aiosqlite.connect(db_path) as db:
         await apply_migrations(db)
@@ -81,7 +90,7 @@ async def test_migration_v11_idempotent(tmp_path: Path) -> None:
         cursor = await db.execute("SELECT MAX(version) FROM schema_version")
         row = await cursor.fetchone()
         assert row is not None
-        assert row[0] == 11
+        assert row[0] == CURRENT_VERSION
 
 
 @pytest.mark.asyncio

@@ -491,43 +491,20 @@ async def metadata_suggest(
         items = await _lookup_cache(db, channel_id, q, limit)
         return MetadataSuggestResponse(items=items, cached=True, stale=False)
 
-    # Cache miss или устарел — пытаемся обновить через MCP
-    refresh_ok = False
-    try:
-        async with MCPClient(endpoint) as client:
-            await client.initialize()
-            tools = await client.list_tools()
-            tool_names = {t.get("name") for t in tools}
+    # Cache miss или устарел — пытаемся обновить через MCP.
+    # M-K2.2: используем reusable `bulk_refresh_metadata_cache` вместо
+    # inline-логики. Старый код 35 строк → 3 строки + IndexerProgress.
+    # Поведение идентично: full refresh + DELETE + INSERT batch.
+    from app.knowledge.indexer import bulk_refresh_metadata_cache
 
-            if "get_metadata" in tool_names:
-                result = await client.call_tool("get_metadata", {"detail": False})
-                # Парсим результат: ожидаем список объектов
-                objects = _parse_metadata_result(result)
-
-                # Обновляем кеш
-                await db.execute(
-                    "DELETE FROM metadata_cache WHERE channel_id = ?",
-                    (channel_id,),
-                )
-                for obj in objects:
-                    await db.execute(
-                        """
-                        INSERT INTO metadata_cache
-                            (channel_id, object_path, object_type, name, presentation, fetched_at)
-                        VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-                        """,
-                        (
-                            channel_id,
-                            obj.get("full_path", obj.get("name", "")),
-                            obj.get("object_type", ""),
-                            obj.get("name", ""),
-                            obj.get("presentation"),
-                        ),
-                    )
-                await db.commit()
-                refresh_ok = True
-    except Exception as exc:
-        logger.warning("metadata_suggest MCP refresh failed for %s: %s", channel_id, exc)
+    progress = await bulk_refresh_metadata_cache(db, channel_id, endpoint)
+    refresh_ok = progress.is_success
+    if not refresh_ok and progress.error:
+        logger.warning(
+            "metadata_suggest MCP refresh failed for %s: %s",
+            channel_id,
+            progress.error,
+        )
 
     if refresh_ok:
         items = await _lookup_cache(db, channel_id, q, limit)
@@ -542,43 +519,7 @@ async def metadata_suggest(
     raise HTTPException(status_code=502, detail="MCP недоступен и кеш пуст")
 
 
-def _parse_metadata_result(result: object) -> list[dict]:
-    """Извлекает список объектов из результата MCP get_metadata.
-
-    Формат ответа varies — обрабатываем известные варианты.
-    """
-    import json
-
-    # result может быть: list[dict] | dict | str
-    if isinstance(result, list):
-        return [_normalize_obj(item) for item in result if isinstance(item, dict)]
-
-    if isinstance(result, dict):
-        # Может быть обёрнут в {"content": [...]} или {"objects": [...]}
-        for key in ("content", "objects", "items", "result"):
-            if key in result and isinstance(result[key], list):
-                return [_normalize_obj(item) for item in result[key] if isinstance(item, dict)]
-        return [_normalize_obj(result)]
-
-    if isinstance(result, str):
-        try:
-            parsed = json.loads(result)
-            return _parse_metadata_result(parsed)
-        except (json.JSONDecodeError, TypeError):
-            pass
-
-    return []
-
-
-def _normalize_obj(obj: dict) -> dict:
-    """Нормализует объект метаданных к единому формату."""
-    name = obj.get("name", obj.get("Name", ""))
-    obj_type = obj.get("type", obj.get("object_type", obj.get("Type", "")))
-    full_path = obj.get("full_path", obj.get("path", f"{obj_type}.{name}" if obj_type and name else name))
-    presentation = obj.get("presentation", obj.get("synonym", obj.get("Synonym")))
-    return {
-        "name": name,
-        "object_type": obj_type,
-        "full_path": full_path,
-        "presentation": presentation,
-    }
+# M-K2.2 (2026-05-26): `_parse_metadata_result` + `_normalize_obj` удалены —
+# логика перенесена в `app.knowledge.indexer.parse_metadata_result` +
+# `_normalize_metadata_object` (с покрытием 29 unit тестами). См. M-K2-PLAN
+# фаза M-K2.1. `metadata_suggest` теперь делегирует `bulk_refresh_metadata_cache`.

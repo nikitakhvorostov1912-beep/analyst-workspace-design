@@ -74,7 +74,7 @@ MIGRATIONS_V3 = [
     """,
 ]
 
-CURRENT_VERSION = 11
+CURRENT_VERSION = 12
 
 # Миграция v4: расширение card_states — добавление колонки anon_tokens JSON
 MIGRATIONS_V4 = [
@@ -258,6 +258,38 @@ MIGRATIONS_V9 = [
 ]
 
 
+# Миграция v12 (M-K2.2): таблица index_runs для state machine indexer'а.
+# Каждый запуск bulk_refresh_metadata_cache (M-K2.1) создаёт строку:
+#   pending → running → done | failed
+# Endpoint POST /knowledge/{ch}/index/start проверяет нет ли уже running
+# (защита от double-start), GET /knowledge/{ch}/index/status возвращает
+# последний (по started_at DESC) row + текущий running если есть.
+#
+# Индекс по (channel_id, started_at DESC) — основной hot path для status:
+# «дай мне последний run этого канала».
+#
+# ADR-005: DDL без alembic, миграции необратимы. Если потребуется откат —
+# delete from index_runs + DROP TABLE из новой миграции v13.
+MIGRATIONS_V12 = [
+    """
+    CREATE TABLE IF NOT EXISTS index_runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        channel_id TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('pending', 'running', 'done', 'failed')),
+        started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        finished_at TIMESTAMP,
+        duration_ms INTEGER,
+        objects_total INTEGER DEFAULT 0,
+        objects_written INTEGER DEFAULT 0,
+        objects_skipped INTEGER DEFAULT 0,
+        error TEXT
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_index_runs_channel ON index_runs(channel_id, started_at DESC)",
+    "CREATE INDEX IF NOT EXISTS idx_index_runs_status ON index_runs(status)",
+]
+
+
 async def apply_migrations(db: aiosqlite.Connection) -> None:
     """Идемпотентно применяет миграции схемы БД."""
     # Создаём schema_version первым делом
@@ -384,5 +416,18 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
             (11,),
+        )
+        await db.commit()
+
+    if current < 12:
+        # index_runs table (v12, M-K2.2) — state machine для indexer'а.
+        # Один row = одна попытка bulk_refresh. Status переходы:
+        # pending → running → done | failed.
+        # Используется POST/GET /knowledge/{ch}/index/* endpoints.
+        for stmt in MIGRATIONS_V12:
+            await db.execute(stmt)
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (12,),
         )
         await db.commit()
