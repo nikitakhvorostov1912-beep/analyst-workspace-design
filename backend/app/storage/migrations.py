@@ -74,7 +74,7 @@ MIGRATIONS_V3 = [
     """,
 ]
 
-CURRENT_VERSION = 16
+CURRENT_VERSION = 17
 
 # Миграция v4: расширение card_states — добавление колонки anon_tokens JSON
 MIGRATIONS_V4 = [
@@ -450,6 +450,67 @@ MIGRATIONS_V16 = [
 ]
 
 
+# Миграция v17 (M-K2.5.0): Typical Configurations infrastructure (ADR-003).
+#
+# Реестр снапшотов типовых конфигураций (УТ/ERP/КА/БП/ЗУП/УСО/Документооборот)
+# + журнал индексационных прогонов. Контент (modules, methods, queries,
+# object cards) будут жить в отдельных таблицах в следующих phases (M-K2.5.1+).
+#
+# Ключи:
+#   - typical_configurations.id INTEGER PRIMARY KEY AUTOINCREMENT
+#   - UNIQUE (config_kind, config_version) — один snapshot на версию
+#   - UNIQUE (channel_id) — namespace `_ut115_18_193` зарезервирован глобально
+#     (не пересекается с реальными MCP-каналами UUID v4)
+#   - typical_indexing_runs.config_id FK CASCADE — удаление конфигурации
+#     уносит весь её журнал
+#
+# `status` lifecycle для typical_configurations:
+#   pending → extracted → parsed → graph_built → enriched → ready
+#                                                          → failed
+#
+# `phase` enum для typical_indexing_runs:
+#   extract | parse_bsl | parse_queries | parse_metadata | graph | cards | embed
+MIGRATIONS_V17 = [
+    """
+    CREATE TABLE IF NOT EXISTS typical_configurations (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        config_kind TEXT NOT NULL,
+        config_version TEXT NOT NULL,
+        channel_id TEXT NOT NULL UNIQUE,
+        display_name TEXT NOT NULL,
+        source_path TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        indexed_at TIMESTAMP,
+        metadata TEXT NOT NULL DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(config_kind, config_version)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_typical_configs_kind ON typical_configurations(config_kind)",
+    "CREATE INDEX IF NOT EXISTS idx_typical_configs_channel ON typical_configurations(channel_id)",
+    "CREATE INDEX IF NOT EXISTS idx_typical_configs_status ON typical_configurations(status)",
+    """
+    CREATE TABLE IF NOT EXISTS typical_indexing_runs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        config_id INTEGER NOT NULL,
+        phase TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        progress_pct INTEGER NOT NULL DEFAULT 0,
+        items_processed INTEGER NOT NULL DEFAULT 0,
+        items_total INTEGER NOT NULL DEFAULT 0,
+        error TEXT,
+        started_at TIMESTAMP,
+        finished_at TIMESTAMP,
+        metadata TEXT NOT NULL DEFAULT '{}',
+        FOREIGN KEY (config_id) REFERENCES typical_configurations(id) ON DELETE CASCADE
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_typical_runs_config ON typical_indexing_runs(config_id)",
+    "CREATE INDEX IF NOT EXISTS idx_typical_runs_phase ON typical_indexing_runs(phase)",
+    "CREATE INDEX IF NOT EXISTS idx_typical_runs_status ON typical_indexing_runs(status)",
+]
+
+
 async def apply_migrations(db: aiosqlite.Connection) -> None:
     """Идемпотентно применяет миграции схемы БД."""
     # Создаём schema_version первым делом
@@ -636,5 +697,17 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
             (16,),
+        )
+        await db.commit()
+
+    if current < 17:
+        # Typical Configurations infrastructure (v17, M-K2.5.0) — ADR-003.
+        # typical_configurations реестр снапшотов УТ/ERP/КА/БП/ЗУП/УСО +
+        # typical_indexing_runs журнал индексационных прогонов с FK CASCADE.
+        for stmt in MIGRATIONS_V17:
+            await db.execute(stmt)
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (17,),
         )
         await db.commit()
