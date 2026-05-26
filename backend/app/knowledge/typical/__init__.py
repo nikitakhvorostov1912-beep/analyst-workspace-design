@@ -26,6 +26,19 @@ from app.knowledge.typical.bsl_models import (
     BSLParameter,
     BSLRegion,
 )
+from app.knowledge.typical.query_models import (
+    BSLQuery,
+    TableReference,
+    VirtualTableKind,
+    VirtualTableReference,
+    is_register_type_name,
+)
+from app.knowledge.typical.query_parser import (
+    extract_queries_from_method,
+    extract_query_strings,
+    iter_queries_from_methods,
+    parse_query,
+)
 from app.knowledge.typical.xml_models import (
     DIRECTORY_TO_KIND,
     MetadataAttribute,
@@ -115,4 +128,15 @@ __all__ = [
     "parse_configuration_tree",
     "parse_metadata_file",
     "discover_metadata_files",
+    # query_models
+    "BSLQuery",
+    "TableReference",
+    "VirtualTableKind",
+    "VirtualTableReference",
+    "is_register_type_name",
+    # query_parser
+    "extract_query_strings",
+    "extract_queries_from_method",
+    "iter_queries_from_methods",
+    "parse_query",
 ]
