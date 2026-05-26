@@ -74,7 +74,7 @@ MIGRATIONS_V3 = [
     """,
 ]
 
-CURRENT_VERSION = 15
+CURRENT_VERSION = 16
 
 # Миграция v4: расширение card_states — добавление колонки anon_tokens JSON
 MIGRATIONS_V4 = [
@@ -390,6 +390,66 @@ MIGRATIONS_V15 = [
 ]
 
 
+# Миграция v16 (M-K3.17.1a): Knowledge Graph storage (ADR-002).
+#
+# Хранит L2 Relational layer: nodes (модули, методы, типы метаданных) и
+# edges (CALLS, CONTAINS, USES, WRITES_TO, READS_FROM). SQLite + recursive
+# CTE для traversal — не Neo4j (per ADR-002 рассуждения: embed-friendly,
+# нет дополнительной зависимости).
+#
+# Ключи:
+#   - graph_nodes.id INTEGER PRIMARY KEY AUTOINCREMENT (для edges FK)
+#   - UNIQUE (channel_id, qualified_name, node_kind) — natural key.
+#     Один и тот же qualified_name может существовать в разных channel'ах
+#     (например `ОбщегоНазначения.ЗначениеРеквизитаОбъекта` в УТ vs ERP).
+#   - graph_edges.src_id / dst_id — FK на graph_nodes.id с CASCADE delete.
+#   - UNIQUE (src_id, dst_id, edge_kind) — нет дублей edges одного типа.
+#
+# Индексы оптимизированы под основные query patterns:
+#   - get_node by qualified_name (idx_graph_nodes_qname)
+#   - get_neighbors src_id (idx_graph_edges_src)
+#   - get_neighbors dst_id (idx_graph_edges_dst) — reverse traversal
+#   - filter by node_kind (idx_graph_nodes_kind)
+#   - per-channel queries (idx_graph_nodes_channel)
+#
+# `attributes` JSON column — расширяемый bag для node-specific properties
+# (line number, signature, is_exported, etc.). Запросы по нему — через
+# JSON1 extension (есть в Python 3.11+ SQLite).
+MIGRATIONS_V16 = [
+    """
+    CREATE TABLE IF NOT EXISTS graph_nodes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        channel_id TEXT NOT NULL,
+        node_kind TEXT NOT NULL,
+        qualified_name TEXT NOT NULL,
+        source_path TEXT,
+        attributes TEXT NOT NULL DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(channel_id, qualified_name, node_kind)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_graph_nodes_channel ON graph_nodes(channel_id)",
+    "CREATE INDEX IF NOT EXISTS idx_graph_nodes_qname ON graph_nodes(channel_id, qualified_name)",
+    "CREATE INDEX IF NOT EXISTS idx_graph_nodes_kind ON graph_nodes(channel_id, node_kind)",
+    """
+    CREATE TABLE IF NOT EXISTS graph_edges (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        src_id INTEGER NOT NULL,
+        dst_id INTEGER NOT NULL,
+        edge_kind TEXT NOT NULL,
+        attributes TEXT NOT NULL DEFAULT '{}',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (src_id) REFERENCES graph_nodes(id) ON DELETE CASCADE,
+        FOREIGN KEY (dst_id) REFERENCES graph_nodes(id) ON DELETE CASCADE,
+        UNIQUE(src_id, dst_id, edge_kind)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_graph_edges_src ON graph_edges(src_id)",
+    "CREATE INDEX IF NOT EXISTS idx_graph_edges_dst ON graph_edges(dst_id)",
+    "CREATE INDEX IF NOT EXISTS idx_graph_edges_kind ON graph_edges(edge_kind)",
+]
+
+
 async def apply_migrations(db: aiosqlite.Connection) -> None:
     """Идемпотентно применяет миграции схемы БД."""
     # Создаём schema_version первым делом
@@ -565,5 +625,16 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
             (15,),
+        )
+        await db.commit()
+
+    if current < 16:
+        # Knowledge Graph (v16, M-K3.17.1a) — L2 Relational layer.
+        # graph_nodes / graph_edges с recursive CTE для traversal.
+        for stmt in MIGRATIONS_V16:
+            await db.execute(stmt)
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (16,),
         )
         await db.commit()
