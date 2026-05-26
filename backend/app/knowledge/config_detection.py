@@ -1,0 +1,307 @@
+"""Configuration Type Detection (M-K2.9) — определяет тип типовой 1С.
+
+Эвристика по «характерным объектам метаданных». Каждая типовая
+конфигурация (УТ 11.5, ERP 2.5, КА 2.5, БП 3.0, БГУ, ЗУП, УСО, ...)
+имеет набор объектов, которые встречаются именно в ней.
+
+**Алгоритм:**
+1. Для каждой known конфигурации считаем `intersection_score = |объекты_канала ∩ характеристики| / |характеристики|`.
+2. Конфигурация с максимальным score выигрывает, если `score >= MIN_CONFIDENCE`.
+3. Если все < MIN_CONFIDENCE → `kind="custom"` (самописная / неизвестная).
+
+**Использование:** вызывается из `indexer.bulk_refresh_metadata_cache`
+после успешной индексации. Обновляет `mcp_connections.configuration`
+(добавлено миграцией v11).
+
+**Что НЕ делает:**
+- Не сравнивает версии (УТ 11.4 vs УТ 11.5) — это L1.5 в M-K3+.
+- Не детектит расширения / кастомизации (МСФО патчи, ERP-расширения).
+- Не обрабатывает кросс-БСП конфигурации (Розница over УТ).
+
+**Расширяемость:** добавление новой конфигурации = добавление записи в
+`KNOWN_CONFIGURATIONS`. Тесты автоматически валидируют что новый
+сигнатура не пересекается > 60% с существующими (анти-конфликт).
+"""
+
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass
+from typing import Iterable
+
+logger = logging.getLogger(__name__)
+
+
+# Минимальный score для уверенной детекции. Ниже — «самописная».
+MIN_CONFIDENCE = 0.30
+
+
+@dataclass(frozen=True, slots=True)
+class ConfigurationSignature:
+    """Сигнатура одной типовой конфигурации.
+
+    Attrs:
+        key: machine-readable id (`ut_11_5`, `erp_2_5`, ...)
+        display_name: «УТ 11.5», «ERP 2.5» — что показывается в UI
+        characteristic_objects: множество object_path которые встречаются
+            именно в этой конфигурации (характерные). Чем уникальнее набор,
+            тем выше confidence detection.
+        family: общее семейство — `trade` / `accounting` / `payroll` /
+            `government` — для UI группировки.
+    """
+
+    key: str
+    display_name: str
+    characteristic_objects: frozenset[str]
+    family: str
+
+    def score(self, channel_objects: set[str]) -> float:
+        """Возвращает score = |intersection| / |signature|.
+
+        0.0 = ни одного характерного объекта в канале.
+        1.0 = все характерные объекты найдены.
+        """
+        if not self.characteristic_objects:
+            return 0.0
+        intersection = channel_objects & self.characteristic_objects
+        return len(intersection) / len(self.characteristic_objects)
+
+
+@dataclass(frozen=True, slots=True)
+class DetectionResult:
+    """Результат `detect_configuration_type()`.
+
+    Attrs:
+        configuration_key: `ut_11_5` / `erp_2_5` / ... / `custom`
+        display_name: «УТ 11.5» / ... / «Самописная»
+        confidence: 0.0–1.0 (score выигравшей сигнатуры или 0 для custom)
+        family: семейство (trade/accounting/...) — для UI
+        scores: dict[key, score] — debug: все рассмотренные кандидаты
+    """
+
+    configuration_key: str
+    display_name: str
+    confidence: float
+    family: str
+    scores: dict[str, float]
+
+    @property
+    def is_custom(self) -> bool:
+        return self.configuration_key == "custom"
+
+
+# Характерные объекты определены минимально-инвазивно: используем те,
+# которые однозначно отличают одну типовую от другой. Не полный набор
+# документов — только маркеры.
+#
+# Источники:
+# - УТ 11.5: типовая ERP-line trade. `Партнеры` (а не Контрагенты) — main
+#   marker, `СвободныеОстатки` — register для drop-ship.
+# - ERP 2.5: всё из УТ + МСФО / производство / бюджетирование.
+# - КА 2.5: подмножество ERP без МСФО + регламентного учёта зарплаты.
+# - БП 3.0: бухгалтерия — план счетов + регистры бух учёта.
+# - БГУ 2.0: бюджетная — БК (бюджетная классификация).
+# - ЗУП 3.1: зарплата + кадры.
+# - УСО 2.5: услуги ЖКХ — характерны Лицевые счета + Тарифы.
+KNOWN_CONFIGURATIONS: tuple[ConfigurationSignature, ...] = (
+    ConfigurationSignature(
+        key="ut_11_5",
+        display_name="УТ 11.5",
+        family="trade",
+        characteristic_objects=frozenset({
+            "Документ.РеализацияТоваровУслуг",
+            "Документ.ЗаказПокупателя",
+            "Документ.ПоступлениеТоваровУслуг",
+            "Документ.ПередачаТоваровМеждуОрганизациями",
+            "Справочник.Партнеры",
+            "Справочник.Контрагенты",
+            "Справочник.Номенклатура",
+            "Справочник.СоглашенияСКлиентами",
+            "РегистрНакопления.СвободныеОстатки",
+            "РегистрНакопления.ТоварыНаСкладах",
+        }),
+    ),
+    ConfigurationSignature(
+        key="erp_2_5",
+        display_name="ERP 2.5",
+        family="trade",
+        characteristic_objects=frozenset({
+            # Из УТ-наследия:
+            "Документ.РеализацияТоваровУслуг",
+            "Документ.ЗаказПокупателя",
+            "Справочник.Партнеры",
+            "РегистрНакопления.СвободныеОстатки",
+            # ERP-only маркеры:
+            "Документ.РасчетСебестоимостиТоваров",
+            "Документ.ОтражениеЗарплатыВФинансовомУчете",
+            "Документ.ПроизводственнаяОперация",
+            "РегистрБухгалтерии.МеждународныйУчет",
+            "РегистрНакопления.НалоговыеОбязательстваРезидентов",
+            "Справочник.СтатьиАктивовПассивов",
+            "Справочник.МестаВозникновенияЗатрат",
+        }),
+    ),
+    ConfigurationSignature(
+        key="ka_2_5",
+        display_name="КА 2.5",
+        family="trade",
+        characteristic_objects=frozenset({
+            # КА = ERP минус МСФО, плюс особая ЗУП-light:
+            "Документ.РеализацияТоваровУслуг",
+            "Документ.ЗаказПокупателя",
+            "Документ.РасчетСебестоимостиТоваров",
+            "Справочник.Партнеры",
+            "РегистрНакопления.СвободныеОстатки",
+            "РегистрНакопления.ЗарплатаКВыплате",  # КА имеет регламентную ЗУП внутри
+            "Документ.НачислениеЗарплаты",
+            "Документ.ОтражениеЗарплатыВУчете",
+        }),
+    ),
+    ConfigurationSignature(
+        key="bp_3_0",
+        display_name="БП 3.0",
+        family="accounting",
+        characteristic_objects=frozenset({
+            "Документ.СчетНаОплату",
+            "Документ.ОперацияБух",
+            "Документ.КорректировкаПоступления",
+            "Документ.ПоступлениеТоваровУслуг",
+            "ПланСчетов.Хозрасчетный",
+            "РегистрБухгалтерии.Хозрасчетный",
+            "Справочник.ОсновныеСредства",
+            "Справочник.НоменклатурныеГруппы",
+            "Справочник.СтатьиЗатрат",
+        }),
+    ),
+    ConfigurationSignature(
+        key="bgu_2_0",
+        display_name="БГУ 2.0",
+        family="government",
+        characteristic_objects=frozenset({
+            "Справочник.БюджетнаяКлассификация",
+            "Справочник.КлассификационныеПризнакиСчетов",
+            "Документ.БюджетноеОбязательство",
+            "Документ.КассовоеПоступление",
+            "Документ.КассовоеВыбытие",
+            "РегистрБухгалтерии.Бюджетный",
+            "ПланСчетов.ЕПСБУ",
+            "Справочник.ИсточникиФинансовогоОбеспечения",
+        }),
+    ),
+    ConfigurationSignature(
+        key="zup_3_1",
+        display_name="ЗУП 3.1",
+        family="payroll",
+        characteristic_objects=frozenset({
+            "Документ.ПриемНаРаботу",
+            "Документ.КадровыйПеревод",
+            "Документ.УвольнениеСотрудника",
+            "Документ.НачислениеЗарплатыИВзносов",
+            "Справочник.Сотрудники",
+            "Справочник.ВидыНачислений",
+            "Справочник.ВидыУдержаний",
+            "РегистрНакопления.ВыплаченныеВзносы",
+            "РегистрРасчета.НачисленияСотрудникам",
+        }),
+    ),
+    ConfigurationSignature(
+        key="uso_2_5",
+        display_name="УСО (ЖКХ)",
+        family="utilities",
+        characteristic_objects=frozenset({
+            "Справочник.ЛицевыеСчета",
+            "Справочник.Тарифы",
+            "Справочник.ОбъектыПомещения",
+            "Документ.НачислениеПоЛицевомуСчету",
+            "Документ.ПрименениеТарифов",
+            "РегистрНакопления.ВзаиморасчетыПоЛицевымСчетам",
+            "РегистрНакопления.ПоказанияСчетчиков",
+            "Документ.ВводПоказанийСчетчика",
+        }),
+    ),
+)
+
+
+def detect_configuration_type(
+    channel_objects: Iterable[str],
+    *,
+    known_configurations: tuple[ConfigurationSignature, ...] = KNOWN_CONFIGURATIONS,
+    min_confidence: float = MIN_CONFIDENCE,
+) -> DetectionResult:
+    """Определяет тип типовой 1С по списку object_path канала.
+
+    Args:
+        channel_objects: iterable из object_path (e.g. «Документ.ОПП»).
+            Дубликаты будут схлопнуты в set.
+        known_configurations: tuple сигнатур (по умолчанию KNOWN_CONFIGURATIONS).
+        min_confidence: минимум для уверенной детекции. Ниже — «custom».
+
+    Returns:
+        DetectionResult с выигравшей конфигурацией или `custom`. В любом
+        случае возвращает `scores: dict[key, score]` для debug / UI hint
+        («2 кандидата близки: УТ 11.5 (0.42) vs КА 2.5 (0.38) — уточните»).
+    """
+    channel_set = set(channel_objects)
+
+    scores = {sig.key: sig.score(channel_set) for sig in known_configurations}
+
+    # Если канал пустой — однозначно custom (или ещё не индексирован)
+    if not channel_set:
+        return DetectionResult(
+            configuration_key="custom",
+            display_name="Самописная",
+            confidence=0.0,
+            family="unknown",
+            scores=scores,
+        )
+
+    # Топ-1 по score
+    best_key, best_score = max(scores.items(), key=lambda kv: kv[1])
+
+    if best_score < min_confidence:
+        return DetectionResult(
+            configuration_key="custom",
+            display_name="Самописная",
+            confidence=best_score,
+            family="unknown",
+            scores=scores,
+        )
+
+    # Нашли winning сигнатуру — отдаём её
+    winner = next(s for s in known_configurations if s.key == best_key)
+    return DetectionResult(
+        configuration_key=winner.key,
+        display_name=winner.display_name,
+        confidence=best_score,
+        family=winner.family,
+        scores=scores,
+    )
+
+
+async def update_channel_configuration(
+    db,  # aiosqlite.Connection
+    channel_id: str,
+    result: DetectionResult,
+) -> None:
+    """Записывает результат детекции в mcp_connections.configuration.
+
+    Поле добавлено миграцией v11. Хранится `display_name` (что увидит
+    юзер), `configuration_key` теряется — это OK, детекция запускается
+    при каждом полном bulk_refresh.
+
+    Args:
+        db: aiosqlite connection
+        channel_id: канал
+        result: что записывать
+    """
+    await db.execute(
+        "UPDATE mcp_connections SET configuration = ? WHERE id = ?",
+        (result.display_name, channel_id),
+    )
+    await db.commit()
+    logger.info(
+        "Configuration detected для канала %s: %s (confidence %.2f)",
+        channel_id,
+        result.display_name,
+        result.confidence,
+    )

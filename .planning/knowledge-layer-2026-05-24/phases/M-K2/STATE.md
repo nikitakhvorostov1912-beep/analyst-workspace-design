@@ -6,8 +6,8 @@ last_updated: "2026-05-26T10:00:00Z"
 branch: "feature/m-k2-indexer"
 parent_branch_merged_to_main: "feature/m-k1-summary (11575ab)"
 phases_total: 13   # 11 content + smoke + summary
-phases_done: 5     # +M-K2.5 Vector Store + M-K2.6 Embedding Pipeline
-backend_tests_passed: 1210  # +18 vector_store + +19 embeddings vs 1173
+phases_done: 6     # +M-K2.9 Configuration Type Detection
+backend_tests_passed: 1228  # +18 config_detection vs 1210
 frontend_tests_passed: 361
 ---
 
@@ -25,7 +25,7 @@ frontend_tests_passed: 361
 | **M-K2.6** | **Embedding Pipeline** | **✅ DONE** | embeddings.py с OpenAIEmbeddingClient (cloud-only, text-embedding-3-small 1536-D) + MockEmbeddingClient (детерминированный для тестов) + EmbeddingClient Protocol + 19 tests. BGE-M3 local отложен до M-K5 distribution. |
 | M-K2.7 | ИТС RAG | pending | Crawler + parser + vector index |
 | M-K2.8 | БСП Pattern Index | pending | ssl_3_1 + ssl_3_2/src parser |
-| M-K2.9 | Configuration Type Detection | pending | УТ/ERP/БП/УСО/custom heuristic |
+| **M-K2.9** | **Configuration Type Detection** | **✅ DONE** | config_detection.py: 7 known sigs (УТ/ERP/КА/БП/БГУ/ЗУП/УСО) + intersection scoring + custom fallback. Интегрировано в indexer.bulk_refresh post-success hook (best-effort UPDATE mcp_connections.configuration). 18 tests включая anti-conflict signature overlap test. |
 | **M-K2.10** | **UX-6 Indexing Progress UI** | **✅ DONE** | useIndexerStatus hook + IndexerProgress компонент + интеграция в ChannelSelector dropdown + 16 vitest тестов |
 | M-K2.11 | OPS-1 Privacy badge | pending | «Local Knowledge» indicator |
 | M-K2.smoke | E2E Playwright | pending | Перенесённый из M-K1.16 |

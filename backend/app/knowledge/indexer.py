@@ -343,6 +343,25 @@ async def bulk_refresh_metadata_cache(
             error=f"Запись в metadata_cache не удалась: {exc}",
         )
 
+    # M-K2.9: после успешного indexing — детектируем тип конфигурации
+    # (УТ 11.5 / ERP 2.5 / БП 3.0 / ...) по характерным объектам и пишем
+    # в mcp_connections.configuration (поле из v11). Best-effort — если
+    # detection / update упадут, indexing run всё равно done.
+    try:
+        from app.knowledge.config_detection import (
+            detect_configuration_type,
+            update_channel_configuration,
+        )
+
+        channel_object_paths = {obj.object_path for obj in objects}
+        detection = detect_configuration_type(channel_object_paths)
+        await update_channel_configuration(db, channel_id, detection)
+    except Exception:
+        logger.exception(
+            "Configuration detection failed для канала %s — пропускаю",
+            channel_id,
+        )
+
     finished_dt = datetime.now(timezone.utc)
     duration_ms = int((finished_dt - started_dt).total_seconds() * 1000)
 
