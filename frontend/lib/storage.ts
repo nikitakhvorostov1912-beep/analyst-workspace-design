@@ -3,6 +3,7 @@ import type { LLMConfig, MCPConnection } from "./types";
 const KEY_LLM = "analyst.llm";
 const KEY_MCP = "analyst.mcp_connections";
 const KEY_ACTIVE_CHANNEL = "analyst.active_channel";
+const KEY_ACTIVE_TYPICAL = "analyst.active_typical";
 
 // SSR-safe helper: возвращает null если не в браузере
 function safeLocalStorage(): Storage | null {
@@ -91,6 +92,31 @@ export function setActiveChannelId(id: string | null): void {
   if (typeof window !== "undefined") {
     window.dispatchEvent(
       new CustomEvent("active-channel-changed", { detail: { id } }),
+    );
+  }
+}
+
+// --- M-K2.5.7: активная типовая конфигурация для compare/explain ---
+
+/** Возвращает channel_id выбранной типовой (`_bp30_138_24` и т.п.) или null. */
+export function getActiveTypicalChannelId(): string | null {
+  const ls = safeLocalStorage();
+  if (!ls) return null;
+  return ls.getItem(KEY_ACTIVE_TYPICAL);
+}
+
+/** Сохраняет активную типовую. null → удаляет ключ. */
+export function setActiveTypicalChannelId(id: string | null): void {
+  const ls = safeLocalStorage();
+  if (!ls) return;
+  if (id === null) {
+    ls.removeItem(KEY_ACTIVE_TYPICAL);
+  } else {
+    ls.setItem(KEY_ACTIVE_TYPICAL, id);
+  }
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("active-typical-changed", { detail: { id } }),
     );
   }
 }

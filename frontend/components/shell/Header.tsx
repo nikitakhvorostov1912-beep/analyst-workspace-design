@@ -10,6 +10,7 @@ import { ChannelSelector } from "./ChannelSelector";
 import { ModelBadge } from "./ModelBadge";
 import { AnonymizationStatus } from "./AnonymizationStatus";
 import { ThemeToggle } from "./ThemeToggle";
+import { TypicalSelector } from "./TypicalSelector";
 import { UpdateBanner } from "./UpdateBanner";
 
 export interface HeaderProps {
@@ -49,12 +50,15 @@ export function Header({
         </div>
       </div>
 
-      {/* Center: channel selector */}
-      <div className="flex justify-center">
+      {/* Center: channel selector + typical selector */}
+      <div className="flex justify-center items-center gap-2">
         <ChannelSelector
           activeId={activeChannelId}
           onChange={onChannelChange}
         />
+        {/* M-K2.5.7: типовая для compare/explain. Опциональный — без неё
+            LLM-tools требуют явный channel_id от пользователя. */}
+        <TypicalSelector />
       </div>
 
       {/* Right: anon + model + cmd-K + status icons */}

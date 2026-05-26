@@ -56,6 +56,13 @@ from app.knowledge.its_indexer import (
     index_its_corpus,
 )
 from app.knowledge.its_tool import get_embedding_client
+from app.knowledge.typical.card_storage import (
+    count_cards_by_channel,
+    get_card_by_qname,
+)
+from app.knowledge.typical.storage import list_configurations
+from app.knowledge.graph_storage import count_by_kind, find_node
+from app.knowledge.graph_storage import NodeKind
 
 logger = logging.getLogger(__name__)
 
@@ -520,4 +527,91 @@ async def reload_bsp(
         "started_at": progress.started_at,
         "finished_at": progress.finished_at,
         "error": progress.error,
+    }
+
+
+# ── M-K2.5.7: Typical Configurations endpoints ────────────────────────
+
+
+@router.get("/typical/configurations")
+async def list_typical_configs(db=Depends(_get_db)) -> dict:  # noqa: B008
+    """Возвращает список загруженных в БД типовых конфигураций.
+
+    Используется фронтендом для селектора «Сравнить с типовой».
+    Не зависит от channel_id MCP — типовые namespace'нуты отдельно
+    (`_ut115_*`, `_bp30_*`, ...).
+
+    Включает счётчики nodes + cards чтобы UI мог показать готовность:
+    «БП 3.0.138.24 — граф 60k, карточки 10/8525».
+    """
+    configs = await list_configurations(db)
+    result: list[dict] = []
+    for cfg in configs:
+        node_counts = await count_by_kind(db, cfg.channel_id)
+        card_counts = await count_cards_by_channel(db, cfg.channel_id)
+        result.append({
+            "channel_id": cfg.channel_id,
+            "config_kind": cfg.config_kind,
+            "config_version": cfg.config_version,
+            "display_name": cfg.display_name,
+            "status": cfg.status,
+            "indexed_at": cfg.indexed_at,
+            "source_path": cfg.source_path,
+            "node_counts": node_counts,
+            "card_counts": card_counts,
+            "total_nodes": sum(node_counts.values()),
+            "total_cards": sum(card_counts.values()),
+        })
+    return {
+        "configurations": result,
+        "total": len(result),
+    }
+
+
+@router.get("/typical/{channel_id}/object/{object_qualified_name:path}")
+async def get_typical_object(
+    channel_id: Annotated[str, Path(description="ID типовой (например _bp30_138_24)")],
+    object_qualified_name: Annotated[str, Path(description="Полное имя объекта")],
+    db=Depends(_get_db),  # noqa: B008
+) -> dict:
+    """Возвращает описание объекта типовой: карточка (если есть) + базовый узел графа.
+
+    UI использует этот endpoint для раскрывающейся `TypicalObjectCard`
+    в чат-потоке (когда LLM вызвал `explain_typical_object`).
+
+    404 если объект не найден в графе.
+    """
+    node = await find_node(
+        db,
+        channel_id=channel_id,
+        qualified_name=object_qualified_name,
+        node_kind=NodeKind.METADATA_OBJECT.value,
+    )
+    if node is None:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "typical_object_not_found",
+                "channel_id": channel_id,
+                "object_qualified_name": object_qualified_name,
+                "hint": "Проверь что типовая загружена через /knowledge/typical/configurations.",
+            },
+        )
+
+    card_rec = await get_card_by_qname(
+        db,
+        channel_id=channel_id,
+        object_qualified_name=object_qualified_name,
+    )
+
+    return {
+        "channel_id": channel_id,
+        "object_qualified_name": object_qualified_name,
+        "object_kind": node.attributes.get("kind"),
+        "name": node.attributes.get("name"),
+        "comment": node.attributes.get("comment", ""),
+        "source_path": node.source_path,
+        "card": card_rec.card.to_dict() if card_rec else None,
+        "card_status": card_rec.status if card_rec else "not_generated",
+        "card_updated_at": card_rec.updated_at if card_rec else None,
     }

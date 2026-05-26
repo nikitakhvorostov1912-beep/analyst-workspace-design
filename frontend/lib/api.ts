@@ -628,6 +628,99 @@ export async function getBSPStatus(): Promise<BSPStatusResponse> {
   return response.json() as Promise<BSPStatusResponse>;
 }
 
+// --- M-K2.5.7: Typical Configurations API ---
+
+export type TypicalConfigurationDTO = {
+  channel_id: string;
+  config_kind: string;
+  config_version: string;
+  display_name: string;
+  status: string;
+  indexed_at: string | null;
+  source_path: string | null;
+  node_counts: Record<string, number>;
+  card_counts: Record<string, number>;
+  total_nodes: number;
+  total_cards: number;
+};
+
+export type TypicalConfigurationsResponse = {
+  configurations: TypicalConfigurationDTO[];
+  total: number;
+};
+
+export type TypicalObjectCardAttribute = {
+  name: string;
+  role: string;
+};
+
+export type TypicalObjectCardMovement = {
+  register: string;
+  direction: string;
+  condition: string;
+};
+
+export type TypicalObjectCardPayload = {
+  object_qualified_name: string;
+  object_kind: string;
+  channel_id: string;
+  summary: string;
+  purpose: string;
+  key_attributes: TypicalObjectCardAttribute[];
+  movements: TypicalObjectCardMovement[];
+  posting_flow: string[];
+  typical_scenarios: string[];
+  preconditions: string[];
+  related_objects: string[];
+  its_links: string[];
+};
+
+export type TypicalObjectResponse = {
+  channel_id: string;
+  object_qualified_name: string;
+  object_kind: string;
+  name: string;
+  comment: string;
+  source_path: string | null;
+  card: TypicalObjectCardPayload | null;
+  card_status: string;
+  card_updated_at: string | null;
+};
+
+/**
+ * GET /knowledge/typical/configurations — список загруженных типовых.
+ *
+ * Используется TypicalSelector для дропдауна и для счётчиков
+ * (граф / карточки) в карточке выбора.
+ */
+export async function fetchTypicalConfigurations(): Promise<TypicalConfigurationsResponse> {
+  const response = await fetch(`${getBackend()}/knowledge/typical/configurations`);
+  if (!response.ok) {
+    throw new Error(`Ошибка загрузки типовых: ${response.status}`);
+  }
+  return response.json() as Promise<TypicalConfigurationsResponse>;
+}
+
+/**
+ * GET /knowledge/typical/{channel}/object/{qname} — карточка объекта.
+ *
+ * Бросает Error при 404 (объект не найден) или 5xx.
+ */
+export async function fetchTypicalObject(
+  channelId: string,
+  objectQualifiedName: string,
+): Promise<TypicalObjectResponse> {
+  const url = `${getBackend()}/knowledge/typical/${encodeURIComponent(channelId)}/object/${objectQualifiedName}`;
+  const response = await fetch(url);
+  if (response.status === 404) {
+    throw new Error(`Объект ${objectQualifiedName} не найден в типовой ${channelId}`);
+  }
+  if (!response.ok) {
+    throw new Error(`Ошибка загрузки карточки типовой: ${response.status}`);
+  }
+  return response.json() as Promise<TypicalObjectResponse>;
+}
+
 /**
  * Переименовывает сессию.
  */
