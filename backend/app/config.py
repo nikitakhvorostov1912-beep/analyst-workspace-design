@@ -336,6 +336,33 @@ class Settings(BaseSettings):
         default=50, validation_alias="MAX_TOOL_CALLS_PER_TURN"
     )
 
+    # === M-K2.7: ИТС RAG ===
+    # search_its tool становится видимым LLM только если its_enabled=True
+    # И есть рабочий embedding-клиент (есть API key ИЛИ provider="mock").
+    its_enabled: bool = Field(default=True, validation_alias="ITS_ENABLED")
+    its_embedding_provider: Literal["openai", "mock"] = Field(
+        default="openai", validation_alias="ITS_EMBEDDING_PROVIDER"
+    )
+    its_embedding_endpoint: str = Field(
+        default="https://api.openai.com/v1",
+        validation_alias="ITS_EMBEDDING_ENDPOINT",
+    )
+    # Если пусто — фоллбэкаем на default_llm_api_key_openai (часто пользователь
+    # уже задал OpenAI ключ под LLM, разделять два ключа не имеет смысла).
+    its_embedding_api_key: str = Field(
+        default="", validation_alias="ITS_EMBEDDING_API_KEY"
+    )
+    its_embedding_model: str = Field(
+        default="text-embedding-3-small",
+        validation_alias="ITS_EMBEDDING_MODEL",
+    )
+    its_embedding_dim: int = Field(
+        default=1536, validation_alias="ITS_EMBEDDING_DIM"
+    )
+    # Путь к корпусу ИТС (zeegin/v8std). Default: <repo>/tools/v8std/docs.
+    # В Electron-проде придётся либо bundlить, либо указывать через env.
+    its_docs_root: str = Field(default="", validation_alias="ITS_DOCS_ROOT")
+
     model_config = {
         # env_file читается из .env + embedded.env. P3.1 rev2 (2026-05-23):
         # tuple — приоритет у первого. .env (private, личный, не в installer)
@@ -396,6 +423,46 @@ class Settings(BaseSettings):
         if self.memory_root:
             return Path(self.memory_root).expanduser()
         return Path.home() / ".analyst-1c" / "memory"
+
+    @property
+    def resolved_its_api_key(self) -> str:
+        """Эффективный ключ для ITS embeddings.
+
+        Приоритет: явный `ITS_EMBEDDING_API_KEY` → `DEFAULT_LLM_API_KEY_OPENAI`
+        (часто уже задан в .env под OpenAI LLM-провайдера). Пустая строка
+        если ни один не настроен — тогда `is_its_ready` вернёт False.
+        """
+        if self.its_embedding_api_key:
+            return self.its_embedding_api_key
+        return self.default_llm_api_key_openai
+
+    @property
+    def is_its_ready(self) -> bool:
+        """ИТС RAG готов к использованию: enabled + клиент можно построить.
+
+        Mock-провайдер всегда ready (для разработки / тестов).
+        OpenAI-провайдер требует ключ (резолвится через `resolved_its_api_key`).
+        """
+        if not self.its_enabled:
+            return False
+        if self.its_embedding_provider == "mock":
+            return True
+        if self.its_embedding_provider == "openai":
+            return bool(self.resolved_its_api_key)
+        return False
+
+    @property
+    def its_docs_root_path(self) -> Path:
+        """Resolve путь к v8std/docs/.
+
+        Default: <repo>/tools/v8std/docs (3 уровня вверх от backend/app/).
+        В Electron-проде нужно указывать через ITS_DOCS_ROOT env.
+        """
+        if self.its_docs_root:
+            return Path(self.its_docs_root).expanduser()
+        # backend/app/config.py → backend/app/ → backend/ → repo/
+        repo_root = Path(__file__).resolve().parent.parent.parent
+        return repo_root / "tools" / "v8std" / "docs"
 
     @property
     def trajectory_dir_path(self) -> Path:

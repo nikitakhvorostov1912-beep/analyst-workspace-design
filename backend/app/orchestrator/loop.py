@@ -85,6 +85,12 @@ from app.orchestrator.events import (
     ToolResultEvent,
     format_sse,
 )
+from app.knowledge.its_tool import (
+    ITS_TOOL_SCHEMA,
+    dispatch_its_tool,
+    is_its_enabled,
+    is_its_tool,
+)
 from app.orchestrator.interrupt import INTERRUPTS
 from app.orchestrator.iteration_budget import BudgetExhausted, IterationBudget
 from app.orchestrator.mcp_pool import MCPPool, build_aux_clients
@@ -219,6 +225,8 @@ SYSTEM_PROMPT = """Ты — аналитик 1С. Работаешь ТОЛЬК�
 • get_bsl_syntax_help — справочник встроенного языка / API платформы. Для вопросов «как вызвать», «какие параметры у X».
 
 • submit_for_deanonymization — раскрытие анонимизированных значений в режиме маскировки.
+
+• search_its (если доступен) — семантический поиск по корпусу ИТС-стандартов 1С (zeegin/v8std). Для вопросов о МЕТОДОЛОГИИ (паттерны, БСП, RLS, диагностики BSL LS, оформление кода) — НЕ для данных конкретной базы. Возвращает топ-K фрагментов с цитатами на std396 / pattern-* / diag-* / metod* / lang-*. Приоритет: цитируй ИТС-стандарт явно в ответе.
 
 ═══════ ЭКСПЕРТНАЯ БАЗА ЗНАНИЙ 1С (ОБЯЗАТЕЛЬНО при составлении запросов и кода) ═══════
 
@@ -664,6 +672,7 @@ def _initialize_skill_store(
 def _build_openai_tools(
     mcp_tools: list[dict],
     memory_manager: Any,
+    settings: Any = None,
 ) -> list[dict]:
     """Конвертирует MCP tools в OpenAI function format + добавляет internal tools.
 
@@ -672,6 +681,7 @@ def _build_openai_tools(
     - memory_* tools через memory_tool_schemas(memory_manager)
     - todo_* tools через TODO_TOOL_SCHEMAS
     - clarify_question tool
+    - search_its (M-K2.7) — если settings.is_its_ready
 
     Извлечено из run_chat_loop как часть P1.2 phase 3.
     """
@@ -679,6 +689,8 @@ def _build_openai_tools(
     openai_tools = openai_tools + memory_tool_schemas(memory_manager)
     openai_tools = openai_tools + TODO_TOOL_SCHEMAS
     openai_tools = openai_tools + [CLARIFY_TOOL_SCHEMA]
+    if settings is not None and is_its_enabled(settings):
+        openai_tools = openai_tools + [ITS_TOOL_SCHEMA]
     return openai_tools
 
 
@@ -1207,7 +1219,8 @@ async def run_chat_loop(
         mcp_tools = await pool.list_all_tools()
         # P1.2 phase 3 (2026-05-24): сборка openai_tools вынесена в helper.
         # MCP + memory_* + todo_* + clarify_question — единый список для LLM.
-        openai_tools = _build_openai_tools(mcp_tools, memory_manager)
+        # M-K2.7: + search_its (ИТС RAG) если settings.is_its_ready.
+        openai_tools = _build_openai_tools(mcp_tools, memory_manager, settings)
     except Exception:
         logger.exception("Ошибка инициализации MCP pool")
         yield format_sse("error", ErrorEvent(
@@ -1603,6 +1616,38 @@ async def run_chat_loop(
                     yield format_sse("tool_result", event)
                     accumulated_tool_calls.append(accum_entry)
                     messages.append(msg_entry)
+                    continue
+
+                # M-K2.7: search_its — async internal tool (требует embedding).
+                # Не идёт через _dispatch_sync_internal_tool (тот sync только).
+                # Placement: после sync_internal, до clarify — порядок не
+                # критичен, имена не пересекаются.
+                if is_its_tool(tool_name):
+                    its_ok, its_result, its_error = await dispatch_its_tool(
+                        db, settings, tool_name, tool_args,
+                    )
+                    duration_ms = int((time.monotonic() - start_ts) * 1000)
+                    its_event = ToolResultEvent(
+                        id=tool_id, ok=its_ok,
+                        result=its_result if its_ok else None,
+                        error=its_error,
+                        duration_ms=duration_ms,
+                    )
+                    yield format_sse("tool_result", its_event)
+                    accumulated_tool_calls.append({
+                        "id": tool_id, "name": tool_name, "args": tool_args,
+                        "result": its_result, "error": its_error,
+                        "duration_ms": duration_ms,
+                    })
+                    its_content = (
+                        json.dumps(its_result, ensure_ascii=False)
+                        if its_ok and its_result is not None
+                        else (its_error or "")
+                    )
+                    messages.append({
+                        "role": "tool", "tool_call_id": tool_id,
+                        "content": _cap_content(its_content),
+                    })
                     continue
 
                 # Sprint 4 (Hermes D1): clarify_question — диалог с пользователем
