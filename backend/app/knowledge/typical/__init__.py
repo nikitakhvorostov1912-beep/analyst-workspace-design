@@ -19,6 +19,10 @@ Phases:
 """
 
 from app.knowledge.typical.bsl_ast import parse_file, parse_module, parse_string
+from app.knowledge.typical.graph_builder import (
+    GraphBuildStats,
+    build_typical_graph,
+)
 from app.knowledge.typical.bsl_models import (
     BSLMethod,
     BSLMethodKind,
@@ -139,4 +143,7 @@ __all__ = [
     "extract_queries_from_method",
     "iter_queries_from_methods",
     "parse_query",
+    # graph_builder
+    "build_typical_graph",
+    "GraphBuildStats",
 ]

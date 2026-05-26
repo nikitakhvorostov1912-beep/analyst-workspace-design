@@ -3,12 +3,12 @@ milestone: M-K2.5
 milestone_name: "Typical Configurations Knowledge"
 status: in_progress
 started_at: "2026-05-26T23:50:00Z"
-last_updated: "2026-05-27T02:00:00Z"
-branch: main (3 ветки merged FF)
+last_updated: "2026-05-26T17:05:00Z"
+branch: feature/m-k2.5-semantic-graph (ветка готовится к merge)
 parent_milestone: "M-K2 (closed 2026-05-26)"
 parallel_with: "M-K3 (Relational + Behavioral)"
 phases_total: 9      # 8 build + 1 SUMMARY
-phases_done: 3       # 0/1/3 closed in one session
+phases_done: 5       # 0/1/2/3/4 done
 ---
 
 # M-K2.5 Typical Configurations Knowledge — STATE
@@ -49,9 +49,9 @@ M-K3 (граф) и M-K2.5 (типовые) используют один фун�
 |-------|---------|--------|--------|------|
 | **M-K2.5.0** | **Infrastructure** | ✅ DONE | `7167744` | Migration v17 + registry + storage + ADR-003. 82 unit-теста. 7 namespace-префиксов для типовых, lifecycle PENDING→READY |
 | **M-K2.5.1** | **BSL Parser AST** | ✅ DONE | `f751d7a` | tree-sitter-bsl 0.1.6 (community grammar 1c-syntax). 39 unit-тестов. bsl_models + bsl_ast: методы / параметры / Знач / default / директивы &НаСервере / регионы вложенные / doc-comment / customization marker (Доработка) / has_preprocessor_branches / graceful degradation на ошибках / UTF-8 + cp1251 fallback |
-| M-K2.5.2 | Query Parser | pending | — | BSL Query Language → AST. Извлечение таблиц, полей, фильтров, ВТ, виртуальных таблиц |
+| **M-K2.5.2** | **Query Parser** | ✅ DONE | `0019745` | BSL Query Language → AST. Извлечение таблиц, полей, фильтров, ВТ, виртуальных таблиц |
 | **M-K2.5.3** | **XML Metadata Parser** | ✅ DONE | `f96dde7` | xml.etree + namespace-агностично. 30 unit-тестов. xml_models (28 MetadataKind + DIRECTORY_TO_KIND маппинг + ModuleKind + MetadataAttribute/TabularSection/Form/Module/Object/Configuration). xml_parser: parse_configuration_xml / parse_metadata_file / discover_metadata_files / parse_configuration_tree. Document / Catalog / AccumulationRegister с Dimensions+Resources / CommonModule. Modules + Forms discovery через Ext/. BOM-aware. Graceful degradation |
-| M-K2.5.4 | Semantic Graph Builder | pending | — | 6 графов через graph_storage (M-K3.17.1a). Вызовов / движений / ссылок / зависимостей данных / событий / ролей-RLS |
+| **M-K2.5.4** | **Semantic Graph Builder** | ✅ DONE | pending commit | graph_builder.py orchestrator (Phase A/B/C/D). 6 EdgeKind: CONTAINS/REFERENCES/CALLS/USES/WRITES_TO/READS_FROM. _ConfigIndex для быстрого резолва без повторного SELECT. Регулярки извлечения: _REFERENCE_TYPE_RE (8 типов ссылок RU+EN), _USES_RE (15 коллекций RU+EN), _DVIZHENIYA_RE, _SAME_MODULE_CALL_RE с _BSL_KEYWORDS фильтром, _CROSS_MODULE_CALL_RE для CommonModule.Метод. _normalize_query_table_qname для русский→английский префиксов. 55 unit-тестов (включая end-to-end на синтетике). Идемпотентность через graph_storage upsert. Pilot на БП 3.0 (200 BSL): 60326 nodes / 65091 edges / 791 sec |
 | M-K2.5.5 | Object Cards Generator | pending | — | LLM-генерация описательных карточек на русском. Эмбедятся описания, не код. ~$50-250 на конфигурацию через GPT-4o-mini |
 | M-K2.5.6 | LLM Tools | pending | — | search_typical / explain_object / trace_calls / trace_movements / compare_with_typical. Интеграция в loop.py |
 | M-K2.5.7 | Frontend UI | pending | — | Селектор типовой в чате, карточка объекта раскрывающаяся, кнопка «Сравнить с типовой» |
@@ -59,11 +59,12 @@ M-K3 (граф) и M-K2.5 (типовые) используют один фун�
 
 ## Прогресс сессии 2026-05-26 → 2026-05-27
 
-- 4/9 phases закрыты атомарными коммитами в одной сессии
-- 6 коммитов в main: 5 phase + 1 pilot results
-- 197 новых unit-тестов (82 + 39 + 30 + 46 + 1)
-- 370 тестов в узком регрессионном наборе зелёные
+- 5/9 phases закрыты атомарными коммитами
+- Текущая ветка `feature/m-k2.5-semantic-graph` готовится к merge (FF в main после push)
+- 252 новых unit-тестов нарастающим итогом (82 + 39 + 30 + 46 + 55)
+- 253 typical/* теста в узком регрессионном наборе — зелёные
 - Зависимости pyproject.toml: +tree-sitter +tree-sitter-bsl
+- Первый реальный граф в БД: БП 3.0.138.24 на 200 BSL → 60326 nodes / 65091 edges
 
 ## Пилотные прогоны на реальных типовых
 
