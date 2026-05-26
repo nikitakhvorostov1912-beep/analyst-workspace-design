@@ -97,6 +97,11 @@ from app.knowledge.its_tool import (
     is_its_enabled,
     is_its_tool,
 )
+from app.knowledge.typical.tool import (
+    TYPICAL_TOOL_SCHEMAS,
+    dispatch_typical_tool,
+    is_typical_tool,
+)
 from app.orchestrator.interrupt import INTERRUPTS
 from app.orchestrator.iteration_budget import BudgetExhausted, IterationBudget
 from app.orchestrator.mcp_cache import (
@@ -240,6 +245,8 @@ SYSTEM_PROMPT = """Ты — аналитик 1С. Работаешь ТОЛЬК�
 • search_its (если доступен) — семантический поиск по корпусу ИТС-стандартов 1С (zeegin/v8std). Для вопросов о МЕТОДОЛОГИИ (паттерны, БСП, RLS, диагностики BSL LS, оформление кода) — НЕ для данных конкретной базы. Возвращает топ-K фрагментов с цитатами на std396 / pattern-* / diag-* / metod* / lang-*. Приоритет: цитируй ИТС-стандарт явно в ответе.
 
 • search_bsp (если доступен) — поиск по экспортным методам БСП (Библиотека Стандартных Подсистем, 3.1 + 3.2). Для вопросов про КОНКРЕТНЫЕ API БСП («как запустить длительную операцию», «как сохранить пароль», «какие методы у длительных операций»). Возвращает топ-K методов с doc + сигнатура + body excerpt. Цитата: «БСП 3.2 → ДлительныеОперации.ВыполнитьФункцию (Функция)». search_bsp vs search_its: search_its — методология и стандарты, search_bsp — конкретные методы API.
+
+• list_typical_configurations / search_typical_objects / explain_typical_object / trace_typical_calls / trace_typical_movements / compare_with_typical — работа с типовыми конфигурациями 1С (УТ 11.5, БП 3.0, ERP 2.5, КА 2, ЗУП 3.1, УСО 2.5, Документооборот). Используй когда вопрос — про ТИПОВУЮ логику («как работает Реализация в УТ», «куда пишет движения ПриходныйКассовыйОрдер в БП», «кто вызывает РасчётСебестоимости»). НЕ для данных конкретной клиентской базы — там MCP. Перед использованием explain_typical_object / trace_* вызови list_typical_configurations чтобы узнать channel_id. search_typical_objects — поиск по name + summary карточек.
 
 ═══════ ЭКСПЕРТНАЯ БАЗА ЗНАНИЙ 1С (ОБЯЗАТЕЛЬНО при составлении запросов и кода) ═══════
 
@@ -706,6 +713,12 @@ def _build_openai_tools(
         openai_tools = openai_tools + [ITS_TOOL_SCHEMA]
     if settings is not None and is_bsp_enabled(settings):
         openai_tools = openai_tools + [BSP_TOOL_SCHEMA]
+    # M-K2.5.6: typical configurations tools — 6 функций для работы с
+    # графом + карточками типовых (УТ/ERP/КА/БП/ЗУП/УСО/Документооборот).
+    # Без feature-flag — таблицы всегда существуют (migration v17/v18),
+    # пустой канал = list_typical_configurations вернёт []. Минимальный
+    # overhead для LLM (6 коротких функций в tool_choice).
+    openai_tools = openai_tools + TYPICAL_TOOL_SCHEMAS
     return openai_tools
 
 
@@ -1731,6 +1744,37 @@ async def run_chat_loop(
                     messages.append({
                         "role": "tool", "tool_call_id": tool_id,
                         "content": _cap_content(bsp_content),
+                    })
+                    continue
+
+                # M-K2.5.6: typical configurations tools (list/search/explain/
+                # trace_calls/trace_movements/compare) — работают на graph +
+                # карточках типовых. Не требуют embedding / external API.
+                if is_typical_tool(tool_name):
+                    tt_ok, tt_result, tt_error = await dispatch_typical_tool(
+                        db, tool_name, tool_args,
+                    )
+                    duration_ms = int((time.monotonic() - start_ts) * 1000)
+                    tt_event = ToolResultEvent(
+                        id=tool_id, ok=tt_ok,
+                        result=tt_result if tt_ok else None,
+                        error=tt_error,
+                        duration_ms=duration_ms,
+                    )
+                    yield format_sse("tool_result", tt_event)
+                    accumulated_tool_calls.append({
+                        "id": tool_id, "name": tool_name, "args": tool_args,
+                        "result": tt_result, "error": tt_error,
+                        "duration_ms": duration_ms,
+                    })
+                    tt_content = (
+                        json.dumps(tt_result, ensure_ascii=False)
+                        if tt_ok and tt_result is not None
+                        else (tt_error or "")
+                    )
+                    messages.append({
+                        "role": "tool", "tool_call_id": tool_id,
+                        "content": _cap_content(tt_content),
                     })
                     continue
 

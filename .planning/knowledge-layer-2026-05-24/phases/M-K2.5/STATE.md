@@ -3,12 +3,12 @@ milestone: M-K2.5
 milestone_name: "Typical Configurations Knowledge"
 status: in_progress
 started_at: "2026-05-26T23:50:00Z"
-last_updated: "2026-05-26T17:35:00Z"
-branch: feature/m-k2.5-object-cards (ветка готовится к merge)
+last_updated: "2026-05-26T18:00:00Z"
+branch: feature/m-k2.5-llm-tools (ветка готовится к merge)
 parent_milestone: "M-K2 (closed 2026-05-26)"
 parallel_with: "M-K3 (Relational + Behavioral)"
 phases_total: 9      # 8 build + 1 SUMMARY
-phases_done: 6       # 0/1/2/3/4/5 done (5 инфраструктурно, real LLM отдельно)
+phases_done: 7       # 0/1/2/3/4/5/6 done (5 инфраструктурно, real LLM отдельно)
 ---
 
 # M-K2.5 Typical Configurations Knowledge — STATE
@@ -52,19 +52,21 @@ M-K3 (граф) и M-K2.5 (типовые) используют один фун�
 | **M-K2.5.2** | **Query Parser** | ✅ DONE | `0019745` | BSL Query Language → AST. Извлечение таблиц, полей, фильтров, ВТ, виртуальных таблиц |
 | **M-K2.5.3** | **XML Metadata Parser** | ✅ DONE | `f96dde7` | xml.etree + namespace-агностично. 30 unit-тестов. xml_models (28 MetadataKind + DIRECTORY_TO_KIND маппинг + ModuleKind + MetadataAttribute/TabularSection/Form/Module/Object/Configuration). xml_parser: parse_configuration_xml / parse_metadata_file / discover_metadata_files / parse_configuration_tree. Document / Catalog / AccumulationRegister с Dimensions+Resources / CommonModule. Modules + Forms discovery через Ext/. BOM-aware. Graceful degradation |
 | **M-K2.5.4** | **Semantic Graph Builder** | ✅ DONE | `40297f3` | graph_builder.py orchestrator (Phase A/B/C/D). 6 EdgeKind: CONTAINS/REFERENCES/CALLS/USES/WRITES_TO/READS_FROM. _ConfigIndex для быстрого резолва без повторного SELECT. Регулярки извлечения: _REFERENCE_TYPE_RE (8 типов ссылок RU+EN), _USES_RE (15 коллекций RU+EN), _DVIZHENIYA_RE, _SAME_MODULE_CALL_RE с _BSL_KEYWORDS фильтром, _CROSS_MODULE_CALL_RE для CommonModule.Метод. _normalize_query_table_qname для русский→английский префиксов. 55 unit-тестов (включая end-to-end на синтетике). Идемпотентность через graph_storage upsert. Pilot на БП 3.0 (200 BSL): 60326 nodes / 65091 edges / 791 sec |
-| **M-K2.5.5** | **Object Cards Generator** | ✅ DONE (mock) | pending commit | Migration v18 (`typical_object_cards`). card_models + card_storage + card_context + card_generator + prompt template v1. LLMCaller Protocol + MockLLMCaller (без расхода токенов). Идемпотентность через source_hash. 71 unit-тест. Pilot на БП 3.0 (10 объектов): 0.13 сек на генерацию, второй прогон 0 токенов (skip-hash работает). Бюджет полной БП через GPT-4o-mini: ~$2.40. Real LLM adapter — отдельным мини-коммитом с явным согласием пользователя |
-| M-K2.5.6 | LLM Tools | pending | — | search_typical / explain_object / trace_calls / trace_movements / compare_with_typical. Интеграция в loop.py |
+| **M-K2.5.5** | **Object Cards Generator** | ✅ DONE (mock) | `a077035` | Migration v18 (`typical_object_cards`). card_models + card_storage + card_context + card_generator + prompt template v1. LLMCaller Protocol + MockLLMCaller (без расхода токенов). Идемпотентность через source_hash. 71 unit-тест. Pilot на БП 3.0 (10 объектов): 0.13 сек на генерацию, второй прогон 0 токенов (skip-hash работает). Бюджет полной БП через GPT-4o-mini: ~$2.40. Real LLM adapter — отдельным мини-коммитом с явным согласием пользователя |
+| **M-K2.5.6** | **LLM Tools** | ✅ DONE | pending commit | `typical/tool.py` — 6 OpenAI function schemas + dispatcher: list_typical_configurations / search_typical_objects / explain_typical_object / trace_typical_calls / trace_typical_movements / compare_with_typical. Интеграция в `loop.py` (_build_openai_tools + run_chat_loop dispatch). System prompt обновлён — добавлены инструкции когда вызывать typical tools vs MCP. 23 unit-теста. compare_with_typical — заглушка (требует client graph из M-K3) |
 | M-K2.5.7 | Frontend UI | pending | — | Селектор типовой в чате, карточка объекта раскрывающаяся, кнопка «Сравнить с типовой» |
 | M-K2.5.8 | Run all 7 configurations | pending | — | УТ 11.5 (пилот) → БП 3.0 → ЗУП 3.1 → ERP 2.5 → КА 2 → УСО 2.5 → Документооборот |
 
 ## Прогресс сессии 2026-05-26 → 2026-05-27
 
-- 5/9 phases закрыты атомарными коммитами
-- Текущая ветка `feature/m-k2.5-semantic-graph` готовится к merge (FF в main после push)
-- 252 новых unit-тестов нарастающим итогом (82 + 39 + 30 + 46 + 55)
-- 253 typical/* теста в узком регрессионном наборе — зелёные
+- 7/9 phases закрыты атомарными коммитами
+- Текущая ветка `feature/m-k2.5-llm-tools` готовится к merge (FF в main после push)
+- 346 новых unit-тестов нарастающим итогом (82 + 39 + 30 + 46 + 55 + 71 + 23)
+- 347 typical/* теста в узком регрессионном наборе — зелёные
 - Зависимости pyproject.toml: +tree-sitter +tree-sitter-bsl
-- Первый реальный граф в БД: БП 3.0.138.24 на 200 BSL → 60326 nodes / 65091 edges
+- Реальный граф в БД: БП 3.0.138.24 на 200 BSL → 60326 nodes / 65091 edges
+- Mock-карточки: 10 объектов БП 3.0 за 0.13 сек, idempotent skip работает
+- LLM tools wired в orchestrator: 6 typical tools доступны в каждом chat call
 
 ## Пилотные прогоны на реальных типовых
 
