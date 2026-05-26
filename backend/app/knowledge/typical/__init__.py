@@ -26,6 +26,23 @@ from app.knowledge.typical.bsl_models import (
     BSLParameter,
     BSLRegion,
 )
+from app.knowledge.typical.xml_models import (
+    DIRECTORY_TO_KIND,
+    MetadataAttribute,
+    MetadataConfiguration,
+    MetadataForm,
+    MetadataKind,
+    MetadataModule,
+    MetadataObject,
+    MetadataTabularSection,
+    ModuleKind,
+)
+from app.knowledge.typical.xml_parser import (
+    discover_metadata_files,
+    parse_configuration_tree,
+    parse_configuration_xml,
+    parse_metadata_file,
+)
 from app.knowledge.typical.registry import (
     DISPLAY_NAMES,
     RESERVED_PREFIXES,
@@ -83,4 +100,19 @@ __all__ = [
     "parse_module",
     "parse_string",
     "parse_file",
+    # xml_models
+    "MetadataKind",
+    "MetadataAttribute",
+    "MetadataConfiguration",
+    "MetadataForm",
+    "MetadataModule",
+    "MetadataObject",
+    "MetadataTabularSection",
+    "ModuleKind",
+    "DIRECTORY_TO_KIND",
+    # xml_parser
+    "parse_configuration_xml",
+    "parse_configuration_tree",
+    "parse_metadata_file",
+    "discover_metadata_files",
 ]
