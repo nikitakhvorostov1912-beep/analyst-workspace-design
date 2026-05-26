@@ -6,9 +6,9 @@ last_updated: "2026-05-26T10:00:00Z"
 branch: "feature/m-k2-indexer"
 parent_branch_merged_to_main: "feature/m-k1-summary (11575ab)"
 phases_total: 13   # 11 content + smoke + summary
-phases_done: 2     # M-K2.1 indexer skeleton + M-K2.2 state machine + endpoints
-backend_tests_passed: 1200  # +29 indexer + +16 state + +7 routes vs 1121 (~tbd full)
-frontend_tests_passed: 345
+phases_done: 3     # +M-K2.10 UX-6 Indexing Progress UI
+backend_tests_passed: 1173
+frontend_tests_passed: 361  # +16 (useIndexerStatus 9 + IndexerProgress 7)
 ---
 
 # M-K2 Knowledge Foundation — STATE
@@ -26,7 +26,7 @@ frontend_tests_passed: 345
 | M-K2.7 | ИТС RAG | pending | Crawler + parser + vector index |
 | M-K2.8 | БСП Pattern Index | pending | ssl_3_1 + ssl_3_2/src parser |
 | M-K2.9 | Configuration Type Detection | pending | УТ/ERP/БП/УСО/custom heuristic |
-| M-K2.10 | UX-6 Indexing Progress UI | pending | SSE modal frontend |
+| **M-K2.10** | **UX-6 Indexing Progress UI** | **✅ DONE** | useIndexerStatus hook + IndexerProgress компонент + интеграция в ChannelSelector dropdown + 16 vitest тестов |
 | M-K2.11 | OPS-1 Privacy badge | pending | «Local Knowledge» indicator |
 | M-K2.smoke | E2E Playwright | pending | Перенесённый из M-K1.16 |
 | M-K2.SUMMARY | Финальный документ | pending | Handoff в M-K3 |

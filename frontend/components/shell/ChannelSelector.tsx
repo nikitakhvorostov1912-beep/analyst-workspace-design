@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/StatusDot";
 import { KindBadge } from "@/components/shell/KindBadge";
 import { ModeBadge } from "@/components/shell/ModeBadge";
+import { IndexerProgress } from "@/components/knowledge/IndexerProgress";
 import type { ChannelMode } from "@/lib/capabilities";
 import { fetchConnections, pingConnection } from "@/lib/api";
 import { getMCPConnections, setActiveChannelId, syncMCPConnections } from "@/lib/storage";
@@ -424,6 +425,16 @@ export function ChannelSelector({ activeId, onChange }: Props) {
         })}
 
         <DropdownMenuSeparator />
+
+        {/* M-K2.10: индексер активного канала. Polling делает только этот
+            компонент (один на активный канал), а не строка списка — чтобы
+            не открывать N HTTP-соединений на каждый канал в дропдауне.
+            Скрывается если активного канала нет. */}
+        {activeId && (
+          <div className="px-2 py-1.5 border-b border-[var(--bd-2)]">
+            <IndexerProgress channelId={activeId} />
+          </div>
+        )}
 
         <div className="flex items-center justify-between px-2 py-1">
           <button

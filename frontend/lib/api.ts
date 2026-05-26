@@ -512,6 +512,78 @@ export async function metadataSuggest(
 }
 
 /**
+ * M-K2.2: статус indexing run'а от GET /knowledge/{ch}/index/status.
+ * `null` если run'ов вообще не было / канал свежий.
+ */
+export type IndexRun = {
+  id: number;
+  channel_id: string;
+  status: "pending" | "running" | "done" | "failed";
+  started_at: string | null;
+  finished_at: string | null;
+  duration_ms: number | null;
+  objects_total: number;
+  objects_written: number;
+  objects_skipped: number;
+  error: string | null;
+};
+
+export type IndexerStatusResponse = {
+  channel_id: string;
+  latest: IndexRun | null;
+  running: IndexRun | null;
+};
+
+export type IndexerStartResponse = {
+  run_id: number;
+  channel_id: string;
+  status: "running";
+  started_at: string;
+  message: string;
+};
+
+/**
+ * Запускает полный indexing run для канала в background (M-K2.2).
+ * - 202 Accepted с run_id если стартовало
+ * - 409 Conflict если уже идёт run (бросает Error с current_run в .cause)
+ * - 404 Not Found если канал не зарегистрирован
+ */
+export async function startIndexer(channelId: string): Promise<IndexerStartResponse> {
+  const response = await fetch(
+    `${getBackend()}/knowledge/${encodeURIComponent(channelId)}/index/start`,
+    { method: "POST" },
+  );
+  if (response.status === 409) {
+    const body = await response.json().catch(() => ({}));
+    const err = new Error(
+      body?.detail?.message ?? "Indexer уже запущен для этого канала",
+    );
+    // ESLint: для совместимости со старыми ts target используем (err as any)
+    (err as Error & { cause?: unknown }).cause = body?.detail?.current_run ?? null;
+    throw err;
+  }
+  if (!response.ok) {
+    throw new Error(`Ошибка запуска indexer: ${response.status}`);
+  }
+  return response.json() as Promise<IndexerStartResponse>;
+}
+
+/**
+ * Возвращает текущий и последний indexing run канала.
+ * Никогда не бросает 404 — null обрабатывается как «канал свежий» (то есть
+ * для канала без run'ов вернётся {latest: null, running: null}).
+ */
+export async function getIndexerStatus(channelId: string): Promise<IndexerStatusResponse> {
+  const response = await fetch(
+    `${getBackend()}/knowledge/${encodeURIComponent(channelId)}/index/status`,
+  );
+  if (!response.ok) {
+    throw new Error(`Ошибка статуса indexer: ${response.status}`);
+  }
+  return response.json() as Promise<IndexerStatusResponse>;
+}
+
+/**
  * Переименовывает сессию.
  */
 export async function patchSessionTitle(
