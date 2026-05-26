@@ -1,9 +1,9 @@
 ---
-plan_version: 1.3
-milestone: M-K1
-milestone_name: "Foundation — capability-aware multi-MCP shell"
-status: complete  # M-K1 закрыт SUMMARY 2026-05-26, готов handoff в M-K2
-last_updated: "2026-05-26T09:00:00Z"
+plan_version: 1.4
+milestone: M-K2
+milestone_name: "Knowledge Foundation — Indexer + Triple RAG"
+status: in_progress  # M-K2 7/13 phases done (M-K2.7 ИТС RAG закрыт 2026-05-26)
+last_updated: "2026-05-26T19:00:00Z"
 m6_handoff_integrated: true
 m6_handoff_doc: "../milestones/M6-INTEGRATED-PLAN.md"
 m6_handoff_decisions: "../milestones/INTEGRATION-DECISIONS.md"
@@ -12,8 +12,8 @@ progress:
   m_k0_done: 28         # ✅ закрыт SUMMARY 2026-05-25
   m_k1_total: 17        # пересмотрен (было 9 — изменилось при детализации)
   m_k1_done: 15         # +SUMMARY (M-K1.17). 2 deferred (1.9, 1.16)
-  m_k2_total: 11
-  m_k2_done: 0
+  m_k2_total: 13        # 11 content + smoke + SUMMARY
+  m_k2_done: 7          # 2.1+2.2+2.5+2.6+2.7+2.9+2.10 done; pending 2.3/2.4/2.8/2.11/smoke/SUMMARY
   m_k3_total: 16
   m_k3_done: 0
   m_k4_total: 10
@@ -22,35 +22,45 @@ progress:
   m_k5_done: 0
   m_k6_total: 7
   m_k6_done: 0
-  knowledge_layer_total: 71  # пересмотрено: 17 M-K1 (было 9) + 11 + 16 + 10 + 10 + 7
+  knowledge_layer_total: 73  # 17 M-K1 + 13 M-K2 + 16 + 10 + 10 + 7
   stabilization_total: 28
-  grand_total: 99            # 71 KL + 28 M-K0
-  done: 43                   # 28 M-K0 + 15 M-K1
-  percent: 43
+  grand_total: 101           # 73 KL + 28 M-K0
+  done: 50                   # 28 M-K0 + 15 M-K1 + 7 M-K2
+  percent: 50
 ---
 
 # STATE — Knowledge Layer + Stabilization
 
 ## Где мы сейчас
 
-**Active milestone:** **M-K2 Knowledge Foundation + Triple RAG** (kickoff pending).
+**Active milestone:** **M-K2 Knowledge Foundation + Triple RAG** — 7/13 phases done.
+
+**Closed phases:** 2.1, 2.2, 2.5, 2.6, 2.7 (ИТС RAG), 2.9, 2.10.  
+**Pending:** 2.3 (Incremental Update), 2.4 (MCP Result Cache), 2.8 (БСП Pattern Index),
+2.11 (Privacy badge UI), smoke (E2E Playwright), SUMMARY (handoff в M-K3).
 
 **Predecessors closed:**
 - ✅ M-K0 Stabilization (28/28) — SUMMARY 2026-05-25
 - ✅ M-K1 Foundation (15/17, 2 deferred) — SUMMARY 2026-05-26
 
-**Last update:** 2026-05-26 — M-K1 закрыт, готов handoff в M-K2.
+**Last major delivery:** 2026-05-26 — M-K2.7 ИТС RAG (6 коммитов
+в `feature/m-k2-its-rag`). Полный pipeline v8std → chunk → embed →
+vec_objects + its_chunks + `search_its` tool в LLM. +114 backend
+тестов. Migration v14.
 
 ## Подсказка для следующей сессии Claude
 
-Открой `CLAUDE-RESUME.md`. Дальше — `phases/M-K2/M-K2-PLAN.md`  
-для wave'ов M-K2 (indexer + Triple RAG + DDL v12 если потребуется).
+Открой `phases/M-K2/STATE.md` для актуального статуса.  
+План — `phases/M-K2/M-K2-PLAN.md` (полная декомпозиция 13 фаз).
 
-Перед стартом M-K2 — прочитать `phases/M-K1/SUMMARY.md` (handoff section)
-+ `phases/M-K2/M-K2-PLAN.md` если уже создан.
+Backend tests: 1342 (после M-K2.7). Frontend: 361. Coverage: ≥87%.  
+Branch: main (после FF merge feature/m-k2-its-rag).
 
-Backend tests: 1121 passed. Frontend: 345 passed. Coverage: 87.3%.
-Branch: main (последний коммит после M-K1.17 SUMMARY).
+Следующие приоритеты:
+1. **M-K2.8 БСП Pattern Index** — переиспользовать ITS RAG pipeline
+   (loader/chunker/indexer/search) для `tools/ssl_3_1/src/` + `ssl_3_2/src/`.
+2. **M-K2.3 Incremental Update** — delta indexer (mtime/change events).
+3. **M-K2.4 MCP Result Cache** — короткая фаза, легко вклинить.
 
 ---
 
