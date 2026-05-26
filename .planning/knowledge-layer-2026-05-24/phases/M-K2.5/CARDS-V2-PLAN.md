@@ -1,12 +1,32 @@
 ---
 plan: "Object Cards v2 — production-готовые карточки"
-status: draft
+status: draft (revised after research 2026-05-27)
 author: "Claude Opus 4.7 + Khvorostov"
-date: "2026-05-26"
+date: "2026-05-26, revised 2026-05-27"
 target_phase: "M-K2.5.9 (extension after closing)"
-estimated_effort: "3-4 интенсивные сессии"
+estimated_effort: "6-8 интенсивных сессий (включая preventive v2.0)"
 prerequisites: ["M-K2.5 closed (8 фаз)", "Real LLM adapter"]
+research_source: "CARDS-V2-RESEARCH.md (60+ источников)"
 ---
+
+# ⚠ Революция после research 2026-05-27
+
+Глубокий research (deep-researcher, 60+ источников, см.
+`CARDS-V2-RESEARCH.md`) **существенно изменил приоритеты** этого плана.
+Главное:
+
+1. **Добавлена preventive-фаза v2.0 (КРИТИЧНО)** — закрывает 9 рисков
+   которые сломают production в первые дни. До неё нельзя выкатывать
+   chat-интеграцию.
+2. **Гэп 9 (hybrid BM25 + dense) повышен в MUST** — Mem0 v3 показал что
+   substring/dense без BM25 не работает для proper nouns типа имён 1С-объектов.
+3. **Найден GraphEval-подход** — наша уникальная возможность валидировать
+   карточки против существующего графа 2.2M узлов как ground truth.
+4. **Открыты 8 подводных камней (П1-П8)** которых не было в плане:
+   frozen dataclass, vec0 scale, canonicalization, provenance, update
+   mechanism, mock isolation, embedding model versioning, cold start.
+
+Подробности — `CARDS-V2-RESEARCH.md`.
 
 # Cards v2 — план production-карточек
 
@@ -231,9 +251,76 @@ form_handlers:
 
 ## 3. Фазы реализации
 
+### Phase v2.0 — CRITICAL Preventive (НОВАЯ, ~6-8 часов)
+
+**Цель:** Закрыть 9 критичных рисков ДО запуска chat-интеграции.
+Без этого первые пользователи получат галлюцинации, фейковые имена
+регистров, и потерянные данные при первой миграции.
+
+**Артефакты:**
+
+1. **П6 — Mock isolation** (30 мин)
+   - Migration v21: колонка `is_mock` в `typical_object_cards`
+   - Все 63k существующих карточек → `is_mock=True`
+   - LLM tools фильтруют `WHERE is_mock = FALSE` если есть real LLM-карточки, иначе fallback на mock с warning
+   - Frontend бейдж "Mock data" при отображении
+
+2. **Гэп 7 — Graph validation** (2 часа, GraphEval-стиль)
+   - `validate_card_against_graph(card, graph_storage) -> ValidationResult`
+   - Проверки:
+     - Каждый `movement.register` имеет WRITES_TO edge от method-узлов объекта
+     - Каждый `related_objects[]` существует как node в графе
+     - `key_attributes[]` соответствует реальным attribute-узлам объекта
+   - Storage: новые поля `validation_status` (passed/partial/failed) + `validation_errors: list[str]`
+   - Карточка с `validation_status=failed` помечается, retrieval показывает warning
+
+3. **Гэп 11 — Hard limits через Pydantic Field()** (1 час)
+   - max_length для каждого text-поля
+   - max_items для каждого list-поля
+   - LLM-prompt с explicit лимитами
+
+4. **П1 — Pydantic BaseModel вместо frozen dataclass** (2 часа)
+   - Миграция `TypicalObjectCard` с `@dataclass(frozen=True)` → `BaseModel(model_config=ConfigDict(frozen=True))`
+   - Все тесты должны пройти после миграции
+   - Backward compat для существующих 63k карточек (serialization идентичный)
+
+5. **П3 — Closed vocabulary в LLM prompt** (1 час)
+   - В system prompt типа карточки явно указать closed vocab:
+     `"Используй только эти типы связей: CONTAINS, CALLS, USES, WRITES_TO, READS_FROM, REFERENCES"`
+   - В schema добавить `Literal[...]` для типа связи
+   - Тест: LLM не должен генерить "использует" / "вызывает" — только из списка
+
+6. **П7 — Embedding model versioning** (30 мин)
+   - Поле `embedding_model_id` в `typical_object_cards` (уже есть)
+   - Поле `embedding_model_version` (semver)
+   - При изменении модели — explicit reindex script с подтверждением
+
+7. **П8 — Cold start fallback** (1 час)
+   - `explain_typical_object` уже возвращает `card=None` для несуществующих
+   - System prompt LLM-orchestrator: «если card=None → НЕ галлюцинировать, явно сказать "об этом объекте в данной конфигурации информации нет"»
+   - Smoke test: запрос к несуществующему объекту → корректный ответ
+   - Frontend: компонент EmptyTypicalCard с понятным сообщением
+
+**Acceptance criteria v2.0:**
+- [ ] Колонка `is_mock` существует, все mock-карточки помечены
+- [ ] `validate_card_against_graph` отлавливает 100% случаев когда movement.register не существует в графе
+- [ ] Pydantic field validators отклоняют карточки с overlimit
+- [ ] TypicalObjectCard — BaseModel, не dataclass
+- [ ] Closed vocabulary применён, LLM не использует other terms
+- [ ] Embedding model versioning работает
+- [ ] Cold start: запрос к несуществующему → user-friendly message без галлюцинаций
+- [ ] Все 102 unit-теста для card_* проходят
+- [ ] Smoke `typical_smoke_questions.py` 55/55 + 10 новых
+
+**Риски v2.0:**
+- Pydantic migration: frozen=True в BaseModel работает иначе чем в dataclass — нужно проверить backward compat
+- Graph validation может пометить корректные карточки как failed если LLM использовал синонимы (закрывается П3)
+
 ### Phase v2.A — Schema specializations (одна сессия, ~4-6 часов)
 
-**Цель:** Discriminated union для 9 типов карточек.
+**Цель:** Discriminated union для 9 типов карточек (Pydantic v2 + Instructor паттерн).
+
+**Reference:** [Instructor Union Types](https://python.useinstructor.com/concepts/unions/), [Pydantic v2 Discriminated Unions](https://docs.pydantic.dev/latest/concepts/unions/), comol/ai_rules_1c как ground truth для типо-специфичных полей.
 
 **Артефакты:**
 - `card_models_v2.py` — Pydantic v2 schemas
@@ -524,23 +611,35 @@ Rights.xml — большой и сложный (предикаты RLS в XPath
 
 ---
 
-## 7. Сроки и зависимости
+## 7. Сроки и зависимости (revised 2026-05-27)
 
 ```
-Phase v2.A  ─┬─ Phase v2.B (conditional)
-             ├─ Phase v2.C (ИТС/БСП links)  — нужен M-K2.7/2.8 RAG (готовы)
-             ├─ Phase v2.D (cross-config)
-             ├─ Phase v2.E (roles/subsystems/handlers)
-             ├─ Phase v2.G (LLM-judge)        — нужен real LLM
-             └─ Phase v2.H (embedding+search) — нужен real LLM
+Phase v2.0 (CRITICAL preventive) ── обязательно ПЕРЕД всем
+       ↓
+Phase v2.A (specializations) ─┬─ Phase v2.B (conditional, COULD)
+                              ├─ Phase v2.C (ИТС/БСП links) — нужен M-K2.7/2.8 (готовы)
+                              ├─ Phase v2.D (cross-config) — 3 строки SQL, SHOULD
+                              ├─ Phase v2.E (roles/subsystems/handlers)
+                              ├─ Phase v2.G (LLM-judge graph-based) — наш уникальный path
+                              └─ Phase v2.H (embedding+hybrid search) — нужен real LLM
                                               ↓
                                            Phase v2.F (version archeology)
                                               нужны 2+ snapshot'а
 ```
 
-**Минимум:** v2.A + v2.C + v2.E + v2.G + v2.H — 4-5 сессий ≈ 20 часов работы.
+**Минимум для production:** v2.0 + v2.A + v2.G + v2.H — **5-6 сессий ≈ 25-30 часов**.
 
-**Полный:** все 8 фаз — 6-8 сессий ≈ 30-40 часов.
+**Полный план:** v2.0 + все 8 фаз — **8-10 сессий ≈ 40-50 часов**.
+
+### Изменения после research
+
+| Что | Старый план | Новый план | Причина |
+|---|---|---|---|
+| v2.0 (preventive) | отсутствовала | **обязательно перед v2.A** | 9 критичных рисков из research |
+| v2.B (conditional) | SHOULD | COULD (отложить) | LLM может галлюцинировать условия (предупреждение из GraphRAG) |
+| v2.D (cross-config) | medium | SHOULD high | 3 строки SQL, главный вопрос аналитика |
+| v2.G (LLM-judge) | через 2-й LLM call | **через граф (GraphEval-стиль)** | У нас есть граф 2.2M узлов = идеальный ground truth |
+| v2.H (embedding) | dense only | **hybrid BM25 + dense** | Mem0 v3 паттерн для proper nouns |
 
 ---
 
