@@ -2,13 +2,13 @@
 milestone: M-K1
 status: in_progress
 started_at: "2026-05-25T22:30:00Z"
-last_updated: "2026-05-26T00:30:00Z"
-branch: "feature/m-k1-orchestrator"
-parent_branch_merged_to_main: "feature/m-k1-foundation (c646fb3)"
+last_updated: "2026-05-26T08:35:00Z"
+branch: "feature/m-k1-mentions"
+parent_branch_merged_to_main: "feature/m-k1-orchestrator (f29a4b9)"
 phases_total: 17
-phases_done: 13
-backend_tests_passed: 1093
-frontend_tests_passed: 357  # +19 (ModeBadge 7 + useCapability 16, было 322 + 16 + 7)
+phases_done: 14
+backend_tests_passed: 1121  # +28 mention parser + prefetch integration
+frontend_tests_passed: 345  # без изменений (frontend infra была готова)
 ---
 
 # M-K1 Foundation — STATE
@@ -30,7 +30,7 @@ frontend_tests_passed: 357  # +19 (ModeBadge 7 + useCapability 16, было 322 
 | **M-K1.11** | **ChannelSelector ModeBadge** | **✅ DONE** | ModeBadge (mcp/EPF/CFE) + 7 tests + integration |
 | **M-K1.12** | **Metadata Cache filler** | **✅ DONE** | fill_cache_entry helper + idempotent (full bulk filler — M-K2 indexer) |
 | **M-K1.13** | **Object Dossier API** | **✅ DONE** | GET /knowledge/{ch}/dossier/{path} + dossier.py + 10 tests |
-| M-K1.14 | UC «расскажи про объект» | pending | Frontend chat integration (0.5 дня) |
+| **M-K1.14** | **UC «расскажи про объект»** | **✅ DONE** | mentions.py + mentions_prefetch.py + loop.py pre-step + 28 tests (frontend already supported via existing MentionPopover + ObjectCard) |
 | **M-K1.15** | **Seed 3 MCP + Factory** | **✅ DONE** | mcp_factory.py + FactoryResult + 9 tests (context deferred → M-K3) |
 | M-K1.16 | E2E smoke Multi-MCP | pending | Playwright (1 день) |
 | M-K1.17 | SUMMARY + handoff to M-K2 | pending | финал (0.5 дня) |
@@ -43,11 +43,11 @@ frontend_tests_passed: 357  # +19 (ModeBadge 7 + useCapability 16, было 322 
 
 ## Текущая задача
 
-**M-K1.14 UC «расскажи про объект»** — frontend integration: распознавание
-`@Документ.ОПП` в chat input → orchestrator вызывает knowledge_dossier
-internal tool → выводит Object Card.
+**M-K1.16 E2E Playwright smoke** — Multi-MCP полный flow (1 день).
 
-После — M-K1.16 E2E Playwright smoke + M-K1.17 SUMMARY.
+После — M-K1.17 SUMMARY + handoff в M-K2.
+
+M-K1.9 (HTTP+stdio base class) откладывается до stdio MCP в M-K3.
 
 ## Branches / Merge
 
