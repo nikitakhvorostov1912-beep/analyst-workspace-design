@@ -1,20 +1,20 @@
 ---
-plan_version: 1.2
-milestone: M-K0
-milestone_name: "Stabilization — закрытие технического долга"
-status: in_progress
-last_updated: "2026-05-25T12:00:00Z"
+plan_version: 1.3
+milestone: M-K1
+milestone_name: "Foundation — capability-aware multi-MCP shell"
+status: complete  # M-K1 закрыт SUMMARY 2026-05-26, готов handoff в M-K2
+last_updated: "2026-05-26T09:00:00Z"
 m6_handoff_integrated: true
 m6_handoff_doc: "../milestones/M6-INTEGRATED-PLAN.md"
 m6_handoff_decisions: "../milestones/INTEGRATION-DECISIONS.md"
 progress:
-  m_k0_total: 28        # 9 CRITICAL + 19 HIGH/MEDIUM из общего аудита
-  m_k0_done: 0
-  m_k1_total: 9
-  m_k1_done: 0
+  m_k0_total: 28
+  m_k0_done: 28         # ✅ закрыт SUMMARY 2026-05-25
+  m_k1_total: 17        # пересмотрен (было 9 — изменилось при детализации)
+  m_k1_done: 15         # +SUMMARY (M-K1.17). 2 deferred (1.9, 1.16)
   m_k2_total: 11
   m_k2_done: 0
-  m_k3_total: 16        # +1 (M-K3.0 ARCH-1 decompose из M-K0)
+  m_k3_total: 16
   m_k3_done: 0
   m_k4_total: 10
   m_k4_done: 0
@@ -22,31 +22,35 @@ progress:
   m_k5_done: 0
   m_k6_total: 7
   m_k6_done: 0
-  knowledge_layer_total: 63
+  knowledge_layer_total: 71  # пересмотрено: 17 M-K1 (было 9) + 11 + 16 + 10 + 10 + 7
   stabilization_total: 28
-  grand_total: 91       # 63 KL + 28 M-K0
-  done: 0
-  percent: 0
+  grand_total: 99            # 71 KL + 28 M-K0
+  done: 43                   # 28 M-K0 + 15 M-K1
+  percent: 43
 ---
 
 # STATE — Knowledge Layer + Stabilization
 
 ## Где мы сейчас
 
-**Active milestone:** **M-K0 Stabilization** — закрытие 9 CRITICAL + 19 HIGH  
-из общего аудита перед Knowledge Layer.
+**Active milestone:** **M-K2 Knowledge Foundation + Triple RAG** (kickoff pending).
 
-**Phase:** не начата (pending kickoff approval от Никиты)  
-**Branch:** не создан  
-**Last update:** 2026-05-25 — план перестроен, M-K0 добавлен первым
+**Predecessors closed:**
+- ✅ M-K0 Stabilization (28/28) — SUMMARY 2026-05-25
+- ✅ M-K1 Foundation (15/17, 2 deferred) — SUMMARY 2026-05-26
+
+**Last update:** 2026-05-26 — M-K1 закрыт, готов handoff в M-K2.
 
 ## Подсказка для следующей сессии Claude
 
-Открой `CLAUDE-RESUME.md`. Дальше — `phases/M-K0-stabilization/M-K0-PLAN.md`  
-для конкретных wave'ов M-K0. Если M-K0 в работе — `phases/M-K0-stabilization/STATE.md`  
-(создаётся при kickoff).
+Открой `CLAUDE-RESUME.md`. Дальше — `phases/M-K2/M-K2-PLAN.md`  
+для wave'ов M-K2 (indexer + Triple RAG + DDL v12 если потребуется).
 
-После M-K0 closed → переход к `phases/M-K1/M-K1-PLAN.md`.
+Перед стартом M-K2 — прочитать `phases/M-K1/SUMMARY.md` (handoff section)
++ `phases/M-K2/M-K2-PLAN.md` если уже создан.
+
+Backend tests: 1121 passed. Frontend: 345 passed. Coverage: 87.3%.
+Branch: main (последний коммит после M-K1.17 SUMMARY).
 
 ---
 

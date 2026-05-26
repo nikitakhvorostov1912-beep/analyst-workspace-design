@@ -1,14 +1,15 @@
 ---
 milestone: M-K1
-status: in_progress
+status: complete  # SUMMARY.md — финальный документ M-K1, handoff в M-K2
 started_at: "2026-05-25T22:30:00Z"
-last_updated: "2026-05-26T08:35:00Z"
-branch: "feature/m-k1-mentions"
-parent_branch_merged_to_main: "feature/m-k1-orchestrator (f29a4b9)"
+completed_at: "2026-05-26T09:00:00Z"
+last_updated: "2026-05-26T09:00:00Z"
+branch: "main"  # все feature ветки merged FF (последний коммит d271832)
 phases_total: 17
-phases_done: 14
-backend_tests_passed: 1121  # +28 mention parser + prefetch integration
-frontend_tests_passed: 345  # без изменений (frontend infra была готова)
+phases_done: 15  # +SUMMARY.md (M-K1.17)
+phases_deferred: 2  # M-K1.9 (HTTP+stdio base — до M-K3), M-K1.16 (E2E — в M-K2.smoke)
+backend_tests_passed: 1121
+frontend_tests_passed: 345
 ---
 
 # M-K1 Foundation — STATE
@@ -32,22 +33,19 @@ frontend_tests_passed: 345  # без изменений (frontend infra была
 | **M-K1.13** | **Object Dossier API** | **✅ DONE** | GET /knowledge/{ch}/dossier/{path} + dossier.py + 10 tests |
 | **M-K1.14** | **UC «расскажи про объект»** | **✅ DONE** | mentions.py + mentions_prefetch.py + loop.py pre-step + 28 tests (frontend already supported via existing MentionPopover + ObjectCard) |
 | **M-K1.15** | **Seed 3 MCP + Factory** | **✅ DONE** | mcp_factory.py + FactoryResult + 9 tests (context deferred → M-K3) |
-| M-K1.16 | E2E smoke Multi-MCP | pending | Playwright (1 день) |
-| M-K1.17 | SUMMARY + handoff to M-K2 | pending | финал (0.5 дня) |
-| M-K1.12 | Metadata Cache filler | pending | — |
-| M-K1.13 | Object Dossier API | pending | — |
-| M-K1.14 | UC «расскажи про объект» | pending | — |
-| M-K1.15 | Seed 3 MCP (Toolkit/buddy/context) | pending | config готов (G1 done) |
-| M-K1.16 | E2E smoke Multi-MCP | pending | — |
-| M-K1.17 | SUMMARY + handoff to M-K2 | pending | — |
+| M-K1.16 | E2E smoke Multi-MCP | ⏭️ перенесён в M-K2.smoke | Требует live env (backend+frontend+mock MCP+LLM key). Покрытие через integration tests pytest+vitest достаточно для M-K1. |
+| **M-K1.17** | **SUMMARY + handoff to M-K2** | **✅ DONE** | SUMMARY.md — финальный документ, handoff в M-K2 |
 
 ## Текущая задача
 
-**M-K1.16 E2E Playwright smoke** — Multi-MCP полный flow (1 день).
+✅ **M-K1 закрыт.** Подробности в [SUMMARY.md](./SUMMARY.md).
 
-После — M-K1.17 SUMMARY + handoff в M-K2.
+**Следующий milestone:** **M-K2 Knowledge Foundation + Triple RAG** (4-5 weeks).
+Стартовая фаза — M-K2.1 indexer skeleton (DDL v12 если потребуется).
 
-M-K1.9 (HTTP+stdio base class) откладывается до stdio MCP в M-K3.
+**Отложено в M-K1:**
+- M-K1.9 (HTTP+stdio base class) — до M-K3 с stdio MCP
+- M-K1.16 (E2E Playwright) — перенесён в M-K2.smoke (требует live env)
 
 ## Branches / Merge
 
