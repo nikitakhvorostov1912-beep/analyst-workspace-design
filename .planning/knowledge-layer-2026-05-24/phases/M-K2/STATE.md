@@ -6,9 +6,9 @@ last_updated: "2026-05-26T10:00:00Z"
 branch: "feature/m-k2-indexer"
 parent_branch_merged_to_main: "feature/m-k1-summary (11575ab)"
 phases_total: 13   # 11 content + smoke + summary
-phases_done: 3     # +M-K2.10 UX-6 Indexing Progress UI
-backend_tests_passed: 1173
-frontend_tests_passed: 361  # +16 (useIndexerStatus 9 + IndexerProgress 7)
+phases_done: 5     # +M-K2.5 Vector Store + M-K2.6 Embedding Pipeline
+backend_tests_passed: 1210  # +18 vector_store + +19 embeddings vs 1173
+frontend_tests_passed: 361
 ---
 
 # M-K2 Knowledge Foundation — STATE
@@ -21,8 +21,8 @@ frontend_tests_passed: 361  # +16 (useIndexerStatus 9 + IndexerProgress 7)
 | **M-K2.2** | **Indexer State Machine + Endpoints** | **✅ DONE** | migration v12 + indexer_state.py + POST/GET /knowledge/{ch}/index/* + background asyncio task + 23 tests (16 state + 7 routes) |
 | M-K2.3 | Incremental Update | pending | mtime + delta indexer |
 | M-K2.4 | MCP Result Cache | pending | TTL для повторных вызовов |
-| M-K2.5 | Vector Store (sqlite-vec) | pending | Migration v13 + base API |
-| M-K2.6 | Embedding Pipeline (BGE-M3) | pending | FastEmbed + download-on-first-run |
+| **M-K2.5** | **Vector Store (sqlite-vec)** | **✅ DONE** | sqlite-vec 0.1.9 + migration v13 vec_objects + vector_store.py (load_sqlite_vec, init_vector_store, upsert_embedding, semantic_search, delete_channel_embeddings, count_embeddings) + 18 tests |
+| **M-K2.6** | **Embedding Pipeline** | **✅ DONE** | embeddings.py с OpenAIEmbeddingClient (cloud-only, text-embedding-3-small 1536-D) + MockEmbeddingClient (детерминированный для тестов) + EmbeddingClient Protocol + 19 tests. BGE-M3 local отложен до M-K5 distribution. |
 | M-K2.7 | ИТС RAG | pending | Crawler + parser + vector index |
 | M-K2.8 | БСП Pattern Index | pending | ssl_3_1 + ssl_3_2/src parser |
 | M-K2.9 | Configuration Type Detection | pending | УТ/ERP/БП/УСО/custom heuristic |

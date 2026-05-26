@@ -74,7 +74,7 @@ MIGRATIONS_V3 = [
     """,
 ]
 
-CURRENT_VERSION = 12
+CURRENT_VERSION = 13
 
 # Миграция v4: расширение card_states — добавление колонки anon_tokens JSON
 MIGRATIONS_V4 = [
@@ -290,6 +290,31 @@ MIGRATIONS_V12 = [
 ]
 
 
+# Миграция v13 (M-K2.5): vector store backing table.
+# vec0 virtual table из `sqlite-vec` создаётся динамически после
+# `sqlite_vec.load(conn)` — миграция её не управляет. Здесь только
+# обвязочная таблица для маппинга rowid → (channel_id, object_path)
+# плюс embedding metadata (модель, размерность, дата).
+#
+# vec_objects.id используется как rowid для vec0 таблицы, чтобы JOIN был
+# тривиальный: `vec_objects_embeddings.rowid = vec_objects.id`.
+MIGRATIONS_V13 = [
+    """
+    CREATE TABLE IF NOT EXISTS vec_objects (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        channel_id TEXT NOT NULL,
+        object_path TEXT NOT NULL,
+        embedding_model TEXT NOT NULL,
+        embedding_dim INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(channel_id, object_path, embedding_model)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_vec_objects_channel ON vec_objects(channel_id)",
+    "CREATE INDEX IF NOT EXISTS idx_vec_objects_path ON vec_objects(channel_id, object_path)",
+]
+
+
 async def apply_migrations(db: aiosqlite.Connection) -> None:
     """Идемпотентно применяет миграции схемы БД."""
     # Создаём schema_version первым делом
@@ -429,5 +454,17 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
             (12,),
+        )
+        await db.commit()
+
+    if current < 13:
+        # vec_objects backing table (v13, M-K2.5) — обвязка для vec0 virtual
+        # table из sqlite-vec. Сама vec0 создаётся в `vector_store.init_vector_store`
+        # после `sqlite_vec.load(conn)`. Здесь только mapping таблица.
+        for stmt in MIGRATIONS_V13:
+            await db.execute(stmt)
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (13,),
         )
         await db.commit()

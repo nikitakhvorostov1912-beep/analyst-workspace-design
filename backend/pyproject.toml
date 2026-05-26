@@ -21,6 +21,7 @@ dependencies = [
     "slowapi>=0.1.9",  # W1.4: rate-limit на /chat endpoint
     "sqlparse>=0.5",  # P2.3: SQL AST validator (defence-in-depth поверх keyword scan)
     "cryptography>=43",  # P2.1: AES-GCM для user_secrets — backend-only API key storage
+    "sqlite-vec>=0.1.9",  # M-K2.5: SQLite vector extension (vec0 virtual tables, ~1MB binary)
 ]
 
 [project.optional-dependencies]
