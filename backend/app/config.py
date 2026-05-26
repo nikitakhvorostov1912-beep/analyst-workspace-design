@@ -372,6 +372,20 @@ class Settings(BaseSettings):
     # Запятая-разделённый список через env BSP_SSL_ROOTS (тогда обе версии).
     bsp_ssl_roots: str = Field(default="", validation_alias="BSP_SSL_ROOTS")
 
+    # === M-K2.4: MCP Result Cache ===
+    # TTL-кеш для повторных get_metadata / find_references_to_object и других
+    # детерминированных MCP-вызовов. Снижает latency при follow-up вопросах
+    # LLM в той же сессии.
+    mcp_cache_enabled: bool = Field(
+        default=True, validation_alias="MCP_CACHE_ENABLED"
+    )
+    mcp_cache_ttl_s: float = Field(
+        default=120.0, validation_alias="MCP_CACHE_TTL_S", ge=1.0, le=3600.0,
+    )
+    mcp_cache_max_size: int = Field(
+        default=500, validation_alias="MCP_CACHE_MAX_SIZE", ge=10, le=100000,
+    )
+
     model_config = {
         # env_file читается из .env + embedded.env. P3.1 rev2 (2026-05-23):
         # tuple — приоритет у первого. .env (private, личный, не в installer)

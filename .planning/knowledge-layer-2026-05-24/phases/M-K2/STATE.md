@@ -2,12 +2,12 @@
 milestone: M-K2
 status: in_progress
 started_at: "2026-05-26T09:30:00Z"
-last_updated: "2026-05-26T21:30:00Z"
-branch: "feature/m-k2-bsp-index"
-parent_branch_merged_to_main: "feature/m-k2-its-rag (7af3c13)"
+last_updated: "2026-05-26T22:30:00Z"
+branch: "feature/m-k2-mcp-cache"
+parent_branch_merged_to_main: "feature/m-k2-bsp-index (9a876fb)"
 phases_total: 13   # 11 content + smoke + summary
-phases_done: 8     # +M-K2.8 БСП Pattern Index
-backend_tests_passed: 1417  # +75 БСП (34+20+21 + регрессии)
+phases_done: 9     # +M-K2.4 MCP Result Cache
+backend_tests_passed: 1457  # +34 MCP cache (1423 → 1457)
 frontend_tests_passed: 361
 ---
 
@@ -20,7 +20,7 @@ frontend_tests_passed: 361
 | **M-K2.1** | **Indexer Skeleton** | **✅ DONE** | indexer.py + NormalizedMetadata + IndexerProgress + 29 tests |
 | **M-K2.2** | **Indexer State Machine + Endpoints** | **✅ DONE** | migration v12 + indexer_state.py + POST/GET /knowledge/{ch}/index/* + background asyncio task + 23 tests (16 state + 7 routes) |
 | M-K2.3 | Incremental Update | pending | mtime + delta indexer |
-| M-K2.4 | MCP Result Cache | pending | TTL для повторных вызовов |
+| **M-K2.4** | **MCP Result Cache** | **✅ DONE** | mcp_cache.py: TTL-кеш для get_metadata / find_references / get_access_rights / get_bsl_syntax_help / get_link_of_object / get_object_by_link (CACHEABLE_TOOLS). Key = (channel_id, tool_name, sha256(canonical JSON args)) — sort_keys, ensure_ascii=False. LRU-like eviction (10% самых старых). Settings: MCP_CACHE_ENABLED/TTL_S/MAX_SIZE (defaults 120s / 500 records). Singleton с asyncio.Lock, инвалидация per channel + clear. Hit/miss/eviction counters для будущего admin endpoint. Wired в _execute_mcp_tool (loop.py) — channel_id передаётся из ChatRequest. 34 теста: hash determinism, isolation, TTL expiry, eviction, invalidate_channel, integration через FakeMCP (cache hit не зовёт MCP). |
 | **M-K2.5** | **Vector Store (sqlite-vec)** | **✅ DONE** | sqlite-vec 0.1.9 + migration v13 vec_objects + vector_store.py (load_sqlite_vec, init_vector_store, upsert_embedding, semantic_search, delete_channel_embeddings, count_embeddings) + 18 tests |
 | **M-K2.6** | **Embedding Pipeline** | **✅ DONE** | embeddings.py с OpenAIEmbeddingClient (cloud-only, text-embedding-3-small 1536-D) + MockEmbeddingClient (детерминированный для тестов) + EmbeddingClient Protocol + 19 tests. BGE-M3 local отложен до M-K5 distribution. |
 | **M-K2.7** | **ИТС RAG** | **✅ DONE** | Полный pipeline v8std → chunk → embed → vec_objects + its_chunks + search_its tool в LLM. Migration v14. Модули: its_loader.py (5 категорий v8std, 36 тестов) + its_chunker.py (header-based split, code-fence safe, 25 тестов) + its_indexer.py (idempotent через chunk_hash, batch embed, 11 тестов) + its_search.py (semantic_search → JOIN, 14 тестов) + its_tool.py (OpenAI function schema + singleton embedding client, 28 тестов). Settings: ITS_ENABLED / ITS_EMBEDDING_* / ITS_DOCS_ROOT. Endpoints: POST /knowledge/its/reload + GET /knowledge/its/status (6 тестов). LLM tool wired в loop.py через _build_openai_tools + async dispatch перед clarify. Сумма: 120+ тестов. |
@@ -33,16 +33,16 @@ frontend_tests_passed: 361
 
 ## Текущая задача
 
-Закрыто 8/13. Остались (priority по PLAN.md):
+Закрыто 9/13. Остались (priority по PLAN.md):
 
-**M-K2.3 Incremental Update** — delta indexer на основе mtime / change events.
-Не зависит от закрытых фаз — параллельная ветка.
-
-**M-K2.4 MCP Result Cache** — короткая фаза, легко вклинить.
+**M-K2.3 Incremental Update** — delta indexer на основе diff vs metadata_cache
+(MCP get_metadata возвращает full list — нужен compute changed / added / removed
+для меньшего DB write контекста).
 
 **M-K2.11 OPS-1 Privacy badge** — UI индикатор «Local Knowledge» (фронт).
 
-**M-K2.smoke** — E2E Playwright (multi-MCP + indexer + ИТС tool + БСП tool).
+**M-K2.smoke** — E2E Playwright (multi-MCP + indexer + ИТС tool + БСП tool +
+MCP Result Cache hit-rate verification).
 
 **M-K2.SUMMARY** — финальный handoff в M-K3 (Knowledge Graph + Behavioral).
 

@@ -99,6 +99,11 @@ from app.knowledge.its_tool import (
 )
 from app.orchestrator.interrupt import INTERRUPTS
 from app.orchestrator.iteration_budget import BudgetExhausted, IterationBudget
+from app.orchestrator.mcp_cache import (
+    get_mcp_cache,
+    get_mcp_cache_settings,
+    is_cacheable_tool,
+)
 from app.orchestrator.mcp_pool import MCPPool, build_aux_clients
 from app.orchestrator.memory_integration import (
     build_memory_manager,
@@ -728,6 +733,7 @@ async def _execute_mcp_tool(
     tool_name: str,
     tool_args: dict,
     start_ts: float,
+    channel_id: str | None = None,
 ) -> tuple[
     ToolResultEvent,
     dict | None,
@@ -736,6 +742,12 @@ async def _execute_mcp_tool(
 ]:
     """Вызывает MCP tool с retry, применяет ResultSizeGate, собирает все
     структуры для main loop.
+
+    M-K2.4 (2026-05-26): добавлен `channel_id` параметр + MCP Result Cache.
+    Для CACHEABLE_TOOLS (get_metadata / find_references / get_access_rights /
+    get_bsl_syntax_help / get_link_of_object / get_object_by_link)
+    проверяем cache перед `_call_tool_with_retry`. Hit → используем
+    cached result без обращения к MCP. Miss + success → кладём в cache.
 
     Извлечено из run_chat_loop как часть P1.2 phase 3.
 
@@ -754,9 +766,42 @@ async def _execute_mcp_tool(
     Полный original result сохраняется в accumulated_entry (для
     load-more / CSV download через tool_result_storage).
     """
-    ok, tool_result, tool_error = await _call_tool_with_retry(
-        tool_client, tool_name, tool_args
-    )
+    # M-K2.4: cache lookup до MCP-вызова
+    cache_hit = False
+    tool_result: Any = None
+    tool_error: str | None = None
+    ok = False
+    cache_enabled, _, _ = get_mcp_cache_settings()
+    if (
+        cache_enabled
+        and channel_id is not None
+        and is_cacheable_tool(tool_name)
+    ):
+        cache = await get_mcp_cache()
+        cache_key = cache.build_key(channel_id, tool_name, tool_args)
+        cached = await cache.get(cache_key)
+        if cached is not None:
+            ok = True
+            tool_result = cached
+            tool_error = None
+            cache_hit = True
+
+    if not cache_hit:
+        ok, tool_result, tool_error = await _call_tool_with_retry(
+            tool_client, tool_name, tool_args
+        )
+        # Кешируем только успешные результаты cacheable-tool'ов
+        if (
+            ok
+            and cache_enabled
+            and channel_id is not None
+            and is_cacheable_tool(tool_name)
+            and tool_result is not None
+        ):
+            cache = await get_mcp_cache()
+            cache_key = cache.build_key(channel_id, tool_name, tool_args)
+            await cache.set(cache_key, tool_result)
+
     duration_ms = int((time.monotonic() - start_ts) * 1000)
 
     event = ToolResultEvent(
@@ -1770,6 +1815,7 @@ async def run_chat_loop(
                 # Маршрутизация tool_call → правильный MCP client (primary или aux).
                 # P1.2 phase 3 (2026-05-23): MCP path вынесен в _execute_mcp_tool.
                 # (memory_* и todo_* выше через _dispatch_sync_internal_tool).
+                # M-K2.4 (2026-05-26): channel_id для MCP Result Cache.
                 tool_client = pool.client_for(tool_name)
                 try:
                     event, card, accum_entry, msg_entry = await _execute_mcp_tool(
@@ -1778,6 +1824,7 @@ async def run_chat_loop(
                         tool_name=tool_name,
                         tool_args=tool_args,
                         start_ts=start_ts,
+                        channel_id=request.channel_id,
                     )
                 except MCPDisconnectedError:
                     logger.warning("MCP disconnected during tool call: %s", tool_name)

@@ -1,9 +1,9 @@
 ---
-plan_version: 1.5
+plan_version: 1.6
 milestone: M-K2
 milestone_name: "Knowledge Foundation — Indexer + Triple RAG"
-status: in_progress  # M-K2 8/13 phases done (M-K2.8 БСП Pattern Index закрыт 2026-05-26)
-last_updated: "2026-05-26T21:30:00Z"
+status: in_progress  # M-K2 9/13 phases done (M-K2.4 MCP Cache закрыт 2026-05-26)
+last_updated: "2026-05-26T22:30:00Z"
 m6_handoff_integrated: true
 m6_handoff_doc: "../milestones/M6-INTEGRATED-PLAN.md"
 m6_handoff_decisions: "../milestones/INTEGRATION-DECISIONS.md"
@@ -13,7 +13,7 @@ progress:
   m_k1_total: 17        # пересмотрен (было 9 — изменилось при детализации)
   m_k1_done: 15         # +SUMMARY (M-K1.17). 2 deferred (1.9, 1.16)
   m_k2_total: 13        # 11 content + smoke + SUMMARY
-  m_k2_done: 8          # 2.1+2.2+2.5+2.6+2.7+2.8+2.9+2.10 done; pending 2.3/2.4/2.11/smoke/SUMMARY
+  m_k2_done: 9          # 2.1+2.2+2.4+2.5+2.6+2.7+2.8+2.9+2.10 done; pending 2.3/2.11/smoke/SUMMARY
   m_k3_total: 16
   m_k3_done: 0
   m_k4_total: 10
@@ -25,18 +25,18 @@ progress:
   knowledge_layer_total: 73  # 17 M-K1 + 13 M-K2 + 16 + 10 + 10 + 7
   stabilization_total: 28
   grand_total: 101           # 73 KL + 28 M-K0
-  done: 51                   # 28 M-K0 + 15 M-K1 + 8 M-K2
-  percent: 50
+  done: 52                   # 28 M-K0 + 15 M-K1 + 9 M-K2
+  percent: 51
 ---
 
 # STATE — Knowledge Layer + Stabilization
 
 ## Где мы сейчас
 
-**Active milestone:** **M-K2 Knowledge Foundation + Triple RAG** — 8/13 phases done.
+**Active milestone:** **M-K2 Knowledge Foundation + Triple RAG** — 9/13 phases done.
 
-**Closed phases:** 2.1, 2.2, 2.5, 2.6, 2.7 (ИТС RAG), 2.8 (БСП Index), 2.9, 2.10.  
-**Pending:** 2.3 (Incremental Update), 2.4 (MCP Result Cache), 2.11 (Privacy badge UI),
+**Closed phases:** 2.1, 2.2, 2.4 (MCP Cache), 2.5, 2.6, 2.7 (ИТС RAG), 2.8 (БСП Index), 2.9, 2.10.  
+**Pending:** 2.3 (Incremental Update), 2.11 (Privacy badge UI),
 smoke (E2E Playwright), SUMMARY (handoff в M-K3).
 
 **Predecessors closed:**
