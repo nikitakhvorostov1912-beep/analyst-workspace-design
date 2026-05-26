@@ -599,9 +599,13 @@ async def _insert_structural_nodes(
                 )
                 stats._bump_edge(EdgeKind.CONTAINS.value)
 
-        # BSL модули
+        # BSL модули. Уникальность qualified_name: object-level модули
+        # (ObjectModule/ManagerModule/CommonModuleBody) — `{obj}.{kind}`,
+        # форменные/командные — `{obj}.Forms.<FormName>.{kind}` /
+        # `{obj}.Commands.<CmdName>.{kind}` — иначе при 5 формах с
+        # FormModule все 5 nodes сворачиваются в одну через UNIQUE.
         for mod in obj.modules:
-            mod_qname = f"{obj_qname}.{mod.kind}"
+            mod_qname = _module_qualified_name(obj_qname, mod)
             mod_node_id = await insert_node(
                 db,
                 channel_id=channel_id,
@@ -752,7 +756,7 @@ async def _build_bsl_edges(
     bsl_tasks: list[tuple[MetadataObject, str, str]] = []  # (obj, module_kind, mod_qname)
     for obj in config.metadata_objects:
         for mod in obj.modules:
-            mod_qname = f"{obj.qualified_name}.{mod.kind}"
+            mod_qname = _module_qualified_name(obj.qualified_name, mod)
             bsl_tasks.append((obj, mod.relative_path, mod_qname))
 
     total = len(bsl_tasks)
@@ -1014,3 +1018,25 @@ async def _emit_method_behavior_edges(
 def _common_module_kind_name() -> str:
     """Возвращает строку `ModuleKind.COMMON_MODULE_BODY.value` без import cycle."""
     return "CommonModuleBody"
+
+
+def _module_qualified_name(obj_qname: str, mod) -> str:
+    """Уникальный qname модуля с учётом форм и команд.
+
+    relative_path вида:
+    - `Documents/X/Ext/ObjectModule.bsl` → `Document.X.ObjectModule`
+    - `Documents/X/Forms/Ф/Ext/Form/Module.bsl` → `Document.X.Forms.Ф.FormModule`
+    - `Documents/X/Forms/Ф/Ext/CommandModule.bsl` → `Document.X.Forms.Ф.CommandModule`
+    - `Documents/X/Commands/К/Ext/CommandModule.bsl` → `Document.X.Commands.К.CommandModule`
+    """
+    rel = (mod.relative_path or "").replace("\\", "/")
+    parts = rel.split("/")
+    # Найдём Forms/<Name> или Commands/<Name> в пути
+    for marker, prefix in (("Forms", "Forms"), ("Commands", "Commands")):
+        if marker in parts:
+            idx = parts.index(marker)
+            if idx + 1 < len(parts):
+                name = parts[idx + 1]
+                return f"{obj_qname}.{prefix}.{name}.{mod.kind}"
+    # Object-level
+    return f"{obj_qname}.{mod.kind}"

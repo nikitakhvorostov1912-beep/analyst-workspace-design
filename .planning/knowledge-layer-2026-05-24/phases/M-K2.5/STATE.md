@@ -11,6 +11,10 @@ phases_total: 9      # 8 build + 1 SUMMARY
 phases_done: 8       # 0-7 done + 8 частично (4/7 конфигураций)
 phase_8_done: 4      # БП 3.0 + КА 2.5 + УТ 11.5 + ERP 2.5 — полные
 phase_8_pending: 3   # ЗУП 3.1, УСО 2.5, Документооборот 3 — ждут снапшоты
+cards_version: "v1 (MVP) — production v2 plan: CARDS-V2-PLAN.md"
+audit_findings:
+  - "Form modules восстановлены в graph_builder (+183% nodes для БП, +157% КА)"
+  - "Cards v1 = generic schema, для сложных запросов нужна v2 (план готов)"
 ---
 
 # M-K2.5 Typical Configurations Knowledge — STATE

@@ -227,40 +227,75 @@ def _parse_tabular_section(ts_elem: ET.Element) -> MetadataTabularSection:
 
 
 def _discover_modules(object_dir: Path | None) -> list[MetadataModule]:
-    """Сканирует Ext/ папку объекта и собирает список модулей."""
+    """Сканирует Ext/ + Forms/*/Ext/Form/ + Commands/*/Ext/ объекта.
+
+    M-K2.5.audit (2026-05-26): расширено — раньше `_discover_modules`
+    собирал только object-level Ext/*.bsl, теряя ~50% реальных модулей
+    (FormModule + CommandModule под формами / командами). Теперь
+    обходит все известные локации.
+
+    Включает:
+    - `Ext/ObjectModule.bsl` / `ManagerModule.bsl` / `Module.bsl` / ...
+    - **`Forms/<FormName>/Ext/Form/Module.bsl`** (FormModule) — для
+      обработчиков форм (ПриОткрытии, КомандаНажатие, ...)
+    - **`Forms/<FormName>/Ext/CommandModule.bsl`** — для команд формы
+    - **`Commands/<CmdName>/Ext/CommandModule.bsl`** — для object commands
+    - **`Templates/<TplName>/Ext/Template/Help.html` НЕ берём** — это
+      справка, не BSL
+    """
     if object_dir is None or not object_dir.is_dir():
         return []
 
     modules: list[MetadataModule] = []
-    ext_dir = object_dir / "Ext"
-    if not ext_dir.is_dir():
-        return []
+    parent_root = (
+        object_dir.parent.parent if object_dir.parent.parent.exists() else None
+    )
 
-    module_files = {
-        "ObjectModule.bsl": ModuleKind.OBJECT_MODULE,
-        "ManagerModule.bsl": ModuleKind.MANAGER_MODULE,
-        "Module.bsl": ModuleKind.COMMON_MODULE_BODY,  # для CommonModule
-        "RecordSetModule.bsl": ModuleKind.RECORD_SET_MODULE,
-        "ValueManagerModule.bsl": ModuleKind.VALUE_MANAGER_MODULE,
-        "CommandModule.bsl": ModuleKind.COMMAND_MODULE,
-    }
-
-    for file_name, kind in module_files.items():
-        f = ext_dir / file_name
-        if f.is_file():
-            try:
-                line_count = len(f.read_text(encoding="utf-8").splitlines())
-            except UnicodeDecodeError:
-                line_count = len(f.read_text(encoding="cp1251").splitlines())
-            modules.append(
-                MetadataModule(
-                    kind=kind.value,
-                    relative_path=str(f.relative_to(object_dir.parent.parent))
-                    if object_dir.parent.parent.exists()
-                    else str(f),
-                    line_count=line_count,
-                )
+    def _emit(f: Path, kind: ModuleKind) -> None:
+        if not f.is_file():
+            return
+        try:
+            line_count = len(f.read_text(encoding="utf-8").splitlines())
+        except UnicodeDecodeError:
+            line_count = len(f.read_text(encoding="cp1251").splitlines())
+        modules.append(
+            MetadataModule(
+                kind=kind.value,
+                relative_path=str(f.relative_to(parent_root)) if parent_root else str(f),
+                line_count=line_count,
             )
+        )
+
+    # 1. Object-level Ext/*.bsl
+    ext_dir = object_dir / "Ext"
+    if ext_dir.is_dir():
+        module_files = {
+            "ObjectModule.bsl": ModuleKind.OBJECT_MODULE,
+            "ManagerModule.bsl": ModuleKind.MANAGER_MODULE,
+            "Module.bsl": ModuleKind.COMMON_MODULE_BODY,
+            "RecordSetModule.bsl": ModuleKind.RECORD_SET_MODULE,
+            "ValueManagerModule.bsl": ModuleKind.VALUE_MANAGER_MODULE,
+            "CommandModule.bsl": ModuleKind.COMMAND_MODULE,
+        }
+        for file_name, kind in module_files.items():
+            _emit(ext_dir / file_name, kind)
+
+    # 2. Form modules: Forms/<Name>/Ext/Form/Module.bsl + CommandModule.bsl
+    forms_dir = object_dir / "Forms"
+    if forms_dir.is_dir():
+        for form_path in sorted(forms_dir.iterdir()):
+            if not form_path.is_dir():
+                continue
+            _emit(form_path / "Ext" / "Form" / "Module.bsl", ModuleKind.FORM_MODULE)
+            _emit(form_path / "Ext" / "CommandModule.bsl", ModuleKind.COMMAND_MODULE)
+
+    # 3. Object commands: Commands/<Name>/Ext/CommandModule.bsl
+    commands_dir = object_dir / "Commands"
+    if commands_dir.is_dir():
+        for cmd_path in sorted(commands_dir.iterdir()):
+            if not cmd_path.is_dir():
+                continue
+            _emit(cmd_path / "Ext" / "CommandModule.bsl", ModuleKind.COMMAND_MODULE)
 
     return modules
 

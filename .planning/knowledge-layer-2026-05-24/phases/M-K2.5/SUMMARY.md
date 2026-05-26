@@ -76,11 +76,36 @@ Smoke на реальных данных подтверждает:
 
 | Что | Где | Когда нужно |
 |---|---|---|
-| Real LLM adapter (mock → OpenAI/NVIDIA) | M-K2.5.5 stub Protocol готов | Когда захотим production-карточки (~$13 за 4 типовых) |
+| Real LLM adapter (mock → OpenAI/NVIDIA) | M-K2.5.5 stub Protocol готов | Когда захотим production-карточки (~$13 за 4 типовых v1, ~$220 за v2) |
 | `compare_with_typical` реальная реализация | M-K2.5.6 заглушка | После M-K3 (граф клиентской базы) |
 | TypicalObjectCard wiring в CardRenderer | M-K2.5.7 компонент готов | Когда определимся с shape tool_result в orchestrator |
 | ЗУП 3.1 / УСО 2.5 / Документооборот 3 | M-K2.5.8 phase_8_pending | После получения demo `.dt` от пользователя |
 | Semantic search через embedding карточек | — | После real LLM adapter (карточки нужно эмбедить) |
+| **Cards v2 — production-готовые карточки** | **`CARDS-V2-PLAN.md`** | **6-8 сессий, $220 на rebuild, отдельная мини-фаза M-K2.5.9** |
+
+## Cards v1 → v2 — известные ограничения
+
+v1 карточки (текущие 63k mock + готовые к real LLM) — **MVP**, для серьёзных
+сложных запросов **недостаточны**. Полный список гэпов + production-план
+в **[CARDS-V2-PLAN.md](./CARDS-V2-PLAN.md)**:
+
+1. Одна generic-схема на 30+ типов объектов (нужны 9 специализаций)
+2. Линейный `posting_flow` без условной логики (нужны conditional steps)
+3. `its_links: []` всегда (нужна mention-extraction через M-K2.7/2.8 RAG)
+4. Нет cross-config diff между УТ/БП/КА/ERP
+5. Нет версионной меты (introduced_in / breaking_changes)
+6. Нет нормативки (M-K4 hook отсутствует)
+7. LLM-hallucination не отлавливается (нужен LLM-judge + cross-check vs граф)
+8. Нет ролей/RLS и подсистем
+9. `embedding_text` неполный (теряет attributes / scenarios / related)
+10. Form-handlers вне карточки (есть в графе, но не в card)
+11. Нет hard limits на размер полей
+12. Schema migration для существующих 63k v1 карточек требует backward compat
+
+v2-план фазирован (v2.A-H), каждая фаза с явными acceptance criteria,
+метриками качества (numerical targets), golden dataset для validation,
+оценкой cost. Минимум для production: v2.A + v2.C + v2.E + v2.G + v2.H
+(~20 часов работы).
 
 ## Handoff в M-K3
 
