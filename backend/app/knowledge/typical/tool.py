@@ -52,6 +52,7 @@ from app.knowledge.graph_storage import (
     traverse_bfs,
 )
 from app.knowledge.typical.card_storage import (
+    count_cards_by_channel,
     get_card_by_qname,
     list_cards_by_channel,
 )
@@ -369,19 +370,26 @@ async def dispatch_typical_tool(
 
 async def _handle_list_configs(db: aiosqlite.Connection) -> tuple[bool, Any, str | None]:
     configs = await list_configurations(db)
+    result_items: list[dict] = []
+    for c in configs:
+        # Симметрично с backend endpoint /knowledge/typical/configurations:
+        # включаем total_nodes + total_cards чтобы LLM мог понять что
+        # конфигурация «готова» (status=graph_built без узлов = неполная).
+        node_counts = await count_by_kind(db, c.channel_id)
+        card_counts = await count_cards_by_channel(db, c.channel_id)
+        result_items.append({
+            "channel_id": c.channel_id,
+            "config_kind": c.config_kind,
+            "config_version": c.config_version,
+            "display_name": c.display_name,
+            "status": c.status,
+            "indexed_at": c.indexed_at,
+            "total_nodes": sum(node_counts.values()),
+            "total_cards": sum(card_counts.values()),
+        })
     return True, {
-        "configurations": [
-            {
-                "channel_id": c.channel_id,
-                "config_kind": c.config_kind,
-                "config_version": c.config_version,
-                "display_name": c.display_name,
-                "status": c.status,
-                "indexed_at": c.indexed_at,
-            }
-            for c in configs
-        ],
-        "total": len(configs),
+        "configurations": result_items,
+        "total": len(result_items),
     }, None
 
 

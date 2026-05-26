@@ -1,7 +1,7 @@
 ---
 milestone: M-K2.5
 milestone_name: "Typical Configurations Knowledge"
-status: in_progress
+status: closed
 started_at: "2026-05-26T23:50:00Z"
 last_updated: "2026-05-26T22:00:00Z"
 branch: main (8 фаз merged FF)
