@@ -74,7 +74,7 @@ MIGRATIONS_V3 = [
     """,
 ]
 
-CURRENT_VERSION = 13
+CURRENT_VERSION = 14
 
 # Миграция v4: расширение card_states — добавление колонки anon_tokens JSON
 MIGRATIONS_V4 = [
@@ -315,6 +315,44 @@ MIGRATIONS_V13 = [
 ]
 
 
+# Миграция v14 (M-K2.7): обвязочная таблица для ИТС RAG.
+# Хранит content + metadata каждого чанка стандарта/паттерна/диагностики.
+# Vector в vec_objects (channel_id="_its", object_path="its:{doc_id}#{chunk_index}"),
+# а текст и категория — здесь. JOIN по object_path даёт LLM-friendly результат
+# с цитатой и ссылкой на исходный файл.
+#
+# Ключи:
+#   - PRIMARY KEY (id) — autoincrement, для удобства внутри backend
+#   - UNIQUE (object_path) — для JOIN с vec_objects по строке
+#   - UNIQUE (doc_id, chunk_index) — natural-key защита от двойной вставки
+#   - chunk_hash SHA-256 — позволяет idempotent re-index пропустить
+#     неизменившиеся чанки (без повторного embedding'а — экономия $)
+#
+# Категории: 'std' | 'patterns' | 'diagnostics' | 'metod8dev' | 'lang'.
+# Source — zeegin/v8std (CC-BY-4.0).
+MIGRATIONS_V14 = [
+    """
+    CREATE TABLE IF NOT EXISTS its_chunks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        object_path TEXT NOT NULL UNIQUE,
+        doc_id TEXT NOT NULL,
+        chunk_index INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        section_title TEXT,
+        content TEXT NOT NULL,
+        category TEXT NOT NULL,
+        source_path TEXT NOT NULL,
+        char_count INTEGER NOT NULL,
+        chunk_hash TEXT NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(doc_id, chunk_index)
+    )
+    """,
+    "CREATE INDEX IF NOT EXISTS idx_its_chunks_category ON its_chunks(category)",
+    "CREATE INDEX IF NOT EXISTS idx_its_chunks_doc ON its_chunks(doc_id)",
+]
+
+
 async def apply_migrations(db: aiosqlite.Connection) -> None:
     """Идемпотентно применяет миграции схемы БД."""
     # Создаём schema_version первым делом
@@ -466,5 +504,17 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
             (13,),
+        )
+        await db.commit()
+
+    if current < 14:
+        # its_chunks (v14, M-K2.7) — обвязочная таблица для ИТС RAG.
+        # Чанки v8std (std/patterns/diagnostics/metod8dev/lang) хранят content
+        # и metadata для JOIN с vec_objects по object_path.
+        for stmt in MIGRATIONS_V14:
+            await db.execute(stmt)
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (14,),
         )
         await db.commit()
