@@ -251,70 +251,377 @@ form_handlers:
 
 ## 3. Фазы реализации
 
-### Phase v2.0 — CRITICAL Preventive (НОВАЯ, ~6-8 часов)
+### Phase v2.0 — CRITICAL Preventive (полный вариант B, ~6-8 часов)
 
 **Цель:** Закрыть 9 критичных рисков ДО запуска chat-интеграции.
 Без этого первые пользователи получат галлюцинации, фейковые имена
 регистров, и потерянные данные при первой миграции.
 
-**Артефакты:**
+**Принцип последовательности**: 9 пунктов делаются строго по порядку.
+П1 (Pydantic) → П6 (mock isolation) → Гэп 11 (limits) → П3 (closed
+vocab) → Гэп 7 (graph validation) → П7 (embedding versioning) → П8
+(cold start) → smoke. После каждого пункта — atomic commit + узкий
+регресс. Если на любом этапе ломается — STOP, не идём дальше.
 
-1. **П6 — Mock isolation** (30 мин)
-   - Migration v21: колонка `is_mock` в `typical_object_cards`
-   - Все 63k существующих карточек → `is_mock=True`
-   - LLM tools фильтруют `WHERE is_mock = FALSE` если есть real LLM-карточки, иначе fallback на mock с warning
-   - Frontend бейдж "Mock data" при отображении
+---
 
-2. **Гэп 7 — Graph validation** (2 часа, GraphEval-стиль)
-   - `validate_card_against_graph(card, graph_storage) -> ValidationResult`
-   - Проверки:
-     - Каждый `movement.register` имеет WRITES_TO edge от method-узлов объекта
-     - Каждый `related_objects[]` существует как node в графе
-     - `key_attributes[]` соответствует реальным attribute-узлам объекта
-   - Storage: новые поля `validation_status` (passed/partial/failed) + `validation_errors: list[str]`
-   - Карточка с `validation_status=failed` помечается, retrieval показывает warning
+#### 🔴 v2.0-step-1 — П1 Pydantic BaseModel (40 мин)
 
-3. **Гэп 11 — Hard limits через Pydantic Field()** (1 час)
-   - max_length для каждого text-поля
-   - max_items для каждого list-поля
-   - LLM-prompt с explicit лимитами
+**Что**: миграция `TypicalObjectCard` с `@dataclass(frozen=True, slots=True)` → `BaseModel(model_config=ConfigDict(frozen=True))`.
 
-4. **П1 — Pydantic BaseModel вместо frozen dataclass** (2 часа)
-   - Миграция `TypicalObjectCard` с `@dataclass(frozen=True)` → `BaseModel(model_config=ConfigDict(frozen=True))`
-   - Все тесты должны пройти после миграции
-   - Backward compat для существующих 63k карточек (serialization идентичный)
+**Файлы**:
+- `backend/app/knowledge/typical/card_models.py` — изменить `TypicalObjectCard`, `CardAttribute`, `CardMovement` на Pydantic BaseModel. Сохранить тот же API (`to_dict`, `to_payload_json`, `from_payload_json`, property `embedding_text`).
+- `backend/app/knowledge/typical/card_storage.py` — обновить сериализацию (если используется `dataclasses.asdict`).
+- `backend/app/knowledge/typical/card_generator.py` — обновить `_payload_to_card` для возврата BaseModel.
+- `backend/tests/test_typical_card_storage.py` + `test_typical_card_generator.py` — поправить тесты на `frozen` exception (Pydantic ValidationError вместо FrozenInstanceError).
 
-5. **П3 — Closed vocabulary в LLM prompt** (1 час)
-   - В system prompt типа карточки явно указать closed vocab:
-     `"Используй только эти типы связей: CONTAINS, CALLS, USES, WRITES_TO, READS_FROM, REFERENCES"`
-   - В schema добавить `Literal[...]` для типа связи
-   - Тест: LLM не должен генерить "использует" / "вызывает" — только из списка
+**Acceptance**:
+- [ ] Все 31 теста `test_typical_card_storage.py` зелёные
+- [ ] Все 25 тестов `test_typical_card_generator.py` зелёные
+- [ ] `roundtrip` тест: existing JSON из БД (63k карточек) парсится в новую BaseModel идентично
+- [ ] frozen=True работает (попытка mutation → ValidationError)
 
-6. **П7 — Embedding model versioning** (30 мин)
-   - Поле `embedding_model_id` в `typical_object_cards` (уже есть)
-   - Поле `embedding_model_version` (semver)
-   - При изменении модели — explicit reindex script с подтверждением
+**Риски**:
+- `from_payload_json` использует `**dict` — у Pydantic нужен `model_validate(dict)` или `model_validate_json(str)`. Проверить что unknown fields игнорируются (`extra='ignore'`)
+- Property `embedding_text` нужно объявить через `@computed_field` или просто `@property`
 
-7. **П8 — Cold start fallback** (1 час)
-   - `explain_typical_object` уже возвращает `card=None` для несуществующих
-   - System prompt LLM-orchestrator: «если card=None → НЕ галлюцинировать, явно сказать "об этом объекте в данной конфигурации информации нет"»
-   - Smoke test: запрос к несуществующему объекту → корректный ответ
-   - Frontend: компонент EmptyTypicalCard с понятным сообщением
+**Commit**: `refactor(M-K2.5.9.1): TypicalObjectCard → Pydantic BaseModel(frozen=True)`
 
-**Acceptance criteria v2.0:**
-- [ ] Колонка `is_mock` существует, все mock-карточки помечены
-- [ ] `validate_card_against_graph` отлавливает 100% случаев когда movement.register не существует в графе
-- [ ] Pydantic field validators отклоняют карточки с overlimit
-- [ ] TypicalObjectCard — BaseModel, не dataclass
-- [ ] Closed vocabulary применён, LLM не использует other terms
-- [ ] Embedding model versioning работает
-- [ ] Cold start: запрос к несуществующему → user-friendly message без галлюцинаций
-- [ ] Все 102 unit-теста для card_* проходят
-- [ ] Smoke `typical_smoke_questions.py` 55/55 + 10 новых
+---
 
-**Риски v2.0:**
-- Pydantic migration: frozen=True в BaseModel работает иначе чем в dataclass — нужно проверить backward compat
-- Graph validation может пометить корректные карточки как failed если LLM использовал синонимы (закрывается П3)
+#### 🔴 v2.0-step-2 — П6 Mock isolation (30 мин)
+
+**Что**: пометить все 63k существующих карточек как mock, фильтровать в retrieval.
+
+**Файлы**:
+- `backend/app/storage/migrations.py` — Migration v19:
+  ```sql
+  ALTER TABLE typical_object_cards ADD COLUMN is_mock INTEGER NOT NULL DEFAULT 0;
+  UPDATE typical_object_cards SET is_mock = 1 WHERE llm_model = 'mock-generator-v1';
+  CREATE INDEX idx_typical_cards_is_mock ON typical_object_cards(is_mock);
+  ```
+- `backend/app/knowledge/typical/card_models.py` — добавить поле `is_mock: bool = False` в `TypicalObjectCardRecord`
+- `backend/app/knowledge/typical/card_storage.py`:
+  - `upsert_card` принимает `is_mock: bool = False`
+  - `_row_to_record` читает is_mock
+  - `list_cards_by_channel` принимает `exclude_mock: bool = False`
+- `backend/app/knowledge/typical/tool.py` — `_handle_explain` + `_handle_search_objects` добавляют в payload `"is_mock": True/False` (warning сигнал для UI и LLM)
+- `frontend/components/cards/TypicalObjectCard.tsx` — бейдж "Mock data — не верифицировано экспертом" когда `is_mock=True`
+
+**Acceptance**:
+- [ ] Migration v19 применяется на свежей БД и на текущей `pilot.db`
+- [ ] `SELECT COUNT(*) FROM typical_object_cards WHERE is_mock=1` = 63 197
+- [ ] `_handle_explain` для mock-карточки возвращает `card.is_mock=True`
+- [ ] Frontend бейдж видим (vitest проверка)
+- [ ] 3 новых unit-теста (mock filter / non-mock filter / mixed)
+
+**Commit**: `feat(M-K2.5.9.2): is_mock flag + UI warning для mock-карточек`
+
+---
+
+#### 🔴 v2.0-step-3 — Гэп 11 Hard limits через Pydantic Field() (45 мин)
+
+**Что**: жёсткие лимиты для всех полей карточки, чтобы LLM не раздувал.
+
+**Файлы**:
+- `backend/app/knowledge/typical/card_models.py`:
+  ```python
+  class TypicalObjectCard(BaseModel):
+      summary: str = Field(default="", max_length=400)
+      purpose: str = Field(default="", max_length=600)
+      key_attributes: tuple[CardAttribute, ...] = Field(default_factory=tuple, max_length=10)
+      movements: tuple[CardMovement, ...] = Field(default_factory=tuple, max_length=15)
+      posting_flow: tuple[str, ...] = Field(default_factory=tuple, max_length=8)
+      typical_scenarios: tuple[str, ...] = Field(default_factory=tuple, max_length=5)
+      preconditions: tuple[str, ...] = Field(default_factory=tuple, max_length=6)
+      related_objects: tuple[str, ...] = Field(default_factory=tuple, max_length=10)
+      its_links: tuple[str, ...] = Field(default_factory=tuple, max_length=5)
+  ```
+- `backend/app/prompts/typical_card_generator.md` — указать лимиты в промпте явно: «summary ≤ 400 chars, max 8 шагов posting_flow, max 10 связанных объектов»
+- `backend/app/knowledge/typical/card_generator.py`:
+  - В `_payload_to_card` — при overlimit обрезать (defensive) и логировать warning
+  - Storage: новое поле `truncation_warnings: list[str]` (опционально)
+
+**Acceptance**:
+- [ ] Pydantic отклоняет карточки с summary > 400 chars (ValidationError)
+- [ ] LLM-output с лишними posting_flow steps обрезается до 8
+- [ ] Тесты: 5 проверок на overlimit для каждого list-поля
+- [ ] Mock LLM проходит лимиты
+
+**Commit**: `feat(M-K2.5.9.3): hard limits через Pydantic Field max_length`
+
+---
+
+#### 🔴 v2.0-step-4 — П3 Closed vocabulary в LLM prompt (45 мин)
+
+**Что**: LLM использует только зафиксированный словарь типов связей и направлений, иначе fragmentation графа.
+
+**Файлы**:
+- `backend/app/prompts/typical_card_generator.md` — расширить:
+  ```
+  ## Закрытый словарь
+
+  ### `movements[].direction` — только эти значения:
+  - "приход" — увеличение
+  - "расход" — уменьшение
+  - "приход/расход" — зависит от условия
+  - "запись" — для регистров сведений без направления
+
+  ### `movements[].register` — формат:
+  Полное имя в виде `Kind.Name`, где Kind ∈
+  {AccumulationRegister, InformationRegister, AccountingRegister, CalculationRegister}.
+
+  ### `related_objects[]` — формат:
+  Полное имя `Kind.Name` где Kind ∈
+  {Document, Catalog, Enum, ChartOfAccounts, AccumulationRegister, ...}.
+
+  ❌ НЕ использовать:
+  - "использует" / "вызывает" / "обращается к" — это не поля карточки
+  - Транслитерации латиницей русских слов
+  - Сокращения (РН вместо AccumulationRegister)
+  ```
+- `backend/app/knowledge/typical/card_models.py`:
+  ```python
+  MovementDirection = Literal["приход", "расход", "приход/расход", "запись"]
+
+  class CardMovement(BaseModel):
+      register: str
+      direction: MovementDirection = "запись"
+      condition: str = ""
+  ```
+- `backend/app/knowledge/typical/card_generator.py` — `_payload_to_card` нормализует value (lowercase + trim) перед валидацией; если direction не в Literal — fallback на "запись" с warning
+
+**Acceptance**:
+- [ ] Pydantic отклоняет неизвестные direction values
+- [ ] Mock LLM использует только closed vocab
+- [ ] Prompt template содержит явный список значений
+- [ ] 3 теста: valid direction / invalid → fallback / lowercase normalize
+
+**Commit**: `feat(M-K2.5.9.4): closed vocabulary для movements direction + register format`
+
+---
+
+#### 🔴 v2.0-step-5 — Гэп 7 Graph validation (GraphEval) (2 часа)
+
+**Что**: cross-check карточки против существующего графа 2.2M узлов.
+
+**Файлы**:
+- Новый `backend/app/knowledge/typical/card_validator.py`:
+  ```python
+  @dataclass(frozen=True, slots=True)
+  class ValidationIssue:
+      severity: Literal["error", "warning"]
+      field: str
+      value: str
+      message: str
+
+  @dataclass(frozen=True, slots=True)
+  class ValidationResult:
+      status: Literal["passed", "partial", "failed"]
+      issues: tuple[ValidationIssue, ...]
+      checked_at: str  # ISO
+
+  async def validate_card_against_graph(
+      db: aiosqlite.Connection,
+      *,
+      channel_id: str,
+      card: TypicalObjectCard,
+  ) -> ValidationResult:
+      """Сравнивает упоминания в карточке с реальностью графа."""
+      issues: list[ValidationIssue] = []
+
+      # 1. Movements: каждый register должен существовать как MetadataObject
+      for m in card.movements:
+          # Нормализуем имя (русский → английский kind prefix)
+          normalized = _normalize_query_table_qname(m.register)
+          if normalized is None:
+              issues.append(ValidationIssue("error", "movements.register",
+                  m.register, f"Не распознан формат: {m.register}"))
+              continue
+          node = await find_node(db, channel_id=channel_id,
+              qualified_name=normalized, node_kind=NodeKind.METADATA_OBJECT.value)
+          if node is None:
+              issues.append(ValidationIssue("error", "movements.register",
+                  m.register, f"Регистр {normalized} не существует в графе"))
+
+      # 2. Related objects: каждый должен существовать
+      for ref in card.related_objects:
+          normalized = _normalize_query_table_qname(ref) or ref
+          node = await find_node(db, channel_id=channel_id,
+              qualified_name=normalized, node_kind=NodeKind.METADATA_OBJECT.value)
+          if node is None:
+              issues.append(ValidationIssue("warning", "related_objects",
+                  ref, f"Объект {ref} не найден в графе"))
+
+      # 3. Key attributes: должны соответствовать Attribute-узлам объекта
+      obj_qname = card.object_qualified_name
+      for attr in card.key_attributes:
+          attr_qname = f"{obj_qname}.Реквизит.{attr.name}"
+          node = await find_node(db, channel_id=channel_id,
+              qualified_name=attr_qname, node_kind=NodeKind.ATTRIBUTE.value)
+          if node is None:
+              # Может быть реквизит ТЧ — проверим через LIKE
+              cursor = await db.execute(
+                  "SELECT 1 FROM graph_nodes WHERE channel_id=? AND qualified_name LIKE ? LIMIT 1",
+                  (channel_id, f"{obj_qname}.%.Реквизит.{attr.name}")
+              )
+              found = await cursor.fetchone()
+              if not found:
+                  issues.append(ValidationIssue("warning", "key_attributes",
+                      attr.name, f"Реквизит {attr.name} не найден у объекта"))
+
+      errors = [i for i in issues if i.severity == "error"]
+      status = "failed" if errors else ("partial" if issues else "passed")
+      return ValidationResult(
+          status=status, issues=tuple(issues),
+          checked_at=datetime.utcnow().isoformat(),
+      )
+  ```
+- Migration v20:
+  ```sql
+  ALTER TABLE typical_object_cards ADD COLUMN validation_status TEXT;
+  ALTER TABLE typical_object_cards ADD COLUMN validation_issues TEXT;  -- JSON
+  ALTER TABLE typical_object_cards ADD COLUMN validated_at TIMESTAMP;
+  ```
+- `backend/app/knowledge/typical/card_storage.py` — `upsert_card` + `update_card_validation(card_id, result)`
+- `backend/app/knowledge/typical/tool.py` — `_handle_explain` возвращает `validation_status` + первые 3 issues в payload (LLM решает показывать warning или нет)
+- `backend/tests/test_typical_card_validator.py` — 15 тестов (synthetic граф + карточка с/без ошибок)
+
+**Acceptance**:
+- [ ] 95% real-generated карточек проходят validation (на synthetic данных)
+- [ ] LLM-карточка с выдуманным регистром получает `validation_status=failed`
+- [ ] LLM-карточка с реальным регистром → `passed`
+- [ ] explain возвращает validation в payload
+- [ ] 15 unit-тестов зелёные
+
+**Commit**: `feat(M-K2.5.9.5): card validator против реального графа (GraphEval)`
+
+---
+
+#### 🔴 v2.0-step-6 — П7 Embedding model versioning (40 мин)
+
+**Что**: фиксировать какой embedding model использовался для каждой карточки.
+
+**Файлы**:
+- `backend/app/knowledge/typical/card_models.py`:
+  - Поле `embedding_model: str | None` (уже есть в TypicalObjectCardRecord)
+  - Новое поле `embedding_model_version: str | None` (e.g. "text-embedding-3-small-v1" / "nvidia-embed-v2")
+- Migration v21:
+  ```sql
+  ALTER TABLE typical_object_cards ADD COLUMN embedding_model_version TEXT;
+  ```
+- `backend/app/knowledge/typical/card_storage.py` — `update_card_status` принимает `embedding_model_version`
+- Новый `backend/scripts/typical_cards_reembed.py` — explicit reindex с подтверждением:
+  ```bash
+  python -m scripts.typical_cards_reembed --channel _bp30_138_24 \
+      --new-model text-embedding-3-large --confirm
+  ```
+- Unit tests: 5 проверок на embedding model tracking
+
+**Acceptance**:
+- [ ] Поле `embedding_model_version` в схеме
+- [ ] Reembed script отказывается работать без `--confirm`
+- [ ] Smoke: создать карточку с model A → сменить на B → старая запись не перезаписана автоматически
+
+**Commit**: `feat(M-K2.5.9.6): embedding model versioning + explicit reembed`
+
+---
+
+#### 🔴 v2.0-step-7 — П8 Cold start fallback (1 час)
+
+**Что**: при запросе к несуществующей карточке — явный сигнал LLM, без галлюцинаций.
+
+**Файлы**:
+- `backend/app/orchestrator/loop.py` — обновить system prompt раздел про typical tools:
+  ```
+  ВАЖНО: если explain_typical_object вернул card=null или card_status='not_generated' —
+  НЕ галлюцинируй про этот объект, отвечай явно «об этом объекте в данной конфигурации
+  у меня информации нет». Аналогично для search_typical_objects total=0 —
+  не выдумывай объекты, скажи «ничего не нашлось по запросу X в типовой Y».
+  ```
+- `backend/app/knowledge/typical/tool.py` — `_handle_explain` для отсутствующего объекта возвращает структурированный ответ:
+  ```python
+  return True, {
+      "qualified_name": qname,
+      "channel_id": channel_id,
+      "card_status": "not_in_graph",
+      "available_objects_hint": "...",  # топ-5 похожих имён из search
+      "message": "Объект не найден в графе типовой. Возможно, имя написано иначе.",
+  }, None
+  ```
+- `frontend/components/cards/TypicalObjectCard.tsx` — новый state `not_found` с подсказкой
+- 5 smoke-тестов на cold start (несуществующий object / channel / выдуманный kind)
+
+**Acceptance**:
+- [ ] LLM не галлюцинирует при card=None в smoke сценариях
+- [ ] System prompt содержит явную инструкцию
+- [ ] UI компонент для not_found state
+- [ ] 5 cold-start тестов зелёные
+
+**Commit**: `feat(M-K2.5.9.7): cold start fallback без LLM-галлюцинаций`
+
+---
+
+#### 🟡 v2.0-step-8 — Smoke + регресс + closing (1 час)
+
+**Что**: финальная проверка что все 7 шагов вместе работают.
+
+**Действия**:
+1. Прогнать `python -m scripts.typical_smoke_questions` (55/55 должны остаться зелёными + проверить новые поля validation_status / is_mock в Q3 / Q4)
+2. Расширить smoke новыми 10 проверками:
+   - Mock filter работает (Q11)
+   - Graph validation flags fake card (Q12)
+   - Closed vocab отклоняет неизвестный direction (Q13)
+   - Hard limit отклоняет overlong summary (Q14)
+   - Cold start не галлюцинирует (Q15-17)
+   - Embedding versioning заметен в payload (Q18-19)
+   - Pydantic frozen работает (Q20)
+3. Регрессия typical/*: `python -m pytest tests/test_typical_*.py --no-cov -q` — все 347+ должны быть зелёные
+4. Регрессия polных backend tests: `python -m pytest tests/ --no-cov -q -k "not slow" --timeout=120` — все должны быть зелёные (или зафиксировать что было сломано)
+5. Vitest frontend: `npx vitest run` — все зелёные
+6. Обновить `STATE.md` и `SUMMARY.md` с пометкой «v2.0 closed»
+7. Закрывающий commit + push
+
+**Acceptance criteria v2.0 финально**:
+- [ ] Все 7 шагов закоммичены атомарно
+- [ ] Mock карточки помечены и фильтруются
+- [ ] Graph validation работает на 95%+ карточек
+- [ ] Pydantic field validators отклоняют overlimit
+- [ ] TypicalObjectCard — BaseModel(frozen=True)
+- [ ] Closed vocabulary применён в prompt + Literal types
+- [ ] Embedding model versioning в схеме
+- [ ] Cold start fallback без галлюцинаций
+- [ ] Все 347+ typical/* tests зелёные
+- [ ] Smoke 75+ проверок зелёные (старые 55 + 20+ новых)
+- [ ] Полный backend pytest хотя бы стартовал без import errors
+
+**Commit**: `closing(M-K2.5.9): Phase v2.0 critical preventive complete`
+
+---
+
+### Сводная таблица v2.0
+
+| # | Шаг | Время | Критичность | Файлов |
+|---|---|---:|---|---:|
+| 1 | П1 Pydantic BaseModel | 40 мин | блокирующий | 4 |
+| 2 | П6 Mock isolation | 30 мин | КРИТИЧНО | 5 |
+| 3 | Гэп 11 Hard limits | 45 мин | важно | 3 |
+| 4 | П3 Closed vocabulary | 45 мин | важно | 3 |
+| 5 | Гэп 7 Graph validation | 2 часа | КРИТИЧНО | 5 |
+| 6 | П7 Embedding versioning | 40 мин | important | 4 |
+| 7 | П8 Cold start fallback | 1 час | КРИТИЧНО | 4 |
+| 8 | Smoke + closing | 1 час | финал | 3 |
+| **Итого** | | **~7-8 часов** | | **~30 файлов** |
+
+### Что НЕ в v2.0 (явно отложено)
+
+- v2.A specializations (DocumentCard / CatalogCard / RegisterCard etc.) — отдельная сессия
+- v2.C ИТС/БСП mention extraction — нужен real LLM
+- v2.D Cross-config diff — 3 строки SQL но требует typical_cross_config_map
+- v2.E Roles / RLS / Subsystems / Form-handlers — отдельная сессия
+- v2.F Version archeology — нужны 2+ snapshot'а
+- v2.G LLM-judge (через 2-й LLM call) — заменён на Гэп 7 (graph validation, наш path)
+- v2.H Embedding + hybrid search — нужен real LLM
 
 ### Phase v2.A — Schema specializations (одна сессия, ~4-6 часов)
 
