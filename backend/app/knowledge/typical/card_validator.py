@@ -277,14 +277,40 @@ async def _collect_object_targets(
     obj_node: GraphNode,
     edge_kind: str,
 ) -> set[str]:
-    """Generic: object → CONTAINS → method → <edge_kind> → target."""
-    methods = await get_neighbors(
+    """Generic: object → CONTAINS → {Method | Module → CONTAINS → Method} → <edge_kind> → target.
+
+    Структура графа (M-K2.5.4 builder):
+    - Document/Catalog/Register → CONTAINS → Attribute (реквизиты)
+    - Document/Catalog/Register → CONTAINS → Module (МодульОбъекта / ФормаДокумента / etc)
+    - Module → CONTAINS → Method
+    - Method → WRITES_TO / READS_FROM → Register
+
+    Поэтому для сбора WRITES_TO/READS_FROM нужно обходить 2 hops:
+    1. Прямые children объекта — может быть и Method (для редких случаев) и Module
+    2. Если child — Module, ходим внутрь к его Method'ам
+    Затем у каждого Method собираем edges нужного типа.
+    """
+    direct_children = await get_neighbors(
         db, obj_node.id, direction="out", edge_kind=EdgeKind.CONTAINS.value,
     )
+
+    methods: list[GraphNode] = []
+    for child in direct_children:
+        if child.node_kind == NodeKind.METHOD.value:
+            # Method напрямую в объекте (legacy / редкий случай)
+            methods.append(child)
+        elif child.node_kind == NodeKind.MODULE.value:
+            # Module — ищем методы внутри
+            module_methods = await get_neighbors(
+                db, child.id, direction="out", edge_kind=EdgeKind.CONTAINS.value,
+            )
+            methods.extend(
+                m for m in module_methods if m.node_kind == NodeKind.METHOD.value
+            )
+
+    # Сбор targets от каждого метода
     targets: set[str] = set()
     for method in methods:
-        if method.node_kind != NodeKind.METHOD.value:
-            continue
         method_targets = await get_neighbors(
             db, method.id, direction="out", edge_kind=edge_kind,
         )
