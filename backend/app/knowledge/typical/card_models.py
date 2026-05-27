@@ -434,6 +434,13 @@ class TypicalObjectCardRecord:
     # True если карточка сгенерирована MockLLMCaller (`llm_model='mock-generator-v1'`).
     # UI показывает бейдж «Mock data — не верифицировано экспертом».
     is_mock: bool = False
+    # v20 (M-K2.5.9.5) — graph validation:
+    # validation_status — 'valid' | 'issues_found' | 'object_not_in_graph' | None
+    # validation_issues — JSON-сериализованный list[CardValidationIssue]
+    # validated_at — ISO timestamp последней валидации (None = не валидировалась)
+    validation_status: str | None = None
+    validation_issues: str | None = None
+    validated_at: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -454,4 +461,9 @@ class TypicalObjectCardRecord:
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "is_mock": self.is_mock,
+            "validation_status": self.validation_status,
+            "validation_issues": (
+                json.loads(self.validation_issues) if self.validation_issues else None
+            ),
+            "validated_at": self.validated_at,
         }

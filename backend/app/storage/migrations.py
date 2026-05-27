@@ -74,7 +74,7 @@ MIGRATIONS_V3 = [
     """,
 ]
 
-CURRENT_VERSION = 19
+CURRENT_VERSION = 20
 
 # Миграция v4: расширение card_states — добавление колонки anon_tokens JSON
 MIGRATIONS_V4 = [
@@ -580,6 +580,24 @@ MIGRATIONS_V19 = [
     "CREATE INDEX IF NOT EXISTS idx_typical_cards_is_mock ON typical_object_cards(channel_id, is_mock)",
 ]
 
+# v20 — Card validation against graph (M-K2.5.9.5, GraphEval-стиль).
+#
+# Карточка валидируется против семантического графа (граф = ground truth).
+# Если LLM выдумала register которого нет в WRITES_TO edges объекта —
+# это hallucination, бот должен видеть в payload и предупреждать
+# пользователя.
+#
+# Поля:
+#   validation_status — 'valid' | 'issues_found' | 'object_not_in_graph' | NULL (не валидирована)
+#   validation_issues — JSON массив CardValidationIssue (severity/code/detail/field)
+#   validated_at      — timestamp последней валидации
+MIGRATIONS_V20 = [
+    "ALTER TABLE typical_object_cards ADD COLUMN validation_status TEXT",
+    "ALTER TABLE typical_object_cards ADD COLUMN validation_issues TEXT",
+    "ALTER TABLE typical_object_cards ADD COLUMN validated_at TIMESTAMP",
+    "CREATE INDEX IF NOT EXISTS idx_typical_cards_validation_status ON typical_object_cards(channel_id, validation_status)",
+]
+
 
 async def apply_migrations(db: aiosqlite.Connection) -> None:
     """Идемпотентно применяет миграции схемы БД."""
@@ -805,5 +823,19 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
             (19,),
+        )
+        await db.commit()
+
+    if current < 20:
+        # Card validation against graph (v20, M-K2.5.9.5) — GraphEval-стиль.
+        # Добавляет validation_status / validation_issues / validated_at для
+        # хранения результата валидации карточки против семантического графа.
+        # Граф = ground truth: если карточка ссылается на register которого
+        # нет в WRITES_TO для объекта, это hallucination.
+        for stmt in MIGRATIONS_V20:
+            await db.execute(stmt)
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (20,),
         )
         await db.commit()

@@ -123,7 +123,8 @@ async def get_card_by_qname(
                card_payload, source_hash, prompt_version,
                llm_model, token_usage_in, token_usage_out,
                embedding_model, embedding_dim, status, error,
-               created_at, updated_at, is_mock
+               created_at, updated_at, is_mock,
+               validation_status, validation_issues, validated_at
         FROM typical_object_cards
         WHERE channel_id = ? AND object_qualified_name = ?
         """,
@@ -165,7 +166,8 @@ async def list_cards_by_channel(
                card_payload, source_hash, prompt_version,
                llm_model, token_usage_in, token_usage_out,
                embedding_model, embedding_dim, status, error,
-               created_at, updated_at, is_mock
+               created_at, updated_at, is_mock,
+               validation_status, validation_issues, validated_at
         FROM typical_object_cards
         WHERE {' AND '.join(where)}
         ORDER BY object_qualified_name
@@ -316,6 +318,11 @@ def _row_to_record(row: tuple) -> TypicalObjectCardRecord:
     )
     # Защитный bool: row[16] (is_mock) может быть NULL/0/1 INTEGER из SQLite.
     is_mock_raw = row[16] if len(row) > 16 else 0
+    # v20 (M-K2.5.9.5): validation_* колонки. Могут быть NULL если карточка
+    # ещё не валидировалась (default для старых row после миграции).
+    validation_status = row[17] if len(row) > 17 else None
+    validation_issues = row[18] if len(row) > 18 else None
+    validated_at = row[19] if len(row) > 19 else None
     return TypicalObjectCardRecord(
         id=int(row[0]),
         channel_id=row[1],
@@ -334,4 +341,7 @@ def _row_to_record(row: tuple) -> TypicalObjectCardRecord:
         created_at=row[14],
         updated_at=row[15],
         is_mock=bool(is_mock_raw),
+        validation_status=validation_status,
+        validation_issues=validation_issues,
+        validated_at=validated_at,
     )

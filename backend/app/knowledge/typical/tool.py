@@ -37,6 +37,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 from typing import Any
 
@@ -501,6 +502,20 @@ async def _handle_explain(
     # «данные не верифицированы экспертом», а не выдавать stub за факт.
     is_mock = bool(card_rec.is_mock) if card_rec else False
 
+    # validation (M-K2.5.9.5) — результат сверки карточки с графом.
+    # Если есть issues, LLM знает что НЕЛЬЗЯ слепо доверять полям
+    # карточки — нужно cross-check с children_summary / графом.
+    validation: dict | None = None
+    if card_rec and card_rec.validation_status:
+        validation = {
+            "status": card_rec.validation_status,
+            "validated_at": card_rec.validated_at,
+            "issues": (
+                json.loads(card_rec.validation_issues)
+                if card_rec.validation_issues else []
+            ),
+        }
+
     return True, {
         "qualified_name": qname,
         "object_kind": node.attributes.get("kind"),
@@ -515,6 +530,7 @@ async def _handle_explain(
             "summary/purpose могут содержать обобщения."
             if is_mock else None
         ),
+        "validation": validation,
         "children_summary": children_summary,
     }, None
 

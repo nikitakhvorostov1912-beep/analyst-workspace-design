@@ -74,7 +74,10 @@ async def test_migration_v18_creates_indexes():
 
 
 @pytest.mark.asyncio
-async def test_migrations_v18_v19_idempotent():
+async def test_migrations_idempotent_at_current_version():
+    """Apply migrations дважды — без падения, MAX(version) = CURRENT_VERSION."""
+    from app.storage.migrations import CURRENT_VERSION  # noqa: PLC0415
+
     conn = await aiosqlite.connect(":memory:")
     try:
         await apply_migrations(conn)
@@ -82,8 +85,40 @@ async def test_migrations_v18_v19_idempotent():
         await apply_migrations(conn)
         cursor = await conn.execute("SELECT MAX(version) FROM schema_version")
         v = await cursor.fetchone()
-        # v19 (M-K2.5.9.2) — текущая верхняя миграция (is_mock колонка)
-        assert v[0] == 19
+        assert v[0] == CURRENT_VERSION
+    finally:
+        await conn.close()
+
+
+# ─── Migration v20 — Card validation (M-K2.5.9.5) ─────────────────────
+
+
+@pytest.mark.asyncio
+async def test_migration_v20_creates_validation_columns():
+    conn = await aiosqlite.connect(":memory:")
+    try:
+        await apply_migrations(conn)
+        cursor = await conn.execute("PRAGMA table_info(typical_object_cards)")
+        cols = await cursor.fetchall()
+        col_names = {c[1] for c in cols}
+        assert "validation_status" in col_names
+        assert "validation_issues" in col_names
+        assert "validated_at" in col_names
+    finally:
+        await conn.close()
+
+
+@pytest.mark.asyncio
+async def test_migration_v20_creates_validation_index():
+    conn = await aiosqlite.connect(":memory:")
+    try:
+        await apply_migrations(conn)
+        cursor = await conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='index' "
+            "AND name = 'idx_typical_cards_validation_status'"
+        )
+        row = await cursor.fetchone()
+        assert row is not None
     finally:
         await conn.close()
 
