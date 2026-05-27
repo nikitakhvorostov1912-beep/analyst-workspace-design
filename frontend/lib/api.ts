@@ -694,6 +694,24 @@ export type TypicalObjectResponse = {
 };
 
 /**
+ * M-K2.5.9.7 — Cold start fallback response для несуществующих объектов.
+ *
+ * Backend endpoint возвращает 404 с этим JSON в `detail` когда explain
+ * не нашёл объект. UI показывает not_found state с suggestions.
+ */
+export type TypicalObjectNotFoundDetail = {
+  error: "typical_object_not_found";
+  channel_id: string;
+  object_qualified_name: string;
+  hint: string;
+  suggestions?: Array<{
+    qualified_name: string;
+    kind: string;
+    score: string;
+  }>;
+};
+
+/**
  * GET /knowledge/typical/configurations — список загруженных типовых.
  *
  * Используется TypicalSelector для дропдауна и для счётчиков
@@ -708,9 +726,30 @@ export async function fetchTypicalConfigurations(): Promise<TypicalConfiguration
 }
 
 /**
+ * M-K2.5.9.7 — custom error для 404 с suggestions. UI отличает от
+ * generic ошибки и показывает not_found state с альтернативами.
+ */
+export class TypicalObjectNotFoundError extends Error {
+  channelId: string;
+  objectQualifiedName: string;
+  suggestions: Array<{ qualified_name: string; kind: string; score: string }>;
+  hint: string;
+
+  constructor(detail: TypicalObjectNotFoundDetail) {
+    super(`Объект ${detail.object_qualified_name} не найден в типовой ${detail.channel_id}`);
+    this.name = "TypicalObjectNotFoundError";
+    this.channelId = detail.channel_id;
+    this.objectQualifiedName = detail.object_qualified_name;
+    this.suggestions = detail.suggestions ?? [];
+    this.hint = detail.hint;
+  }
+}
+
+/**
  * GET /knowledge/typical/{channel}/object/{qname} — карточка объекта.
  *
- * Бросает Error при 404 (объект не найден) или 5xx.
+ * Бросает `TypicalObjectNotFoundError` при 404 (с suggestions) или
+ * generic `Error` при 5xx.
  */
 export async function fetchTypicalObject(
   channelId: string,
@@ -719,6 +758,16 @@ export async function fetchTypicalObject(
   const url = `${getBackend()}/knowledge/typical/${encodeURIComponent(channelId)}/object/${objectQualifiedName}`;
   const response = await fetch(url);
   if (response.status === 404) {
+    // v2.0-step-7: ловим detail с suggestions для not_found state UI.
+    try {
+      const errorBody = (await response.json()) as { detail?: TypicalObjectNotFoundDetail };
+      if (errorBody.detail && errorBody.detail.error === "typical_object_not_found") {
+        throw new TypicalObjectNotFoundError(errorBody.detail);
+      }
+    } catch (e) {
+      if (e instanceof TypicalObjectNotFoundError) throw e;
+      // fallthrough на generic
+    }
     throw new Error(`Объект ${objectQualifiedName} не найден в типовой ${channelId}`);
   }
   if (!response.ok) {

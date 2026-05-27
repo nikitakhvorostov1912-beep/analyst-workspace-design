@@ -485,7 +485,33 @@ async def _handle_explain(
         node_kind=NodeKind.METADATA_OBJECT.value,
     )
     if node is None:
-        return False, None, f"Объект {qname!r} не найден в канале {channel_id}"
+        # v2.0-step-7: Cold start fallback. Раньше возвращали raw error,
+        # из-за чего LLM начинала галлюцинировать («Документ.X в типовой —
+        # это документ продажи...» придумывая ответ). Теперь возвращаем
+        # СТРУКТУРИРОВАННЫЙ ответ с card_status="not_in_graph" + top-5
+        # похожих имён. LLM в system prompt'е инструктирована НЕ выдумывать
+        # при таком ответе.
+        suggestions = await _find_similar_objects(
+            db, channel_id=channel_id, query_qname=qname, top_k=5,
+        )
+        return True, {
+            "qualified_name": qname,
+            "channel_id": channel_id,
+            "card_status": "not_in_graph",
+            "object_kind": None,
+            "card": None,
+            "is_mock": False,
+            "card_warning": (
+                f"Объект {qname!r} не найден в индексированной типовой "
+                f"{channel_id!r}. Возможно: (1) объект не существует в этой "
+                f"версии типовой, (2) имя написано иначе, (3) типовая не "
+                f"полностью загружена. НЕ выдумывай содержимое карточки — "
+                f"если не уверен, спроси у пользователя точное имя или "
+                f"вызови search_typical_objects."
+            ),
+            "suggestions": suggestions,
+            "children_summary": {},
+        }, None
 
     card_rec = await get_card_by_qname(
         db, channel_id=channel_id, object_qualified_name=qname,
@@ -659,6 +685,65 @@ async def _handle_compare(
 
 
 # ── Helpers ──────────────────────────────────────────────────────────
+
+
+async def _find_similar_objects(
+    db: aiosqlite.Connection,
+    *,
+    channel_id: str,
+    query_qname: str,
+    top_k: int = 5,
+) -> list[dict[str, str]]:
+    """Cold start fallback (M-K2.5.9.7): top-K похожих qualified_name.
+
+    Алгоритм: substring case-insensitive поиск по подстроке (split по '.')
+    + Levenshtein-like prefix matching. Не fuzzy library — простая
+    эвристика, достаточная для подсказок аналитику.
+
+    Returns list of {qualified_name, kind, score} (score = match strength).
+    """
+    nodes = await list_nodes(
+        db,
+        channel_id=channel_id,
+        node_kind=NodeKind.METADATA_OBJECT.value,
+        limit=5000,
+    )
+    if not nodes:
+        return []
+
+    # Разбираем запрос: ищем по части после точки (имя) если есть.
+    parts = query_qname.split(".", 1)
+    query_kind = parts[0].lower() if len(parts) > 1 else ""
+    query_name = parts[1].lower() if len(parts) > 1 else query_qname.lower()
+
+    scored: list[tuple[int, dict[str, str]]] = []
+    for n in nodes:
+        nparts = n.qualified_name.split(".", 1)
+        nkind = nparts[0].lower() if len(nparts) > 1 else ""
+        nname = nparts[1].lower() if len(nparts) > 1 else n.qualified_name.lower()
+
+        # Базовый match score
+        score = 0
+        if query_qname.lower() == n.qualified_name.lower():
+            score = 1000  # точное совпадение (на случай если find_node не нашёл)
+        elif query_kind and nkind == query_kind and query_name in nname:
+            score = 100  # тот же kind, имя содержит запрос
+        elif query_name and query_name in nname:
+            score = 50   # имя содержит запрос
+        elif query_kind and nkind == query_kind:
+            score = 10   # только тот же kind
+        elif query_name and nname.startswith(query_name[:3]):
+            score = 5    # общий префикс
+
+        if score > 0:
+            scored.append((score, {
+                "qualified_name": n.qualified_name,
+                "kind": n.attributes.get("kind") or nkind,
+                "score": str(score),
+            }))
+
+    scored.sort(key=lambda x: -x[0])
+    return [item for _, item in scored[:top_k]]
 
 
 def _summarize_children(children: list, limit: int) -> dict[str, list[str]]:

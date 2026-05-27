@@ -227,12 +227,22 @@ async def test_explain_without_card(db_with_seed):
 
 @pytest.mark.asyncio
 async def test_explain_missing_object(db_with_seed):
+    """M-K2.5.9.7 — Cold start fallback.
+
+    Раньше возвращали (False, None, error). Теперь возвращаем
+    (True, structured_payload, None) с card_status='not_in_graph',
+    чтобы LLM не галлюцинировала и могла предложить suggestions.
+    """
     ok, result, err = await dispatch_typical_tool(
         db_with_seed, TOOL_EXPLAIN,
         {"channel_id": "_bp30_138_24", "object_qualified_name": "Document.Unknown"},
     )
-    assert ok is False
-    assert "не найден" in err.lower()
+    assert ok is True
+    assert err is None
+    assert result["card_status"] == "not_in_graph"
+    assert result["card"] is None
+    assert "card_warning" in result
+    assert "suggestions" in result  # may be [] if no similar names
 
 
 @pytest.mark.asyncio

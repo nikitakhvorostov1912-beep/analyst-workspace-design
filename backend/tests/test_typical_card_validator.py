@@ -394,6 +394,135 @@ class TestSaveValidationResult:
 # ─── Integration: validate + save + read ──────────────────────────────
 
 
+# ─── Cold start fallback (M-K2.5.9.7) ─────────────────────────────────
+
+
+class TestColdStartFallback:
+    """tool._handle_explain для несуществующего объекта возвращает
+    структурированный card_status='not_in_graph' + suggestions вместо
+    raw error, чтобы LLM не галлюцинировал."""
+
+    @pytest.mark.asyncio
+    async def test_explain_returns_not_in_graph_with_suggestions(self, db_ready):
+        """Если объекта нет, но есть похожие — top-5 suggestions."""
+        from app.knowledge.typical.tool import _handle_explain  # noqa: PLC0415
+
+        # Setup похожие имена
+        for qname in (
+            "Document.РеализацияТоваровУслуг",
+            "Document.РеализацияУслуг",
+            "Document.ВозвратТоваров",
+            "Catalog.Номенклатура",
+        ):
+            await insert_node(
+                db_ready, channel_id="_test_",
+                node_kind=NodeKind.METADATA_OBJECT.value,
+                qualified_name=qname,
+                source_path=None,
+                attributes={"kind": qname.split(".", 1)[0]},
+            )
+
+        ok, result, error = await _handle_explain(
+            db_ready, {"channel_id": "_test_", "object_qualified_name": "Document.Реализация"},
+        )
+        assert ok is True
+        assert error is None
+        assert result["card_status"] == "not_in_graph"
+        assert result["card"] is None
+        assert "card_warning" in result
+        # warning должен явно запрещать выдумывание (НЕ/не/Не выдумывай).
+        warning_lc = result["card_warning"].lower()
+        assert "выдумывай" in warning_lc
+        # Должно быть как минимум 2 suggestion'а с «Реализация»
+        suggestions = result["suggestions"]
+        assert len(suggestions) >= 2
+        suggested_qnames = {s["qualified_name"] for s in suggestions}
+        assert "Document.РеализацияТоваровУслуг" in suggested_qnames
+
+    @pytest.mark.asyncio
+    async def test_explain_returns_empty_suggestions_when_no_matches(self, db_ready):
+        """Если никаких похожих имён нет — suggestions=[] но всё равно
+        ok=True с card_status='not_in_graph'."""
+        from app.knowledge.typical.tool import _handle_explain  # noqa: PLC0415
+
+        ok, result, error = await _handle_explain(
+            db_ready, {"channel_id": "_empty_", "object_qualified_name": "Document.X"},
+        )
+        assert ok is True
+        assert result["card_status"] == "not_in_graph"
+        assert result["suggestions"] == []
+
+    @pytest.mark.asyncio
+    async def test_explain_higher_score_for_same_kind(self, db_ready):
+        """Тот же Kind должен получать выше score чем разный."""
+        from app.knowledge.typical.tool import _handle_explain  # noqa: PLC0415
+
+        for qname in (
+            "Document.Заказ",
+            "Catalog.Заказ",  # тот же name, другой kind
+        ):
+            await insert_node(
+                db_ready, channel_id="_test_",
+                node_kind=NodeKind.METADATA_OBJECT.value,
+                qualified_name=qname,
+                source_path=None,
+                attributes={"kind": qname.split(".", 1)[0]},
+            )
+
+        ok, result, _ = await _handle_explain(
+            db_ready, {"channel_id": "_test_", "object_qualified_name": "Document.ЗаказX"},
+        )
+        suggestions = result["suggestions"]
+        # Document.Заказ должен быть первым (тот же kind + name содержит)
+        assert suggestions[0]["qualified_name"] == "Document.Заказ"
+
+    @pytest.mark.asyncio
+    async def test_find_similar_objects_unit(self, db_ready):
+        """Прямой тест helper _find_similar_objects."""
+        from app.knowledge.typical.tool import _find_similar_objects  # noqa: PLC0415
+
+        for qname in ("Document.A", "Document.AnotherOne", "Catalog.C"):
+            await insert_node(
+                db_ready, channel_id="_test_",
+                node_kind=NodeKind.METADATA_OBJECT.value,
+                qualified_name=qname,
+                source_path=None,
+                attributes={"kind": qname.split(".", 1)[0]},
+            )
+
+        result = await _find_similar_objects(
+            db_ready, channel_id="_test_", query_qname="Document.A", top_k=5,
+        )
+        # Exact match Document.A — top score, потом Another (substring 'a' в lowercase)
+        assert len(result) >= 2
+        assert result[0]["qualified_name"] == "Document.A"
+
+    @pytest.mark.asyncio
+    async def test_explain_existing_object_unaffected(self, db_ready):
+        """Регресс: реальные объекты по-прежнему возвращают полный payload."""
+        from app.knowledge.typical.tool import _handle_explain  # noqa: PLC0415
+
+        await insert_node(
+            db_ready, channel_id="_test_",
+            node_kind=NodeKind.METADATA_OBJECT.value,
+            qualified_name="Document.RealOne",
+            source_path=None,
+            attributes={"kind": "Document"},
+        )
+
+        ok, result, error = await _handle_explain(
+            db_ready, {"channel_id": "_test_", "object_qualified_name": "Document.RealOne"},
+        )
+        assert ok is True
+        assert result["card_status"] in ("not_generated", "generated", "embedded", "pending", "failed")
+        # not_in_graph НЕ должно быть для существующего
+        assert result["card_status"] != "not_in_graph"
+        assert "suggestions" not in result  # не было fallback
+
+
+# ─── Full integration ─────────────────────────────────────────────────
+
+
 @pytest.mark.asyncio
 async def test_full_validate_save_read_cycle(db_ready):
     """End-to-end: создать карточку, валидировать, сохранить, прочитать через

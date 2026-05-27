@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Sparkles, BookOpen, AlertCircle } from "lucide-react";
+import { Sparkles, BookOpen, AlertCircle, SearchX } from "lucide-react";
 import {
   fetchTypicalObject,
+  TypicalObjectNotFoundError,
   type TypicalObjectCardPayload,
   type TypicalObjectResponse,
 } from "@/lib/api";
@@ -59,6 +60,11 @@ export function TypicalObjectCard({
     | { kind: "loading" }
     | { kind: "loaded"; data: TypicalObjectResponse }
     | { kind: "error"; message: string }
+    | {
+        kind: "not_found";
+        hint: string;
+        suggestions: Array<{ qualified_name: string; kind: string; score: string }>;
+      }
   >({ kind: "loading" });
 
   useEffect(() => {
@@ -72,12 +78,20 @@ export function TypicalObjectCard({
           setState({ kind: "loaded", data });
         }
       } catch (err) {
-        if (!cancelled) {
+        if (cancelled) return;
+        // M-K2.5.9.7: not_found state с suggestions.
+        if (err instanceof TypicalObjectNotFoundError) {
           setState({
-            kind: "error",
-            message: err instanceof Error ? err.message : "Ошибка загрузки",
+            kind: "not_found",
+            hint: err.hint,
+            suggestions: err.suggestions,
           });
+          return;
         }
+        setState({
+          kind: "error",
+          message: err instanceof Error ? err.message : "Ошибка загрузки",
+        });
       }
     }
 
@@ -106,6 +120,67 @@ export function TypicalObjectCard({
       >
         <AlertCircle className="h-3.5 w-3.5 flex-none mt-0.5" />
         <div>{state.message}</div>
+      </div>
+    );
+  }
+
+  if (state.kind === "not_found") {
+    return (
+      <div
+        className="border border-[var(--bd-2)] bg-[var(--bg-2)] rounded-md overflow-hidden"
+        data-testid="typical-object-card-not-found"
+      >
+        <div className="flex items-start gap-2 px-3 py-2 border-b border-[var(--bd-2)] bg-[var(--bg-3)]">
+          <SearchX className="h-3.5 w-3.5 flex-none mt-0.5 text-[var(--fg-3)]" />
+          <div className="flex-1 min-w-0">
+            <div
+              className="text-[10px] tracking-[0.16em] uppercase text-[var(--fg-3)]"
+              style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
+            >
+              Объект не найден
+            </div>
+            <div
+              className="font-semibold text-[13px] mt-0.5 truncate"
+              style={{
+                fontFamily: "var(--font-plex-mono), 'IBM Plex Mono', ui-monospace, monospace",
+              }}
+            >
+              {objectQualifiedName}
+            </div>
+          </div>
+        </div>
+        <div className="px-3 py-3 space-y-2 text-[12px]">
+          <p className="text-[var(--fg-2)] leading-relaxed">{state.hint}</p>
+          {state.suggestions.length > 0 ? (
+            <div className="space-y-1">
+              <div
+                className="text-[10px] tracking-[0.14em] uppercase text-[var(--fg-3)]"
+                style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
+              >
+                Возможно вы имели в виду
+              </div>
+              <ul className="space-y-0.5" data-testid="typical-not-found-suggestions">
+                {state.suggestions.map((s, i) => (
+                  <li
+                    key={i}
+                    className="font-mono text-[11px] text-[var(--fg-1)] truncate"
+                    style={{
+                      fontFamily:
+                        "var(--font-plex-mono), 'IBM Plex Mono', ui-monospace, monospace",
+                    }}
+                  >
+                    {s.qualified_name}
+                    <span className="text-[var(--fg-4)]"> ({s.kind})</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : (
+            <div className="text-[11px] text-[var(--fg-3)] italic">
+              Похожих объектов не нашлось. Проверь точное написание имени.
+            </div>
+          )}
+        </div>
       </div>
     );
   }

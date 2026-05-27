@@ -588,13 +588,23 @@ async def get_typical_object(
         node_kind=NodeKind.METADATA_OBJECT.value,
     )
     if node is None:
+        # v2.0-step-7: cold start fallback. Не просто 404, а ещё suggestions
+        # с top-5 похожими именами чтобы UI мог предложить альтернативы.
+        from app.knowledge.typical.tool import _find_similar_objects  # noqa: PLC0415
+
+        suggestions = await _find_similar_objects(
+            db, channel_id=channel_id,
+            query_qname=object_qualified_name,
+            top_k=5,
+        )
         raise HTTPException(
             status_code=404,
             detail={
                 "error": "typical_object_not_found",
                 "channel_id": channel_id,
                 "object_qualified_name": object_qualified_name,
-                "hint": "Проверь что типовая загружена через /knowledge/typical/configurations.",
+                "hint": "Объект не найден в индексированной типовой. Проверь имя или подгрузи типовую через /knowledge/typical/configurations.",
+                "suggestions": suggestions,
             },
         )
 
