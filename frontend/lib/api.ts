@@ -685,6 +685,12 @@ export type TypicalObjectResponse = {
   card: TypicalObjectCardPayload | null;
   card_status: string;
   card_updated_at: string | null;
+  /**
+   * M-K2.5.9.2 — mock isolation: true когда карточка сгенерирована
+   * MockLLMCaller (`llm_model='mock-generator-v1'`). UI показывает
+   * бейдж «Mock data — не верифицировано экспертом».
+   */
+  is_mock?: boolean;
 };
 
 /**

@@ -113,6 +113,11 @@ export function TypicalObjectCard({
   const { data } = state;
   const card = data.card;
   const isStub = data.card_status !== "embedded";
+  // M-K2.5.9.2: бейдж + warning когда карточка mock-сгенерирована.
+  // Mock-карточки приоритетней isStub warning, потому что mock — это
+  // production-блокер ("данные не верифицированы экспертом"), а isStub —
+  // только статус embedding pipeline.
+  const isMock = data.is_mock === true;
 
   return (
     <div
@@ -140,6 +145,18 @@ export function TypicalObjectCard({
             >
               {kindLabel(data.object_kind)}
             </span>
+            {isMock && (
+              <span
+                data-testid="typical-card-mock-badge"
+                className="px-1.5 py-[1px] rounded text-[9px] tracking-[0.14em] uppercase font-medium border bg-[var(--warning-12)] text-[var(--warning)] border-[var(--warning-40)]"
+                style={{
+                  fontFamily: "var(--font-jb-mono), ui-monospace, monospace",
+                }}
+                title="Карточка сгенерирована mock-LLM, не верифицирована экспертом"
+              >
+                MOCK DATA
+              </span>
+            )}
           </div>
           <div
             className="font-semibold text-[14px] mt-1 truncate"
@@ -179,14 +196,29 @@ export function TypicalObjectCard({
             <p className="text-[var(--fg-2)] leading-relaxed">{card.purpose}</p>
           )}
 
-          {isStub && (
-            <div className="flex items-start gap-2 text-[11px] text-[var(--warning)] bg-[var(--warning-12)] border border-[var(--warning-40)] rounded px-2 py-1">
+          {isMock ? (
+            <div
+              data-testid="typical-card-mock-warning"
+              className="flex items-start gap-2 text-[11px] text-[var(--warning)] bg-[var(--warning-12)] border border-[var(--warning-40)] rounded px-2 py-1"
+            >
               <AlertCircle className="h-3 w-3 flex-none mt-0.5" />
               <span>
-                Карточка сгенерирована LLM, не верифицирована экспертом
-                (статус: {data.card_status})
+                <strong>Mock data — не верифицировано экспертом.</strong>{" "}
+                Карточка сгенерирована детерминированным stub-LLM
+                (mock-generator-v1) для smoke-режима. Текст summary / purpose —
+                stub; структуру (key_attributes / movements) сверяй с графом.
               </span>
             </div>
+          ) : (
+            isStub && (
+              <div className="flex items-start gap-2 text-[11px] text-[var(--warning)] bg-[var(--warning-12)] border border-[var(--warning-40)] rounded px-2 py-1">
+                <AlertCircle className="h-3 w-3 flex-none mt-0.5" />
+                <span>
+                  Карточка сгенерирована LLM, не верифицирована экспертом
+                  (статус: {data.card_status})
+                </span>
+              </div>
+            )
           )}
 
           <TypicalCardSection title="Ключевые реквизиты" count={card.key_attributes.length}>

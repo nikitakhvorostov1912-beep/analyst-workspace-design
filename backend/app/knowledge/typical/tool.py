@@ -53,6 +53,7 @@ from app.knowledge.graph_storage import (
 )
 from app.knowledge.typical.card_storage import (
     count_cards_by_channel,
+    count_mock_cards_by_channel,
     get_card_by_qname,
     list_cards_by_channel,
 )
@@ -377,6 +378,9 @@ async def _handle_list_configs(db: aiosqlite.Connection) -> tuple[bool, Any, str
         # конфигурация «готова» (status=graph_built без узлов = неполная).
         node_counts = await count_by_kind(db, c.channel_id)
         card_counts = await count_cards_by_channel(db, c.channel_id)
+        mock_counts = await count_mock_cards_by_channel(db, c.channel_id)
+        total_cards = sum(card_counts.values())
+        mock_cards = mock_counts.get("mock", 0)
         result_items.append({
             "channel_id": c.channel_id,
             "config_kind": c.config_kind,
@@ -385,7 +389,14 @@ async def _handle_list_configs(db: aiosqlite.Connection) -> tuple[bool, Any, str
             "status": c.status,
             "indexed_at": c.indexed_at,
             "total_nodes": sum(node_counts.values()),
-            "total_cards": sum(card_counts.values()),
+            "total_cards": total_cards,
+            # v2.0-step-2: visibility во сколько процентов карточек mock-сгенерированы.
+            # Если всё 100% mock — бот должен честно сказать «данные не верифицированы».
+            "mock_cards": mock_cards,
+            "verified_cards": mock_counts.get("verified", 0),
+            "mock_ratio": (
+                round(mock_cards / total_cards, 3) if total_cards else 0.0
+            ),
         })
     return True, {
         "configurations": result_items,
@@ -434,6 +445,7 @@ async def _handle_search_objects(
             "kind": node.attributes.get("kind"),
             "name": node.attributes.get("name"),
             "has_card": card is not None,
+            "is_mock": bool(card.is_mock) if card else False,
             "summary": (card.card.summary if card else None),
         })
         if len(results) >= top_k:
@@ -449,6 +461,7 @@ async def _handle_search_objects(
             "kind": cr.object_kind,
             "name": cr.object_qualified_name.split(".", 1)[-1],
             "has_card": True,
+            "is_mock": bool(cr.is_mock),
             "summary": cr.card.summary,
         })
 
@@ -483,6 +496,11 @@ async def _handle_explain(
     )
     children_summary = _summarize_children(children, limit=_MAX_EXPLAIN_NEIGHBORS)
 
+    # is_mock (M-K2.5.9.2) — обязательное warning-поле для LLM: если
+    # карточка mock-сгенерирована, бот должен честно сказать
+    # «данные не верифицированы экспертом», а не выдавать stub за факт.
+    is_mock = bool(card_rec.is_mock) if card_rec else False
+
     return True, {
         "qualified_name": qname,
         "object_kind": node.attributes.get("kind"),
@@ -490,6 +508,13 @@ async def _handle_explain(
         "source_path": node.source_path,
         "card": card_rec.card.to_dict() if card_rec else None,
         "card_status": card_rec.status if card_rec else "not_generated",
+        "is_mock": is_mock,
+        "card_warning": (
+            "Карточка mock-сгенерирована (LLM-stub), не верифицирована экспертом. "
+            "Используй structure из children_summary как первичный факт; "
+            "summary/purpose могут содержать обобщения."
+            if is_mock else None
+        ),
         "children_summary": children_summary,
     }, None
 

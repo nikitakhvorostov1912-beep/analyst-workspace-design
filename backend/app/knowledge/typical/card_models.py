@@ -248,6 +248,10 @@ class TypicalObjectCardRecord:
     error: str | None
     created_at: str | None
     updated_at: str | None
+    # v19 (M-K2.5.9.2) — mock isolation:
+    # True если карточка сгенерирована MockLLMCaller (`llm_model='mock-generator-v1'`).
+    # UI показывает бейдж «Mock data — не верифицировано экспертом».
+    is_mock: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -267,4 +271,5 @@ class TypicalObjectCardRecord:
             "error": self.error,
             "created_at": self.created_at,
             "updated_at": self.updated_at,
+            "is_mock": self.is_mock,
         }

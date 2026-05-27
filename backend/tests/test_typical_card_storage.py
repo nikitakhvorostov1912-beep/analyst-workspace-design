@@ -74,7 +74,7 @@ async def test_migration_v18_creates_indexes():
 
 
 @pytest.mark.asyncio
-async def test_migration_v18_idempotent():
+async def test_migrations_v18_v19_idempotent():
     conn = await aiosqlite.connect(":memory:")
     try:
         await apply_migrations(conn)
@@ -82,7 +82,131 @@ async def test_migration_v18_idempotent():
         await apply_migrations(conn)
         cursor = await conn.execute("SELECT MAX(version) FROM schema_version")
         v = await cursor.fetchone()
-        assert v[0] == 18
+        # v19 (M-K2.5.9.2) — текущая верхняя миграция (is_mock колонка)
+        assert v[0] == 19
+    finally:
+        await conn.close()
+
+
+# ─── Migration v19 — Mock isolation (M-K2.5.9.2) ──────────────────────
+
+
+@pytest.mark.asyncio
+async def test_migration_v19_creates_is_mock_column():
+    conn = await aiosqlite.connect(":memory:")
+    try:
+        await apply_migrations(conn)
+        cursor = await conn.execute("PRAGMA table_info(typical_object_cards)")
+        cols = await cursor.fetchall()
+        col_names = {c[1] for c in cols}
+        assert "is_mock" in col_names
+    finally:
+        await conn.close()
+
+
+@pytest.mark.asyncio
+async def test_migration_v19_creates_is_mock_index():
+    conn = await aiosqlite.connect(":memory:")
+    try:
+        await apply_migrations(conn)
+        cursor = await conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='index' "
+            "AND name = 'idx_typical_cards_is_mock'"
+        )
+        row = await cursor.fetchone()
+        assert row is not None
+
+
+    finally:
+        await conn.close()
+
+
+@pytest.mark.asyncio
+async def test_migration_v19_backfills_mock_for_mock_generator_v1():
+    """v19 должна пометить is_mock=1 для всех существующих карточек с
+    llm_model='mock-generator-v1'. Защита 63 197 карточек в production pilot.db.
+    """
+    # Эмулируем pre-v19 БД: применяем миграции v1..v18, потом INSERT карточек
+    # с mock-моделью, потом запускаем v19 (полный apply_migrations).
+    conn = await aiosqlite.connect(":memory:")
+    try:
+        # Дотягиваемся до v18 руками (без apply_migrations, который сразу v19)
+        from app.storage.migrations import (  # noqa: PLC0415
+            DDL_STATEMENTS,
+            MIGRATIONS_V2,
+            MIGRATIONS_V3,
+            MIGRATIONS_V4,
+            MIGRATIONS_V5,
+            MIGRATIONS_V6,
+            MIGRATIONS_V7,
+            MIGRATIONS_V8,
+            MIGRATIONS_V9,
+            MIGRATIONS_V10,
+            MIGRATIONS_V11,
+            MIGRATIONS_V12,
+            MIGRATIONS_V13,
+            MIGRATIONS_V14,
+            MIGRATIONS_V15,
+            MIGRATIONS_V16,
+            MIGRATIONS_V17,
+            MIGRATIONS_V18,
+        )
+        all_pre_v19 = [
+            DDL_STATEMENTS[0],
+            *DDL_STATEMENTS[1:],
+            *MIGRATIONS_V2,
+            *MIGRATIONS_V3,
+            *MIGRATIONS_V4,
+            *MIGRATIONS_V5,
+            *MIGRATIONS_V6,
+            *MIGRATIONS_V7,
+            *MIGRATIONS_V8,
+            *MIGRATIONS_V9,
+            *MIGRATIONS_V10,
+            *MIGRATIONS_V11,
+            *MIGRATIONS_V12,
+            *MIGRATIONS_V13,
+            *MIGRATIONS_V14,
+            *MIGRATIONS_V15,
+            *MIGRATIONS_V16,
+            *MIGRATIONS_V17,
+            *MIGRATIONS_V18,
+        ]
+        for stmt in all_pre_v19:
+            await conn.execute(stmt)
+        await conn.execute(
+            "INSERT INTO schema_version (version) VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), "
+            "(10), (11), (12), (13), (14), (15), (16), (17), (18)"
+        )
+        # INSERT карточек — две mock, одна реальная
+        for qname, model in [
+            ("Document.A", "mock-generator-v1"),
+            ("Document.B", "mock-generator-v1"),
+            ("Document.C", "gpt-4o-mini"),
+        ]:
+            await conn.execute(
+                """
+                INSERT INTO typical_object_cards (
+                    channel_id, object_qualified_name, object_kind,
+                    card_payload, source_hash, prompt_version, llm_model, status
+                ) VALUES (?, ?, ?, '{}', 'h', 'v1', ?, 'generated')
+                """,
+                ("_test_", qname, "Document", model),
+            )
+        await conn.commit()
+
+        # Apply v19 — backfill is_mock
+        await apply_migrations(conn)
+
+        cursor = await conn.execute(
+            "SELECT object_qualified_name, is_mock FROM typical_object_cards ORDER BY object_qualified_name"
+        )
+        rows = await cursor.fetchall()
+        assert rows == [
+            ("Document.A", 1),
+            ("Document.B", 1),
+            ("Document.C", 0),
+        ]
     finally:
         await conn.close()
 
@@ -390,6 +514,95 @@ async def test_delete_cards_by_channel(db_ready):
 async def test_delete_cards_returns_0_when_empty(db_ready):
     deleted = await delete_cards_by_channel(db_ready, "_test_")
     assert deleted == 0
+
+
+# ─── is_mock flag (M-K2.5.9.2) ────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_upsert_card_with_is_mock_true(db_ready):
+    """is_mock=True сохраняется и читается обратно."""
+    card = _make_card()
+    await upsert_card(
+        db_ready, card=card, source_hash="h",
+        llm_model="mock-generator-v1", is_mock=True,
+    )
+    rec = await get_card_by_qname(
+        db_ready, channel_id="_test_", object_qualified_name="Document.Заказ",
+    )
+    assert rec is not None
+    assert rec.is_mock is True
+
+
+@pytest.mark.asyncio
+async def test_upsert_card_default_is_mock_false(db_ready):
+    """По умолчанию is_mock=False (реальные карточки не помечаются)."""
+    card = _make_card()
+    await upsert_card(db_ready, card=card, source_hash="h", llm_model="gpt-4o-mini")
+    rec = await get_card_by_qname(
+        db_ready, channel_id="_test_", object_qualified_name="Document.Заказ",
+    )
+    assert rec is not None
+    assert rec.is_mock is False
+
+
+@pytest.mark.asyncio
+async def test_list_cards_exclude_mock(db_ready):
+    """exclude_mock=True отфильтровывает mock-карточки."""
+    await upsert_card(
+        db_ready, card=_make_card("Document.A"), source_hash="h1",
+        llm_model="mock-generator-v1", is_mock=True,
+    )
+    await upsert_card(
+        db_ready, card=_make_card("Document.B"), source_hash="h2",
+        llm_model="mock-generator-v1", is_mock=True,
+    )
+    await upsert_card(
+        db_ready, card=_make_card("Document.C"), source_hash="h3",
+        llm_model="gpt-4o-mini", is_mock=False,
+    )
+
+    all_cards = await list_cards_by_channel(db_ready, channel_id="_test_")
+    assert len(all_cards) == 3
+
+    verified_only = await list_cards_by_channel(
+        db_ready, channel_id="_test_", exclude_mock=True,
+    )
+    assert len(verified_only) == 1
+    assert verified_only[0].object_qualified_name == "Document.C"
+    assert verified_only[0].is_mock is False
+
+
+@pytest.mark.asyncio
+async def test_count_mock_cards_by_channel(db_ready):
+    """Helper для UI-визуализации mock-ratio."""
+    from app.knowledge.typical.card_storage import (  # noqa: PLC0415
+        count_mock_cards_by_channel,
+    )
+
+    await upsert_card(
+        db_ready, card=_make_card("Document.A"), source_hash="h1", is_mock=True,
+    )
+    await upsert_card(
+        db_ready, card=_make_card("Document.B"), source_hash="h2", is_mock=True,
+    )
+    await upsert_card(
+        db_ready, card=_make_card("Document.C"), source_hash="h3", is_mock=False,
+    )
+
+    counts = await count_mock_cards_by_channel(db_ready, "_test_")
+    assert counts == {"mock": 2, "verified": 1}
+
+
+@pytest.mark.asyncio
+async def test_count_mock_cards_empty_channel(db_ready):
+    """Пустой канал возвращает нули по обеим категориям."""
+    from app.knowledge.typical.card_storage import (  # noqa: PLC0415
+        count_mock_cards_by_channel,
+    )
+
+    counts = await count_mock_cards_by_channel(db_ready, "_empty_")
+    assert counts == {"mock": 0, "verified": 0}
 
 
 @pytest.mark.asyncio

@@ -43,12 +43,17 @@ async def upsert_card(
     token_usage_out: int | None = None,
     status: CardStatus = CardStatus.GENERATED,
     error: str | None = None,
+    is_mock: bool = False,
 ) -> int:
     """Вставляет или обновляет карточку. Возвращает id записи.
 
     Идемпотентен через UNIQUE(channel_id, object_qualified_name).
     Повторный upsert с тем же source_hash обновит updated_at, но
     payload останется тем же.
+
+    is_mock (M-K2.5.9.2): True для карточек от MockLLMCaller — UI / retrieval
+    могут фильтровать или показать warning. Backfill для существующих
+    63 197 карточек выполнен в Migration v19.
     """
     if not card.channel_id or not card.object_qualified_name:
         raise ValueError("channel_id и object_qualified_name обязательны")
@@ -60,8 +65,8 @@ async def upsert_card(
             channel_id, object_qualified_name, object_kind,
             card_payload, source_hash, prompt_version,
             llm_model, token_usage_in, token_usage_out,
-            status, error, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            status, error, is_mock, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
         ON CONFLICT(channel_id, object_qualified_name) DO UPDATE SET
             object_kind = excluded.object_kind,
             card_payload = excluded.card_payload,
@@ -72,6 +77,7 @@ async def upsert_card(
             token_usage_out = excluded.token_usage_out,
             status = excluded.status,
             error = excluded.error,
+            is_mock = excluded.is_mock,
             updated_at = CURRENT_TIMESTAMP
         """,
         (
@@ -86,6 +92,7 @@ async def upsert_card(
             token_usage_out,
             status.value,
             error,
+            1 if is_mock else 0,
         ),
     )
     await db.commit()
@@ -116,7 +123,7 @@ async def get_card_by_qname(
                card_payload, source_hash, prompt_version,
                llm_model, token_usage_in, token_usage_out,
                embedding_model, embedding_dim, status, error,
-               created_at, updated_at
+               created_at, updated_at, is_mock
         FROM typical_object_cards
         WHERE channel_id = ? AND object_qualified_name = ?
         """,
@@ -133,8 +140,14 @@ async def list_cards_by_channel(
     object_kind: str | None = None,
     status: CardStatus | None = None,
     limit: int = 100,
+    exclude_mock: bool = False,
 ) -> list[TypicalObjectCardRecord]:
-    """Список карточек канала с опциональными фильтрами."""
+    """Список карточек канала с опциональными фильтрами.
+
+    exclude_mock (M-K2.5.9.2): True — отфильтровать карточки с is_mock=1
+    (mock-сгенерированные через MockLLMCaller). Используется retrieval'ом
+    когда нужно ограничиться только верифицированными production-карточками.
+    """
     where = ["channel_id = ?"]
     params: list[Any] = [channel_id]
 
@@ -144,13 +157,15 @@ async def list_cards_by_channel(
     if status:
         where.append("status = ?")
         params.append(status.value)
+    if exclude_mock:
+        where.append("is_mock = 0")
 
     sql = f"""
         SELECT id, channel_id, object_qualified_name, object_kind,
                card_payload, source_hash, prompt_version,
                llm_model, token_usage_in, token_usage_out,
                embedding_model, embedding_dim, status, error,
-               created_at, updated_at
+               created_at, updated_at, is_mock
         FROM typical_object_cards
         WHERE {' AND '.join(where)}
         ORDER BY object_qualified_name
@@ -262,6 +277,32 @@ async def count_cards_by_channel(
     return {r[0]: int(r[1]) for r in rows}
 
 
+async def count_mock_cards_by_channel(
+    db: aiosqlite.Connection,
+    channel_id: str,
+) -> dict[str, int]:
+    """Возвращает {'mock': N, 'verified': M} для канала.
+
+    M-K2.5.9.2: используется UI и LLM tools для понимания «доля production-готовых
+    карточек vs mock». Если mock=100%, бот должен честно сказать что данные
+    не верифицированы.
+    """
+    cursor = await db.execute(
+        """
+        SELECT is_mock, COUNT(*) FROM typical_object_cards
+        WHERE channel_id = ?
+        GROUP BY is_mock
+        """,
+        (channel_id,),
+    )
+    rows = await cursor.fetchall()
+    result = {"mock": 0, "verified": 0}
+    for is_mock, count in rows:
+        key = "mock" if int(is_mock) == 1 else "verified"
+        result[key] = int(count)
+    return result
+
+
 # ── Helpers ──────────────────────────────────────────────────────────
 
 
@@ -273,6 +314,8 @@ def _row_to_record(row: tuple) -> TypicalObjectCardRecord:
         object_kind=row[3],
         payload_json=row[4] or "{}",
     )
+    # Защитный bool: row[16] (is_mock) может быть NULL/0/1 INTEGER из SQLite.
+    is_mock_raw = row[16] if len(row) > 16 else 0
     return TypicalObjectCardRecord(
         id=int(row[0]),
         channel_id=row[1],
@@ -290,4 +333,5 @@ def _row_to_record(row: tuple) -> TypicalObjectCardRecord:
         error=row[13],
         created_at=row[14],
         updated_at=row[15],
+        is_mock=bool(is_mock_raw),
     )

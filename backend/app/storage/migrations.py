@@ -74,7 +74,7 @@ MIGRATIONS_V3 = [
     """,
 ]
 
-CURRENT_VERSION = 18
+CURRENT_VERSION = 19
 
 # Миграция v4: расширение card_states — добавление колонки anon_tokens JSON
 MIGRATIONS_V4 = [
@@ -568,6 +568,19 @@ MIGRATIONS_V18 = [
 ]
 
 
+# v19 — Mock isolation (M-K2.5.9.2).
+#
+# `is_mock` — флаг что карточка сгенерирована Mock LLM провайдером
+# (`llm_model='mock-generator-v1'`), а не реальной моделью. UI показывает
+# бейдж «Mock data — не верифицировано экспертом», retrieval может
+# фильтровать. Backfill — UPDATE для llm_model='mock-generator-v1'.
+MIGRATIONS_V19 = [
+    "ALTER TABLE typical_object_cards ADD COLUMN is_mock INTEGER NOT NULL DEFAULT 0",
+    "UPDATE typical_object_cards SET is_mock = 1 WHERE llm_model = 'mock-generator-v1'",
+    "CREATE INDEX IF NOT EXISTS idx_typical_cards_is_mock ON typical_object_cards(channel_id, is_mock)",
+]
+
+
 async def apply_migrations(db: aiosqlite.Connection) -> None:
     """Идемпотентно применяет миграции схемы БД."""
     # Создаём schema_version первым делом
@@ -779,5 +792,18 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
             (18,),
+        )
+        await db.commit()
+
+    if current < 19:
+        # Mock isolation (v19, M-K2.5.9.2) — флаг is_mock + backfill
+        # для существующих 63 197 карточек с llm_model='mock-generator-v1'.
+        # Защита production: LLM/UI видят «не верифицировано экспертом»
+        # для всех mock-карточек, чтобы аналитики не приняли stub за факт.
+        for stmt in MIGRATIONS_V19:
+            await db.execute(stmt)
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (19,),
         )
         await db.commit()

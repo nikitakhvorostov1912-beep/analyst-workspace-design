@@ -614,4 +614,6 @@ async def get_typical_object(
         "card": card_rec.card.to_dict() if card_rec else None,
         "card_status": card_rec.status if card_rec else "not_generated",
         "card_updated_at": card_rec.updated_at if card_rec else None,
+        # v2.0-step-2: UI бейдж «Mock data — не верифицировано» когда True.
+        "is_mock": bool(card_rec.is_mock) if card_rec else False,
     }
