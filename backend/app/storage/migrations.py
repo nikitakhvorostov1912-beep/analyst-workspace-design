@@ -74,7 +74,7 @@ MIGRATIONS_V3 = [
     """,
 ]
 
-CURRENT_VERSION = 20
+CURRENT_VERSION = 21
 
 # Миграция v4: расширение card_states — добавление колонки anon_tokens JSON
 MIGRATIONS_V4 = [
@@ -598,6 +598,22 @@ MIGRATIONS_V20 = [
     "CREATE INDEX IF NOT EXISTS idx_typical_cards_validation_status ON typical_object_cards(channel_id, validation_status)",
 ]
 
+# v21 — Embedding model versioning (M-K2.5.9.6).
+#
+# `embedding_model_version` — семантическая версия embedding-пайплайна
+# (например "v1.0", "v2.0"). Отличается от `embedding_model` (имя
+# провайдера) тем, что фиксирует прошлые правила нарезки текста,
+# постпроцессинга, etc.
+#
+# Use case: при смене embedding-провайдера (text-embedding-3-small →
+# text-embedding-3-large) или правил text-extraction нужно явно
+# пере-эмбедить старые карточки. Скрипт `scripts/typical_cards_reembed.py`
+# фильтрует по версии и обновляет.
+MIGRATIONS_V21 = [
+    "ALTER TABLE typical_object_cards ADD COLUMN embedding_model_version TEXT",
+    "CREATE INDEX IF NOT EXISTS idx_typical_cards_embedding_version ON typical_object_cards(embedding_model_version)",
+]
+
 
 async def apply_migrations(db: aiosqlite.Connection) -> None:
     """Идемпотентно применяет миграции схемы БД."""
@@ -837,5 +853,18 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
             (20,),
+        )
+        await db.commit()
+
+    if current < 21:
+        # Embedding model versioning (v21, M-K2.5.9.6). Фиксирует
+        # семантическую версию embedding-пайплайна, чтобы при смене
+        # модели или правил text-extraction можно было найти старые
+        # карточки и пере-эмбедить через scripts/typical_cards_reembed.py.
+        for stmt in MIGRATIONS_V21:
+            await db.execute(stmt)
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (21,),
         )
         await db.commit()

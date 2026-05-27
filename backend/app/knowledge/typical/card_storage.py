@@ -124,7 +124,8 @@ async def get_card_by_qname(
                llm_model, token_usage_in, token_usage_out,
                embedding_model, embedding_dim, status, error,
                created_at, updated_at, is_mock,
-               validation_status, validation_issues, validated_at
+               validation_status, validation_issues, validated_at,
+               embedding_model_version
         FROM typical_object_cards
         WHERE channel_id = ? AND object_qualified_name = ?
         """,
@@ -167,7 +168,8 @@ async def list_cards_by_channel(
                llm_model, token_usage_in, token_usage_out,
                embedding_model, embedding_dim, status, error,
                created_at, updated_at, is_mock,
-               validation_status, validation_issues, validated_at
+               validation_status, validation_issues, validated_at,
+               embedding_model_version
         FROM typical_object_cards
         WHERE {' AND '.join(where)}
         ORDER BY object_qualified_name
@@ -210,8 +212,14 @@ async def update_card_status(
     error: str | None = None,
     embedding_model: str | None = None,
     embedding_dim: int | None = None,
+    embedding_model_version: str | None = None,
 ) -> bool:
-    """Обновляет lifecycle / embedding info. Возвращает True если карточка найдена."""
+    """Обновляет lifecycle / embedding info. Возвращает True если карточка найдена.
+
+    embedding_model_version (M-K2.5.9.6): семантическая версия embedding
+    пайплайна. Обновляется одновременно с embedding_model для отслеживания
+    состояния (нужен ли re-embed).
+    """
     sets: list[str] = ["status = ?", "updated_at = CURRENT_TIMESTAMP"]
     params: list[Any] = [status.value]
 
@@ -226,6 +234,10 @@ async def update_card_status(
     if embedding_dim is not None:
         sets.append("embedding_dim = ?")
         params.append(embedding_dim)
+
+    if embedding_model_version is not None:
+        sets.append("embedding_model_version = ?")
+        params.append(embedding_model_version)
 
     params.extend([channel_id, object_qualified_name])
 
@@ -323,6 +335,8 @@ def _row_to_record(row: tuple) -> TypicalObjectCardRecord:
     validation_status = row[17] if len(row) > 17 else None
     validation_issues = row[18] if len(row) > 18 else None
     validated_at = row[19] if len(row) > 19 else None
+    # v21 (M-K2.5.9.6): embedding_model_version. NULL для legacy карточек.
+    embedding_model_version = row[20] if len(row) > 20 else None
     return TypicalObjectCardRecord(
         id=int(row[0]),
         channel_id=row[1],
@@ -344,4 +358,5 @@ def _row_to_record(row: tuple) -> TypicalObjectCardRecord:
         validation_status=validation_status,
         validation_issues=validation_issues,
         validated_at=validated_at,
+        embedding_model_version=embedding_model_version,
     )

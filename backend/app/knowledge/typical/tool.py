@@ -531,6 +531,17 @@ async def _handle_explain(
             if is_mock else None
         ),
         "validation": validation,
+        # v2.0-step-6 — embedding versioning visibility:
+        # позволяет LLM и UI понять, какой версией embedding пайплайна
+        # карточка была обработана.
+        "embedding_meta": (
+            {
+                "model": card_rec.embedding_model,
+                "model_version": card_rec.embedding_model_version,
+                "dim": card_rec.embedding_dim,
+            }
+            if card_rec else None
+        ),
         "children_summary": children_summary,
     }, None
 

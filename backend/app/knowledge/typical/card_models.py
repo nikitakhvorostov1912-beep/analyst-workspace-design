@@ -441,6 +441,11 @@ class TypicalObjectCardRecord:
     validation_status: str | None = None
     validation_issues: str | None = None
     validated_at: str | None = None
+    # v21 (M-K2.5.9.6) — embedding versioning:
+    # семантическая версия embedding-пайплайна, например "v1.0" / "v2.0".
+    # Отличается от `embedding_model` (имя провайдера) тем, что фиксирует
+    # правила text-extraction / postprocessing.
+    embedding_model_version: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -466,4 +471,5 @@ class TypicalObjectCardRecord:
                 json.loads(self.validation_issues) if self.validation_issues else None
             ),
             "validated_at": self.validated_at,
+            "embedding_model_version": self.embedding_model_version,
         }

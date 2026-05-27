@@ -123,6 +123,71 @@ async def test_migration_v20_creates_validation_index():
         await conn.close()
 
 
+# ─── Migration v21 — Embedding versioning (M-K2.5.9.6) ────────────────
+
+
+@pytest.mark.asyncio
+async def test_migration_v21_creates_embedding_version_column():
+    conn = await aiosqlite.connect(":memory:")
+    try:
+        await apply_migrations(conn)
+        cursor = await conn.execute("PRAGMA table_info(typical_object_cards)")
+        cols = await cursor.fetchall()
+        col_names = {c[1] for c in cols}
+        assert "embedding_model_version" in col_names
+    finally:
+        await conn.close()
+
+
+@pytest.mark.asyncio
+async def test_migration_v21_creates_embedding_version_index():
+    conn = await aiosqlite.connect(":memory:")
+    try:
+        await apply_migrations(conn)
+        cursor = await conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='index' "
+            "AND name = 'idx_typical_cards_embedding_version'"
+        )
+        row = await cursor.fetchone()
+        assert row is not None
+    finally:
+        await conn.close()
+
+
+@pytest.mark.asyncio
+async def test_update_card_status_with_embedding_model_version(db_ready):
+    """update_card_status принимает embedding_model_version и сохраняет."""
+    card = _make_card()
+    await upsert_card(db_ready, card=card, source_hash="h")
+
+    ok = await update_card_status(
+        db_ready, channel_id="_test_", object_qualified_name="Document.Заказ",
+        status=CardStatus.EMBEDDED,
+        embedding_model="text-embedding-3-small",
+        embedding_dim=1536,
+        embedding_model_version="v1.0",
+    )
+    assert ok is True
+
+    rec = await get_card_by_qname(
+        db_ready, channel_id="_test_", object_qualified_name="Document.Заказ",
+    )
+    assert rec.embedding_model == "text-embedding-3-small"
+    assert rec.embedding_dim == 1536
+    assert rec.embedding_model_version == "v1.0"
+
+
+@pytest.mark.asyncio
+async def test_record_embedding_model_version_defaults_to_none(db_ready):
+    """Свежая карточка без явного version имеет None."""
+    card = _make_card()
+    await upsert_card(db_ready, card=card, source_hash="h")
+    rec = await get_card_by_qname(
+        db_ready, channel_id="_test_", object_qualified_name="Document.Заказ",
+    )
+    assert rec.embedding_model_version is None
+
+
 # ─── Migration v19 — Mock isolation (M-K2.5.9.2) ──────────────────────
 
 
