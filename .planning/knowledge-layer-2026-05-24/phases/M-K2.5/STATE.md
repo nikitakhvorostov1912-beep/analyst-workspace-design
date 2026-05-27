@@ -3,18 +3,25 @@ milestone: M-K2.5
 milestone_name: "Typical Configurations Knowledge"
 status: closed
 started_at: "2026-05-26T23:50:00Z"
-last_updated: "2026-05-26T22:00:00Z"
-branch: main (8 фаз merged FF)
+last_updated: "2026-05-27T11:30:00Z"
+branch: main (8 фаз merged FF + Phase v2.0 в feature/m-k2.5.9-cards-v2-preventive)
 parent_milestone: "M-K2 (closed 2026-05-26)"
 parallel_with: "M-K3 (Relational + Behavioral)"
-phases_total: 9      # 8 build + 1 SUMMARY
-phases_done: 8       # 0-7 done + 8 частично (4/7 конфигураций)
+phases_total: 10     # 8 build + 1 SUMMARY + Phase v2.0
+phases_done: 9       # 0-7 done + 8 частично (4/7) + v2.0 (7 шагов + smoke)
 phase_8_done: 4      # БП 3.0 + КА 2.5 + УТ 11.5 + ERP 2.5 — полные
 phase_8_pending: 3   # ЗУП 3.1, УСО 2.5, Документооборот 3 — ждут снапшоты
-cards_version: "v1 (MVP) — production v2 plan: CARDS-V2-PLAN.md"
+cards_version: "v2.0 (CRITICAL Preventive) — 7 шагов закрыты, all 9 рисков mitigated"
 audit_findings:
   - "Form modules восстановлены в graph_builder (+183% nodes для БП, +157% КА)"
-  - "Cards v1 = generic schema, для сложных запросов нужна v2 (план готов)"
+  - "Cards v1 → v2 миграция выполнена: Pydantic + Mock isolation + Hard limits + Closed vocab + Graph validator + Embedding versioning + Cold start fallback"
+v2_0_findings:
+  - "63 197 mock-карточек помечены is_mock=1 (UI бейдж + LLM warning)"
+  - "Pydantic Field(max_length) защищает от LLM overshoot — 100% legacy roundtrip OK"
+  - "Closed vocab MovementDirection — LLM не может изобрести 'отгрузка' вместо 'расход'"
+  - "GraphEval validator детектит phantom_movement: реальные mock-карточки CommonModule имеют 4 errors phantom"
+  - "Cold start fallback: explain для несуществующего объекта → suggestions top-5 вместо галлюцинации"
+  - "Schema 18 → 21 за одну сессию (v19 mock, v20 validation, v21 embedding_version)"
 ---
 
 # M-K2.5 Typical Configurations Knowledge — STATE
@@ -191,6 +198,50 @@ Enterprise20 (рабочая ERP). Демо-баз ЗУП / УСО / Докум�
 Phase 0 — чистый фундамент: миграции БД + python модули с тестами,
 независимо от наличия .dt файлов.
 
+## Phase v2.0 — CRITICAL Preventive (2026-05-27, closed)
+
+После аудита cards v1 deep-researcher выявил 9 критичных production-рисков.
+План v2.0 (`CARDS-V2-PLAN.md` раздел «Phase v2.0 — CRITICAL Preventive»)
+закрывает их 7 атомарными шагами + smoke + closing.
+
+| Step | Risk addressed | Commit |
+|---|---|---|
+| v2.0-step-1 | П1: dataclass → Pydantic BaseModel(frozen=True) | `69e1cc4` |
+| v2.0-step-2 | П6: Mock isolation (Migration v19 + is_mock + UI бейдж) | `eb40bcb` |
+| v2.0-step-3 | Гэп 11: Hard limits через Pydantic Field max_length | `1474b62` |
+| v2.0-step-4 | П3: Closed vocabulary (Literal direction + register format validator) | `93bb25f` |
+| v2.0-step-5 | Гэп 7: Graph validator (GraphEval) + Migration v20 | `e60211c` |
+| v2.0-step-6 | П7: Embedding model versioning + Migration v21 + reembed script | `e8772a7` |
+| v2.0-step-7 | П8: Cold start fallback без галлюцинаций | `2e86713` |
+| v2.0-step-8 | Smoke + регресс + FF merge | `<pending>` |
+
+### Метрики v2.0
+
+- **53 новых unit-теста** (storage:62 + generator:25 + tool:23 + validator:17 + reembed:5 + smoke +50% +18% +30%)
+- **400 / 400** typical/* регрессионных тестов зелёные (план был 347+)
+- **109 / 109** smoke-проверок прошли (старые 55+ + 54 новых)
+- **63 197 / 63 197** mock-карточек корректно помечены is_mock=1 на pilot.db
+- **Schema** 18 → 21 (3 миграции idempotent)
+- **Production validation**: validator на pilot.db выявил реальные phantom_movement
+  в mock-карточках CommonModule (production-ценная находка)
+- **Backward compat 100%**: roundtrip 200/200 случайных карточек pilot.db с
+  defensive truncation в from_payload_json
+
+### Все 9 рисков mitigated
+
+| Risk | Решение |
+|---|---|
+| 1. dataclass → Pydantic | step-1 BaseModel(frozen=True) + extra='ignore' |
+| 2. Field length limits | step-3 Pydantic Field(max_length) на все строки и tuple |
+| 3. Closed vocab fragmentation | step-4 Literal direction + register format validator |
+| 4. Mock vs real LLM confusion | step-2 is_mock flag + UI/LLM warning |
+| 5. Hallucination undetected | step-5 GraphEval validator (граф = ground truth) |
+| 6. Embedding migration | step-6 model_version + reembed script с --confirm |
+| 7. Cold start hallucination | step-7 not_in_graph response + top-5 suggestions |
+| 8. System prompt не знает про cards | step-7 обновлён loop.py SYSTEM_PROMPT |
+| 9. Provenance / audit | step-5 validation_issues в БД с severity / code / detail |
+
 ## История
 
 - **2026-05-26 23:50** — STATE создан, Phase 0 in_progress.
+- **2026-05-27 11:30** — Phase v2.0 закрыта, 7 шагов закоммичены атомарно.

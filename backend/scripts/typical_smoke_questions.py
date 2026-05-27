@@ -85,7 +85,7 @@ async def smoke():
         await q1_list_configurations(db)
         await q2_search_with_unusual_keywords(db)
         await q3_explain_known_objects(db)
-        await q4_explain_unknown_object_returns_404(db)
+        await q4_explain_unknown_object_returns_cold_start_fallback(db)
         await q5_trace_movements_real_register(db)
         await q6_trace_calls_handler(db)
         await q7_cross_config_consistency(db)
@@ -93,8 +93,278 @@ async def smoke():
         await q9_error_paths(db)
         await q10_card_payload_shape(db)
 
+        # v2.0 — новые проверки на 9 закрытых рисков (M-K2.5.9).
+        await q11_mock_isolation_explain(db)
+        await q12_mock_isolation_list_configs_ratio(db)
+        await q13_search_returns_is_mock(db)
+        await q14_explain_includes_validation_meta(db)
+        await q15_explain_includes_embedding_meta(db)
+        await q16_hard_limits_reject_overshoot(db)
+        await q17_closed_vocabulary_register_validator(db)
+        await q18_closed_vocabulary_direction_literal(db)
+        await q19_cold_start_with_suggestions(db)
+        await q20_graph_validator_detects_phantom(db)
+        await q21_existing_object_no_cold_start_regression(db)
+
     finally:
         await db.close()
+
+
+# ─── v2.0 NEW SCENARIOS ──────────────────────────────────────────────
+
+
+async def q11_mock_isolation_explain(db):
+    """v2.0-step-2: explain возвращает is_mock=true для mock-карточек."""
+    section("Q11: mock isolation — explain включает is_mock и warning")
+
+    ok, result, err = await dispatch_typical_tool(db, TOOL_EXPLAIN, {
+        "channel_id": "_bp30_138_24",
+        "object_qualified_name": "ChartOfAccounts.Хозрасчетный",
+    })
+    if not ok:
+        print(f"  {YELLOW}SKIP{RESET} {err}")
+        return
+    check("payload содержит is_mock", "is_mock" in (result or {}),
+          f"keys={list((result or {}).keys())}")
+    check("is_mock=True для всех существующих (pilot.db)",
+          result.get("is_mock") is True,
+          f"is_mock={result.get('is_mock')}")
+    check("card_warning содержит «mock»",
+          result.get("card_warning") and "mock" in result["card_warning"].lower())
+
+
+async def q12_mock_isolation_list_configs_ratio(db):
+    """v2.0-step-2: list_configurations возвращает mock_ratio."""
+    section("Q12: mock isolation — list_configs показывает mock_ratio")
+
+    ok, result, err = await dispatch_typical_tool(db, TOOL_LIST_CONFIGS, {})
+    check("list_configs ok", ok, err or "")
+    for cfg in (result or {}).get("configurations", []):
+        check(f"{cfg['channel_id']} имеет mock_cards", "mock_cards" in cfg)
+        check(f"{cfg['channel_id']} имеет mock_ratio", "mock_ratio" in cfg)
+        # На pilot.db все 63k карточек = mock_ratio должен быть 1.0
+        if cfg.get("total_cards", 0) > 0:
+            check(f"{cfg['channel_id']} mock_ratio=1.0",
+                  cfg.get("mock_ratio") == 1.0,
+                  f"ratio={cfg.get('mock_ratio')}")
+
+
+async def q13_search_returns_is_mock(db):
+    """v2.0-step-2: search_typical_objects возвращает is_mock в каждом result."""
+    section("Q13: search_typical_objects возвращает is_mock в результатах")
+
+    ok, result, err = await dispatch_typical_tool(db, TOOL_SEARCH_OBJECTS, {
+        "channel_id": "_bp30_138_24", "query": "хозрасчетный", "top_k": 3,
+    })
+    if not ok:
+        print(f"  {YELLOW}SKIP{RESET} {err}")
+        return
+    results = (result or {}).get("results", [])
+    check("search вернул результаты", len(results) > 0)
+    for r in results:
+        check(f"  {r.get('qualified_name', '?')[:50]} имеет is_mock", "is_mock" in r)
+
+
+async def q14_explain_includes_validation_meta(db):
+    """v2.0-step-5: explain возвращает validation блок (можно null если не валидировалась)."""
+    section("Q14: explain включает validation блок")
+
+    ok, result, err = await dispatch_typical_tool(db, TOOL_EXPLAIN, {
+        "channel_id": "_bp30_138_24",
+        "object_qualified_name": "ChartOfAccounts.Хозрасчетный",
+    })
+    if not ok:
+        print(f"  {YELLOW}SKIP{RESET} {err}")
+        return
+    check("payload содержит ключ 'validation'", "validation" in (result or {}))
+    # validation может быть null (карточки ещё не валидировались на pilot.db).
+    # Главное — что ключ присутствует.
+
+
+async def q15_explain_includes_embedding_meta(db):
+    """v2.0-step-6: explain возвращает embedding_meta (model + version + dim)."""
+    section("Q15: explain включает embedding_meta")
+
+    ok, result, err = await dispatch_typical_tool(db, TOOL_EXPLAIN, {
+        "channel_id": "_bp30_138_24",
+        "object_qualified_name": "ChartOfAccounts.Хозрасчетный",
+    })
+    if not ok:
+        print(f"  {YELLOW}SKIP{RESET} {err}")
+        return
+    check("payload содержит 'embedding_meta'", "embedding_meta" in (result or {}))
+    meta = (result or {}).get("embedding_meta") or {}
+    check("embedding_meta содержит 'model' ключ", "model" in meta)
+    check("embedding_meta содержит 'model_version' ключ", "model_version" in meta)
+    check("embedding_meta содержит 'dim' ключ", "dim" in meta)
+
+
+async def q16_hard_limits_reject_overshoot(db):
+    """v2.0-step-3: Pydantic Field max_length отклоняет overshoot."""
+    section("Q16: hard limits — Pydantic блокирует overshoot")
+
+    from pydantic import ValidationError  # noqa: PLC0415
+
+    from app.knowledge.typical.card_models import (  # noqa: PLC0415
+        MAX_SUMMARY_LEN, TypicalObjectCard,
+    )
+
+    over = "x" * (MAX_SUMMARY_LEN + 100)
+    raised = False
+    try:
+        TypicalObjectCard(
+            object_qualified_name="Document.X",
+            object_kind="Document",
+            channel_id="_test_",
+            summary=over,
+        )
+    except ValidationError:
+        raised = True
+    check("summary длиннее MAX_SUMMARY_LEN → ValidationError", raised)
+
+
+async def q17_closed_vocabulary_register_validator(db):
+    """v2.0-step-4: CardMovement отклоняет register без canonical префикса."""
+    section("Q17: closed vocabulary — register format validator")
+
+    from pydantic import ValidationError  # noqa: PLC0415
+
+    from app.knowledge.typical.card_models import CardMovement  # noqa: PLC0415
+
+    bad_prefixes = ["BadKind.X", "РегистрНакопления.Y", "Регистр.Z", "NoDot"]
+    for bad in bad_prefixes:
+        raised = False
+        try:
+            CardMovement(register=bad)
+        except ValidationError:
+            raised = True
+        check(f"register={bad!r} → ValidationError", raised)
+
+    # Canonical префикс — должен работать
+    raised = False
+    try:
+        CardMovement(register="AccumulationRegister.ТоварыНаСкладах", direction="расход")
+    except Exception:
+        raised = True
+    check("AccumulationRegister.X + direction='расход' — валидно", not raised)
+
+
+async def q18_closed_vocabulary_direction_literal(db):
+    """v2.0-step-4: CardMovement.direction — Literal."""
+    section("Q18: closed vocabulary — direction = Literal allowlist")
+
+    from pydantic import ValidationError  # noqa: PLC0415
+
+    from app.knowledge.typical.card_models import (  # noqa: PLC0415
+        CardMovement, normalize_direction,
+    )
+
+    # Canonical — OK
+    for ok_val in ("приход", "расход", "приход/расход", "запись", ""):
+        raised = False
+        try:
+            CardMovement(register="AccumulationRegister.X", direction=ok_val)
+        except Exception:
+            raised = True
+        check(f"direction={ok_val!r} — валидно", not raised)
+
+    # Произвольное — ValidationError
+    raised = False
+    try:
+        CardMovement(register="AccumulationRegister.X", direction="отгрузка")
+    except ValidationError:
+        raised = True
+    check("direction='отгрузка' → ValidationError", raised)
+
+    # normalize_direction — synonyms
+    check("normalize 'expense' → 'расход'", normalize_direction("expense") == "расход")
+    check("normalize 'income' → 'приход'", normalize_direction("income") == "приход")
+    check("normalize 'unknown' → ''", normalize_direction("unknown") == "")
+
+
+async def q19_cold_start_with_suggestions(db):
+    """v2.0-step-7: explain для несуществующего — даёт suggestions."""
+    section("Q19: cold start — suggestions для опечатки")
+
+    # Опечатка в имени — Контрагент → КонтрагентX
+    ok, result, err = await dispatch_typical_tool(db, TOOL_EXPLAIN, {
+        "channel_id": "_bp30_138_24",
+        "object_qualified_name": "Catalog.КонтрагентX",  # опечатка
+    })
+    check("ok=True (cold start fallback)", ok)
+    check("card_status='not_in_graph'",
+          (result or {}).get("card_status") == "not_in_graph")
+    suggestions = (result or {}).get("suggestions") or []
+    check("suggestions содержит хотя бы 1 кандидата", len(suggestions) >= 1,
+          f"got {len(suggestions)} suggestions")
+    # Среди suggestions для опечатки Catalog.КонтрагентX ожидаем
+    # хотя бы один Catalog или Catalog.Контрагенты по prefix match.
+    if suggestions:
+        kontragenty_qnames = [
+            s for s in suggestions
+            if "контрагент" in s.get("qualified_name", "").lower()
+        ]
+        check("suggestions содержат хотя бы один Контрагент*",
+              len(kontragenty_qnames) >= 1,
+              f"qnames={[s.get('qualified_name') for s in suggestions]}")
+
+
+async def q20_graph_validator_detects_phantom(db):
+    """v2.0-step-5: validator детектит phantom_movement."""
+    section("Q20: graph validator — детектит phantom_movement")
+
+    from app.knowledge.typical.card_models import CardMovement, TypicalObjectCard  # noqa: PLC0415
+    from app.knowledge.typical.card_validator import validate_card_against_graph  # noqa: PLC0415
+
+    # Берём реальный объект, добавляем туда фантомный register
+    fake_card = TypicalObjectCard(
+        object_qualified_name="ChartOfAccounts.Хозрасчетный",
+        object_kind="ChartOfAccounts",
+        channel_id="_bp30_138_24",
+        summary="Тест",
+        movements=(
+            CardMovement(
+                register="AccumulationRegister.СовершенноВыдуманныйРегистр",
+                direction="расход",
+            ),
+        ),
+    )
+    result = await validate_card_against_graph(
+        db, channel_id="_bp30_138_24", card=fake_card,
+    )
+    check("validator status='issues_found'",
+          result.status == "issues_found",
+          f"got {result.status}")
+    phantom = [i for i in result.issues if i.code == "phantom_movement"]
+    check("phantom_movement issue найден",
+          len(phantom) >= 1, f"got {len(phantom)}")
+    if phantom:
+        check("severity='error'",
+              phantom[0].severity == "error", f"got {phantom[0].severity}")
+
+
+async def q21_existing_object_no_cold_start_regression(db):
+    """Регресс: для реального объекта НЕ возвращается not_in_graph."""
+    section("Q21: регресс — реальные объекты не получают cold start")
+
+    # В ERP 2.5 РаспределениеЗапасов заменил СвободныеОстатки — используем
+    # документ Реализация (есть во всех 4 типовых).
+    cases = [
+        ("_bp30_138_24", "ChartOfAccounts.Хозрасчетный"),
+        ("_ut115_17_226", "Document.РеализацияТоваровУслуг"),
+        ("_ka2_25_92", "Catalog.Контрагенты"),
+        ("_erp25_21_118", "Document.РеализацияТоваровУслуг"),
+    ]
+    for ch, qname in cases:
+        ok, result, err = await dispatch_typical_tool(db, TOOL_EXPLAIN, {
+            "channel_id": ch, "object_qualified_name": qname,
+        })
+        if not ok:
+            print(f"  {YELLOW}SKIP{RESET} {ch}/{qname} — {err}")
+            continue
+        check(f"{ch}/{qname} card_status != 'not_in_graph'",
+              (result or {}).get("card_status") != "not_in_graph",
+              f"got {(result or {}).get('card_status')!r}")
 
 
 # ─── Q1: список загруженных типовых ──────────────────────────────────
@@ -196,16 +466,26 @@ async def q3_explain_known_objects(db):
 # ─── Q4: 404 на несуществующем объекте ───────────────────────────────
 
 
-async def q4_explain_unknown_object_returns_404(db):
-    section("Q4: explain — несуществующий объект → понятная ошибка")
+async def q4_explain_unknown_object_returns_cold_start_fallback(db):
+    """v2.0-step-7: cold start fallback вместо raw error."""
+    section("Q4: explain — несуществующий объект → cold start fallback")
 
     ok, result, err = await dispatch_typical_tool(db, TOOL_EXPLAIN, {
         "channel_id": "_bp30_138_24",
         "object_qualified_name": "Document.СовершенноВыдуманныйДокумент",
     })
-    check("ok=False на несуществующем", not ok)
-    check("err содержит 'не найден'", err and "не найден" in err.lower(),
-          f"err={err!r}")
+    # v2.0-step-7: ok=True + structured payload вместо ok=False + raw error.
+    check("ok=True (новый contract)", ok)
+    check("err=None", err is None)
+    check("card_status='not_in_graph'",
+          result and result.get("card_status") == "not_in_graph",
+          f"status={result and result.get('card_status')}")
+    check("card=None для несуществующего",
+          result and result.get("card") is None)
+    check("card_warning содержит anti-hallucination",
+          result and "выдумывай" in (result.get("card_warning") or "").lower())
+    check("suggestions — список",
+          result and isinstance(result.get("suggestions"), list))
 
 
 # ─── Q5: trace_movements ──────────────────────────────────────────────

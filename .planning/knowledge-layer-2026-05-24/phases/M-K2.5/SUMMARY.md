@@ -2,12 +2,14 @@
 milestone: M-K2.5
 milestone_name: "Typical Configurations Knowledge"
 status: closed
-closed_at: "2026-05-26"
-phases_completed: 9          # 0-8 + SUMMARY
+closed_at: "2026-05-27"  # +v2.0 CRITICAL Preventive (7 шагов)
+phases_completed: 10         # 0-8 + SUMMARY + v2.0
 phase_8_done: 4              # 4/7 типовых полностью загружены
 phase_8_deferred: 3          # ЗУП/УСО/Документооборот — ждут снапшоты
-total_commits: 9
-total_tests_added: 369
+v2_0_steps_done: 7           # Pydantic / Mock / Limits / Vocab / Validator / Embedding / Cold-start
+total_commits: 16            # 9 v1 + 7 v2.0 + smoke/closing
+total_tests_added: 422       # 369 v1 + 53 v2.0
+schema_version: 21           # +v19 mock, +v20 validation, +v21 embedding_version
 ---
 
 # M-K2.5 — SUMMARY (closing)
@@ -46,10 +48,9 @@ LLM tools в orchestrator → frontend UI.
 
 ## Тесты
 
-- **369 новых unit-тестов** (Python pytest + TypeScript vitest)
-- **55 проверок smoke** через `typical_smoke_questions.py` — все
-  зелёные на production-данных
-- Регрессия всех `typical/*` тестов: ~347 в узком наборе
+- **422 unit-тестов** (369 v1 + 53 v2.0 — Python pytest + TypeScript vitest)
+- **109 проверок smoke** через `typical_smoke_questions.py` (55 v1 + 54 v2.0) — все зелёные на production-данных pilot.db
+- Регрессия всех `typical/*` тестов: **400 в узком наборе**
 
 ## LLM tools (6) — что бот теперь умеет
 
@@ -81,7 +82,31 @@ Smoke на реальных данных подтверждает:
 | TypicalObjectCard wiring в CardRenderer | M-K2.5.7 компонент готов | Когда определимся с shape tool_result в orchestrator |
 | ЗУП 3.1 / УСО 2.5 / Документооборот 3 | M-K2.5.8 phase_8_pending | После получения demo `.dt` от пользователя |
 | Semantic search через embedding карточек | — | После real LLM adapter (карточки нужно эмбедить) |
-| **Cards v2 — production-готовые карточки** | **`CARDS-V2-PLAN.md`** | **6-8 сессий, $220 на rebuild, отдельная мини-фаза M-K2.5.9** |
+| Cards v2.A-H (specializations, ITS links, cross-config diff) | CARDS-V2-PLAN.md разделы v2.A-H | После v2.0 — следующие фазы после M-K2.5.9 |
+| Реальный re-embed (вызов embedding API) | scripts/typical_cards_reembed.py | После real LLM adapter (M-K3) |
+
+## Phase v2.0 (M-K2.5.9) — CRITICAL Preventive ✅ закрыта 2026-05-27
+
+7 атомарных шагов закрыли 9 production-критичных рисков по `CARDS-V2-RESEARCH.md`:
+
+| Step | Subject | Commit | Tests |
+|---|---|---|---|
+| v2.0-step-1 | Pydantic BaseModel(frozen=True) — фундамент | `69e1cc4` | +0 (existing) |
+| v2.0-step-2 | Mock isolation (Migration v19 + is_mock + UI бейдж) | `eb40bcb` | +8 |
+| v2.0-step-3 | Hard limits через Pydantic Field max_length | `1474b62` | +10 |
+| v2.0-step-4 | Closed vocabulary (Literal direction + register format) | `93bb25f` | +7 |
+| v2.0-step-5 | Card validator (GraphEval) + Migration v20 | `e60211c` | +14 |
+| v2.0-step-6 | Embedding model versioning + Migration v21 + reembed script | `e8772a7` | +9 |
+| v2.0-step-7 | Cold start fallback без галлюцинаций | `2e86713` | +5 |
+| v2.0-step-8 | Smoke + регресс + FF merge | (closing) | +54 smoke |
+
+**Production validation на pilot.db:**
+- 63 197 / 63 197 mock-карточек правильно помечены is_mock=1
+- Roundtrip 200/200 случайных карточек после Pydantic migration — drift=0
+- Validator на mock-карточках обнаружил реальные phantom_movement в CommonModule
+- Schema 18 → 21 без потерь, idempotent
+
+**Все 9 production рисков mitigated** (см. STATE.md v2.0 секция).
 
 ## Cards v1 → v2 — известные ограничения
 

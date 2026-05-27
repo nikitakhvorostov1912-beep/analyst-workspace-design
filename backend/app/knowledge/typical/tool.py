@@ -722,18 +722,37 @@ async def _find_similar_objects(
         nkind = nparts[0].lower() if len(nparts) > 1 else ""
         nname = nparts[1].lower() if len(nparts) > 1 else n.qualified_name.lower()
 
-        # Базовый match score
+        # Базовый match score (M-K2.5.9.7 fuzzy fallback).
+        # Логика:
+        # 1000 — точное совпадение qname (для случая если find_node не нашёл).
+        # 100  — тот же kind + name содержит query как подстроку.
+        # 60   — тот же kind + общий prefix имени ≥ 6 символов (опечатка
+        #         в середине / в конце слова).
+        # 50   — name содержит query как подстроку (без kind match).
+        # 20   — тот же kind + общий prefix ≥ 3 символа.
+        # 10   — только тот же kind.
+        # 5    — name начинается одинаково (любой kind).
         score = 0
         if query_qname.lower() == n.qualified_name.lower():
-            score = 1000  # точное совпадение (на случай если find_node не нашёл)
+            score = 1000
         elif query_kind and nkind == query_kind and query_name in nname:
-            score = 100  # тот же kind, имя содержит запрос
+            score = 100
+        elif (
+            query_kind and nkind == query_kind and query_name
+            and len(query_name) >= 6 and nname.startswith(query_name[:6])
+        ):
+            score = 60
         elif query_name and query_name in nname:
-            score = 50   # имя содержит запрос
+            score = 50
+        elif (
+            query_kind and nkind == query_kind and query_name
+            and nname.startswith(query_name[:3])
+        ):
+            score = 20
         elif query_kind and nkind == query_kind:
-            score = 10   # только тот же kind
+            score = 10
         elif query_name and nname.startswith(query_name[:3]):
-            score = 5    # общий префикс
+            score = 5
 
         if score > 0:
             scored.append((score, {
