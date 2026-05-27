@@ -320,6 +320,160 @@ class TestTypicalObjectCard:
         assert c.key_attributes == ()
 
 
+# ─── Hard limits (M-K2.5.9.3) ─────────────────────────────────────────
+
+
+class TestHardLimits:
+    """Pydantic Field max_length блокирует LLM overshoot.
+
+    Лимиты — см. константы MAX_* в card_models.py.
+    """
+
+    def test_summary_overlimit_raises_validation_error(self):
+        from pydantic import ValidationError  # noqa: PLC0415
+
+        from app.knowledge.typical.card_models import MAX_SUMMARY_LEN  # noqa: PLC0415
+
+        with pytest.raises(ValidationError):
+            TypicalObjectCard(
+                object_qualified_name="Document.X",
+                object_kind="Document",
+                channel_id="_test_",
+                summary="x" * (MAX_SUMMARY_LEN + 1),
+            )
+
+    def test_purpose_overlimit_raises_validation_error(self):
+        from pydantic import ValidationError  # noqa: PLC0415
+
+        from app.knowledge.typical.card_models import MAX_PURPOSE_LEN  # noqa: PLC0415
+
+        with pytest.raises(ValidationError):
+            TypicalObjectCard(
+                object_qualified_name="Document.X",
+                object_kind="Document",
+                channel_id="_test_",
+                purpose="y" * (MAX_PURPOSE_LEN + 1),
+            )
+
+    def test_key_attributes_overlimit_raises(self):
+        from pydantic import ValidationError  # noqa: PLC0415
+
+        from app.knowledge.typical.card_models import MAX_KEY_ATTRIBUTES  # noqa: PLC0415
+
+        too_many = tuple(CardAttribute(name=f"A{i}") for i in range(MAX_KEY_ATTRIBUTES + 1))
+        with pytest.raises(ValidationError):
+            TypicalObjectCard(
+                object_qualified_name="Document.X",
+                object_kind="Document",
+                channel_id="_test_",
+                key_attributes=too_many,
+            )
+
+    def test_movements_overlimit_raises(self):
+        from pydantic import ValidationError  # noqa: PLC0415
+
+        from app.knowledge.typical.card_models import MAX_MOVEMENTS  # noqa: PLC0415
+
+        too_many = tuple(CardMovement(register=f"R{i}") for i in range(MAX_MOVEMENTS + 1))
+        with pytest.raises(ValidationError):
+            TypicalObjectCard(
+                object_qualified_name="Document.X",
+                object_kind="Document",
+                channel_id="_test_",
+                movements=too_many,
+            )
+
+    def test_posting_flow_overlimit_count_raises(self):
+        from pydantic import ValidationError  # noqa: PLC0415
+
+        from app.knowledge.typical.card_models import MAX_POSTING_FLOW  # noqa: PLC0415
+
+        too_many = tuple(f"step-{i}" for i in range(MAX_POSTING_FLOW + 1))
+        with pytest.raises(ValidationError):
+            TypicalObjectCard(
+                object_qualified_name="Document.X",
+                object_kind="Document",
+                channel_id="_test_",
+                posting_flow=too_many,
+            )
+
+    def test_posting_step_string_overlimit_raises(self):
+        """Per-element string length лимит работает для tuple[Annotated[str, ...]]."""
+        from pydantic import ValidationError  # noqa: PLC0415
+
+        from app.knowledge.typical.card_models import MAX_POSTING_STEP_LEN  # noqa: PLC0415
+
+        too_long_step = "x" * (MAX_POSTING_STEP_LEN + 1)
+        with pytest.raises(ValidationError):
+            TypicalObjectCard(
+                object_qualified_name="Document.X",
+                object_kind="Document",
+                channel_id="_test_",
+                posting_flow=(too_long_step,),
+            )
+
+    def test_attr_role_overlimit_raises(self):
+        from pydantic import ValidationError  # noqa: PLC0415
+
+        from app.knowledge.typical.card_models import MAX_ATTR_ROLE_LEN  # noqa: PLC0415
+
+        with pytest.raises(ValidationError):
+            CardAttribute(name="X", role="r" * (MAX_ATTR_ROLE_LEN + 1))
+
+    def test_movement_condition_overlimit_raises(self):
+        from pydantic import ValidationError  # noqa: PLC0415
+
+        from app.knowledge.typical.card_models import MAX_MOVEMENT_CONDITION_LEN  # noqa: PLC0415
+
+        with pytest.raises(ValidationError):
+            CardMovement(
+                register="R", direction="приход",
+                condition="x" * (MAX_MOVEMENT_CONDITION_LEN + 1),
+            )
+
+    def test_from_payload_json_truncates_overshoot_for_backward_compat(self):
+        """Legacy payload длиннее лимитов — обрезается ДО валидации.
+
+        Защита 63 197 существующих карточек: даже если в БД где-то окажется
+        overshoot (legacy bug), мы загружаем без падения, обрезанным.
+        """
+        import json  # noqa: PLC0415
+
+        from app.knowledge.typical.card_models import (  # noqa: PLC0415
+            MAX_POSTING_FLOW,
+            MAX_POSTING_STEP_LEN,
+            MAX_SUMMARY_LEN,
+        )
+
+        legacy = {
+            "summary": "L" * (MAX_SUMMARY_LEN + 200),
+            "posting_flow": [f"step-{i}" for i in range(MAX_POSTING_FLOW + 5)],
+            "preconditions": ["x" * (MAX_POSTING_STEP_LEN + 50)],
+        }
+        c = TypicalObjectCard.from_payload_json(
+            channel_id="_test_",
+            object_qualified_name="Document.X",
+            object_kind="Document",
+            payload_json=json.dumps(legacy),
+        )
+        assert len(c.summary) == MAX_SUMMARY_LEN
+        assert len(c.posting_flow) == MAX_POSTING_FLOW
+        # каждый precondition тоже усечён до лимита по длине
+        assert all(len(p) <= 200 for p in c.preconditions)
+
+    def test_at_limit_passes(self):
+        """Значение точно на лимите — валидно (boundary check)."""
+        from app.knowledge.typical.card_models import MAX_SUMMARY_LEN  # noqa: PLC0415
+
+        c = TypicalObjectCard(
+            object_qualified_name="Document.X",
+            object_kind="Document",
+            channel_id="_test_",
+            summary="x" * MAX_SUMMARY_LEN,
+        )
+        assert len(c.summary) == MAX_SUMMARY_LEN
+
+
 # ─── card_storage ─────────────────────────────────────────────────────
 
 

@@ -43,6 +43,25 @@ from typing import Any, Protocol
 
 from app.knowledge.typical.card_context import CardContext
 from app.knowledge.typical.card_models import (
+    MAX_ATTR_NAME_LEN,
+    MAX_ATTR_ROLE_LEN,
+    MAX_DIRECTION_LEN,
+    MAX_ITS_LINK_LEN,
+    MAX_ITS_LINKS,
+    MAX_KEY_ATTRIBUTES,
+    MAX_MOVEMENT_CONDITION_LEN,
+    MAX_MOVEMENTS,
+    MAX_POSTING_FLOW,
+    MAX_POSTING_STEP_LEN,
+    MAX_PRECONDITION_LEN,
+    MAX_PRECONDITIONS,
+    MAX_PURPOSE_LEN,
+    MAX_REGISTER_NAME_LEN,
+    MAX_RELATED_NAME_LEN,
+    MAX_RELATED_OBJECTS,
+    MAX_SCENARIO_LEN,
+    MAX_SUMMARY_LEN,
+    MAX_TYPICAL_SCENARIOS,
     CardAttribute,
     CardMovement,
     TypicalObjectCard,
@@ -319,23 +338,29 @@ def _parse_llm_response(content: str) -> dict[str, Any]:
 def _payload_to_card(
     *, context: CardContext, payload: dict[str, Any],
 ) -> TypicalObjectCard:
-    """Маппит распарсенный payload + контекст → TypicalObjectCard."""
-    key_attrs_raw = payload.get("key_attributes") or []
-    movements_raw = payload.get("movements") or []
+    """Маппит распарсенный payload + контекст → TypicalObjectCard.
+
+    Defensive truncation (M-K2.5.9.3): LLM может прислать список длиннее
+    лимита или слишком длинную строку — обрезаем ДО создания Pydantic
+    модели, чтобы не падать на ValidationError. Pydantic Field max_length
+    остаётся последней линией защиты; этот метод — первая.
+    """
+    key_attrs_raw = (payload.get("key_attributes") or [])[:MAX_KEY_ATTRIBUTES]
+    movements_raw = (payload.get("movements") or [])[:MAX_MOVEMENTS]
 
     key_attributes = tuple(
         CardAttribute(
-            name=str(a.get("name", "")).strip(),
-            role=str(a.get("role", "")).strip(),
+            name=str(a.get("name", "")).strip()[:MAX_ATTR_NAME_LEN],
+            role=str(a.get("role", "")).strip()[:MAX_ATTR_ROLE_LEN],
         )
         for a in key_attrs_raw
         if isinstance(a, dict) and a.get("name")
     )
     movements = tuple(
         CardMovement(
-            register=str(m.get("register", "")).strip(),
-            direction=str(m.get("direction", "")).strip(),
-            condition=str(m.get("condition", "")).strip(),
+            register=str(m.get("register", "")).strip()[:MAX_REGISTER_NAME_LEN],
+            direction=str(m.get("direction", "")).strip()[:MAX_DIRECTION_LEN],
+            condition=str(m.get("condition", "")).strip()[:MAX_MOVEMENT_CONDITION_LEN],
         )
         for m in movements_raw
         if isinstance(m, dict) and m.get("register")
@@ -345,15 +370,25 @@ def _payload_to_card(
         object_qualified_name=context.object_qualified_name,
         object_kind=context.object_kind,
         channel_id=_extract_channel_id_from_context(context),
-        summary=_clean_str(payload.get("summary")),
-        purpose=_clean_str(payload.get("purpose")),
+        summary=_clean_str(payload.get("summary"))[:MAX_SUMMARY_LEN],
+        purpose=_clean_str(payload.get("purpose"))[:MAX_PURPOSE_LEN],
         key_attributes=key_attributes,
         movements=movements,
-        posting_flow=_str_tuple(payload.get("posting_flow")),
-        typical_scenarios=_str_tuple(payload.get("typical_scenarios")),
-        preconditions=_str_tuple(payload.get("preconditions")),
-        related_objects=_str_tuple(payload.get("related_objects")),
-        its_links=_str_tuple(payload.get("its_links")),
+        posting_flow=_str_tuple(
+            payload.get("posting_flow"), MAX_POSTING_FLOW, MAX_POSTING_STEP_LEN,
+        ),
+        typical_scenarios=_str_tuple(
+            payload.get("typical_scenarios"), MAX_TYPICAL_SCENARIOS, MAX_SCENARIO_LEN,
+        ),
+        preconditions=_str_tuple(
+            payload.get("preconditions"), MAX_PRECONDITIONS, MAX_PRECONDITION_LEN,
+        ),
+        related_objects=_str_tuple(
+            payload.get("related_objects"), MAX_RELATED_OBJECTS, MAX_RELATED_NAME_LEN,
+        ),
+        its_links=_str_tuple(
+            payload.get("its_links"), MAX_ITS_LINKS, MAX_ITS_LINK_LEN,
+        ),
     )
 
 
@@ -375,10 +410,32 @@ def _clean_str(value: Any) -> str:
     return str(value).strip()
 
 
-def _str_tuple(value: Any) -> tuple[str, ...]:
+def _str_tuple(
+    value: Any,
+    max_items: int | None = None,
+    max_len: int | None = None,
+) -> tuple[str, ...]:
+    """Преобразует list в tuple of str с защитой по количеству и длине.
+
+    Если value не list — пустой tuple. Пустые / пробельные строки skip.
+    M-K2.5.9.3: max_items / max_len применяются ДО создания Pydantic-модели
+    чтобы избежать ValidationError при LLM overshoot.
+    """
     if not isinstance(value, list):
         return ()
-    return tuple(str(v).strip() for v in value if v is not None and str(v).strip())
+    cleaned: list[str] = []
+    for v in value:
+        if v is None:
+            continue
+        s = str(v).strip()
+        if not s:
+            continue
+        if max_len is not None:
+            s = s[:max_len]
+        cleaned.append(s)
+        if max_items is not None and len(cleaned) >= max_items:
+            break
+    return tuple(cleaned)
 
 
 # ── Wrapper для генерации с правильным channel_id ────────────────────

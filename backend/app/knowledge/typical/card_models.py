@@ -69,9 +69,54 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass
 from enum import Enum
-from typing import Any
+from typing import Annotated, Any
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+
+# ── Hard limits (M-K2.5.9.3) ──────────────────────────────────────────
+#
+# Pydantic Field max_length применяется к новым карточкам (LLM-output
+# обязан укладываться). Backward compat: from_payload_json делает
+# defensive truncation перед валидацией для legacy 63k карточек.
+#
+# Лимиты — публичные константы, источник истины для промпта
+# `typical_card_generator.md` и тестов.
+
+# Строковые лимиты (длина в символах)
+MAX_OBJECT_QNAME_LEN = 300
+MAX_OBJECT_KIND_LEN = 60
+MAX_CHANNEL_ID_LEN = 120
+MAX_SUMMARY_LEN = 400
+MAX_PURPOSE_LEN = 600
+MAX_ATTR_NAME_LEN = 200
+MAX_ATTR_ROLE_LEN = 120
+MAX_REGISTER_NAME_LEN = 200
+MAX_DIRECTION_LEN = 80
+MAX_MOVEMENT_CONDITION_LEN = 200
+MAX_POSTING_STEP_LEN = 200
+MAX_SCENARIO_LEN = 200
+MAX_PRECONDITION_LEN = 200
+MAX_RELATED_NAME_LEN = 200
+MAX_ITS_LINK_LEN = 200
+
+# Лимиты на количество элементов в tuple-полях
+MAX_KEY_ATTRIBUTES = 10
+MAX_MOVEMENTS = 15
+MAX_POSTING_FLOW = 8
+MAX_TYPICAL_SCENARIOS = 5
+MAX_PRECONDITIONS = 6
+MAX_RELATED_OBJECTS = 10
+MAX_ITS_LINKS = 5
+
+
+# Annotated типы для tuple-элементов с per-element string limits.
+# Pydantic v2 поддерживает Annotated[str, Field(max_length=N)] внутри tuple.
+PostingStep = Annotated[str, Field(max_length=MAX_POSTING_STEP_LEN)]
+Scenario = Annotated[str, Field(max_length=MAX_SCENARIO_LEN)]
+Precondition = Annotated[str, Field(max_length=MAX_PRECONDITION_LEN)]
+RelatedName = Annotated[str, Field(max_length=MAX_RELATED_NAME_LEN)]
+ITSLink = Annotated[str, Field(max_length=MAX_ITS_LINK_LEN)]
 
 
 class CardStatus(str, Enum):
@@ -88,8 +133,8 @@ class CardAttribute(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="ignore")
 
-    name: str
-    role: str = ""
+    name: str = Field(max_length=MAX_ATTR_NAME_LEN)
+    role: str = Field(default="", max_length=MAX_ATTR_ROLE_LEN)
 
     def to_dict(self) -> dict[str, str]:
         return {"name": self.name, "role": self.role}
@@ -100,9 +145,9 @@ class CardMovement(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="ignore")
 
-    register: str
-    direction: str = ""  # "приход" | "расход" | "приход/расход"
-    condition: str = ""
+    register: str = Field(max_length=MAX_REGISTER_NAME_LEN)
+    direction: str = Field(default="", max_length=MAX_DIRECTION_LEN)
+    condition: str = Field(default="", max_length=MAX_MOVEMENT_CONDITION_LEN)
 
     def to_dict(self) -> dict[str, str]:
         return {
@@ -125,20 +170,22 @@ class TypicalObjectCard(BaseModel):
     model_config = ConfigDict(frozen=True, extra="ignore")
 
     # Метаданные
-    object_qualified_name: str           # "Document.РеализацияТоваровУслуг"
-    object_kind: str                      # "Document"
-    channel_id: str                       # "_bp30_138_24"
+    object_qualified_name: str = Field(max_length=MAX_OBJECT_QNAME_LEN)
+    object_kind: str = Field(max_length=MAX_OBJECT_KIND_LEN)
+    channel_id: str = Field(max_length=MAX_CHANNEL_ID_LEN)
 
-    # Описательная часть (LLM генерирует)
-    summary: str = ""                     # 1-3 предложения
-    purpose: str = ""                     # назначение в учёте
-    key_attributes: tuple[CardAttribute, ...] = ()
-    movements: tuple[CardMovement, ...] = ()
-    posting_flow: tuple[str, ...] = ()
-    typical_scenarios: tuple[str, ...] = ()
-    preconditions: tuple[str, ...] = ()
-    related_objects: tuple[str, ...] = ()
-    its_links: tuple[str, ...] = ()
+    # Описательная часть (LLM генерирует) — hard limits защищают от
+    # overshoot (LLM любит писать «развёрнутые объяснения») и от
+    # accidental DoS через context window overflow.
+    summary: str = Field(default="", max_length=MAX_SUMMARY_LEN)
+    purpose: str = Field(default="", max_length=MAX_PURPOSE_LEN)
+    key_attributes: tuple[CardAttribute, ...] = Field(default=(), max_length=MAX_KEY_ATTRIBUTES)
+    movements: tuple[CardMovement, ...] = Field(default=(), max_length=MAX_MOVEMENTS)
+    posting_flow: tuple[PostingStep, ...] = Field(default=(), max_length=MAX_POSTING_FLOW)
+    typical_scenarios: tuple[Scenario, ...] = Field(default=(), max_length=MAX_TYPICAL_SCENARIOS)
+    preconditions: tuple[Precondition, ...] = Field(default=(), max_length=MAX_PRECONDITIONS)
+    related_objects: tuple[RelatedName, ...] = Field(default=(), max_length=MAX_RELATED_OBJECTS)
+    its_links: tuple[ITSLink, ...] = Field(default=(), max_length=MAX_ITS_LINKS)
 
     @property
     def embedding_text(self) -> str:
@@ -204,21 +251,47 @@ class TypicalObjectCard(BaseModel):
         проигнорирует их без ошибки.
         """
         raw = json.loads(payload_json) if payload_json else {}
+        # Defensive truncation (M-K2.5.9.3) — обрезаем legacy payload до
+        # новых лимитов ПЕРЕД валидацией. Это даёт идемпотентность
+        # для 63 197 существующих карточек: даже если в БД случайно
+        # окажется overshoot, мы загрузим без падения, обрезанный.
+        def _trunc_str(value: Any, max_len: int) -> str:
+            s = str(value) if value is not None else ""
+            return s[:max_len]
+
+        def _trunc_list(value: Any, max_items: int) -> list[Any]:
+            if not isinstance(value, list):
+                return []
+            return value[:max_items]
+
+        def _trunc_str_list(value: Any, max_items: int, max_len: int) -> list[str]:
+            return [_trunc_str(v, max_len) for v in _trunc_list(value, max_items)]
+
         # Метаданные канала / qname берём из аргументов (источник истины — БД row),
         # а не из payload (там они могут отсутствовать или быть устаревшими).
         data: dict[str, Any] = {
-            "object_qualified_name": object_qualified_name,
-            "object_kind": object_kind,
-            "channel_id": channel_id,
-            "summary": raw.get("summary", ""),
-            "purpose": raw.get("purpose", ""),
-            "key_attributes": raw.get("key_attributes") or [],
-            "movements": raw.get("movements") or [],
-            "posting_flow": raw.get("posting_flow") or [],
-            "typical_scenarios": raw.get("typical_scenarios") or [],
-            "preconditions": raw.get("preconditions") or [],
-            "related_objects": raw.get("related_objects") or [],
-            "its_links": raw.get("its_links") or [],
+            "object_qualified_name": _trunc_str(object_qualified_name, MAX_OBJECT_QNAME_LEN),
+            "object_kind": _trunc_str(object_kind, MAX_OBJECT_KIND_LEN),
+            "channel_id": _trunc_str(channel_id, MAX_CHANNEL_ID_LEN),
+            "summary": _trunc_str(raw.get("summary", ""), MAX_SUMMARY_LEN),
+            "purpose": _trunc_str(raw.get("purpose", ""), MAX_PURPOSE_LEN),
+            "key_attributes": _trunc_list(raw.get("key_attributes"), MAX_KEY_ATTRIBUTES),
+            "movements": _trunc_list(raw.get("movements"), MAX_MOVEMENTS),
+            "posting_flow": _trunc_str_list(
+                raw.get("posting_flow"), MAX_POSTING_FLOW, MAX_POSTING_STEP_LEN,
+            ),
+            "typical_scenarios": _trunc_str_list(
+                raw.get("typical_scenarios"), MAX_TYPICAL_SCENARIOS, MAX_SCENARIO_LEN,
+            ),
+            "preconditions": _trunc_str_list(
+                raw.get("preconditions"), MAX_PRECONDITIONS, MAX_PRECONDITION_LEN,
+            ),
+            "related_objects": _trunc_str_list(
+                raw.get("related_objects"), MAX_RELATED_OBJECTS, MAX_RELATED_NAME_LEN,
+            ),
+            "its_links": _trunc_str_list(
+                raw.get("its_links"), MAX_ITS_LINKS, MAX_ITS_LINK_LEN,
+            ),
         }
         return cls.model_validate(data)
 
