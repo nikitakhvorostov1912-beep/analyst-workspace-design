@@ -85,6 +85,34 @@ Smoke на реальных данных подтверждает:
 | Cards v2.A-H (specializations, ITS links, cross-config diff) | CARDS-V2-PLAN.md разделы v2.A-H | После v2.0 — следующие фазы после M-K2.5.9 |
 | Реальный re-embed (вызов embedding API) | scripts/typical_cards_reembed.py | После real LLM adapter (M-K3) |
 
+## Phase M-K2.5.10 — Real LLM Rebuild Infrastructure (2026-05-27, partial)
+
+**Готовая инфраструктура**, bulk rebuild ждёт рабочий API key:
+
+| Compoenent | Status | Commit |
+|---|---|---|
+| План + acceptance criteria (13 чекбоксов, 525 строк) | ✅ | `c210e39` |
+| `OpenAICompatLLMCaller` adapter (retry + cost + telemetry) | ✅ | `5d99659` |
+| `set_rebuild_credentials` CLI (AES-GCM) | ✅ | `8e2dadb` |
+| `typical_cards_rebuild` CLI (rate limit + checkpoint + resume) | ✅ | `f137803` |
+| `typical_cards_validate_all` CLI | ✅ | `b795d91` |
+| Smoke +27 проверок (109 → 136) | ✅ | (включено) |
+| Pilot rebuild 10 объектов БП | ⏸ ждёт API key |
+| Bulk rebuild 63k | ⏸ ждёт API key |
+
+**Production-validation на mock-карточках** (без LLM):
+- 63 197 / 63 197 карточек валидированы за 3.3 минуты (rate 320 cards/sec)
+- 55 230 (87.4%) status=valid
+- 1 148 phantom_movement errors detected (1.8% error rate)
+- 20 603 phantom_related warnings detected
+- Per-channel error rates: УТ 0.6% / КА 1.9% / ERP 1.9% / БП 2.8%
+
+**Тесты**:
+- 433 typical/* unit-tests passed (+33 для .10)
+- 136 smoke checks passed (+27 для .10)
+
+**Probe тестового ключа `sk-s1lyss...`**: отклонён всеми 10 публичными провайдерами (DeepSeek, NVIDIA, OpenAI, Anthropic, Together, Groq, Mistral, OpenRouter, Cloud.ru, Yandex). Нужен **рабочий** API key для запуска bulk rebuild.
+
 ## Phase v2.0 (M-K2.5.9) — CRITICAL Preventive ✅ закрыта 2026-05-27
 
 7 атомарных шагов закрыли 9 production-критичных рисков по `CARDS-V2-RESEARCH.md`:

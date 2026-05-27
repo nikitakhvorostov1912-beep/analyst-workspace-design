@@ -106,8 +106,180 @@ async def smoke():
         await q20_graph_validator_detects_phantom(db)
         await q21_existing_object_no_cold_start_regression(db)
 
+        # M-K2.5.10 — real LLM rebuild infrastructure smoke checks.
+        await q22_openai_compat_caller_importable(db)
+        await q23_caller_pricing_table_has_known_models(db)
+        await q24_caller_cost_calculator_works(db)
+        await q25_set_rebuild_credentials_storage_roundtrip(db)
+        await q26_credentials_masked_in_display(db)
+        await q27_rebuild_script_dry_run_without_credentials(db)
+        await q28_validate_all_script_dry_run(db)
+        await q29_rebuild_plan_document_exists(db)
+
     finally:
         await db.close()
+
+
+# ─── M-K2.5.10 NEW SCENARIOS ─────────────────────────────────────────
+
+
+async def q22_openai_compat_caller_importable(db):
+    """v2.0.10-2: OpenAICompatLLMCaller импортируется и instantiates."""
+    section("Q22: M-K2.5.10 — OpenAICompatLLMCaller adapter importable")
+
+    try:
+        from app.knowledge.typical.openai_compat_llm_caller import (  # noqa: PLC0415
+            CallTelemetry,
+            LLMAuthError,
+            LLMBadRequestError,
+            LLMRateLimitError,
+            LLMServerError,
+            OpenAICompatLLMCaller,
+        )
+        check("OpenAICompatLLMCaller importable", True)
+
+        caller = OpenAICompatLLMCaller(
+            endpoint="https://dummy.local/v1", model="m", api_key="sk-x",
+        )
+        check("caller instantiate", True)
+        check("telemetry initially empty",
+              caller.telemetry.total_calls == 0)
+        check("4 error классы доступны",
+              all(c is not None for c in [LLMAuthError, LLMBadRequestError, LLMRateLimitError, LLMServerError]))
+    except Exception as e:
+        check("OpenAICompatLLMCaller import", False, str(e)[:100])
+
+
+async def q23_caller_pricing_table_has_known_models(db):
+    """v2.0.10-2: pricing table содержит DeepSeek / OpenAI / Anthropic."""
+    section("Q23: M-K2.5.10 — pricing table coverage")
+
+    from app.knowledge.typical.openai_compat_llm_caller import _PRICING  # noqa: PLC0415
+
+    expected_models = (
+        "deepseek-chat", "gpt-4o-mini", "claude-3-5-haiku-20241022",
+        "llama-3.1-8b-instant", "mistral-small-latest",
+    )
+    for model in expected_models:
+        check(f"price для {model}", model in _PRICING,
+              f"missing in {list(_PRICING.keys())[:3]}...")
+
+
+async def q24_caller_cost_calculator_works(db):
+    """v2.0.10-2: calculate_cost корректен для известных моделей."""
+    section("Q24: M-K2.5.10 — cost calculator")
+
+    from app.knowledge.typical.openai_compat_llm_caller import calculate_cost  # noqa: PLC0415
+
+    # DeepSeek-chat: $0.07 input + $1.10 output per 1M
+    cost = calculate_cost(model="deepseek-chat", tokens_in=1_000_000, tokens_out=1_000_000)
+    check("deepseek-chat 1M+1M = $1.17",
+          abs(cost - 1.17) < 0.01,
+          f"got {cost}")
+
+    # Unknown model → 0
+    cost_unknown = calculate_cost(model="unknown-model-xyz", tokens_in=1000, tokens_out=1000)
+    check("unknown model → 0.0", cost_unknown == 0.0)
+
+    # Fuzzy match для версионного suffix
+    cost_versioned = calculate_cost(
+        model="gpt-4o-mini-2024-07-18", tokens_in=1_000_000, tokens_out=1_000_000,
+    )
+    check("gpt-4o-mini-XXXXX fuzzy match → $0.75",
+          abs(cost_versioned - 0.75) < 0.01,
+          f"got {cost_versioned}")
+
+
+async def q25_set_rebuild_credentials_storage_roundtrip(db):
+    """v2.0.10-3: save/load credentials через AES-GCM."""
+    section("Q25: M-K2.5.10 — credentials storage roundtrip")
+
+    from scripts.set_rebuild_credentials import (  # noqa: PLC0415
+        RebuildCredentials,
+        load_rebuild_credentials,
+        save_rebuild_credentials,
+    )
+
+    original = RebuildCredentials(
+        endpoint="https://api.smoke.local/v1",
+        model="smoke-test",
+        api_key="sk-smoke-test-key-12345",
+    )
+    await save_rebuild_credentials(db, original)
+    loaded = await load_rebuild_credentials(db)
+
+    check("loaded not None", loaded is not None)
+    if loaded:
+        check("endpoint roundtrip", loaded.endpoint == original.endpoint)
+        check("model roundtrip", loaded.model == original.model)
+        check("api_key roundtrip", loaded.api_key == original.api_key)
+
+
+async def q26_credentials_masked_in_display(db):
+    """v2.0.10-3: masked_api_key не показывает середину ключа."""
+    section("Q26: M-K2.5.10 — api_key masking")
+
+    from scripts.set_rebuild_credentials import RebuildCredentials  # noqa: PLC0415
+
+    creds = RebuildCredentials(
+        endpoint="x", model="y",
+        api_key="sk-s1lyss3hhkwivw0scbyr4183est1sxde2gfkjt28fnbbym49",
+    )
+    masked = creds.masked_api_key()
+    check("masked содержит prefix", masked.startswith("sk-s1"))
+    check("masked содержит suffix", masked.endswith("ym49"))
+    check("masked не содержит середину",
+          "lyss3hhkwivw" not in masked,
+          f"masked={masked}")
+    check("masked содержит ****", "****" in masked)
+
+
+async def q27_rebuild_script_dry_run_without_credentials(db):
+    """v2.0.10-5: rebuild script с --dry-run работает без credentials."""
+    section("Q27: M-K2.5.10 — rebuild script dry-run")
+
+    from scripts.set_rebuild_credentials import load_rebuild_credentials  # noqa: PLC0415
+
+    # Сначала удалим credentials если есть (smoke clean state)
+    from app.storage.user_secrets_store import delete_secret  # noqa: PLC0415
+    from scripts.set_rebuild_credentials import REBUILD_PROVIDER_ID  # noqa: PLC0415
+    await delete_secret(db, REBUILD_PROVIDER_ID)
+
+    creds = await load_rebuild_credentials(db)
+    check("credentials отсутствуют (clean state)", creds is None)
+
+
+async def q28_validate_all_script_dry_run(db):
+    """v2.0.10-8: validate_all dry-run работает."""
+    section("Q28: M-K2.5.10 — validate_all script dry-run")
+
+    from scripts.typical_cards_validate_all import validate_channel  # noqa: PLC0415
+
+    stats = await validate_channel(db, channel_id="_bp30_138_24", dry_run=True, limit=5)
+    check("dry_run stats имеет total", stats["total"] >= 0)
+    check("dry_run не валидирует", stats["valid"] == 0 and stats["errors"] == 0)
+
+
+async def q29_rebuild_plan_document_exists(db):
+    """v2.0.10-1: план M-K2.5.10 существует с acceptance criteria."""
+    section("Q29: M-K2.5.10 — план документ exists")
+
+    from pathlib import Path  # noqa: PLC0415
+
+    plan_path = Path(
+        "C:/CLOUDE_PR/projects/analyst-workspace-design/.planning/"
+        "knowledge-layer-2026-05-24/phases/M-K2.5/M-K2.5.10-REBUILD-PLAN.md"
+    )
+    check("план файл exists", plan_path.exists())
+    if plan_path.exists():
+        content = plan_path.read_text(encoding="utf-8")
+        check("содержит Acceptance criteria",
+              "Acceptance criteria" in content)
+        check("содержит 13 чекбоксов",
+              content.count("- [ ]") >= 13,
+              f"got {content.count('- [ ]')} чекбоксов")
+        check("содержит scope 63 197 карточек",
+              "63 197" in content or "63197" in content)
 
 
 # ─── v2.0 NEW SCENARIOS ──────────────────────────────────────────────

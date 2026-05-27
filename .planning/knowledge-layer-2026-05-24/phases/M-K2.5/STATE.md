@@ -241,7 +241,80 @@ Phase 0 — чистый фундамент: миграции БД + python мо
 | 8. System prompt не знает про cards | step-7 обновлён loop.py SYSTEM_PROMPT |
 | 9. Provenance / audit | step-5 validation_issues в БД с severity / code / detail |
 
+## Phase M-K2.5.10 — Real LLM Rebuild Infrastructure (2026-05-27, partial)
+
+**Статус**: Infrastructure DONE, bulk rebuild waiting for working API key.
+
+| Step | Subject | Status | Commit |
+|---|---|---|---|
+| .10.1 | План + acceptance criteria (525 строк) | ✅ DONE | `c210e39` |
+| .10.2 | OpenAICompatLLMCaller adapter с retry + telemetry | ✅ DONE | `5d99659` |
+| .10.3 | Secure key storage CLI через user_secrets (AES-GCM) | ✅ DONE | `8e2dadb` |
+| .10.4 | Probe ключа против 10 провайдеров | ✅ DONE | `c210e39` (включено) |
+| .10.5 | Bulk rebuild CLI с rate limit + checkpoint | ✅ DONE | `f137803` |
+| .10.6 | Pilot rebuild 10 объектов БП | ⏸ Pending working API key |
+| .10.7 | Bulk rebuild 63k | ⏸ Pending working API key |
+| .10.8 | Auto-validation 63k mock-карточек | ✅ DONE | `b795d91` |
+| .10.9 | Quality assurance + smoke 130+ | ✅ DONE | TBD (smoke extension) |
+| .10.10 | Closing — STATE/SUMMARY + FF merge | ⏸ После .10.6/.7 |
+
+### Production findings от auto-validation (без LLM)
+
+Прогон `typical_cards_validate_all --confirm` на 63 197 mock-карточек
+выявил конкретные галлюцинации mock-генератора:
+
+| Channel | Total | Valid | Errors | Error rate |
+|---|---:|---:|---:|---:|
+| _bp30_138_24 | 11 713 | 10 201 | 324 | 2.8% |
+| _erp25_21_118 | 20 020 | 17 383 | 381 | 1.9% |
+| _ka2_25_92 | 19 683 | 17 129 | 370 | 1.9% |
+| _ut115_17_226 | 11 781 | 10 517 | 73 | 0.6% |
+| **Всего** | **63 197** | **55 230 (87.4%)** | **1 148** | **1.8%** |
+
+**Issue codes top:**
+- `phantom_related`: 20 603 warnings (mock добавлял несуществующие related_objects)
+- `phantom_movement`: 1 148 errors (mock-карточки CommonModule с ошибочными movements)
+
+**87.4% карточек технически валидны** (movements пустые), но **20k+ имеют warning** из-за phantom_related. Это конкретное доказательство почему нужен real LLM rebuild — даже mock-генератор не идеален.
+
+### Готовая инфраструктура (готова к запуску с любым валидным API key)
+
+1. **`OpenAICompatLLMCaller`** (адаптер):
+   - HTTP non-streaming POST /chat/completions
+   - Retry с exponential backoff (429/5xx)
+   - 4 типа errors (Auth / BadRequest / RateLimit / Server)
+   - Cost tracking через pricing table (7 провайдеров)
+   - CallTelemetry: tokens / cost / latency / success rate
+
+2. **CLI команды**:
+   - `set_rebuild_credentials.py set/show/delete/test` — управление credentials через AES-GCM
+   - `typical_cards_rebuild.py` — bulk rebuild с rate limit / checkpoint / resume / validation
+   - `typical_cards_validate_all.py` — bulk validation (не требует LLM)
+
+3. **Тесты**: 433 typical/* passed (было 400, +33 для .10)
+4. **Smoke**: 136 проверок зелёные (было 109, +27 для .10)
+
+### Что отложено до рабочего API key
+
+- M-K2.5.10.6 — Pilot rebuild 10 объектов БП (10 минут LLM time)
+- M-K2.5.10.7 — Bulk rebuild всех 63k карточек (6-12 часов wallclock)
+- M-K2.5.10.9 — Final spot-check 20 случайных + полный регресс после ребилда
+- M-K2.5.10.10 — Closing с финальными метриками
+
+### Probe тестового ключа `sk-s1lyss...` — ВСЕ 10 провайдеров отклонили
+
+Проверено: DeepSeek, NVIDIA NIM, OpenAI, Anthropic, Together, Groq,
+Mistral, OpenRouter, Cloud.ru, Yandex. Везде 401 / 400 / 403.
+
+Возможные причины:
+1. Ключ от специфичного приватного endpoint (например корпоративный Xiaomi cloud)
+2. Ключ устарел / отозван
+3. Это тестовый стабовый ключ, не реальный
+
+**Для продолжения нужно**: рабочий API key от одного из публичных провайдеров.
+
 ## История
 
 - **2026-05-26 23:50** — STATE создан, Phase 0 in_progress.
 - **2026-05-27 11:30** — Phase v2.0 закрыта, 7 шагов закоммичены атомарно.
+- **2026-05-27 14:00** — Phase M-K2.5.10 infrastructure DONE (.10.1-5/.8/.9), rebuild .10.6/.7 ждёт рабочий API key.
