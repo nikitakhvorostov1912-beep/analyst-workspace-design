@@ -1,0 +1,500 @@
+{
+  "channel_id": "_ut115_17_226",
+  "format": "compact-v1",
+  "part": 12,
+  "total_parts": 20,
+  "items": [
+    {
+      "qname": "Catalog.ВнутреннееПотреблениеПрисоединенныеФайлы",
+      "kind": "Catalog",
+      "name": "ВнутреннееПотреблениеПрисоединенныеФайлы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Автор",
+          "ref": "Catalog.Пользователи",
+          "req": true
+        },
+        {
+          "name": "ТипХраненияФайла",
+          "ref": "Enum.ТипыХраненияФайлов",
+          "req": true
+        },
+        {
+          "name": "ВладелецФайла",
+          "ref": "Document.ВнутреннееПотребление",
+          "req": false
+        },
+        {
+          "name": "Изменил",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "Редактирует",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "СтатусИзвлеченияТекста",
+          "ref": "Enum.СтатусыИзвлеченияТекстаФайлов",
+          "req": false
+        },
+        {
+          "name": "Том",
+          "ref": "Catalog.ТомаХраненияФайлов",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "45c5e856ec12613303dce367ec27fedc87b98e6855aebd5d287d8c7e0a9634d6"
+    },
+    {
+      "qname": "Catalog.ВозвратТоваровМеждуОрганизациямиПрисоединенныеФайлы",
+      "kind": "Catalog",
+      "name": "ВозвратТоваровМеждуОрганизациямиПрисоединенныеФайлы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Автор",
+          "ref": "Catalog.Пользователи",
+          "req": true
+        },
+        {
+          "name": "ТипХраненияФайла",
+          "ref": "Enum.ТипыХраненияФайлов",
+          "req": true
+        },
+        {
+          "name": "ВладелецФайла",
+          "ref": "Document.ВозвратТоваровМеждуОрганизациями",
+          "req": false
+        },
+        {
+          "name": "Изменил",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "Редактирует",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "СтатусИзвлеченияТекста",
+          "ref": "Enum.СтатусыИзвлеченияТекстаФайлов",
+          "req": false
+        },
+        {
+          "name": "Том",
+          "ref": "Catalog.ТомаХраненияФайлов",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "1f2a774419d741eadb5b4ec4f7c027c3ae3e024f551cad851b5c2bb6386cf8ad"
+    },
+    {
+      "qname": "Catalog.ВозвратТоваровОтКлиентаПрисоединенныеФайлы",
+      "kind": "Catalog",
+      "name": "ВозвратТоваровОтКлиентаПрисоединенныеФайлы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Автор",
+          "ref": "Catalog.Пользователи",
+          "req": true
+        },
+        {
+          "name": "ТипХраненияФайла",
+          "ref": "Enum.ТипыХраненияФайлов",
+          "req": true
+        },
+        {
+          "name": "ВладелецФайла",
+          "ref": "Document.ВозвратТоваровОтКлиента",
+          "req": false
+        },
+        {
+          "name": "Изменил",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "Редактирует",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "СтатусИзвлеченияТекста",
+          "ref": "Enum.СтатусыИзвлеченияТекстаФайлов",
+          "req": false
+        },
+        {
+          "name": "Том",
+          "ref": "Catalog.ТомаХраненияФайлов",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "0e261f9c4edaaab9bccd99f7e018e3b27cf43ddc9e9b37e2e7dc389f5ab70282"
+    },
+    {
+      "qname": "Catalog.ВозвратТоваровПоставщикуПрисоединенныеФайлы",
+      "kind": "Catalog",
+      "name": "ВозвратТоваровПоставщикуПрисоединенныеФайлы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Автор",
+          "ref": "Catalog.Пользователи",
+          "req": true
+        },
+        {
+          "name": "ТипХраненияФайла",
+          "ref": "Enum.ТипыХраненияФайлов",
+          "req": true
+        },
+        {
+          "name": "ВладелецФайла",
+          "ref": "Document.ВозвратТоваровПоставщику",
+          "req": false
+        },
+        {
+          "name": "Изменил",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "Редактирует",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "СтатусИзвлеченияТекста",
+          "ref": "Enum.СтатусыИзвлеченияТекстаФайлов",
+          "req": false
+        },
+        {
+          "name": "Том",
+          "ref": "Catalog.ТомаХраненияФайлов",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "5f0640917df2155f692557c2cf5adb825a26350493a69ca125dd9778d45d2fd9"
+    },
+    {
+      "qname": "Catalog.ВыкупВозвратнойТарыКлиентомПрисоединенныеФайлы",
+      "kind": "Catalog",
+      "name": "ВыкупВозвратнойТарыКлиентомПрисоединенныеФайлы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Автор",
+          "ref": "Catalog.Пользователи",
+          "req": true
+        },
+        {
+          "name": "ТипХраненияФайла",
+          "ref": "Enum.ТипыХраненияФайлов",
+          "req": true
+        },
+        {
+          "name": "ВладелецФайла",
+          "ref": "Document.ВыкупВозвратнойТарыКлиентом",
+          "req": false
+        },
+        {
+          "name": "Изменил",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "Редактирует",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "СтатусИзвлеченияТекста",
+          "ref": "Enum.СтатусыИзвлеченияТекстаФайлов",
+          "req": false
+        },
+        {
+          "name": "Том",
+          "ref": "Catalog.ТомаХраненияФайлов",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "8e8d29e84eb2438aa9ed45ed6571334fb4ad164ef7791dc0f32e7e9d46a49d4c"
+    },
+    {
+      "qname": "Catalog.ВыкупВозвратнойТарыУПоставщикаПрисоединенныеФайлы",
+      "kind": "Catalog",
+      "name": "ВыкупВозвратнойТарыУПоставщикаПрисоединенныеФайлы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Автор",
+          "ref": "Catalog.Пользователи",
+          "req": true
+        },
+        {
+          "name": "ТипХраненияФайла",
+          "ref": "Enum.ТипыХраненияФайлов",
+          "req": true
+        },
+        {
+          "name": "ВладелецФайла",
+          "ref": "Document.ВыкупВозвратнойТарыУПоставщика",
+          "req": false
+        },
+        {
+          "name": "Изменил",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "Редактирует",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "СтатусИзвлеченияТекста",
+          "ref": "Enum.СтатусыИзвлеченияТекстаФайлов",
+          "req": false
+        },
+        {
+          "name": "Том",
+          "ref": "Catalog.ТомаХраненияФайлов",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "b82ae1c3fc0a69b674e918651fe4307038a3af1427ec77f3c513edd7884304af"
+    },
+    {
+      "qname": "Catalog.ВыкупПринятыхНаХранениеТоваровПрисоединенныеФайлы",
+      "kind": "Catalog",
+      "name": "ВыкупПринятыхНаХранениеТоваровПрисоединенныеФайлы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Автор",
+          "ref": "Catalog.Пользователи",
+          "req": true
+        },
+        {
+          "name": "ТипХраненияФайла",
+          "ref": "Enum.ТипыХраненияФайлов",
+          "req": true
+        },
+        {
+          "name": "ВладелецФайла",
+          "ref": "Document.ВыкупПринятыхНаХранениеТоваров",
+          "req": false
+        },
+        {
+          "name": "Изменил",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "Редактирует",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "СтатусИзвлеченияТекста",
+          "ref": "Enum.СтатусыИзвлеченияТекстаФайлов",
+          "req": false
+        },
+        {
+          "name": "Том",
+          "ref": "Catalog.ТомаХраненияФайлов",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "07bbca4366fb1396b0263aaefede07c352dbb1f324ab76fd8619d6c51faf6dc3"
+    },
+    {
+      "qname": "Catalog.ВыкупТоваровХранителемПрисоединенныеФайлы",
+      "kind": "Catalog",
+      "name": "ВыкупТоваровХранителемПрисоединенныеФайлы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Автор",
+          "ref": "Catalog.Пользователи",
+          "req": true
+        },
+        {
+          "name": "ТипХраненияФайла",
+          "ref": "Enum.ТипыХраненияФайлов",
+          "req": true
+        },
+        {
+          "name": "ВладелецФайла",
+          "ref": "Document.ВыкупТоваровХранителем",
+          "req": false
+        },
+        {
+          "name": "Изменил",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "Редактирует",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "СтатусИзвлеченияТекста",
+          "ref": "Enum.СтатусыИзвлеченияТекстаФайлов",
+          "req": false
+        },
+        {
+          "name": "Том",
+          "ref": "Catalog.ТомаХраненияФайлов",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "ef06fe1eeeb0b3695fd9ede659029f68888a5e0db0b96907d5beedbe1c0451dc"
+    },
+    {
+      "qname": "Catalog.ГосударственныеКонтрактыПрисоединенныеФайлы",
+      "kind": "Catalog",
+      "name": "ГосударственныеКонтрактыПрисоединенныеФайлы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Автор",
+          "ref": "Catalog.Пользователи",
+          "req": true
+        },
+        {
+          "name": "ТипХраненияФайла",
+          "ref": "Enum.ТипыХраненияФайлов",
+          "req": true
+        },
+        {
+          "name": "ВладелецФайла",
+          "ref": "Catalog.ГосударственныеКонтракты",
+          "req": false
+        },
+        {
+          "name": "Изменил",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "Редактирует",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "СтатусИзвлеченияТекста",
+          "ref": "Enum.СтатусыИзвлеченияТекстаФайлов",
+          "req": false
+        },
+        {
+          "name": "Том",
+          "ref": "Catalog.ТомаХраненияФайлов",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "9cff697ad674d7b2683eb3bffdb8e9b91bc95710fc0703dfb698fe8e8a703a92"
+    },
+    {
+      "qname": "Catalog.ДемонстрационныеСценарииПрисоединенныеФайлы",
+      "kind": "Catalog",
+      "name": "ДемонстрационныеСценарииПрисоединенныеФайлы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Автор",
+          "ref": "Catalog.Пользователи",
+          "req": true
+        },
+        {
+          "name": "ТипХраненияФайла",
+          "ref": "Enum.ТипыХраненияФайлов",
+          "req": true
+        },
+        {
+          "name": "ВладелецФайла",
+          "ref": "Catalog.ДемонстрационныеСценарии",
+          "req": false
+        },
+        {
+          "name": "Изменил",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "Редактирует",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "СтатусИзвлеченияТекста",
+          "ref": "Enum.СтатусыИзвлеченияТекстаФайлов",
+          "req": false
+        },
+        {
+          "name": "Том",
+          "ref": "Catalog.ТомаХраненияФайлов",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [
+        "Catalog.ДемонстрационныеСценарии"
+      ],
+      "source_hash": "e1b577889b0b722b4bc7490eed3f89f08806d75ed64f9f40f7ba8ff6314e6ea4"
+    }
+  ]
+}

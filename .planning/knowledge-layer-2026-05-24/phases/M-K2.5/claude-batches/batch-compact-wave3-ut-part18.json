@@ -1,0 +1,498 @@
+{
+  "channel_id": "_ut115_17_226",
+  "format": "compact-v1",
+  "part": 18,
+  "total_parts": 20,
+  "items": [
+    {
+      "qname": "Catalog.ПроектыПрисоединенныеФайлы",
+      "kind": "Catalog",
+      "name": "ПроектыПрисоединенныеФайлы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Автор",
+          "ref": "Catalog.Пользователи",
+          "req": true
+        },
+        {
+          "name": "ТипХраненияФайла",
+          "ref": "Enum.ТипыХраненияФайлов",
+          "req": true
+        },
+        {
+          "name": "ВладелецФайла",
+          "ref": "Catalog.Проекты",
+          "req": false
+        },
+        {
+          "name": "Изменил",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "Редактирует",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "СтатусИзвлеченияТекста",
+          "ref": "Enum.СтатусыИзвлеченияТекстаФайлов",
+          "req": false
+        },
+        {
+          "name": "Том",
+          "ref": "Catalog.ТомаХраненияФайлов",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "4b64ebd54f6728777e636e68ab89f4122b53931d6147fcd027232d171d6dea7f"
+    },
+    {
+      "qname": "Catalog.ПрочиеДоходыРасходыПрисоединенныеФайлы",
+      "kind": "Catalog",
+      "name": "ПрочиеДоходыРасходыПрисоединенныеФайлы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Автор",
+          "ref": "Catalog.Пользователи",
+          "req": true
+        },
+        {
+          "name": "ТипХраненияФайла",
+          "ref": "Enum.ТипыХраненияФайлов",
+          "req": true
+        },
+        {
+          "name": "ВладелецФайла",
+          "ref": "Document.ПрочиеДоходыРасходы",
+          "req": false
+        },
+        {
+          "name": "Изменил",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "Редактирует",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "СтатусИзвлеченияТекста",
+          "ref": "Enum.СтатусыИзвлеченияТекстаФайлов",
+          "req": false
+        },
+        {
+          "name": "Том",
+          "ref": "Catalog.ТомаХраненияФайлов",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "24c47c2eb70b5cb4b73066e93ce72f4a56ce67960f2607f0d0a1a3b4e8989356"
+    },
+    {
+      "qname": "Catalog.РеализацияТоваровУслугПрисоединенныеФайлы",
+      "kind": "Catalog",
+      "name": "РеализацияТоваровУслугПрисоединенныеФайлы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Автор",
+          "ref": "Catalog.Пользователи",
+          "req": true
+        },
+        {
+          "name": "ТипХраненияФайла",
+          "ref": "Enum.ТипыХраненияФайлов",
+          "req": true
+        },
+        {
+          "name": "ВладелецФайла",
+          "ref": "Document.РеализацияТоваровУслуг",
+          "req": false
+        },
+        {
+          "name": "Изменил",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "Редактирует",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "СтатусИзвлеченияТекста",
+          "ref": "Enum.СтатусыИзвлеченияТекстаФайлов",
+          "req": false
+        },
+        {
+          "name": "Том",
+          "ref": "Catalog.ТомаХраненияФайлов",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "050e7ce86c9c9c352fa7b4022de23e774b5f84d9d382262711f5b906773e7089"
+    },
+    {
+      "qname": "Catalog.РеализацияУслугПрочихАктивовПрисоединенныеФайлы",
+      "kind": "Catalog",
+      "name": "РеализацияУслугПрочихАктивовПрисоединенныеФайлы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Автор",
+          "ref": "Catalog.Пользователи",
+          "req": true
+        },
+        {
+          "name": "ТипХраненияФайла",
+          "ref": "Enum.ТипыХраненияФайлов",
+          "req": true
+        },
+        {
+          "name": "ВладелецФайла",
+          "ref": "Document.РеализацияУслугПрочихАктивов",
+          "req": false
+        },
+        {
+          "name": "Изменил",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "Редактирует",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "СтатусИзвлеченияТекста",
+          "ref": "Enum.СтатусыИзвлеченияТекстаФайлов",
+          "req": false
+        },
+        {
+          "name": "Том",
+          "ref": "Catalog.ТомаХраненияФайлов",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "1909478074a71147ac7c36d9727f00bd24ffa2dcbd59f9f2eb5634a0a8e30670"
+    },
+    {
+      "qname": "Catalog.РегистрацияЦенНоменклатурыПоставщикаПрисоединенныеФайлы",
+      "kind": "Catalog",
+      "name": "РегистрацияЦенНоменклатурыПоставщикаПрисоединенныеФайлы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Автор",
+          "ref": "Catalog.Пользователи",
+          "req": true
+        },
+        {
+          "name": "ТипХраненияФайла",
+          "ref": "Enum.ТипыХраненияФайлов",
+          "req": true
+        },
+        {
+          "name": "ВладелецФайла",
+          "ref": "Document.РегистрацияЦенНоменклатурыПоставщика",
+          "req": false
+        },
+        {
+          "name": "Изменил",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "Редактирует",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "СтатусИзвлеченияТекста",
+          "ref": "Enum.СтатусыИзвлеченияТекстаФайлов",
+          "req": false
+        },
+        {
+          "name": "Том",
+          "ref": "Catalog.ТомаХраненияФайлов",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "c4700ce506fc36e915131843e68eb9daa57b6dc90d913e71527ed65467801bf0"
+    },
+    {
+      "qname": "Catalog.СверкаВзаиморасчетов2_5_11ПрисоединенныеФайлы",
+      "kind": "Catalog",
+      "name": "СверкаВзаиморасчетов2_5_11ПрисоединенныеФайлы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Автор",
+          "ref": "Catalog.Пользователи",
+          "req": true
+        },
+        {
+          "name": "ТипХраненияФайла",
+          "ref": "Enum.ТипыХраненияФайлов",
+          "req": true
+        },
+        {
+          "name": "ВладелецФайла",
+          "ref": "Document.СверкаВзаиморасчетов2_5_11",
+          "req": false
+        },
+        {
+          "name": "Изменил",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "Редактирует",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "СтатусИзвлеченияТекста",
+          "ref": "Enum.СтатусыИзвлеченияТекстаФайлов",
+          "req": false
+        },
+        {
+          "name": "Том",
+          "ref": "Catalog.ТомаХраненияФайлов",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "eb914c0544779d35c441c5911076d302014f6f15cff97758bba1cbe56e25262a"
+    },
+    {
+      "qname": "Catalog.СверкаВзаиморасчетовПрисоединенныеФайлы",
+      "kind": "Catalog",
+      "name": "СверкаВзаиморасчетовПрисоединенныеФайлы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Автор",
+          "ref": "Catalog.Пользователи",
+          "req": true
+        },
+        {
+          "name": "ТипХраненияФайла",
+          "ref": "Enum.ТипыХраненияФайлов",
+          "req": true
+        },
+        {
+          "name": "ВладелецФайла",
+          "ref": "Document.СверкаВзаиморасчетов",
+          "req": false
+        },
+        {
+          "name": "Изменил",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "Редактирует",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "СтатусИзвлеченияТекста",
+          "ref": "Enum.СтатусыИзвлеченияТекстаФайлов",
+          "req": false
+        },
+        {
+          "name": "Том",
+          "ref": "Catalog.ТомаХраненияФайлов",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "7d83b6b31f907d4911a7435a2bf244e6d61fe3be115c3bb42340ece842eaf17d"
+    },
+    {
+      "qname": "Catalog.СделкиСКлиентамиПрисоединенныеФайлы",
+      "kind": "Catalog",
+      "name": "СделкиСКлиентамиПрисоединенныеФайлы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Автор",
+          "ref": "Catalog.Пользователи",
+          "req": true
+        },
+        {
+          "name": "ТипХраненияФайла",
+          "ref": "Enum.ТипыХраненияФайлов",
+          "req": true
+        },
+        {
+          "name": "ВладелецФайла",
+          "ref": "Catalog.СделкиСКлиентами",
+          "req": false
+        },
+        {
+          "name": "Изменил",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "Редактирует",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "СтатусИзвлеченияТекста",
+          "ref": "Enum.СтатусыИзвлеченияТекстаФайлов",
+          "req": false
+        },
+        {
+          "name": "Том",
+          "ref": "Catalog.ТомаХраненияФайлов",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "a94fc0f45b17afedd592a3190b1750df6072ee5ec3d8a4710a38bd94a237e297"
+    },
+    {
+      "qname": "Catalog.СертификатыНоменклатурыПрисоединенныеФайлы",
+      "kind": "Catalog",
+      "name": "СертификатыНоменклатурыПрисоединенныеФайлы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Автор",
+          "ref": "Catalog.Пользователи",
+          "req": true
+        },
+        {
+          "name": "ТипХраненияФайла",
+          "ref": "Enum.ТипыХраненияФайлов",
+          "req": true
+        },
+        {
+          "name": "ВладелецФайла",
+          "ref": "Catalog.СертификатыНоменклатуры",
+          "req": false
+        },
+        {
+          "name": "Изменил",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "Редактирует",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "СтатусИзвлеченияТекста",
+          "ref": "Enum.СтатусыИзвлеченияТекстаФайлов",
+          "req": false
+        },
+        {
+          "name": "Том",
+          "ref": "Catalog.ТомаХраненияФайлов",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "8037ed9b26d07506adbd557d8546e87d75bb3c1e60bbfff6272ec54d4adaff96"
+    },
+    {
+      "qname": "Catalog.СоглашенияСКлиентамиПрисоединенныеФайлы",
+      "kind": "Catalog",
+      "name": "СоглашенияСКлиентамиПрисоединенныеФайлы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Автор",
+          "ref": "Catalog.Пользователи",
+          "req": true
+        },
+        {
+          "name": "ТипХраненияФайла",
+          "ref": "Enum.ТипыХраненияФайлов",
+          "req": true
+        },
+        {
+          "name": "ВладелецФайла",
+          "ref": "Catalog.СоглашенияСКлиентами",
+          "req": false
+        },
+        {
+          "name": "Изменил",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "Редактирует",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "СтатусИзвлеченияТекста",
+          "ref": "Enum.СтатусыИзвлеченияТекстаФайлов",
+          "req": false
+        },
+        {
+          "name": "Том",
+          "ref": "Catalog.ТомаХраненияФайлов",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "26b0552ed7d033f9e5d56342721b9652d93eae947d0ed40ccebe4508b478fe37"
+    }
+  ]
+}

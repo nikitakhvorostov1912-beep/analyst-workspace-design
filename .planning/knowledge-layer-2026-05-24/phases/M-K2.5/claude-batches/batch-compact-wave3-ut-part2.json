@@ -1,0 +1,563 @@
+{
+  "channel_id": "_ut115_17_226",
+  "format": "compact-v1",
+  "part": 2,
+  "total_parts": 20,
+  "items": [
+    {
+      "qname": "Document.НакладнаяСАТУРН",
+      "kind": "Document",
+      "name": "НакладнаяСАТУРН",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "ГрузоотправительМестоХранения",
+          "ref": "Catalog.МестаХраненияСАТУРН",
+          "req": true
+        },
+        {
+          "name": "ГрузоотправительОрганизацияСАТУРН",
+          "ref": "Catalog.КлассификаторОрганизацийСАТУРН",
+          "req": true
+        },
+        {
+          "name": "Операция",
+          "ref": "Enum.ВидыОперацийСАТУРН",
+          "req": true
+        },
+        {
+          "name": "ГрузополучательМестоХранения",
+          "ref": "Catalog.МестаХраненияСАТУРН",
+          "req": false
+        },
+        {
+          "name": "ГрузополучательОрганизацияСАТУРН",
+          "ref": "Catalog.КлассификаторОрганизацийСАТУРН",
+          "req": false
+        },
+        {
+          "name": "Перевозчик",
+          "ref": "Catalog.КлассификаторОрганизацийСАТУРН",
+          "req": false
+        }
+      ],
+      "ts": [
+        "Товары"
+      ],
+      "handlers": [
+        "ОбработкаЗаполнения",
+        "ОбработкаПроведения",
+        "ОбработкаПроверкиЗаполнения",
+        "ПередЗаписью",
+        "ПередЗаписью",
+        "ПриЗаписи"
+      ],
+      "writes_to": [],
+      "reads_from": [
+        "InformationRegister.СтатусыДокументовСАТУРН",
+        "Document.НакладнаяСАТУРН.ТабличнаяЧасть.Товары",
+        "Document.НакладнаяСАТУРН",
+        "InformationRegister.СоответствиеНоменклатурыСАТУРН",
+        "Catalog.ПартииСАТУРН"
+      ],
+      "referenced_by": [
+        "AccumulationRegister.ДвиженияСерийТоваров"
+      ],
+      "source_hash": "96ebebcd279af07c6668c186b80e5e1a369115127bd804c76dcf59c600f32d43"
+    },
+    {
+      "qname": "Document.ОприходованиеИзлишковТоваровУХранителя",
+      "kind": "Document",
+      "name": "ОприходованиеИзлишковТоваровУХранителя",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Валюта",
+          "ref": "Catalog.Валюты",
+          "req": true
+        },
+        {
+          "name": "Договор",
+          "ref": "Catalog.ДоговорыКонтрагентов",
+          "req": true
+        },
+        {
+          "name": "Контрагент",
+          "ref": "Catalog.Контрагенты",
+          "req": true
+        },
+        {
+          "name": "Организация",
+          "ref": "Catalog.Организации",
+          "req": true
+        },
+        {
+          "name": "Партнер",
+          "ref": "Catalog.Партнеры",
+          "req": true
+        },
+        {
+          "name": "Соглашение",
+          "ref": "Catalog.СоглашенияСКлиентами",
+          "req": true
+        },
+        {
+          "name": "СтатьяДоходов",
+          "ref": "ChartOfCharacteristicTypes.СтатьиАктивовПассивов,ChartOfCharacteristicTypes.Стат",
+          "req": true
+        },
+        {
+          "name": "ХозяйственнаяОперация",
+          "ref": "Enum.ХозяйственныеОперации",
+          "req": true
+        },
+        {
+          "name": "Автор",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "ВидЦены",
+          "ref": "Catalog.ВидыЦен",
+          "req": false
+        },
+        {
+          "name": "НаправлениеДеятельности",
+          "ref": "Catalog.НаправленияДеятельности",
+          "req": false
+        },
+        {
+          "name": "Ответственный",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        }
+      ],
+      "ts": [
+        "Товары",
+        "ДополнительныеРеквизиты"
+      ],
+      "handlers": [
+        "ОбработкаЗаполнения",
+        "ОбработкаПроведения",
+        "ОбработкаПроверкиЗаполнения",
+        "ОбработкаУдаленияПроведения",
+        "ПередЗакрытием",
+        "ПередЗаписью"
+      ],
+      "writes_to": [],
+      "reads_from": [
+        "Catalog.НастройкиХозяйственныхОпераций",
+        "Catalog.ДоговорыКонтрагентов",
+        "InformationRegister.АналитикаУчетаНоменклатуры",
+        "Document.ОприходованиеИзлишковТоваровУХранителя",
+        "Document.ОприходованиеИзлишковТоваровУХранителя.ТабличнаяЧасть.Товары",
+        "Catalog.Организации",
+        "Catalog.Пользователи",
+        "Catalog.Номенклатура",
+        "Catalog.ХарактеристикиНоменклатуры"
+      ],
+      "referenced_by": [
+        "AccumulationRegister.ДвиженияНоменклатураДоходыРасходы",
+        "AccumulationRegister.ДвиженияСерийТоваров",
+        "AccumulationRegister.ДетализацияПартийТоваровДляНДСиУСН",
+        "AccumulationRegister.ПартииЗатратНаВыпуск",
+        "AccumulationRegister.ПартииПрочихРасходов",
+        "AccumulationRegister.ПартииРасходовНаСебестоимостьТоваров",
+        "AccumulationRegister.ПартииТоваровОрганизаций",
+        "AccumulationRegister.СебестоимостьТоваров"
+      ],
+      "source_hash": "c21656cacf63826a7f60638f3b26cdbe58c2466b68f3d7cf835518a36a945e72"
+    },
+    {
+      "qname": "Document.УдалитьКассовыйЧекКоррекции",
+      "kind": "Document",
+      "name": "УдалитьКассовыйЧекКоррекции",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "ОснованиеДляКоррекции",
+          "ref": "Document.АктВыполненныхРабот,Document.ВозвратПодарочныхСертификатов,Document.Воз",
+          "req": true
+        },
+        {
+          "name": "ТипРасчета",
+          "ref": "Enum.ТипыРасчетаДенежнымиСредствами",
+          "req": true
+        },
+        {
+          "name": "Ответственный",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "ПодключаемоеОборудование",
+          "ref": "Catalog.ПодключаемоеОборудование",
+          "req": false
+        },
+        {
+          "name": "СистемаНалогообложения",
+          "ref": "Enum.ТипыСистемНалогообложенияККТ",
+          "req": false
+        }
+      ],
+      "ts": [
+        "Оплата"
+      ],
+      "handlers": [
+        "ПриСозданииНаСервере"
+      ],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "0d339dab51473abb847c6d151eea1701d5eff829567e7a969763ef22fe000ffe"
+    },
+    {
+      "qname": "InformationRegister.ДетализацияСебестоимостиТоваровПостатейныеЗатратыНЗП",
+      "kind": "InformationRegister",
+      "name": "ДетализацияСебестоимостиТоваровПостатейныеЗатратыНЗП",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "АналитикаУчетаНоменклатуры",
+          "ref": "Catalog.КлючиАналитикиУчетаНоменклатуры",
+          "req": false
+        },
+        {
+          "name": "АналитикаУчетаПартий",
+          "ref": "Catalog.КлючиАналитикиУчетаПартий",
+          "req": false
+        },
+        {
+          "name": "АналитикаУчетаПартийДокументаПоступления",
+          "ref": "Catalog.КлючиАналитикиУчетаПартий",
+          "req": false
+        },
+        {
+          "name": "ВидДеятельностиНДС",
+          "ref": "Enum.ТипыНалогообложенияНДС",
+          "req": false
+        },
+        {
+          "name": "ВидЗапасов",
+          "ref": "Catalog.ВидыЗапасов",
+          "req": false
+        },
+        {
+          "name": "ДокументДвижения",
+          "ref": "Document.КорректировкаРегистров,Document.РаспределениеПрочихЗатрат,Document.Расч",
+          "req": false
+        },
+        {
+          "name": "КорАналитикаУчетаНоменклатуры",
+          "ref": "Catalog.КлючиАналитикиУчетаНоменклатуры",
+          "req": false
+        },
+        {
+          "name": "КорВидДеятельностиНДС",
+          "ref": "Enum.ТипыНалогообложенияНДС",
+          "req": false
+        },
+        {
+          "name": "КорВидЗапасов",
+          "ref": "Catalog.ВидыЗапасов",
+          "req": false
+        },
+        {
+          "name": "КорГруппаПродукции",
+          "ref": "Catalog.ГруппыАналитическогоУчетаНоменклатуры",
+          "req": false
+        },
+        {
+          "name": "КорНаправлениеДеятельности",
+          "ref": "Catalog.НаправленияДеятельности",
+          "req": false
+        },
+        {
+          "name": "КорПодразделение",
+          "ref": "Catalog.СтруктураПредприятия",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ПередЗаписью"
+      ],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "04fb5420da5feb92cf144512ca0ce0c93f66e4f533dad8bd35d82c784203b763"
+    },
+    {
+      "qname": "InformationRegister.НастройкиОтправкиЭлектронныхДокументовПоВидам",
+      "kind": "InformationRegister",
+      "name": "НастройкиОтправкиЭлектронныхДокументовПоВидам",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "ВидДокумента",
+          "ref": "Catalog.ВидыДокументовЭДО",
+          "req": false
+        },
+        {
+          "name": "МаршрутПодписания",
+          "ref": "Catalog.МаршрутыПодписания",
+          "req": false
+        },
+        {
+          "name": "СпособОбменаЭД",
+          "ref": "Enum.СпособыОбменаЭД",
+          "req": false
+        },
+        {
+          "name": "УдалитьВидДокумента",
+          "ref": "Enum.ТипыДокументовЭДО",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ПередЗакрытием",
+        "ПередЗакрытием",
+        "ПередЗаписью",
+        "ПриЗаписи",
+        "ПриОткрытии",
+        "ПриОткрытии"
+      ],
+      "writes_to": [],
+      "reads_from": [
+        "InformationRegister.НастройкиОтправкиЭлектронныхДокументов",
+        "InformationRegister.НастройкиОтправкиЭлектронныхДокументовПоВидам"
+      ],
+      "referenced_by": [],
+      "source_hash": "bf3cb0232e3a3ac91774d3d1ec707695e5dde6bd7f0bc2a523b09bebe6b40234"
+    },
+    {
+      "qname": "InformationRegister.ОбщиеНастройкиУзловИнформационныхБаз",
+      "kind": "InformationRegister",
+      "name": "ОбщиеНастройкиУзловИнформационныхБаз",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "УдалитьПользовательДляСинхронизацииДанных",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [
+        "InformationRegister.ОбщиеНастройкиУзловИнформационныхБаз"
+      ],
+      "referenced_by": [],
+      "source_hash": "eae0c6a500e92b13b30b7068603109649c69746fdc313e8d9fe9d737d493960e"
+    },
+    {
+      "qname": "InformationRegister.СоответствияАтрибутовМаркетплейсов",
+      "kind": "InformationRegister",
+      "name": "СоответствияАтрибутовМаркетплейсов",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Категория1С",
+          "ref": "Catalog.ВидыНоменклатуры,Catalog.Номенклатура,Catalog.ТоварныеКатегории",
+          "req": true
+        },
+        {
+          "name": "УчетнаяЗаписьМаркетплейса",
+          "ref": "Catalog.УчетныеЗаписиМаркетплейсов",
+          "req": true
+        },
+        {
+          "name": "ИдентификаторОбъектаМетаданных1С",
+          "ref": "Catalog.ИдентификаторыОбъектовМетаданных",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "9d1b30d8d35e7da47ad8e33b4b3da2233588a81a26a6f4279ef9fe1d13ea3f3b"
+    },
+    {
+      "qname": "InformationRegister.ЭлектронныеПодписи",
+      "kind": "InformationRegister",
+      "name": "ЭлектронныеПодписи",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "АвторРучнойПроверкиДополнительныхАтрибутов",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "ТипПодписи",
+          "ref": "Enum.ТипыПодписиКриптографии",
+          "req": false
+        },
+        {
+          "name": "УстановившийПодпись",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "60abb2f1270e30a523140abcc9166390034f29fa4d7ce342b4ab512230a06c5f"
+    },
+    {
+      "qname": "AccumulationRegister.НДСПредъявленный",
+      "kind": "AccumulationRegister",
+      "name": "НДСПредъявленный",
+      "comment": "НДС, предъявляемый поставщиком",
+      "attrs": [
+        {
+          "name": "ВидДеятельностиНДС",
+          "ref": "Enum.ТипыНалогообложенияНДС",
+          "req": false
+        },
+        {
+          "name": "ВидЦенности",
+          "ref": "Enum.ВидыЦенностей",
+          "req": false
+        },
+        {
+          "name": "ИсправленныйСчетФактура",
+          "ref": "Document.КорректировкаПриобретения,Document.ПервичныйДокумент,Document.СчетФакту",
+          "req": false
+        },
+        {
+          "name": "КорВидДеятельностиНДС",
+          "ref": "Enum.ТипыНалогообложенияНДС",
+          "req": false
+        },
+        {
+          "name": "КорНаправлениеДеятельности",
+          "ref": "Catalog.НаправленияДеятельности",
+          "req": false
+        },
+        {
+          "name": "НаправлениеДеятельности",
+          "ref": "Catalog.НаправленияДеятельности",
+          "req": false
+        },
+        {
+          "name": "НастройкаХозяйственнойОперации",
+          "ref": "Catalog.НастройкиХозяйственныхОпераций",
+          "req": false
+        },
+        {
+          "name": "Организация",
+          "ref": "Catalog.Организации",
+          "req": false
+        },
+        {
+          "name": "Подразделение",
+          "ref": "Catalog.СтруктураПредприятия",
+          "req": false
+        },
+        {
+          "name": "Поставщик",
+          "ref": "Catalog.Контрагенты,Catalog.Организации",
+          "req": false
+        },
+        {
+          "name": "Событие",
+          "ref": "Enum.СобытияНДСПредъявленный",
+          "req": false
+        },
+        {
+          "name": "СтавкаНДС",
+          "ref": "Catalog.СтавкиНДС",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ПередЗаписью",
+        "ПриЗаписи"
+      ],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "bf2ee492c721579a2adf55324bd2d1b61d963e694d2da9cdd85d6f44afba2e5d"
+    },
+    {
+      "qname": "AccumulationRegister.ПартииНДСКРаспределению",
+      "kind": "AccumulationRegister",
+      "name": "ПартииНДСКРаспределению",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "ВидДеятельностиНДС",
+          "ref": "Enum.ТипыНалогообложенияНДС",
+          "req": false
+        },
+        {
+          "name": "ВидЦенности",
+          "ref": "Enum.ВидыЦенностей",
+          "req": false
+        },
+        {
+          "name": "КорВидДеятельностиНДС",
+          "ref": "Enum.ТипыНалогообложенияНДС",
+          "req": false
+        },
+        {
+          "name": "НаправлениеДеятельности",
+          "ref": "Catalog.НаправленияДеятельности",
+          "req": false
+        },
+        {
+          "name": "НастройкаХозяйственнойОперации",
+          "ref": "Catalog.НастройкиХозяйственныхОпераций",
+          "req": false
+        },
+        {
+          "name": "Организация",
+          "ref": "Catalog.Организации",
+          "req": false
+        },
+        {
+          "name": "Подразделение",
+          "ref": "Catalog.СтруктураПредприятия",
+          "req": false
+        },
+        {
+          "name": "Поставщик",
+          "ref": "Catalog.Контрагенты,Catalog.Организации",
+          "req": false
+        },
+        {
+          "name": "СтавкаНДС",
+          "ref": "Catalog.СтавкиНДС",
+          "req": false
+        },
+        {
+          "name": "СтатьяОтраженияРасходов",
+          "ref": "ChartOfCharacteristicTypes.СтатьиРасходов",
+          "req": false
+        },
+        {
+          "name": "СтатьяРасходов",
+          "ref": "ChartOfCharacteristicTypes.СтатьиАктивовПассивов,ChartOfCharacteristicTypes.Стат",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ПередЗаписью",
+        "ПриЗаписи"
+      ],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "e6d456aeccb87cb285d47e3671901f5f0fefb5286358f46a12b5b4452f60601d"
+    }
+  ]
+}

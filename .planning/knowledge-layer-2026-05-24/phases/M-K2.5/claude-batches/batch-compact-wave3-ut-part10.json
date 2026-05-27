@@ -1,0 +1,413 @@
+{
+  "channel_id": "_ut115_17_226",
+  "format": "compact-v1",
+  "part": 10,
+  "total_parts": 20,
+  "items": [
+    {
+      "qname": "InformationRegister.ДетализацияСебестоимостиТоваровПостатейныеЗатраты",
+      "kind": "InformationRegister",
+      "name": "ДетализацияСебестоимостиТоваровПостатейныеЗатраты",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "АналитикаУчетаНоменклатуры",
+          "ref": "Catalog.КлючиАналитикиУчетаНоменклатуры",
+          "req": false
+        },
+        {
+          "name": "АналитикаУчетаНоменклатурыДокументаПоступления",
+          "ref": "Catalog.КлючиАналитикиУчетаНоменклатуры",
+          "req": false
+        },
+        {
+          "name": "АналитикаУчетаПартий",
+          "ref": "Catalog.КлючиАналитикиУчетаПартий",
+          "req": false
+        },
+        {
+          "name": "АналитикаУчетаПартийДокументаПоступления",
+          "ref": "Catalog.КлючиАналитикиУчетаПартий",
+          "req": false
+        },
+        {
+          "name": "АналитикаФинансовогоУчета",
+          "ref": "Catalog.ГруппыАналитическогоУчетаНоменклатуры,Catalog.Пользователи,Catalog.Сделк",
+          "req": false
+        },
+        {
+          "name": "ВидДеятельностиНДС",
+          "ref": "Enum.ТипыНалогообложенияНДС",
+          "req": false
+        },
+        {
+          "name": "ВидЗапасов",
+          "ref": "Catalog.ВидыЗапасов",
+          "req": false
+        },
+        {
+          "name": "Организация",
+          "ref": "Catalog.Организации",
+          "req": false
+        },
+        {
+          "name": "РазделУчета",
+          "ref": "Enum.РазделыУчетаСебестоимостиТоваров",
+          "req": false
+        },
+        {
+          "name": "СтатьяРасходов",
+          "ref": "ChartOfCharacteristicTypes.СтатьиРасходов",
+          "req": false
+        },
+        {
+          "name": "ТипЗаписи",
+          "ref": "Enum.ТипыЗаписейПартий",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ПередЗаписью"
+      ],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "9015a5638e4c9ceb5aa05ee020c986877598d871316b3ad67919ad4c684b2ead"
+    },
+    {
+      "qname": "InformationRegister.ИндексыСПАРКРиски",
+      "kind": "InformationRegister",
+      "name": "ИндексыСПАРКРиски",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "ВидОшибки",
+          "ref": "Enum.ВидыОшибокСПАРКРиски",
+          "req": false
+        },
+        {
+          "name": "Статус",
+          "ref": "Catalog.ТипыСобытийСПАРКРиски",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ПриСозданииНаСервере"
+      ],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "d6e4693afe291b627a0cf3d224d1c65512e8bda1072675a0cb28e9a32631a933"
+    },
+    {
+      "qname": "InformationRegister.НастройкиУчетныхЗаписейЭлектроннойПочты",
+      "kind": "InformationRegister",
+      "name": "НастройкиУчетныхЗаписейЭлектроннойПочты",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "ОтветственныйЗаВедениеПапок",
+          "ref": "Catalog.Пользователи",
+          "req": true
+        },
+        {
+          "name": "ОтветственныйЗаОбработкуПисем",
+          "ref": "Catalog.Пользователи",
+          "req": true
+        },
+        {
+          "name": "УчетнаяЗаписьЭлектроннойПочты",
+          "ref": "Catalog.УчетныеЗаписиЭлектроннойПочты",
+          "req": false
+        },
+        {
+          "name": "ФорматПодписиДляНовыхСообщений",
+          "ref": "Enum.СпособыРедактированияЭлектронныхПисем",
+          "req": false
+        },
+        {
+          "name": "ФорматПодписиПриОтветеПересылке",
+          "ref": "Enum.СпособыРедактированияЭлектронныхПисем",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ПередЗаписьюНаСервере",
+        "ПриОткрытии",
+        "ПриСозданииНаСервере"
+      ],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "d8e3dfacdfa588b0487d32d0a543137d7184bc5261b2e112dd4a8b32e574f881"
+    },
+    {
+      "qname": "InformationRegister.ПриглашенияКОбменуЭлектроннымиДокументами",
+      "kind": "InformationRegister",
+      "name": "ПриглашенияКОбменуЭлектроннымиДокументами",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Статус",
+          "ref": "Enum.СтатусыПриглашений",
+          "req": false
+        },
+        {
+          "name": "Тип",
+          "ref": "Enum.ТипыПриглашений",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ПередЗаписью",
+        "ПриЗаписи",
+        "ПриОткрытии",
+        "ПриОткрытии",
+        "ПриОткрытии",
+        "ПриСозданииНаСервере"
+      ],
+      "writes_to": [],
+      "reads_from": [
+        "InformationRegister.УчетныеЗаписиЭДО",
+        "InformationRegister.ПриглашенияКОбменуЭлектроннымиДокументами"
+      ],
+      "referenced_by": [],
+      "source_hash": "e2fe04b03cf4603024fe5f0465c7f6419cae0fb57f588930ac4bf831a40f90ac"
+    },
+    {
+      "qname": "InformationRegister.РеестрЭПД",
+      "kind": "InformationRegister",
+      "name": "РеестрЭПД",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "ТипСсылки",
+          "ref": "Catalog.ИдентификаторыОбъектовМетаданных",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "71687bb4f060604164311c4f49f1347dcf86d090e5a8b525ef98345c41e882cd"
+    },
+    {
+      "qname": "InformationRegister.РезультатыОбработкиДокументовИСМП",
+      "kind": "InformationRegister",
+      "name": "РезультатыОбработкиДокументовИСМП",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Статус",
+          "ref": "Enum.СтатусыОбработкиДокументовИСМП",
+          "req": true
+        },
+        {
+          "name": "ТипДокумента",
+          "ref": "Enum.ТипыДокументовГИСМТ",
+          "req": true
+        },
+        {
+          "name": "СтатусДокументаВСервисе",
+          "ref": "Enum.СтатусыДокументовИСМП",
+          "req": false
+        },
+        {
+          "name": "СтатусОтправки",
+          "ref": "Enum.СтатусОтправкиГИСМТ",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ПриОткрытии",
+        "ПриСозданииНаСервере",
+        "ПриСозданииНаСервере"
+      ],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "fea44adf6ffd4f9b4d8c04a764a6b6ab6cbd36605c9384d292e3be98ad78cd12"
+    },
+    {
+      "qname": "InformationRegister.СуммыДокументовВВалютахУчета",
+      "kind": "InformationRegister",
+      "name": "СуммыДокументовВВалютахУчета",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Валюта",
+          "ref": "Catalog.Валюты",
+          "req": false
+        },
+        {
+          "name": "ВалютаВзаиморасчетов",
+          "ref": "Catalog.Валюты",
+          "req": false
+        },
+        {
+          "name": "ОбъектРасчетов",
+          "ref": "Catalog.ОбъектыРасчетов",
+          "req": false
+        },
+        {
+          "name": "СтавкаНДС",
+          "ref": "Catalog.СтавкиНДС",
+          "req": false
+        },
+        {
+          "name": "ТипРасчетов",
+          "ref": "Enum.ТипыРасчетовСПартнерами",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ПередЗаписью",
+        "ПриЗаписи"
+      ],
+      "writes_to": [],
+      "reads_from": [
+        "Catalog.ОбъектыРасчетов",
+        "Catalog.Организации",
+        "Document.ПриобретениеТоваровУслуг",
+        "Document.ПриобретениеУслугПрочихАктивов",
+        "InformationRegister.ОтносительныеКурсыВалют",
+        "AccumulationRegister.РасчетыСКлиентамиПоСрокам",
+        "AccumulationRegister.РасчетыСПоставщикамиПоСрокам",
+        "AccumulationRegister.РасчетыСКлиентамиПоДокументам",
+        "AccumulationRegister.РасчетыСПоставщикамиПоДокументам",
+        "Catalog.КлючиАналитикиУчетаПоПартнерам"
+      ],
+      "referenced_by": [],
+      "source_hash": "ca0a6ed45583140163efdf23414742acc4185e220108b6805b26aae1e22c658e"
+    },
+    {
+      "qname": "InformationRegister.ТорговыеПредложенияТорговойПлощадки",
+      "kind": "InformationRegister",
+      "name": "ТорговыеПредложенияТорговойПлощадки",
+      "comment": "Служебные данные контроля изменений торговых предложений в сервисе 1С:Бизнес-сеть",
+      "attrs": [
+        {
+          "name": "СостояниеПубликацииТорговыхПредложений",
+          "ref": "Enum.СостоянияПубликацииПозицииТорговогоПредложения",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ПередЗакрытием",
+        "ПередЗаписью",
+        "ПриСозданииНаСервере"
+      ],
+      "writes_to": [],
+      "reads_from": [
+        "InformationRegister.ТорговыеПредложенияТорговойПлощадки"
+      ],
+      "referenced_by": [],
+      "source_hash": "6e952a944eded3be10c8a03e0048202d5c9d9ba07bb30a8c22f2c0ad6c399d40"
+    },
+    {
+      "qname": "AccumulationRegister.ДвиженияПоПрочимАктивамПассивам",
+      "kind": "AccumulationRegister",
+      "name": "ДвиженияПоПрочимАктивамПассивам",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "ДебетКредит",
+          "ref": "Enum.ВидыДвиженийПрочихАктивовПассивов",
+          "req": true
+        },
+        {
+          "name": "Организация",
+          "ref": "Catalog.Организации",
+          "req": true
+        },
+        {
+          "name": "Статья",
+          "ref": "ChartOfCharacteristicTypes.СтатьиАктивовПассивов",
+          "req": true
+        },
+        {
+          "name": "ВидИсточника",
+          "ref": "Enum.ВидыИсточниковДвижений",
+          "req": false
+        },
+        {
+          "name": "НаправлениеДеятельности",
+          "ref": "Catalog.НаправленияДеятельности",
+          "req": false
+        },
+        {
+          "name": "НастройкаХозяйственнойОперации",
+          "ref": "Catalog.НастройкиХозяйственныхОпераций",
+          "req": false
+        },
+        {
+          "name": "ОбъектРасчетов",
+          "ref": "Catalog.ОбъектыРасчетов",
+          "req": false
+        },
+        {
+          "name": "Подразделение",
+          "ref": "Catalog.СтруктураПредприятия",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ПередЗаписью",
+        "ПриЗаписи"
+      ],
+      "writes_to": [],
+      "reads_from": [
+        "Catalog.НаправленияДеятельности",
+        "Document.Бронирование"
+      ],
+      "referenced_by": [],
+      "source_hash": "e6a6e54182efbb94179b02137f81332889e03700bbae449d05c9a9ce5a22eab9"
+    },
+    {
+      "qname": "AccumulationRegister.ПроцентныеРасходыДисконтирования",
+      "kind": "AccumulationRegister",
+      "name": "ПроцентныеРасходыДисконтирования",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "АналитикаУчетаПоПартнерам",
+          "ref": "Catalog.КлючиАналитикиУчетаПоПартнерам",
+          "req": false
+        },
+        {
+          "name": "Валюта",
+          "ref": "Catalog.Валюты",
+          "req": false
+        },
+        {
+          "name": "НастройкаХозяйственнойОперации",
+          "ref": "Catalog.НастройкиХозяйственныхОпераций",
+          "req": false
+        },
+        {
+          "name": "ОбъектРасчетов",
+          "ref": "Catalog.ОбъектыРасчетов",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ПередЗаписью"
+      ],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "21a55372c4bbfd98db4a3dfc8036d28d9e40aedc3e655fc45d9a4723db0d83bc"
+    }
+  ]
+}

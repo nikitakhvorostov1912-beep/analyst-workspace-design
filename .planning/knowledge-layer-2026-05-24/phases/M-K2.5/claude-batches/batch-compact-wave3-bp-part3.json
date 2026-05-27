@@ -1,0 +1,549 @@
+{
+  "channel_id": "_bp30_138_24",
+  "format": "compact-v1",
+  "part": 3,
+  "total_parts": 20,
+  "items": [
+    {
+      "qname": "Document.ОбъединениеЗаписейСкладскогоЖурналаВЕТИС",
+      "kind": "Document",
+      "name": "ОбъединениеЗаписейСкладскогоЖурналаВЕТИС",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "ВидПродукции",
+          "ref": "Catalog.ПродукцияВЕТИС",
+          "req": true
+        },
+        {
+          "name": "ЕдиницаИзмерения",
+          "ref": "Catalog.ЕдиницыИзмеренияВЕТИС",
+          "req": true
+        },
+        {
+          "name": "ЗаписьСкладскогоЖурнала",
+          "ref": "Catalog.ЗаписиСкладскогоЖурналаВЕТИС",
+          "req": true
+        },
+        {
+          "name": "Предприятие",
+          "ref": "Catalog.ПредприятияВЕТИС",
+          "req": true
+        },
+        {
+          "name": "Продукция",
+          "ref": "Catalog.ПродукцияВЕТИС",
+          "req": true
+        },
+        {
+          "name": "СпособОбъединения",
+          "ref": "Enum.СпособыОбъединенияЗаписейСкладскогоЖурналаВЕТИС",
+          "req": true
+        },
+        {
+          "name": "ХозяйствующийСубъект",
+          "ref": "Catalog.ХозяйствующиеСубъектыВЕТИС",
+          "req": true
+        },
+        {
+          "name": "ЗаписьСкладскогоЖурналаАрхив",
+          "ref": "Catalog.ЗаписиСкладскогоЖурналаВЕТИС",
+          "req": false
+        },
+        {
+          "name": "ФасовкаЕдиницаИзмерения",
+          "ref": "Catalog.ЕдиницыИзмеренияВЕТИС",
+          "req": false
+        },
+        {
+          "name": "ФасовкаУпаковка",
+          "ref": "Catalog.УпаковкиВЕТИС",
+          "req": false
+        }
+      ],
+      "ts": [
+        "ОбъединяемыеЗаписиСкладскогоЖурнала"
+      ],
+      "handlers": [
+        "ОбработкаЗаполнения",
+        "ОбработкаПроведения",
+        "ОбработкаПроверкиЗаполнения",
+        "ПередЗаписью",
+        "ПередЗаписью",
+        "ПриЗаписи"
+      ],
+      "writes_to": [],
+      "reads_from": [
+        "Catalog.ЗаписиСкладскогоЖурналаВЕТИС",
+        "InformationRegister.ОстаткиПродукцииВЕТИС",
+        "InformationRegister.СтатусыДокументовВЕТИС"
+      ],
+      "referenced_by": [
+        "InformationRegister.ЗаписиСкладскогоЖурналаВРезервеВЕТИС"
+      ],
+      "source_hash": "fb96b1c85bd346ea502ba50c893daa280ccc6ffcfd2fafe3ec03cc209e182783"
+    },
+    {
+      "qname": "Document.ПрекращениеАренды",
+      "kind": "Document",
+      "name": "ПрекращениеАренды",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "ВалютаДокумента",
+          "ref": "Catalog.Валюты",
+          "req": true
+        },
+        {
+          "name": "ВидОперации",
+          "ref": "Enum.ВидыОперацийПрекращениеАренды",
+          "req": true
+        },
+        {
+          "name": "ДоговорКонтрагента",
+          "ref": "Catalog.ДоговорыКонтрагентов",
+          "req": true
+        },
+        {
+          "name": "Контрагент",
+          "ref": "Catalog.Контрагенты",
+          "req": true
+        },
+        {
+          "name": "Организация",
+          "ref": "Catalog.Организации",
+          "req": true
+        },
+        {
+          "name": "СчетСписания",
+          "ref": "ChartOfAccounts.Хозрасчетный",
+          "req": true
+        },
+        {
+          "name": "СчетУчетаРасчетовПоАвансам",
+          "ref": "ChartOfAccounts.Хозрасчетный",
+          "req": true
+        },
+        {
+          "name": "СчетУчетаРасчетовСКонтрагентом",
+          "ref": "ChartOfAccounts.Хозрасчетный",
+          "req": true
+        },
+        {
+          "name": "Ответственный",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "ПодразделениеОрганизации",
+          "ref": "Catalog.ПодразделенияОрганизаций",
+          "req": false
+        },
+        {
+          "name": "ПричинаСписания",
+          "ref": "Catalog.ПричиныСписанияОС",
+          "req": false
+        },
+        {
+          "name": "СобытиеОС",
+          "ref": "Catalog.СобытияОС",
+          "req": false
+        }
+      ],
+      "ts": [
+        "ПредметыАренды"
+      ],
+      "handlers": [
+        "ОбработкаЗаполнения",
+        "ОбработкаПроведения",
+        "ОбработкаПроверкиЗаполнения",
+        "ОбработкаУдаленияПроведения",
+        "ПередЗакрытием",
+        "ПередЗаписью"
+      ],
+      "writes_to": [
+        "AccountingRegister.Хозрасчетный",
+        "InformationRegister.СтоимостьОбязательстваПоАренде"
+      ],
+      "reads_from": [
+        "InformationRegister.ПервоначальныеСведенияОСБухгалтерскийУчет",
+        "InformationRegister.МестонахождениеОСБухгалтерскийУчет",
+        "AccountingRegister.Хозрасчетный",
+        "InformationRegister.ДанныеПредметовАренды",
+        "InformationRegister.СчетаБухгалтерскогоУчетаОС",
+        "AccumulationRegister.ВыработкаОС"
+      ],
+      "referenced_by": [
+        "InformationRegister.ДанныеПервичныхДокументов"
+      ],
+      "source_hash": "3b130245cc408cf826ddcb61162ae8a2ead2a22dce91e4b010253023fb3e78c9"
+    },
+    {
+      "qname": "Document.ПутевойЛист",
+      "kind": "Document",
+      "name": "ПутевойЛист",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Организация",
+          "ref": "Catalog.Организации",
+          "req": true
+        },
+        {
+          "name": "СчетЗатрат",
+          "ref": "ChartOfAccounts.Хозрасчетный",
+          "req": true
+        },
+        {
+          "name": "ТранспортноеСредство",
+          "ref": "Catalog.ТранспортныеСредства",
+          "req": true
+        },
+        {
+          "name": "ФизЛицо",
+          "ref": "Catalog.ФизическиеЛица",
+          "req": true
+        },
+        {
+          "name": "ДокументПодписал",
+          "ref": "Catalog.ФизическиеЛица",
+          "req": false
+        },
+        {
+          "name": "ДолжностьПодписавшегоЛица",
+          "ref": "Catalog.Должности",
+          "req": false
+        },
+        {
+          "name": "Ответственный",
+          "ref": "Catalog.Пользователи",
+          "req": false
+        },
+        {
+          "name": "ОтражениеВУСН",
+          "ref": "Enum.ОтражениеВУСН",
+          "req": false
+        },
+        {
+          "name": "ПодразделениеЗатрат",
+          "ref": "Catalog.ПодразделенияОрганизаций",
+          "req": false
+        },
+        {
+          "name": "ПодразделениеОрганизации",
+          "ref": "Catalog.ПодразделенияОрганизаций",
+          "req": false
+        }
+      ],
+      "ts": [
+        "Топливо",
+        "Маршрут"
+      ],
+      "handlers": [
+        "ОбработкаЗаполнения",
+        "ОбработкаПроведения",
+        "ОбработкаПроверкиЗаполнения",
+        "ОбработкаУдаленияПроведения",
+        "ПередЗаписью",
+        "ПриЗаписи"
+      ],
+      "writes_to": [
+        "AccumulationRegister.РасходыПриУСН"
+      ],
+      "reads_from": [
+        "InformationRegister.ДокументыФизическихЛиц",
+        "Catalog.ТранспортныеСредства",
+        "Document.ПутевойЛист.ТабличнаяЧасть.Маршрут",
+        "Document.ПутевойЛист.ТабличнаяЧасть.Топливо"
+      ],
+      "referenced_by": [
+        "AccumulationRegister.ИППрочиеРасходы",
+        "AccumulationRegister.ПрочиеРасчеты",
+        "AccumulationRegister.РасходыПриУСН",
+        "InformationRegister.ДанныеПервичныхДокументов",
+        "InformationRegister.ДокументыПоКассовымЧекамПодотчетныхЛиц"
+      ],
+      "source_hash": "a194e9def0add88840636f7308531be612ea6067720981b9a2fc21a3912a2b94"
+    },
+    {
+      "qname": "InformationRegister.ВходящиеСообщенияСЭДОФСС",
+      "kind": "InformationRegister",
+      "name": "ВходящиеСообщенияСЭДОФСС",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Организация",
+          "ref": "Catalog.Организации",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ПриСозданииНаСервере",
+        "ПриСозданииНаСервере"
+      ],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "35f5634098b285c537df7bef264d0c44aa6ee733ddc072b9653af53adf578c0d"
+    },
+    {
+      "qname": "InformationRegister.ЖурналОтправокВКонтролирующиеОрганы",
+      "kind": "InformationRegister",
+      "name": "ЖурналОтправокВКонтролирующиеОрганы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "ВидДокумента",
+          "ref": "Enum.ВидыДокументовВЖурнале",
+          "req": false
+        },
+        {
+          "name": "ВидКонтролирующегоОргана",
+          "ref": "Enum.ТипыКонтролирующихОрганов",
+          "req": false
+        },
+        {
+          "name": "Организация",
+          "ref": "Catalog.Организации",
+          "req": false
+        },
+        {
+          "name": "СостояниеСдачиОтчетности",
+          "ref": "Enum.СостояниеСдачиОтчетности",
+          "req": false
+        },
+        {
+          "name": "СтраницаЖурнала",
+          "ref": "Enum.СтраницыЖурналаОтчетность",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ПриЗаписи"
+      ],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "c4b9fef490e4b0e1568a7d69c4cbed10ce80e5cf7ba652af84d31c18bc3aa831"
+    },
+    {
+      "qname": "InformationRegister.НастройкиСистемыНалогообложения",
+      "kind": "InformationRegister",
+      "name": "НастройкиСистемыНалогообложения",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Организация",
+          "ref": "Catalog.Организации",
+          "req": true
+        },
+        {
+          "name": "ОбъектНалогообложенияУСН",
+          "ref": "Enum.ОбъектыНалогообложенияПоУСН",
+          "req": false
+        },
+        {
+          "name": "СистемаНалогообложения",
+          "ref": "Enum.СистемыНалогообложения",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ОбработкаЗаполнения",
+        "ПередЗаписью",
+        "ПередЗаписьюНаСервере",
+        "ПриЗаписи",
+        "ПриСозданииНаСервере",
+        "ПриСозданииНаСервере"
+      ],
+      "writes_to": [],
+      "reads_from": [
+        "InformationRegister.НастройкиСистемыНалогообложения"
+      ],
+      "referenced_by": [],
+      "source_hash": "73598bb77a3f1dbad08e05f2692e288931037cfd970cad7a2d833096127d9ccb"
+    },
+    {
+      "qname": "InformationRegister.РасчетСписанияРБП",
+      "kind": "InformationRegister",
+      "name": "РасчетСписанияРБП",
+      "comment": "Расчет списания расходов будущих периодов",
+      "attrs": [
+        {
+          "name": "Организация",
+          "ref": "Catalog.Организации",
+          "req": false
+        },
+        {
+          "name": "ПодразделениеОрганизации",
+          "ref": "Catalog.ПодразделенияОрганизаций",
+          "req": false
+        },
+        {
+          "name": "СпособПризнанияРасходов",
+          "ref": "Enum.СпособыПризнанияРасходов",
+          "req": false
+        },
+        {
+          "name": "Статья",
+          "ref": "Catalog.ОсновныеСредства,Catalog.РасходыБудущихПериодов",
+          "req": false
+        },
+        {
+          "name": "СчетСписания",
+          "ref": "ChartOfAccounts.Хозрасчетный",
+          "req": false
+        },
+        {
+          "name": "СчетУчета",
+          "ref": "ChartOfAccounts.Хозрасчетный",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "3e91a82006a86f143c8071d93d023128d62b2331f4ef1511cf95c2214d61e8e5"
+    },
+    {
+      "qname": "InformationRegister.СведенияРеглОтчетАлкоПрил12Раздел2",
+      "kind": "InformationRegister",
+      "name": "СведенияРеглОтчетАлкоПрил12Раздел2",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Документ",
+          "ref": "Document.РегламентированныйОтчет",
+          "req": true
+        },
+        {
+          "name": "Организация",
+          "ref": "Catalog.Организации",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ПередЗакрытием",
+        "ПередЗаписьюНаСервере",
+        "ПриОткрытии",
+        "ПриСозданииНаСервере"
+      ],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "ceff067a43490bfed39942cabd57e33097cf94edad1016b93c50c3c939e4f44e"
+    },
+    {
+      "qname": "AccumulationRegister.УдалитьНДФЛРасчетыСБюджетом",
+      "kind": "AccumulationRegister",
+      "name": "УдалитьНДФЛРасчетыСБюджетом",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "ВидСтроки",
+          "ref": "Enum.УдалитьНДФЛРасчетыСБюджетомВидСтроки",
+          "req": false
+        },
+        {
+          "name": "КодДохода",
+          "ref": "Catalog.УдалитьДоходыНДФЛ",
+          "req": false
+        },
+        {
+          "name": "ОбособленноеПодразделение",
+          "ref": "Catalog.Организации",
+          "req": false
+        },
+        {
+          "name": "Организация",
+          "ref": "Catalog.Организации",
+          "req": false
+        },
+        {
+          "name": "ПодразделениеОрганизации",
+          "ref": "Catalog.ПодразделенияОрганизаций",
+          "req": false
+        },
+        {
+          "name": "СрокПеречисления",
+          "ref": "Enum.УдалитьСрокиПеречисляемогоНалога",
+          "req": false
+        },
+        {
+          "name": "СтавкаНалогообложенияРезидента",
+          "ref": "Enum.НДФЛСтавкиНалогообложенияРезидента",
+          "req": false
+        },
+        {
+          "name": "ФизЛицо",
+          "ref": "Catalog.ФизическиеЛица",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "03a1a0eedc6236490d055ec7ba34fbbaef543c418bd96b828911d4fb1c733b30"
+    },
+    {
+      "qname": "Catalog.АвансовыйОтчетПрисоединенныеФайлы",
+      "kind": "Catalog",
+      "name": "АвансовыйОтчетПрисоединенныеФайлы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Автор",
+          "ref": "Catalog.ВнешниеПользователи,Catalog.Пользователи,Catalog.УчетныеЗаписиСинхрониза",
+          "req": true
+        },
+        {
+          "name": "ТипХраненияФайла",
+          "ref": "Enum.ТипыХраненияФайлов",
+          "req": true
+        },
+        {
+          "name": "ВладелецФайла",
+          "ref": "Document.АвансовыйОтчет",
+          "req": false
+        },
+        {
+          "name": "Изменил",
+          "ref": "Catalog.ВнешниеПользователи,Catalog.Пользователи,Catalog.УчетныеЗаписиСинхрониза",
+          "req": false
+        },
+        {
+          "name": "Редактирует",
+          "ref": "Catalog.ВнешниеПользователи,Catalog.Пользователи,Catalog.УчетныеЗаписиСинхрониза",
+          "req": false
+        },
+        {
+          "name": "СтатусИзвлеченияТекста",
+          "ref": "Enum.СтатусыИзвлеченияТекстаФайлов",
+          "req": false
+        },
+        {
+          "name": "Том",
+          "ref": "Catalog.ТомаХраненияФайлов",
+          "req": false
+        }
+      ],
+      "ts": [
+        "УдалитьЭлектронныеПодписи",
+        "УдалитьСертификатыШифрования"
+      ],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "981e0ef14f451624afa7054ac4cf59c6ab3fb6f4e22e0bd9ffb73de6fde923c2"
+    }
+  ]
+}
