@@ -1,8 +1,20 @@
-"""Object Card models — frozen dataclasses для LLM-генерируемых описаний.
+"""Object Card models — Pydantic BaseModel(frozen=True) для LLM-генерируемых описаний.
 
 Карточка описывает один объект метаданных типовой конфигурации на
 русском языке: что это, зачем нужно, как ведёт себя при проведении,
 какие связанные объекты. Хранится в `typical_object_cards` (migration v18).
+
+## Миграция dataclass → Pydantic (M-K2.5.9.1, 2026-05-27)
+
+Карточки переведены с `@dataclass(frozen=True, slots=True)` на
+`BaseModel(model_config=ConfigDict(frozen=True))`. Причины:
+- Хард-валидация полей по типу (отлавливаем кривой LLM output на парсинге).
+- Field-level constraints (max_length) — основа step-3.
+- Discriminated unions / Literal types — основа step-4.
+- Backward compat: `extra='ignore'` — старые поля в БД не валят парсинг.
+
+Публичный API сохранён: `to_dict()`, `to_payload_json()`,
+`from_payload_json()`, property `embedding_text`.
 
 ## Структура (из M-K2.5-PLAN.md → Phase 5)
 
@@ -55,9 +67,11 @@ its_links:
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 from typing import Any
+
+from pydantic import BaseModel, ConfigDict
 
 
 class CardStatus(str, Enum):
@@ -69,9 +83,10 @@ class CardStatus(str, Enum):
     FAILED = "failed"
 
 
-@dataclass(frozen=True, slots=True)
-class CardAttribute:
+class CardAttribute(BaseModel):
     """Один ключевой реквизит в карточке."""
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
 
     name: str
     role: str = ""
@@ -80,9 +95,10 @@ class CardAttribute:
         return {"name": self.name, "role": self.role}
 
 
-@dataclass(frozen=True, slots=True)
-class CardMovement:
+class CardMovement(BaseModel):
     """Один тип движений (для документов)."""
+
+    model_config = ConfigDict(frozen=True, extra="ignore")
 
     register: str
     direction: str = ""  # "приход" | "расход" | "приход/расход"
@@ -96,31 +112,34 @@ class CardMovement:
         }
 
 
-@dataclass(frozen=True, slots=True)
-class TypicalObjectCard:
+class TypicalObjectCard(BaseModel):
     """Полная карточка объекта типовой.
 
     Содержит описательные поля (русский) + структурированные списки.
     Сериализуется в JSON для хранения в `typical_object_cards.card_payload`.
+
+    frozen=True — попытка mutation поднимет ValidationError.
+    extra='ignore' — backward compat: старые поля в БД (legacy) не валят парсинг.
     """
 
+    model_config = ConfigDict(frozen=True, extra="ignore")
+
     # Метаданные
-    object_qualified_name: str          # "Document.РеализацияТоваровУслуг"
-    object_kind: str                     # "Document"
-    channel_id: str                      # "_bp30_138_24"
+    object_qualified_name: str           # "Document.РеализацияТоваровУслуг"
+    object_kind: str                      # "Document"
+    channel_id: str                       # "_bp30_138_24"
 
     # Описательная часть (LLM генерирует)
-    summary: str = ""                    # 1-3 предложения
-    purpose: str = ""                    # назначение в учёте
-    key_attributes: tuple[CardAttribute, ...] = field(default_factory=tuple)
-    movements: tuple[CardMovement, ...] = field(default_factory=tuple)
-    posting_flow: tuple[str, ...] = field(default_factory=tuple)
-    typical_scenarios: tuple[str, ...] = field(default_factory=tuple)
-    preconditions: tuple[str, ...] = field(default_factory=tuple)
-    related_objects: tuple[str, ...] = field(default_factory=tuple)
-    its_links: tuple[str, ...] = field(default_factory=tuple)
+    summary: str = ""                     # 1-3 предложения
+    purpose: str = ""                     # назначение в учёте
+    key_attributes: tuple[CardAttribute, ...] = ()
+    movements: tuple[CardMovement, ...] = ()
+    posting_flow: tuple[str, ...] = ()
+    typical_scenarios: tuple[str, ...] = ()
+    preconditions: tuple[str, ...] = ()
+    related_objects: tuple[str, ...] = ()
+    its_links: tuple[str, ...] = ()
 
-    # Embedding text (что уйдёт в embedding API)
     @property
     def embedding_text(self) -> str:
         """Возвращает русский текст для эмбеддинга.
@@ -140,6 +159,11 @@ class TypicalObjectCard:
         return "\n\n".join(parts)
 
     def to_dict(self) -> dict[str, Any]:
+        """JSON-friendly dict (tuple → list).
+
+        Сохраняем поведение dataclass-версии один-в-один: ключи и порядок
+        полей те же, list вместо tuple, вложенные модели через to_dict().
+        """
         return {
             "object_qualified_name": self.object_qualified_name,
             "object_kind": self.object_kind,
@@ -156,7 +180,12 @@ class TypicalObjectCard:
         }
 
     def to_payload_json(self) -> str:
-        """Сериализованный JSON для card_payload колонки в БД."""
+        """Сериализованный JSON для card_payload колонки в БД.
+
+        Используем json.dumps + sort_keys=True (а не model_dump_json),
+        чтобы сохранить детерминированный порядок ключей и совместимость
+        с уже сохранёнными 63 197 карточками.
+        """
         return json.dumps(self.to_dict(), ensure_ascii=False, sort_keys=True)
 
     @classmethod
@@ -168,39 +197,40 @@ class TypicalObjectCard:
         object_kind: str,
         payload_json: str,
     ) -> "TypicalObjectCard":
-        """Загружает карточку из JSON-payload."""
+        """Загружает карточку из JSON-payload.
+
+        Backward compat: payload может содержать поля старого формата
+        (например, неизвестный extra-ключ). `extra='ignore'` в config
+        проигнорирует их без ошибки.
+        """
         raw = json.loads(payload_json) if payload_json else {}
-        key_attrs = tuple(
-            CardAttribute(name=a.get("name", ""), role=a.get("role", ""))
-            for a in raw.get("key_attributes", [])
-        )
-        movements = tuple(
-            CardMovement(
-                register=m.get("register", ""),
-                direction=m.get("direction", ""),
-                condition=m.get("condition", ""),
-            )
-            for m in raw.get("movements", [])
-        )
-        return cls(
-            object_qualified_name=object_qualified_name,
-            object_kind=object_kind,
-            channel_id=channel_id,
-            summary=raw.get("summary", ""),
-            purpose=raw.get("purpose", ""),
-            key_attributes=key_attrs,
-            movements=movements,
-            posting_flow=tuple(raw.get("posting_flow", [])),
-            typical_scenarios=tuple(raw.get("typical_scenarios", [])),
-            preconditions=tuple(raw.get("preconditions", [])),
-            related_objects=tuple(raw.get("related_objects", [])),
-            its_links=tuple(raw.get("its_links", [])),
-        )
+        # Метаданные канала / qname берём из аргументов (источник истины — БД row),
+        # а не из payload (там они могут отсутствовать или быть устаревшими).
+        data: dict[str, Any] = {
+            "object_qualified_name": object_qualified_name,
+            "object_kind": object_kind,
+            "channel_id": channel_id,
+            "summary": raw.get("summary", ""),
+            "purpose": raw.get("purpose", ""),
+            "key_attributes": raw.get("key_attributes") or [],
+            "movements": raw.get("movements") or [],
+            "posting_flow": raw.get("posting_flow") or [],
+            "typical_scenarios": raw.get("typical_scenarios") or [],
+            "preconditions": raw.get("preconditions") or [],
+            "related_objects": raw.get("related_objects") or [],
+            "its_links": raw.get("its_links") or [],
+        }
+        return cls.model_validate(data)
 
 
 @dataclass(frozen=True, slots=True)
 class TypicalObjectCardRecord:
-    """Запись карточки в БД с метаданными (status / hash / token_usage)."""
+    """Запись карточки в БД с метаданными (status / hash / token_usage).
+
+    Остаётся frozen dataclass — это контейнер DB-row, не объект LLM-output.
+    Pydantic-валидация полей не нужна (значения уже валидированы при чтении
+    из SQLite).
+    """
 
     id: int
     channel_id: str
