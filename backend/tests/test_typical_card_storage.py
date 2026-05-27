@@ -231,12 +231,14 @@ class TestCardAttribute:
 
 class TestCardMovement:
     def test_to_dict_full(self):
+        # M-K2.5.9.4: register должен быть с canonical префиксом
+        # (английским именем класса метаданных).
         m = CardMovement(
-            register="РегистрНакопления.ТоварыНаСкладах",
+            register="AccumulationRegister.ТоварыНаСкладах",
             direction="расход",
             condition="при списании",
         )
-        assert m.to_dict()["register"] == "РегистрНакопления.ТоварыНаСкладах"
+        assert m.to_dict()["register"] == "AccumulationRegister.ТоварыНаСкладах"
         assert m.to_dict()["direction"] == "расход"
 
 
@@ -292,7 +294,9 @@ class TestTypicalObjectCard:
             summary="S",
             purpose="P",
             key_attributes=(CardAttribute(name="A", role="r"),),
-            movements=(CardMovement(register="R", direction="d", condition="c"),),
+            movements=(CardMovement(
+                register="AccumulationRegister.X", direction="расход", condition="c",
+            ),),
             posting_flow=("x",),
             related_objects=("Y",),
         )
@@ -306,7 +310,8 @@ class TestTypicalObjectCard:
         assert c2.summary == "S"
         assert c2.purpose == "P"
         assert c2.key_attributes[0].name == "A"
-        assert c2.movements[0].register == "R"
+        assert c2.movements[0].register == "AccumulationRegister.X"
+        assert c2.movements[0].direction == "расход"
         assert c2.related_objects == ("Y",)
 
     def test_from_payload_json_empty(self):
@@ -374,7 +379,10 @@ class TestHardLimits:
 
         from app.knowledge.typical.card_models import MAX_MOVEMENTS  # noqa: PLC0415
 
-        too_many = tuple(CardMovement(register=f"R{i}") for i in range(MAX_MOVEMENTS + 1))
+        too_many = tuple(
+            CardMovement(register=f"AccumulationRegister.R{i}")
+            for i in range(MAX_MOVEMENTS + 1)
+        )
         with pytest.raises(ValidationError):
             TypicalObjectCard(
                 object_qualified_name="Document.X",
@@ -427,7 +435,7 @@ class TestHardLimits:
 
         with pytest.raises(ValidationError):
             CardMovement(
-                register="R", direction="приход",
+                register="AccumulationRegister.X", direction="приход",
                 condition="x" * (MAX_MOVEMENT_CONDITION_LEN + 1),
             )
 
@@ -472,6 +480,94 @@ class TestHardLimits:
             summary="x" * MAX_SUMMARY_LEN,
         )
         assert len(c.summary) == MAX_SUMMARY_LEN
+
+
+# ─── Closed vocabulary (M-K2.5.9.4) ───────────────────────────────────
+
+
+class TestClosedVocabulary:
+    """Literal types + register format validator."""
+
+    def test_direction_canonical_values_accepted(self):
+        """Все 5 canonical значений direction валидны."""
+        for direction in ("приход", "расход", "приход/расход", "запись", ""):
+            m = CardMovement(register="AccumulationRegister.X", direction=direction)
+            assert m.direction == direction
+
+    def test_direction_invalid_value_raises(self):
+        """Любое значение вне Literal — ValidationError."""
+        from pydantic import ValidationError  # noqa: PLC0415
+
+        for bad in ("expense", "outgoing", "+приход", "продажа"):
+            with pytest.raises(ValidationError):
+                CardMovement(register="AccumulationRegister.X", direction=bad)
+
+    def test_register_must_have_kind_prefix(self):
+        """register без Kind.Name формата — отклонение."""
+        from pydantic import ValidationError  # noqa: PLC0415
+
+        for bad in ("ТоварыНаСкладах", "Регистр.X", "AccRegister.X",
+                    "AccumulationRegister", "AccumulationRegister."):
+            with pytest.raises(ValidationError):
+                CardMovement(register=bad)
+
+    def test_register_with_4_canonical_kinds(self):
+        """Все 4 платформенных типа регистров — валидны."""
+        from app.knowledge.typical.card_models import ALLOWED_REGISTER_KINDS  # noqa: PLC0415
+
+        for kind in ALLOWED_REGISTER_KINDS:
+            m = CardMovement(register=f"{kind}.МойРегистр")
+            assert m.register.startswith(kind + ".")
+
+    def test_normalize_direction_synonyms(self):
+        """Helper маппит синонимы на canonical."""
+        from app.knowledge.typical.card_models import normalize_direction  # noqa: PLC0415
+
+        assert normalize_direction("expense") == "расход"
+        assert normalize_direction("income") == "приход"
+        assert normalize_direction("+") == "приход"
+        assert normalize_direction("-") == "расход"
+        assert normalize_direction("write") == "запись"
+        assert normalize_direction("ПРИХОД") == "приход"  # case-insensitive
+        assert normalize_direction("unknown") == ""
+        assert normalize_direction(None) == ""
+
+    def test_from_payload_json_normalizes_legacy_direction(self):
+        """Legacy 'expense' → 'расход' при загрузке."""
+        import json  # noqa: PLC0415
+
+        payload = json.dumps({
+            "movements": [
+                {"register": "AccumulationRegister.X", "direction": "expense"},
+                {"register": "AccumulationRegister.Y", "direction": "income"},
+            ],
+        })
+        c = TypicalObjectCard.from_payload_json(
+            channel_id="_test_", object_qualified_name="Document.X",
+            object_kind="Document", payload_json=payload,
+        )
+        assert c.movements[0].direction == "расход"
+        assert c.movements[1].direction == "приход"
+
+    def test_from_payload_json_skips_broken_register(self):
+        """Legacy payload с invalid register — skip без падения."""
+        import json  # noqa: PLC0415
+
+        payload = json.dumps({
+            "movements": [
+                {"register": "AccumulationRegister.OK"},
+                {"register": "BadRegister.X"},  # unknown prefix
+                {"register": "NoDotAtAll"},
+                {"register": "AccumulationRegister.Survives"},
+            ],
+        })
+        c = TypicalObjectCard.from_payload_json(
+            channel_id="_test_", object_qualified_name="Document.X",
+            object_kind="Document", payload_json=payload,
+        )
+        assert len(c.movements) == 2
+        assert c.movements[0].register == "AccumulationRegister.OK"
+        assert c.movements[1].register == "AccumulationRegister.Survives"
 
 
 # ─── card_storage ─────────────────────────────────────────────────────

@@ -43,9 +43,9 @@ from typing import Any, Protocol
 
 from app.knowledge.typical.card_context import CardContext
 from app.knowledge.typical.card_models import (
+    ALLOWED_REGISTER_KINDS,
     MAX_ATTR_NAME_LEN,
     MAX_ATTR_ROLE_LEN,
-    MAX_DIRECTION_LEN,
     MAX_ITS_LINK_LEN,
     MAX_ITS_LINKS,
     MAX_KEY_ATTRIBUTES,
@@ -65,6 +65,7 @@ from app.knowledge.typical.card_models import (
     CardAttribute,
     CardMovement,
     TypicalObjectCard,
+    normalize_direction,
 )
 
 logger = logging.getLogger(__name__)
@@ -356,15 +357,33 @@ def _payload_to_card(
         for a in key_attrs_raw
         if isinstance(a, dict) and a.get("name")
     )
-    movements = tuple(
-        CardMovement(
-            register=str(m.get("register", "")).strip()[:MAX_REGISTER_NAME_LEN],
-            direction=str(m.get("direction", "")).strip()[:MAX_DIRECTION_LEN],
+    # M-K2.5.9.4 — закрытый словарь:
+    # - direction нормализуется (синонимы → canonical через normalize_direction).
+    # - register skip-ается если не соответствует <Kind>.<Name> формату
+    #   с Kind из ALLOWED_REGISTER_KINDS. Защита от LLM-фантазий типа
+    #   «РегистрНакопления.X» русскими буквами или «Регистр.X».
+    movements_list: list[CardMovement] = []
+    for m in movements_raw:
+        if not isinstance(m, dict):
+            continue
+        register = str(m.get("register", "")).strip()[:MAX_REGISTER_NAME_LEN]
+        if not register:
+            continue
+        # Проверка register-prefix ДО создания Pydantic (избегаем ValidationError).
+        kind_prefix = register.split(".", 1)[0]
+        if kind_prefix not in ALLOWED_REGISTER_KINDS:
+            logger.warning(
+                "Skip movement с unknown register prefix %r (register=%r). "
+                "Допустимы только: %s",
+                kind_prefix, register, sorted(ALLOWED_REGISTER_KINDS),
+            )
+            continue
+        movements_list.append(CardMovement(
+            register=register,
+            direction=normalize_direction(m.get("direction", "")),
             condition=str(m.get("condition", "")).strip()[:MAX_MOVEMENT_CONDITION_LEN],
-        )
-        for m in movements_raw
-        if isinstance(m, dict) and m.get("register")
-    )
+        ))
+    movements = tuple(movements_list)
 
     return TypicalObjectCard(
         object_qualified_name=context.object_qualified_name,

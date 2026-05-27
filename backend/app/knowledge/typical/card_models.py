@@ -67,11 +67,12 @@ its_links:
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from enum import Enum
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 # ── Hard limits (M-K2.5.9.3) ──────────────────────────────────────────
@@ -119,6 +120,68 @@ RelatedName = Annotated[str, Field(max_length=MAX_RELATED_NAME_LEN)]
 ITSLink = Annotated[str, Field(max_length=MAX_ITS_LINK_LEN)]
 
 
+# ── Closed vocabulary (M-K2.5.9.4) ────────────────────────────────────
+#
+# Защита от fragmentation графа: LLM может изобрести «отгрузка» / «expense»
+# / «outgoing» вместо canonical «расход». Literal types — единственный
+# источник истины для direction. Pydantic отклонит произвольное значение.
+
+#: Допустимые значения для CardMovement.direction.
+#: - "приход" — увеличение остатка (получение товара, начисление взаиморасчётов)
+#: - "расход" — уменьшение остатка (списание товара, погашение взаиморасчётов)
+#: - "приход/расход" — сторно или зависит от условия
+#: - "запись" — для информационных регистров (не аккумуляции)
+#: - "" — direction неизвестен (mock-карточки) или не применимо
+MovementDirection = Literal["приход", "расход", "приход/расход", "запись", ""]
+
+#: Префиксы канонических имён регистров. Регистр должен быть в формате
+#: `<Prefix>.<Имя>`. Поддерживается 4 типа из платформы 1С.
+ALLOWED_REGISTER_KINDS: frozenset[str] = frozenset({
+    "AccumulationRegister",
+    "InformationRegister",
+    "AccountingRegister",
+    "CalculationRegister",
+})
+
+#: Mapping legacy / синонимы → canonical direction.
+#: Применяется в from_payload_json при загрузке старых карточек.
+_DIRECTION_NORMALIZE: dict[str, MovementDirection] = {
+    "": "",
+    "приход": "приход",
+    "расход": "расход",
+    "приход/расход": "приход/расход",
+    "запись": "запись",
+    # Synonyms / legacy:
+    "expense": "расход",
+    "income": "приход",
+    "spending": "расход",
+    "receipt": "приход",
+    "in": "приход",
+    "out": "расход",
+    "+": "приход",
+    "-": "расход",
+    "write": "запись",
+}
+
+# regex: <Kind>.<Name> где Kind — один из ALLOWED_REGISTER_KINDS.
+# Точка обязательна, имя после неё — non-empty.
+_REGISTER_NAME_RE = re.compile(
+    r"^(?:" + "|".join(re.escape(k) for k in ALLOWED_REGISTER_KINDS) + r")\.\S.*$"
+)
+
+
+def normalize_direction(value: Any) -> MovementDirection:
+    """Усекает / нормализует direction до canonical допустимого значения.
+
+    Используется для backward compat и для defensive обработки LLM-output.
+    Неизвестные значения → "" (вместо ValidationError).
+    """
+    if value is None:
+        return ""
+    key = str(value).strip().lower()
+    return _DIRECTION_NORMALIZE.get(key, "")
+
+
 class CardStatus(str, Enum):
     """Lifecycle карточки."""
 
@@ -141,13 +204,37 @@ class CardAttribute(BaseModel):
 
 
 class CardMovement(BaseModel):
-    """Один тип движений (для документов)."""
+    """Один тип движений (для документов).
+
+    M-K2.5.9.4: direction — closed vocabulary (`Literal`), register —
+    must match `<Kind>.<Name>` format где Kind ∈ ALLOWED_REGISTER_KINDS.
+    Защита графа от fragmentation: разные синонимы в одно ведро.
+    """
 
     model_config = ConfigDict(frozen=True, extra="ignore")
 
     register: str = Field(max_length=MAX_REGISTER_NAME_LEN)
-    direction: str = Field(default="", max_length=MAX_DIRECTION_LEN)
+    direction: MovementDirection = ""
     condition: str = Field(default="", max_length=MAX_MOVEMENT_CONDITION_LEN)
+
+    @field_validator("register", mode="after")
+    @classmethod
+    def _validate_register_format(cls, value: str) -> str:
+        """Проверяет что register имеет формат `<Kind>.<Имя>`.
+
+        Допустимые Kind: см. ALLOWED_REGISTER_KINDS. Без точки или с
+        unknown prefix — отклонить (защита от LLM-фантазий вроде
+        "РегистрНакопления.X" русскими буквами или "Регистр.X").
+        """
+        if not value:
+            raise ValueError("register не может быть пустым")
+        if not _REGISTER_NAME_RE.match(value):
+            raise ValueError(
+                f"register должен начинаться с одного из "
+                f"{sorted(ALLOWED_REGISTER_KINDS)} и содержать точку + имя, "
+                f"получено: {value!r}"
+            )
+        return value
 
     def to_dict(self) -> dict[str, str]:
         return {
@@ -267,6 +354,28 @@ class TypicalObjectCard(BaseModel):
         def _trunc_str_list(value: Any, max_items: int, max_len: int) -> list[str]:
             return [_trunc_str(v, max_len) for v in _trunc_list(value, max_items)]
 
+        def _normalize_movements(value: Any) -> list[dict[str, str]]:
+            """Backward compat для legacy / non-canonical movements.
+
+            - direction: маппится через normalize_direction (синонимы → canonical)
+            - register: невалидный формат skip-аем (защита от ValidationError)
+            """
+            result: list[dict[str, str]] = []
+            for m in _trunc_list(value, MAX_MOVEMENTS):
+                if not isinstance(m, dict):
+                    continue
+                register = _trunc_str(m.get("register"), MAX_REGISTER_NAME_LEN)
+                if not register or not _REGISTER_NAME_RE.match(register):
+                    # Drop невалидный movement — лучше пустой массив,
+                    # чем падение валидации.
+                    continue
+                result.append({
+                    "register": register,
+                    "direction": normalize_direction(m.get("direction")),
+                    "condition": _trunc_str(m.get("condition"), MAX_MOVEMENT_CONDITION_LEN),
+                })
+            return result
+
         # Метаданные канала / qname берём из аргументов (источник истины — БД row),
         # а не из payload (там они могут отсутствовать или быть устаревшими).
         data: dict[str, Any] = {
@@ -276,7 +385,7 @@ class TypicalObjectCard(BaseModel):
             "summary": _trunc_str(raw.get("summary", ""), MAX_SUMMARY_LEN),
             "purpose": _trunc_str(raw.get("purpose", ""), MAX_PURPOSE_LEN),
             "key_attributes": _trunc_list(raw.get("key_attributes"), MAX_KEY_ATTRIBUTES),
-            "movements": _trunc_list(raw.get("movements"), MAX_MOVEMENTS),
+            "movements": _normalize_movements(raw.get("movements")),
             "posting_flow": _trunc_str_list(
                 raw.get("posting_flow"), MAX_POSTING_FLOW, MAX_POSTING_STEP_LEN,
             ),
