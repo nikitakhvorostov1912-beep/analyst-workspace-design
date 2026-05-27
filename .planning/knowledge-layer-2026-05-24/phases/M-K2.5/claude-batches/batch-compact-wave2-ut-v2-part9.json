@@ -1,0 +1,597 @@
+{
+  "channel_id": "_ut115_17_226",
+  "format": "compact-v1",
+  "part": 9,
+  "total_parts": 12,
+  "items": [
+    {
+      "qname": "AccumulationRegister.НДСЗаписиКнигиПокупок",
+      "kind": "AccumulationRegister",
+      "name": "НДСЗаписиКнигиПокупок",
+      "comment": "НДС. Записи книги покупок",
+      "attrs": [
+        {
+          "name": "ВидДеятельностиНДС",
+          "ref": "Enum.ТипыНалогообложенияНДС",
+          "req": false
+        },
+        {
+          "name": "ВидЦенности",
+          "ref": "Enum.ВидыЦенностей",
+          "req": false
+        },
+        {
+          "name": "ДоговорКонтрагента",
+          "ref": "Catalog.ДоговорыКонтрагентов",
+          "req": false
+        },
+        {
+          "name": "ДокументОплаты",
+          "ref": "Document.АвансовыйОтчет,Document.ВводОстатков,Document.ВводОстатковВзаиморасчето",
+          "req": false
+        },
+        {
+          "name": "ДокументОтгрузки",
+          "ref": "Document.АктВыполненныхРабот,Document.РеализацияТоваровУслуг",
+          "req": false
+        },
+        {
+          "name": "ИсправленныйСчетФактура",
+          "ref": "Document.КорректировкаПриобретения,Document.КорректировкаРеализации,Document.Сче",
+          "req": false
+        },
+        {
+          "name": "НаправлениеДеятельности",
+          "ref": "Catalog.НаправленияДеятельности",
+          "req": false
+        },
+        {
+          "name": "Организация",
+          "ref": "Catalog.Организации",
+          "req": false
+        },
+        {
+          "name": "Поставщик",
+          "ref": "Catalog.Контрагенты,Catalog.Организации",
+          "req": false
+        },
+        {
+          "name": "Событие",
+          "ref": "Enum.СобытияПоНДСПокупки",
+          "req": false
+        },
+        {
+          "name": "СтавкаНДС",
+          "ref": "Enum.СтавкиНДС",
+          "req": false
+        },
+        {
+          "name": "ХозяйственнаяОперация",
+          "ref": "Enum.ХозяйственныеОперации",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ПередЗаписью"
+      ],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "d615ac73d9aac197ad4d5811bd5440760777e59e17f89e89fe5e76aa2b9f49d0"
+    },
+    {
+      "qname": "AccumulationRegister.НДСЗаписиКнигиПродаж",
+      "kind": "AccumulationRegister",
+      "name": "НДСЗаписиКнигиПродаж",
+      "comment": "НДС. Записи книги продаж",
+      "attrs": [
+        {
+          "name": "ВидДеятельностиНДС",
+          "ref": "Enum.ТипыНалогообложенияНДС",
+          "req": false
+        },
+        {
+          "name": "ВидЦенности",
+          "ref": "Enum.ВидыЦенностей",
+          "req": false
+        },
+        {
+          "name": "ДоговорКонтрагента",
+          "ref": "Catalog.ДоговорыКонтрагентов",
+          "req": false
+        },
+        {
+          "name": "ДокументОплаты",
+          "ref": "Document.ВводОстатков,Document.ВводОстатковВзаиморасчетов,Document.ВводОстатковД",
+          "req": false
+        },
+        {
+          "name": "ИсправленныйСчетФактура",
+          "ref": "Document.КорректировкаПриобретения,Document.КорректировкаРеализации,Document.Сво",
+          "req": false
+        },
+        {
+          "name": "НаправлениеДеятельности",
+          "ref": "Catalog.НаправленияДеятельности",
+          "req": false
+        },
+        {
+          "name": "Организация",
+          "ref": "Catalog.Организации",
+          "req": false
+        },
+        {
+          "name": "Покупатель",
+          "ref": "Catalog.Контрагенты,Catalog.Организации",
+          "req": false
+        },
+        {
+          "name": "Событие",
+          "ref": "Enum.СобытияПоНДСПродажи",
+          "req": false
+        },
+        {
+          "name": "СтавкаНДС",
+          "ref": "Enum.СтавкиНДС",
+          "req": false
+        },
+        {
+          "name": "ХозяйственнаяОперация",
+          "ref": "Enum.ХозяйственныеОперации",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ПередЗаписью"
+      ],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "be48567b81d2ba1bc61f8ce1c32aadf43bb0836ceeb41930893379e7c9e5f6ef"
+    },
+    {
+      "qname": "AccumulationRegister.ПартииЗатратНаВыпуск",
+      "kind": "AccumulationRegister",
+      "name": "ПартииЗатратНаВыпуск",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "АналитикаУчетаНоменклатуры",
+          "ref": "Catalog.КлючиАналитикиУчетаНоменклатуры",
+          "req": true
+        },
+        {
+          "name": "АналитикаУчетаПартий",
+          "ref": "Catalog.КлючиАналитикиУчетаПартий",
+          "req": false
+        },
+        {
+          "name": "АналитикаУчетаПродукции",
+          "ref": "Catalog.КлючиАналитикиУчетаНоменклатуры",
+          "req": false
+        },
+        {
+          "name": "ВидЗапасов",
+          "ref": "Catalog.ВидыЗапасов",
+          "req": false
+        },
+        {
+          "name": "ДокументВыпуска",
+          "ref": "Document.ВводОстатков,Document.ВводОстатковПрочиеРасходы,Document.ВводОстатковТМ",
+          "req": false
+        },
+        {
+          "name": "ДокументИсточник",
+          "ref": "Document.ВводОстатков,Document.ВводОстатковПрочиеРасходы,Document.ВводОстатковТМ",
+          "req": false
+        },
+        {
+          "name": "КорАналитикаУчетаПродукции",
+          "ref": "Catalog.КлючиАналитикиУчетаНоменклатуры",
+          "req": false
+        },
+        {
+          "name": "КорВидЗапасов",
+          "ref": "Catalog.ВидыЗапасов",
+          "req": false
+        },
+        {
+          "name": "НалогообложениеНДС",
+          "ref": "Enum.ТипыНалогообложенияНДС",
+          "req": false
+        },
+        {
+          "name": "Организация",
+          "ref": "Catalog.Организации",
+          "req": false
+        },
+        {
+          "name": "ПодразделениеРасходов",
+          "ref": "Catalog.СтруктураПредприятия",
+          "req": false
+        },
+        {
+          "name": "СтатьяРасходовСписания",
+          "ref": "ChartOfCharacteristicTypes.СтатьиАктивовПассивов,ChartOfCharacteristicTypes.Стат",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ПередЗаписью"
+      ],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "a336acbc6ccfaee4cbfad4f588df1b469821d579d28f4b29cfd858b704910ce8"
+    },
+    {
+      "qname": "Catalog.ВидыЗапасов",
+      "kind": "Catalog",
+      "name": "ВидыЗапасов",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Валюта",
+          "ref": "Catalog.Валюты",
+          "req": false
+        },
+        {
+          "name": "ВидЗапасовВладельца",
+          "ref": "Catalog.ВидыЗапасов",
+          "req": false
+        },
+        {
+          "name": "ВидЦены",
+          "ref": "Catalog.ВидыЦенПоставщиков",
+          "req": false
+        },
+        {
+          "name": "ВладелецТовара",
+          "ref": "Catalog.Организации,Catalog.Партнеры",
+          "req": false
+        },
+        {
+          "name": "ГруппаПродукции",
+          "ref": "Catalog.ГруппыАналитическогоУчетаНоменклатуры",
+          "req": false
+        },
+        {
+          "name": "ГруппаФинансовогоУчета",
+          "ref": "Catalog.ГруппыФинансовогоУчетаНоменклатуры",
+          "req": false
+        },
+        {
+          "name": "Договор",
+          "ref": "Catalog.ДоговорыКонтрагентов,Catalog.ДоговорыМеждуОрганизациями",
+          "req": false
+        },
+        {
+          "name": "Контрагент",
+          "ref": "Catalog.Контрагенты,Catalog.Организации",
+          "req": false
+        },
+        {
+          "name": "НалогообложениеНДС",
+          "ref": "Enum.ТипыНалогообложенияНДС",
+          "req": false
+        },
+        {
+          "name": "Организация",
+          "ref": "Catalog.Организации",
+          "req": false
+        },
+        {
+          "name": "Соглашение",
+          "ref": "Catalog.СоглашенияСПоставщиками",
+          "req": false
+        },
+        {
+          "name": "СпособПередачиТоваров",
+          "ref": "Enum.СпособыПередачиТоваров",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ОбработкаЗаполнения",
+        "ОбработкаПроверкиЗаполнения",
+        "ПередЗаписью",
+        "ПередЗаписьюНаСервере",
+        "ПриЗаписи",
+        "ПриОткрытии"
+      ],
+      "writes_to": [],
+      "reads_from": [
+        "InformationRegister.НастройкаПередачиТоваровМеждуОрганизациями",
+        "Catalog.ВидыЗапасов",
+        "AccumulationRegister.ТоварыОрганизаций",
+        "Catalog.Номенклатура"
+      ],
+      "referenced_by": [
+        "AccumulationRegister.ВыручкаИСебестоимостьПродаж",
+        "AccumulationRegister.ДвиженияНоменклатураДоходыРасходы",
+        "AccumulationRegister.ДвиженияНоменклатураНоменклатура",
+        "AccumulationRegister.ДетализацияПартийТоваровДляНДСиУСН",
+        "AccumulationRegister.ДетализацияПартийТоваровДляНДСиУСН2_4",
+        "AccumulationRegister.Закупки",
+        "AccumulationRegister.ПартииЗатратНаВыпуск",
+        "AccumulationRegister.ПартииПроизводственныхЗатрат"
+      ],
+      "source_hash": "d003dc22d07f75bc0e5138993cc38890ae0fdc3e682ab052ca808b09a0468d65"
+    },
+    {
+      "qname": "Document.ПеремещениеМеждуМОДИСМП",
+      "kind": "Document",
+      "name": "ПеремещениеМеждуМОДИСМП",
+      "comment": "",
+      "attrs": [],
+      "ts": [
+        "Товары",
+        "ШтрихкодыУпаковок"
+      ],
+      "handlers": [
+        "ОбработкаЗаполнения",
+        "ОбработкаПроверкиЗаполнения",
+        "ПередЗаписью",
+        "ПередЗаписью",
+        "ПриЗаписи",
+        "ПриЗаписиНаСервере"
+      ],
+      "writes_to": [],
+      "reads_from": [
+        "Document.ПеремещениеМеждуМОДИСМП"
+      ],
+      "referenced_by": [],
+      "source_hash": "1586de866b28a13cd140077f41765cd87da0fc2d49fcb04cf25b02e87de7f108"
+    },
+    {
+      "qname": "Document.ПисьмоОбменСБанками",
+      "kind": "Document",
+      "name": "ПисьмоОбменСБанками",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Направление",
+          "ref": "Enum.НаправленияЭДО",
+          "req": false
+        },
+        {
+          "name": "Статус",
+          "ref": "Enum.СтатусыОбменСБанками",
+          "req": false
+        },
+        {
+          "name": "ТипПисьма",
+          "ref": "Catalog.ТипыПисемОбменСБанками",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ПередЗаписью",
+        "ПередЗаписьюНаСервере",
+        "ПриЗаписи",
+        "ПриОткрытии",
+        "ПриОткрытии",
+        "ПриОткрытии"
+      ],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [
+        "Catalog.ПисьмоОбменСБанкамиПрисоединенныеФайлы"
+      ],
+      "source_hash": "0bd2a33e2458d76e29b7f78a2dec409848edf498941f26231a5f0da70f5cac79"
+    },
+    {
+      "qname": "Document.СписаниеКодовМаркировкиИСМП",
+      "kind": "Document",
+      "name": "СписаниеКодовМаркировкиИСМП",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "ВидПервичногоДокумента",
+          "ref": "Enum.ВидыПервичныхДокументовИСМП",
+          "req": true
+        },
+        {
+          "name": "ВидПродукции",
+          "ref": "Enum.ВидыПродукцииИС",
+          "req": true
+        },
+        {
+          "name": "Операция",
+          "ref": "Enum.ВидыОперацийИСМП",
+          "req": true
+        },
+        {
+          "name": "ПричинаСписания",
+          "ref": "Enum.ПричиныСписанияКодовМаркировкиИСМП",
+          "req": true
+        }
+      ],
+      "ts": [
+        "Товары",
+        "ШтрихкодыУпаковок",
+        "ДанныеОтчетаПроизводственнойЛинии"
+      ],
+      "handlers": [
+        "ОбработкаЗаполнения",
+        "ОбработкаПроверкиЗаполнения",
+        "ПередЗаписью",
+        "ПередЗаписью",
+        "ПриЗаписи",
+        "ПриЗаписиНаСервере"
+      ],
+      "writes_to": [],
+      "reads_from": [
+        "Document.СписаниеКодовМаркировкиИСМП",
+        "InformationRegister.ПулКодовМаркировкиСУЗ"
+      ],
+      "referenced_by": [
+        "InformationRegister.ПакетыКодовМаркировкиИСМП"
+      ],
+      "source_hash": "baddcd26921d0822f48056c1f8009570e872ca454edb18bb4c8f9573045da51c"
+    },
+    {
+      "qname": "InformationRegister.ПланСинхронизацииДокументовEDI",
+      "kind": "InformationRegister",
+      "name": "ПланСинхронизацииДокументовEDI",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "ВариантУказанияНоменклатуры",
+          "ref": "Enum.ВариантыУказанияНоменклатурыБЭД",
+          "req": false
+        },
+        {
+          "name": "Команда",
+          "ref": "Enum.КомандыПроцессаЗаказаEDI",
+          "req": false
+        },
+        {
+          "name": "СостояниеВыполнения",
+          "ref": "Enum.СостоянияСинхронизацииДокументовEDI",
+          "req": false
+        },
+        {
+          "name": "СценарийВыполнения",
+          "ref": "Enum.СценарииВыполненияКомандEDI",
+          "req": false
+        },
+        {
+          "name": "ТипДокумента",
+          "ref": "Enum.ТипыДокументовEDI",
+          "req": false
+        },
+        {
+          "name": "ЭтапСинхронизации",
+          "ref": "Enum.ЭтапыСинхронизацииДокументовEDI",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [],
+      "writes_to": [],
+      "reads_from": [
+        "InformationRegister.ПланСинхронизацииДокументовEDI"
+      ],
+      "referenced_by": [],
+      "source_hash": "0ecfe521601a4a30c6a034a5abc1a6c9c901b2d007e9d53ad3bde58f84f21df4"
+    },
+    {
+      "qname": "InformationRegister.ФискальныеОперации",
+      "kind": "InformationRegister",
+      "name": "ФискальныеОперации",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "ТипДокумента",
+          "ref": "Enum.ТипыФискальныхДокументовККТ",
+          "req": false
+        },
+        {
+          "name": "ТипПлатежнойСистемы",
+          "ref": "Enum.ТипыПлатежнойСистемыККТ",
+          "req": false
+        },
+        {
+          "name": "ТипРасчета",
+          "ref": "Enum.ТипыРасчетаДенежнымиСредствами",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ПриОткрытии",
+        "ПриСозданииНаСервере",
+        "ПриСозданииНаСервере"
+      ],
+      "writes_to": [],
+      "reads_from": [
+        "InformationRegister.ОперацииПроверкиКМ"
+      ],
+      "referenced_by": [],
+      "source_hash": "ad33e5fda8facdf4fcf1aff9abb68235db36a674abd2aed2aab6bf58a49bdc97"
+    },
+    {
+      "qname": "AccumulationRegister.ДвиженияКонтрагентДоходыРасходы",
+      "kind": "AccumulationRegister",
+      "name": "ДвиженияКонтрагентДоходыРасходы",
+      "comment": "",
+      "attrs": [
+        {
+          "name": "Валюта",
+          "ref": "Catalog.Валюты",
+          "req": false
+        },
+        {
+          "name": "ВалютаВзаиморасчетов",
+          "ref": "Catalog.Валюты",
+          "req": false
+        },
+        {
+          "name": "Договор",
+          "ref": "Catalog.ДоговорыКонтрагентов,Catalog.ДоговорыКредитовИДепозитов,Catalog.Договоры",
+          "req": false
+        },
+        {
+          "name": "ИсточникГФУРасчетов",
+          "ref": "Catalog.ДоговорыКредитовИДепозитов,Catalog.ОбъектыРасчетов",
+          "req": false
+        },
+        {
+          "name": "Контрагент",
+          "ref": "Catalog.Контрагенты,Catalog.Организации",
+          "req": false
+        },
+        {
+          "name": "НаправлениеДеятельностиКонтрагента",
+          "ref": "Catalog.НаправленияДеятельности",
+          "req": false
+        },
+        {
+          "name": "НаправлениеДеятельностиСтатьи",
+          "ref": "Catalog.НаправленияДеятельности",
+          "req": false
+        },
+        {
+          "name": "ОбъектРасчетов",
+          "ref": "Catalog.ОбъектыРасчетов,Catalog.ПодарочныеСертификаты",
+          "req": false
+        },
+        {
+          "name": "Организация",
+          "ref": "Catalog.Организации",
+          "req": false
+        },
+        {
+          "name": "Партнер",
+          "ref": "Catalog.Партнеры",
+          "req": false
+        },
+        {
+          "name": "Подразделение",
+          "ref": "Catalog.СтруктураПредприятия",
+          "req": false
+        },
+        {
+          "name": "СтатьяДоходовРасходов",
+          "ref": "ChartOfCharacteristicTypes.СтатьиАктивовПассивов,ChartOfCharacteristicTypes.Стат",
+          "req": false
+        }
+      ],
+      "ts": [],
+      "handlers": [
+        "ПередЗаписью",
+        "ПриЗаписи"
+      ],
+      "writes_to": [],
+      "reads_from": [],
+      "referenced_by": [],
+      "source_hash": "a0e0ebc44ed310a7ed999121ee8ccca939ca5520143bf98a98bab53ea55bb9c3"
+    }
+  ]
+}

@@ -108,7 +108,21 @@ async def amain(args: argparse.Namespace) -> int:
 
         qnames = resolve_qnames(args)
         if not qnames and args.auto_top:
-            qnames = await select_top_by_contains_count(db, args.channel_id, args.auto_top)
+            # Берём с запасом для возможных skip-фильтров
+            fetch_n = args.auto_top + args.offset + (200 if args.skip_real else 0)
+            qnames = await select_top_by_contains_count(db, args.channel_id, fetch_n)
+            qnames = qnames[args.offset:]
+
+            if args.skip_real:
+                cursor = await db.execute(
+                    "SELECT object_qualified_name FROM typical_object_cards "
+                    "WHERE channel_id = ? AND is_mock = 0",
+                    (args.channel_id,),
+                )
+                real_set = {row[0] for row in await cursor.fetchall()}
+                qnames = [q for q in qnames if q not in real_set]
+
+            qnames = qnames[:args.auto_top]
 
         if not qnames:
             print("ОШИБКА: не задан ни --qnames, ни --priority, ни --auto-top", file=sys.stderr)
@@ -178,6 +192,10 @@ def _parse_args(argv: list[str]) -> argparse.Namespace:
     sel.add_argument("--qnames", default=None)
     sel.add_argument("--priority", action="store_true")
     sel.add_argument("--auto-top", type=int, default=None)
+    parser.add_argument("--skip-real", action="store_true",
+                        help="Skip objects уже имеющие real LLM cards (is_mock=False)")
+    parser.add_argument("--offset", type=int, default=0,
+                        help="Skip first N objects from auto-top selection")
 
     parser.add_argument("--log-level", default="WARNING")
     return parser.parse_args(argv)
