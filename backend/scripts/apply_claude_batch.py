@@ -107,6 +107,8 @@ logger = logging.getLogger("apply_claude_batch")
 
 LLM_MODEL_TAG = "claude-opus-4-7-via-session"
 PROMPT_VERSION_TAG = "v2-claude-opus"
+# Bug B fix (2026-05-28): метки переопределяются из response JSON если есть
+# поля generated_by / prompt_version — иначе fallback на эти Opus-defaults.
 
 
 def _build_card_from_response_item(
@@ -208,6 +210,9 @@ async def apply_batch(
     data = json.loads(response_path.read_text(encoding="utf-8"))
     channel_id = data["channel_id"]
     items = data.get("items") or []
+    # Bug B fix: метки из response JSON > хардкод defaults.
+    llm_model = data.get("generated_by") or LLM_MODEL_TAG
+    prompt_version = data.get("prompt_version") or PROMPT_VERSION_TAG
 
     stats = {
         "channel_id": channel_id,
@@ -217,6 +222,8 @@ async def apply_batch(
         "validation_valid": 0,
         "validation_issues": 0,
         "validation_not_in_graph": 0,
+        "llm_model": llm_model,
+        "prompt_version": prompt_version,
         "per_qname": [],
     }
 
@@ -243,8 +250,8 @@ async def apply_batch(
                 db,
                 card=card,
                 source_hash=source_hash,
-                prompt_version=PROMPT_VERSION_TAG,
-                llm_model=LLM_MODEL_TAG,
+                prompt_version=prompt_version,
+                llm_model=llm_model,
                 status=CardStatus.GENERATED,
                 is_mock=False,
             )

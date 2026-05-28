@@ -46,6 +46,7 @@ if str(_BACKEND_ROOT) not in sys.path:
 
 from app.knowledge.typical.card_context import build_card_context  # noqa: E402
 from app.storage.migrations import apply_migrations  # noqa: E402
+from scripts.apply_claude_batch import apply_batch  # noqa: E402
 from scripts.prepare_claude_batch_compact import _compact_context  # noqa: E402
 
 logging.basicConfig(
@@ -56,6 +57,37 @@ logging.basicConfig(
 log = logging.getLogger("nvidia_nim_rebuild")
 
 NIM_BASE = "https://integrate.api.nvidia.com/v1"
+
+# Provider presets — OpenAI-compatible endpoints
+PROVIDER_PRESETS = {
+    "nim": {
+        "endpoint": "https://integrate.api.nvidia.com/v1",
+        "default_model": "qwen/qwen3.5-122b-a10b",
+    },
+    "groq": {
+        "endpoint": "https://api.groq.com/openai/v1",
+        "default_model": "llama-3.3-70b-versatile",
+    },
+    "openrouter": {
+        "endpoint": "https://openrouter.ai/api/v1",
+        "default_model": "deepseek/deepseek-chat-v3:free",
+    },
+    "cerebras": {
+        "endpoint": "https://api.cerebras.ai/v1",
+        "default_model": "llama-3.3-70b",
+    },
+    "gemini": {
+        # OpenAI-compat shim
+        "endpoint": "https://generativelanguage.googleapis.com/v1beta/openai",
+        "default_model": "gemini-2.5-flash",
+    },
+    "huggingface": {
+        # HuggingFace Inference Providers router (OpenAI-compat).
+        # Модель формата "owner/model:provider" (provider: novita/together/fireworks/sambanova/etc).
+        "endpoint": "https://router.huggingface.co/v1",
+        "default_model": "Qwen/Qwen2.5-72B-Instruct:novita",
+    },
+}
 RESPONSES_DIR = (
     _BACKEND_ROOT.parent
     / ".planning"
@@ -95,9 +127,55 @@ SYSTEM_PROMPT = """Ты эксперт-методолог 1С. Получаеш�
 - movements ТОЛЬКО из item.writes_to (если writes_to пусто — movements []). Префикс канонический: AccumulationRegister./AccountingRegister./InformationRegister./CalculationRegister.
 - direction строго один из: приход, расход, приход/расход, запись, пустая строка
 - related_objects: top-3 из referenced_by
-- key_attributes: топ-5 наиболее значимых атрибутов
+
+КРИТИЧНО — key_attributes:
+- key_attributes — это РЕАЛЬНЫЕ реквизиты объекта (из input.attrs), а не мета-поля JSON ("name", "kind", "qname", "handlers", "comment")
+- Если input.attrs пустой → key_attributes:[]
+- Для CommonCommand/CommonModule/CommonForm/Subsystem/Role/HTTPService и других объектов БЕЗ собственных реквизитов → key_attributes:[]
+- НИКОГДА не выдумывай атрибуты («Имя», «Тип», «Доступность», «Ссылка», «Назначение») — если реальных нет, оставь массив пустым
+- Топ-5 наиболее значимых реквизитов с осмысленной ролью (бизнес-смысл, не техническая роль)
+
 - typical_scenarios: 2-3 кратких сценария использования
+- preconditions: 1-3 предусловия если уместно, иначе []
 - Без преамбулы, БЕЗ объяснений, БЕЗ ```json — только JSON-объект."""
+
+# Мета-поля JSON-payload, которые модель НЕ должна включать в key_attributes
+_META_FIELDS_BLACKLIST = {
+    "name",
+    "kind",
+    "qname",
+    "handlers",
+    "comment",
+    "type",
+    "имя",
+    "тип",
+    "комментарий",
+    "обработчики",
+}
+
+# Типы метаданных БЕЗ собственных реквизитов — key_attributes ВСЕГДА пуст
+_NO_ATTR_KINDS = {
+    "CommonCommand",
+    "CommonModule",
+    "CommonForm",
+    "CommandGroup",
+    "Subsystem",
+    "HTTPService",
+    "WebService",
+    "Style",
+    "StyleItem",
+    "FunctionalOption",
+    "FunctionalOptionsParameter",
+    "EventSubscription",
+    "ScheduledJob",
+    "Constant",
+    "SessionParameter",
+    "Language",
+    "Interface",
+    "Role",
+    "WSReference",
+    "XDTOPackage",
+}
 
 
 async def _resolve_mock_qnames(
@@ -174,7 +252,7 @@ async def _call_nim(
         ],
         "temperature": 0.2,
         "top_p": 0.9,
-        "max_tokens": 1500,
+        "max_tokens": 1100,
         "response_format": {"type": "json_object"},
     }
     headers = {
@@ -186,7 +264,7 @@ async def _call_nim(
     for attempt in range(max_retries):
         try:
             resp = await client.post(
-                f"{NIM_BASE}/chat/completions",
+                f"{_ENDPOINT}/chat/completions",
                 json=payload,
                 headers=headers,
                 timeout=120.0,
@@ -196,15 +274,42 @@ async def _call_nim(
                 log.warning("NIM %s — retry в %ds", resp.status_code, wait)
                 await asyncio.sleep(wait)
                 continue
+            if resp.status_code in (500, 502, 504):
+                wait = 3 * (attempt + 1)
+                log.warning("NIM %s — retry в %ds", resp.status_code, wait)
+                await asyncio.sleep(wait)
+                continue
             resp.raise_for_status()
             data = resp.json()
-            return data["choices"][0]["message"]["content"]
-        except (httpx.HTTPError, KeyError, IndexError) as e:
+            choices = data.get("choices") or []
+            if not choices:
+                log.debug("NIM empty choices, skip: %s", str(data)[:200])
+                return None
+            msg = choices[0].get("message") or {}
+            finish = choices[0].get("finish_reason", "")
+            content = msg.get("content")
+            if content is None or content == "":
+                # content filter / refusal / empty completion — НЕ retry, объект пропускаем
+                log.debug(
+                    "NIM no content (finish=%s), skip", finish or "unknown"
+                )
+                return None
+            return content
+        except httpx.TimeoutException as e:
+            last_err = e
+            wait = 5 * (attempt + 1)
+            log.warning("NIM timeout — retry в %ds", wait)
+            await asyncio.sleep(wait)
+        except httpx.HTTPError as e:
             last_err = e
             wait = 3 * (attempt + 1)
-            log.warning("NIM call error: %s — retry в %ds", e, wait)
+            log.warning("NIM HTTP error: %s — retry в %ds", type(e).__name__, wait)
             await asyncio.sleep(wait)
-    log.error("NIM exhausted retries: %s", last_err)
+        except (KeyError, IndexError, ValueError) as e:
+            # Парсинг JSON / неожиданный формат ответа — НЕ retry
+            log.debug("NIM bad response shape: %s", e)
+            return None
+    log.error("NIM exhausted retries: %s", type(last_err).__name__ if last_err else "unknown")
     return None
 
 
@@ -240,6 +345,24 @@ async def _process_one(
         if card is None:
             log.error("Bad JSON для %s: %s", qname, raw[:200])
             return None
+        # Post-process key_attributes
+        kind = compact.get("kind", "")
+        if kind in _NO_ATTR_KINDS:
+            # Для CommonCommand/Module/Form/Subsystem/etc. — атрибутов БЫТЬ НЕ МОЖЕТ
+            card["key_attributes"] = []
+        elif isinstance(card.get("key_attributes"), list):
+            cleaned: list = []
+            for kv in card["key_attributes"]:
+                if not isinstance(kv, dict):
+                    continue
+                nm = (kv.get("name") or "").strip()
+                if not nm:
+                    continue
+                low = nm.lower()
+                if low in _META_FIELDS_BLACKLIST:
+                    continue
+                cleaned.append(kv)
+            card["key_attributes"] = cleaned
         return {
             "qname": qname,
             "source_hash": _source_hash(compact),
@@ -248,9 +371,17 @@ async def _process_one(
 
 
 async def amain(args: argparse.Namespace) -> int:
-    api_key = os.environ.get("NVIDIA_NIM_KEY") or args.api_key
+    env_var = {
+        "nim": "NVIDIA_NIM_KEY",
+        "groq": "GROQ_KEY",
+        "openrouter": "OPENROUTER_KEY",
+        "cerebras": "CEREBRAS_KEY",
+        "gemini": "GEMINI_KEY",
+        "huggingface": "HF_KEY",
+    }[args.provider]
+    api_key = args.api_key or os.environ.get(env_var)
     if not api_key:
-        log.error("Set $env:NVIDIA_NIM_KEY or --api-key")
+        log.error("Set $env:%s or --api-key", env_var)
         return 2
 
     RESPONSES_DIR.mkdir(parents=True, exist_ok=True)
@@ -296,12 +427,12 @@ async def amain(args: argparse.Namespace) -> int:
 
                     out_path = (
                         RESPONSES_DIR
-                        / f"response-nim-{channel_id.strip('_')}-chunk{chunk_no:04d}.json"
+                        / f"response-{_PROVIDER_TAG}-{channel_id.strip('_')}-chunk{chunk_no:04d}.json"
                     )
                     payload = {
                         "channel_id": channel_id,
-                        "generated_by": f"nvidia-nim:{args.model}",
-                        "prompt_version": "v3-nim-direct",
+                        "generated_by": f"{_PROVIDER_TAG}:{args.model}",
+                        "prompt_version": "v3-provider-direct",
                         "items": items,
                     }
                     out_path.write_text(
@@ -322,27 +453,20 @@ async def amain(args: argparse.Namespace) -> int:
                     )
 
                     if args.apply_immediately and items:
-                        import subprocess
-
-                        proc = subprocess.run(
-                            [
-                                sys.executable,
-                                "-m",
-                                "scripts.apply_claude_batch",
-                                "--response",
-                                str(out_path),
-                                "--confirm",
-                            ],
-                            cwd=str(_BACKEND_ROOT),
-                            capture_output=True,
-                            text=True,
-                            encoding="utf-8",
-                            errors="replace",
-                        )
-                        if proc.returncode == 0:
-                            log.info("Applied chunk %d in DB", chunk_no)
-                        else:
-                            log.error("apply failed: %s", proc.stderr[-500:])
+                        # Bug A fix (2026-05-28): inline apply через общий db
+                        # коннект — избегаем DB lock от concurrent subprocess.
+                        try:
+                            apply_stats = await apply_batch(db, out_path)
+                            log.info(
+                                "Applied chunk %d: ok=%d fail=%d valid=%d issues=%d",
+                                chunk_no,
+                                apply_stats["applied"],
+                                apply_stats["failed"],
+                                apply_stats["validation_valid"],
+                                apply_stats["validation_issues"],
+                            )
+                        except Exception as exc:  # noqa: BLE001
+                            log.error("apply failed chunk %d: %s", chunk_no, exc)
 
         log.info("DONE. Total %d carts processed.", total_done)
         return 0
@@ -356,17 +480,39 @@ def main() -> int:
     p.add_argument("--channel-id", help="_bp30_138_24 / _ut115_17_226 / _ka2_25_92 / _erp25_21_118")
     p.add_argument("--all", action="store_true", help="Все 4 канала подряд")
     p.add_argument("--limit", type=int, default=None, help="Тест-режим: только N объектов")
-    p.add_argument("--model", default="qwen/qwen3-next-80b-a3b-instruct")
-    p.add_argument("--concurrency", type=int, default=20)
+    p.add_argument(
+        "--provider",
+        default="nim",
+        choices=list(PROVIDER_PRESETS.keys()),
+        help="OpenAI-compat провайдер: nim/groq/openrouter/cerebras/gemini/huggingface",
+    )
+    p.add_argument("--model", default=None, help="Если не задан — берёт default_model провайдера")
+    p.add_argument("--concurrency", type=int, default=10)
     p.add_argument("--chunk-size", type=int, default=50)
     p.add_argument(
         "--apply-immediately",
         action="store_true",
-        help="После каждого chunk применить в БД (требует apply_response_file API)",
+        help="После каждого chunk применить в БД через apply_claude_batch",
     )
-    p.add_argument("--api-key", help="Если не задан env NVIDIA_NIM_KEY")
+    p.add_argument(
+        "--api-key",
+        help="Если не задан, читаем из env: NVIDIA_NIM_KEY / GROQ_KEY / OPENROUTER_KEY / CEREBRAS_KEY / GEMINI_KEY",
+    )
     args = p.parse_args()
+
+    # Init globals для _call_nim
+    global _ENDPOINT, _PROVIDER_TAG
+    preset = PROVIDER_PRESETS[args.provider]
+    _ENDPOINT = preset["endpoint"]
+    _PROVIDER_TAG = args.provider
+    if args.model is None:
+        args.model = preset["default_model"]
+
     return asyncio.run(amain(args))
+
+
+_ENDPOINT: str = NIM_BASE
+_PROVIDER_TAG: str = "nim"
 
 
 if __name__ == "__main__":
