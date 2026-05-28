@@ -382,7 +382,50 @@ async def build_card_context(
         """,
         (obj_id, EdgeKind.REFERENCES.value, MAX_REVERSE_REFS),
     )
-    referenced_by = tuple(r[0] for r in reverse_refs_rows)
+    referenced_by_list = [r[0] for r in reverse_refs_rows]
+
+    # 9. Для регистров — incoming WRITES_TO + READS_FROM → parent объекты
+    # (fix 2026-05-28: build_card_context не возвращал связи документ↔регистр,
+    # из-за чего NIM-карточки регистров теряли related_objects/movements).
+    _REGISTER_KINDS = {
+        "AccumulationRegister",
+        "AccountingRegister",
+        "InformationRegister",
+        "CalculationRegister",
+    }
+    if object_kind in _REGISTER_KINDS:
+        existing = set(referenced_by_list)
+        writers: set[str] = set()
+        readers: set[str] = set()
+        for edge_kind, bucket in (
+            (EdgeKind.WRITES_TO.value, writers),
+            (EdgeKind.READS_FROM.value, readers),
+        ):
+            rows = await _fetch_all(
+                db,
+                """
+                SELECT DISTINCT n.qualified_name FROM graph_nodes n
+                JOIN graph_edges e ON e.src_id = n.id
+                WHERE e.dst_id = ? AND e.edge_kind = ?
+                LIMIT ?
+                """,
+                (obj_id, edge_kind, MAX_REVERSE_REFS * 4),
+            )
+            for (method_qname,) in rows:
+                parts = method_qname.split(".")
+                if len(parts) >= 2:
+                    bucket.add(f"{parts[0]}.{parts[1]}")
+        # writers важнее (документы которые формируют записи в регистре)
+        for parent in sorted(writers):
+            if parent not in existing and parent != object_qualified_name:
+                referenced_by_list.append(parent)
+                existing.add(parent)
+        for parent in sorted(readers - writers):
+            if parent not in existing and parent != object_qualified_name:
+                referenced_by_list.append(parent)
+                existing.add(parent)
+
+    referenced_by = tuple(referenced_by_list[:MAX_REVERSE_REFS])
 
     return CardContext(
         object_qualified_name=object_qualified_name,
