@@ -1,0 +1,54 @@
+{
+  "name": "АналитикLite",
+  "displayName": "Аналитик Lite",
+  "kind": "ExternalDataProcessor",
+  "mode": "epf",
+  "version": "1.0.0",
+  "minPlatformVersion": "8.3.23",
+  "description": "Лёгкая внешняя обработка-коннектор «1С Напарник»: даёт MCP-серверу 8 базовых операций + capability discovery без установки расширения конфигурации.",
+  "httpService": {
+    "name": "АналитикLite",
+    "rootUrl": "analyst",
+    "defaultPort": 6011
+  },
+  "mcp": {
+    "protocolVersion": "2024-11-05",
+    "experimental": {
+      "analyst-1c.mode": "epf",
+      "analyst-1c.extension_version": "1.0.0",
+      "analyst-1c.features": [
+        "mcp.execute_query",
+        "mcp.get_metadata",
+        "mcp.get_object",
+        "mcp.get_link_of_object",
+        "mcp.find_references",
+        "mcp.get_access_rights",
+        "mcp.get_event_log",
+        "mcp.get_bsl_syntax_help"
+      ]
+    }
+  },
+  "capabilities": {
+    "base": [
+      "mcp.execute_query",
+      "mcp.get_metadata",
+      "mcp.get_object",
+      "mcp.get_link_of_object",
+      "mcp.find_references",
+      "mcp.get_access_rights",
+      "mcp.get_event_log",
+      "mcp.get_bsl_syntax_help"
+    ],
+    "conditionalAvailable": [
+      "mcp.execute_code",
+      "mcp.submit_for_deanonymization",
+      "tools_ui.query_console"
+    ],
+    "cfeOnlyNote": "12 cfe.* фич доступны только через CFE «АналитикПлюс» (M-K3 Phase 13b), в EPF не предоставляются."
+  },
+  "source": {
+    "capabilitiesTruth": "backend/app/types/capabilities.py",
+    "adr": "ADR-004 (capability discovery)",
+    "phase": "M-K3 / 13a.1"
+  }
+}

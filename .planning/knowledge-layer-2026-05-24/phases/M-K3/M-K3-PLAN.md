@@ -1,5 +1,11 @@
 # M-K3 — Relational + Behavioral + EPF/CFE Delivery
 
+> ✅ **АКТУАЛЬНЫЙ ОРИГИНАЛЬНЫЙ ПЛАН.** Канонический источник истины для текущего этапа (M-K3),
+> идущего сразу после M-K2.5 (rebuild карточек). Статус: **active с 2026-05-29**.
+> Устаревшие/путающие промпты (`PARALLEL-PLAN-2026-05-28`, `HANDOFF-PROMPT-NEXT-SESSION`,
+> старый `NEXT-SESSION-PROMPT`) перенесены в `.planning/_archive/` — **НЕ использовать**.
+> Parent-roadmap: `../../PLAN.md` (M-K0..M-K6).
+
 **Milestone:** M-K3
 **Срок:** 8-10 недель (расширено M6 handoff + Q2 5 типовых), до **30.10.2026**
 **Parent plan:** `../../PLAN.md` v1.2
