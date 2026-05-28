@@ -126,7 +126,12 @@ SYSTEM_PROMPT = """Ты эксперт-методолог 1С. Получаеш�
 - purpose 200-500 chars
 - movements ТОЛЬКО из item.writes_to (если writes_to пусто — movements []). Префикс канонический: AccumulationRegister./AccountingRegister./InformationRegister./CalculationRegister.
 - direction строго один из: приход, расход, приход/расход, запись, пустая строка
-- related_objects: top-3 из referenced_by
+
+КРИТИЧНО — related_objects:
+- Если input.referenced_by НЕ пуст — ОБЯЗАТЕЛЬНО скопируй первые 3 имени в related_objects.
+- Пример: input.referenced_by=["Document.РеализацияТоваровУслуг","Document.ВозвратТоваровОтПокупателя","CommonModule.Продажи"] → related_objects=["Document.РеализацияТоваровУслуг","Document.ВозвратТоваровОтПокупателя","CommonModule.Продажи"].
+- Если input.referenced_by пуст или отсутствует — related_objects:[].
+- НЕ выдумывай имена которых нет в input.referenced_by.
 
 КРИТИЧНО — key_attributes:
 - key_attributes — это РЕАЛЬНЫЕ реквизиты объекта (из input.attrs), а не мета-поля JSON ("name", "kind", "qname", "handlers", "comment")
@@ -363,6 +368,17 @@ async def _process_one(
                     continue
                 cleaned.append(kv)
             card["key_attributes"] = cleaned
+
+        # Post-process related_objects (fix 2026-05-28):
+        # NIM/qwen часто игнорирует правило "скопируй из referenced_by"
+        # и оставляет [] даже когда вход непустой. Подстраховка: если модель
+        # вернула пусто, а в input.referenced_by есть имена — берём top-3.
+        ref_in = compact.get("referenced_by") or []
+        related_out = card.get("related_objects")
+        if isinstance(ref_in, list) and ref_in and (
+            not isinstance(related_out, list) or len(related_out) == 0
+        ):
+            card["related_objects"] = list(ref_in[:3])
         return {
             "qname": qname,
             "source_hash": _source_hash(compact),
