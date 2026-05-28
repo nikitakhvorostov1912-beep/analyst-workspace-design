@@ -126,27 +126,33 @@ Electron + electron-builder + PyInstaller (desktop distribution, v1.1.0)
 
 ---
 
-## Текущее состояние (snapshot 2026-05-18)
+## Текущее состояние (snapshot 2026-05-28)
 
-- **Milestone:** M5 — Post-v1.1 Expansion (STACK + SESSIONS + LEARN + Design v2)
-- **Active Phase:** 11 Design v2 Import (in_progress, 11.1–11.3 done, 11.4 partial, 11.5 partial)
-- **v1.1.0** released 2026-05-16 (Electron installer 105.9 MB)
-- **v1.2.0** pending manual smoke (см. `.planning/phases/11-design-v2-import/RELEASE-NOTES.md`)
-- **Прогресс:** ███████░░░ 69% (см. `.planning/STATE.md`)
-- **Ветка:** `feature/m5-design-v2-import` (10+ commits, готова к merge после smoke)
+- **Milestone:** **M-K2.5** — Knowledge Layer Real LLM Rebuild (NVIDIA NIM, in_progress)
+- **Closed milestones:**
+  - **M-K0 Stabilization** — 28/28 findings (100%) закрыт `00ab58e` 2026-05-25
+  - **M6 Hermes Integration** — 30/30 фич (Memory + Skills + Curator)
+  - **M7 Commerce Readiness** — code-ready, ждёт EV/OV cert + manual smoke v1.3.0
+- **Активный фон:** NIM rebuild 63 203 карточек (`qwen/qwen3.5-122b-a10b`), 11 python процессов, ETA ~10-43 часа. Watchdog каждые ~30 мин.
+- **v1.3.0** — installer собран (`analyst-setup-v1.3.0.exe` 183-187 МБ), ждёт smoke на VM + git tag + GitHub Release. Подпись отложена до EV/OV cert от admin.
+- **Ветка:** `main` (M-K0 merged, M-K2.5 идёт прямо на main с атомарными коммитами по wave). Последние: `ad74cec` (NIM rebuild pipeline), `9846618` (wave5 partial), `5201893` (wave4 13-20).
+- **Прогресс M-K2.5:** ~4115/63203 (6.5%) на момент 2026-05-28 12:00.
 
 ---
 
-## Phase 11 highlights (что делалось 2026-05-18)
+## Parallel tech debt (пока NIM крутится)
 
-- 12 новых компонентов (StatusDot, EmptyState, ErrorBanner, CardActionMenu, CardHeader, StreamingStages, CardSkeleton + 4 redesigns + adapter)
-- Onboarding 3→4 шага с Learn opt-in (privacy-first localStorage)
-- Тёмно-синий accent (#3b82f6) заменил оранжевый
-- 273/273 vitest зелёные, build clean
-- Zero breaking changes в backend API
+План: `.planning/PARALLEL-PLAN-2026-05-28.md`. Задачи A1-F2 (~5.5 ч):
+- ✅ A1 — STATE.md Wave 6 → DONE (honesty fix)
+- ✅ E1 — этот файл snapshot 2026-05-28
+- 🟡 C1 — ruff E501 в loop.py (8 E501 в SYSTEM_PROMPT)
+- 🟡 B1/B2 — MetricCard → CardHeader + Vitest
+- 🟡 C2 — 7 flaky tests encoding fix (cp1251 на Windows)
+- 🟡 E2/E3/E4/E5 — ARCHITECTURE/BACKLOG/ROADMAP/CERT-PROCESS uplift
+- 🟡 F1 — `.planning/SMOKE-NIM-REBUILD.md` чек-лист
 
-Технический долг для v1.3.0:
-- 6 cards refactor через CardHeader (отложено — invasive)
-- ToolTrace visual upgrade (рабочий, отложено)
-- Playwright design-v2.spec.ts smoke
-- Phase 8/9/10 (STACK/SESSIONS/LEARN) — в работе
+Технический долг v1.3.0+ (исторический):
+- 6 cards refactor через CardHeader — B1 закрывает 1/6 (MetricCard)
+- ToolTrace visual upgrade — рабочий, отложено
+- Playwright design-v2.spec.ts smoke — 3 spec'а unskipped, ждут dev-stack
+- Phase 10 (LEARN sqlite-vec/RAG) — DEFERRED, заменён Hermes Memory+Skills (M6)

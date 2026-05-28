@@ -1,32 +1,24 @@
 ---
 gsd_state_version: 1.0
-milestone: M7
-milestone_name: "Commerce Readiness — Security + Stability + Distribution"
+milestone: M-K2.5
+milestone_name: "Knowledge Layer Real LLM Rebuild — NVIDIA NIM"
 status: in_progress
-last_updated: "2026-05-23T18:00:00Z"
+last_updated: "2026-05-28T12:00:00Z"
 progress:
-  wave_1_critical: 9
-  wave_1_done: 9
-  wave_2_total: 14
-  wave_2_done: 1
-  wave_3_total: 15
-  wave_3_done: 5
-  wave_4_total: 5
-  wave_4_done: 0
-  total_tickets: 43
-  done: 15
-  percent: 35
-  # COMMERCE-PLAN-2026-05-23 (Phase 1-4) поверх Wave 1-4. Прогресс отдельно:
+  # M-K0 closed 100% (28/28) commits 6a1b228 → 00ab58e
+  m_k0_total: 28
+  m_k0_done: 28
+  # M-K2.5 NIM rebuild прогресс (background python, watchdog ~30 мин)
+  m_k2_5_total: 63203
+  m_k2_5_done: 4115  # обновляется по факту, см. watchdog в PARALLEL-PLAN
+  m_k2_5_percent: 6.5
+  # Commerce plan (исторический контекст)
   commerce_plan:
-    phase_1_total: 4
-    phase_1_done: 3  # P1.1 verify, P1.3 scaffold, P1.4 code (P1.2 decompose pending)
-    phase_2_total: 3
-    phase_2_done: 3  # P2.1 backend-only key, P2.2 ResultSizeGate, P2.3 SQL AST
-    phase_3_total: 4
-    phase_3_done: 4  # P3.1 NVIDIA pivot + Cloud.ru, P3.2 endpoint tests, P3.3 badges, P3.4 docs
-    phase_4_total: 5
-    phase_4_done: 0  # smoke VM, quality gate, build, release, M7 close — manual
-note: "COMMERCE-PLAN-2026-05-23 Phase 1-3 в основном закрыты (10/11 тикетов). P1.2 decompose loop.py отложен до отдельной сессии — рискованный 10h рефактор. Wave 1 9/9 + 7 commerce-тикетов кодом готовы, ждут finalization: P1.3 нужен EV/OV cert (admin), P1.4 нужны GitHub Secrets (admin), P4 Phase 4 release — manual smoke на чистой VM + git tag v1.3.0."
+    phase_1_done: 4  # P1.1-4 закрыты
+    phase_2_done: 3
+    phase_3_done: 4
+    phase_4_done: 0  # smoke VM + release pending
+note: "M-K0 закрыт 100% (28/28) коммитом 00ab58e от 2026-05-25. Активно: M-K2.5 NVIDIA NIM rebuild 63 203 карточек (qwen/qwen3.5-122b-a10b), 11 python процессов в фоне, ETA ~10-43 часа. Параллельно идёт `.planning/PARALLEL-PLAN-2026-05-28.md` — закрытие tech debt пока NIM крутится."
 ---
 
 # Project State
@@ -37,28 +29,30 @@ note: "COMMERCE-PLAN-2026-05-23 Phase 1-3 в основном закрыты (10
 
 **Core value:** Аналитик пишет вопрос на NL → LLM сама дёргает MCP → ответ с inline-карточкой за ≤30 сек
 
-**Current focus:** M7 Commerce Readiness — закрываем gap'ы из глубокого ревью 9 направлений (2026-05-22)
+**Current focus:** M-K2.5 Knowledge Layer real LLM rebuild — 63 203 эталонных carts через NVIDIA NIM (qwen/qwen3.5-122b-a10b), фон. Параллельно tech debt cleanup по `.planning/PARALLEL-PLAN-2026-05-28.md`.
 
 ---
 
-## Update — M-K0 Stabilization in progress (2026-05-25)
+## Update — M-K0 Stabilization CLOSED 100% (2026-05-28)
 
-**Ветка:** `feature/m-k0-stabilization` — ~25 commits, 24/28 findings закрыто (86%).
+**Ветка:** `feature/m-k0-stabilization` merged. M-K0 **28/28 findings (100%)** закрыт.
 
-### M-K0 milestone summary (живой)
+### M-K0 milestone summary (final)
 
-| Wave | Subject | Status |
-|---|---|---|
-| 0 | Security (8 findings: SSRF, CSP, SQL validator, CORS, rate-limit, deprecation, injection) | ✅ DONE |
-| 1 | Backend Quality (6 findings: pending race, task GC, silent failures, leak, card matching, batch commit) | ✅ DONE |
-| 2 | Performance (3 findings: SQLite pool, LLMClient reuse, React Context cache) | ✅ DONE |
-| 3 | Prompts (3 findings: few-shot tools, memory recall + bonus injection в SEC-3) | ✅ DONE |
-| 4 | Frontend (3 findings: prefers-reduced-motion, WCAG AA контраст, stable attachment keys) | ✅ DONE |
-| 5 | Architecture (1 finding: contextvars для structured logging) | ✅ DONE |
-| 6 | Docs+DevOps (4 findings: DOC-1 ARCHITECTURE rev, DOC-2 цифры, DEVOPS-1 cert process, DEVOPS-5 semver guard) | 🟡 в работе |
-| 7 | Coverage push 60%+ | pending |
-| 8 | Security re-audit | pending |
-| 9 | SUMMARY + handoff | pending |
+| Wave | Subject | Status | Commit |
+|---|---|---|---|
+| 0 | Security (8 findings: SSRF, CSP, SQL validator, CORS, rate-limit, deprecation, injection) | ✅ DONE | `6a1b228` |
+| 1 | Backend Quality (6 findings: pending race, task GC, silent failures, leak, card matching, batch commit) | ✅ DONE | `d24e22d` |
+| 2 | Performance (3 findings: SQLite pool, LLMClient reuse, React Context cache) | ✅ DONE | `7f60e9d` |
+| 3 | Prompts (3 findings: few-shot tools, memory recall + bonus injection в SEC-3) | ✅ DONE | `4db8313` |
+| 4 | Frontend (3 findings: prefers-reduced-motion, WCAG AA контраст, stable attachment keys) | ✅ DONE | `4db8313` |
+| 5 | Architecture (1 finding: contextvars для structured logging) | ✅ DONE | (W1-3 серия) |
+| 6 | Docs+DevOps (4 findings: DOC-1 ARCHITECTURE rev, DOC-2 цифры, DEVOPS-1 cert process, DEVOPS-5 semver guard) | ✅ DONE | `f956a21` |
+| 7 | Coverage push 60%+ | ✅ DONE | `8935b62` |
+| 8 | Security re-audit (+ 2 HIGH) + test stabilization | ✅ DONE | `2e27522` |
+| 9 | SUMMARY + STATE done + handoff | ✅ DONE | `00ab58e` |
+
+**Honesty note (2026-05-28):** Эта таблица была устаревшей до 2026-05-28 — показывала Wave 6 🟡 в работе и Wave 7-9 pending, хотя реально milestone был закрыт ~3 дня назад. Параллельная сессия запустила NIM rebuild (M-K2.5) поверх закрытого M-K0, отсюда desync. Исправлено как часть A1 из `.planning/PARALLEL-PLAN-2026-05-28.md`.
 
 ### Цифры (актуальные на 2026-05-25)
 
