@@ -1,8 +1,13 @@
-"""BSP Search — semantic search по корпусу БСП экспортных API (M-K2.8).
+"""BSP Search — hybrid поиск по корпусу БСП экспортных API (M-K2.8 + M-K4 hybrid).
 
-Knowledge Foundation Phase 8: query → embed → semantic_search(_bsp) →
-JOIN bsp_chunks → BSPSearchHit. Используется LLM tool'ом `search_bsp`
-и admin endpoint'ом `/knowledge/bsp/search`.
+query → (vector ANN `_bsp` ⊕ BM25 `bsp_chunks_fts`) → RRF → JOIN bsp_chunks →
+BSPSearchHit. Используется LLM tool'ом `search_bsp` и admin endpoint'ом
+`/knowledge/bsp/search`.
+
+**M-K4 hybrid:** vector + BM25 через RRF (`hybrid.py`). Векторный слой
+best-effort: при недоступном embedding (нет ключа) поиск деградирует на
+BM25-only. BM25 особенно ценен для БСП: точные имена методов/модулей
+(`ДлительныеОперации.ВыполнитьФункцию`) матчатся лексически, а не «по смыслу».
 """
 
 from __future__ import annotations
@@ -13,13 +18,24 @@ from dataclasses import dataclass
 import aiosqlite
 
 from app.knowledge.bsp_indexer import BSP_CHANNEL_ID
-from app.knowledge.embeddings import EmbeddingClient, EmbeddingError
-from app.knowledge.vector_store import VectorStoreError, semantic_search
+from app.knowledge.embeddings import EmbeddingClient
+from app.knowledge.hybrid import (
+    bm25_object_paths,
+    candidate_k,
+    rrf_merge,
+    vector_object_paths,
+)
 
 logger = logging.getLogger(__name__)
 
 
 DEFAULT_SEARCH_K = 5
+
+BSP_FTS_TABLE = "bsp_chunks_fts"
+
+# Псевдо-distance для находок только из BM25 (вектора нет). Реальный порядок
+# задаёт RRF; distance оставлен для обратной совместимости BSPSearchHit.
+_BM25_ONLY_DISTANCE = 1.0
 
 
 @dataclass(frozen=True, slots=True)
@@ -35,7 +51,8 @@ class BSPSearchHit:
         content: doc + signature + body excerpt
         version: «3.1» | «3.2»
         source_path: путь относительно ssl_*/
-        distance: cosine distance (меньше = лучше)
+        distance: vec-distance (меньше = лучше); _BM25_ONLY_DISTANCE для
+            keyword-only находок. Порядок в списке отражает RRF, не distance.
     """
 
     module_name: str
@@ -78,7 +95,7 @@ class BSPSearchHit:
 
 
 class BSPSearchError(Exception):
-    """BSP search не смог отработать."""
+    """BSP search не смог отработать (валидация / БД)."""
 
 
 async def search_bsp(
@@ -89,61 +106,49 @@ async def search_bsp(
     k: int = DEFAULT_SEARCH_K,
     version_filter: str | None = None,
 ) -> list[BSPSearchHit]:
-    """Semantic search по БСП-корпусу.
+    """Hybrid search по БСП-корпусу (vector ⊕ BM25 → RRF).
 
     Args:
         db: aiosqlite connection
-        embedding_client: тот же клиент что и при индексации
+        embedding_client: клиент, совпадающий с использованным при индексации
         query: текст запроса на естественном языке
         k: топ-K результатов
         version_filter: '3.1' | '3.2' | None (без фильтра)
 
     Returns:
-        list[BSPSearchHit] отсортированный по distance ASC.
+        list[BSPSearchHit] в порядке RRF-релевантности.
 
     Raises:
-        BSPSearchError при ошибке embedding'а или БД.
+        BSPSearchError при невалидном вводе (пустой query / k <= 0).
     """
     if not query or not query.strip():
         raise BSPSearchError("query пустой")
     if k <= 0:
         raise BSPSearchError(f"k должен быть > 0, получено {k}")
 
-    try:
-        embed_result = await embedding_client.embed([query])
-    except EmbeddingError as exc:
-        raise BSPSearchError(f"embedding query failed: {exc}") from exc
-    if not embed_result.embeddings:
-        raise BSPSearchError("embedding client вернул пустой result")
-    query_vector = embed_result.embeddings[0]
+    cand_k = candidate_k(k)
 
-    # Берём с запасом если будет фильтр по version (semantic_search не знает
-    # про version — он работает на channel_id)
-    effective_k = k * 3 if version_filter else k
+    vec_paths, vec_distances = await vector_object_paths(
+        db, embedding_client, query, channel_id=BSP_CHANNEL_ID, k=cand_k
+    )
+    bm25_paths = await bm25_object_paths(db, BSP_FTS_TABLE, query, k=cand_k)
 
-    try:
-        vec_hits = await semantic_search(
-            db,
-            channel_id=BSP_CHANNEL_ID,
-            query_embedding=query_vector,
-            k=effective_k,
-            embedding_model=embed_result.model,
-        )
-    except VectorStoreError as exc:
-        raise BSPSearchError(f"vec search failed: {exc}") from exc
-
-    if not vec_hits:
+    if not vec_paths and not bm25_paths:
         return []
 
-    object_paths = [hit.object_path for hit in vec_hits]
-    placeholders = ",".join("?" * len(object_paths))
+    # RRF до cand_k кандидатов — запас для последующего version_filter
+    merged = rrf_merge([vec_paths, bm25_paths], k=cand_k)
+    if not merged:
+        return []
+
+    placeholders = ",".join("?" * len(merged))
     sql = f"""
         SELECT object_path, module_name, method_name, method_kind,
                signature, doc_comment, content, version, source_path
         FROM bsp_chunks
         WHERE object_path IN ({placeholders})
     """
-    params: list = list(object_paths)
+    params: list = list(merged)
     if version_filter:
         sql += " AND version = ?"
         params.append(version_filter)
@@ -153,8 +158,8 @@ async def search_bsp(
     by_path = {row[0]: row for row in rows}
 
     results: list[BSPSearchHit] = []
-    for vec_hit in vec_hits:
-        row = by_path.get(vec_hit.object_path)
+    for path in merged:
+        row = by_path.get(path)
         if row is None:
             # Orphan / отфильтрован по version — skip
             continue
@@ -168,7 +173,7 @@ async def search_bsp(
             content=content,
             version=version,
             source_path=source_path,
-            distance=vec_hit.distance,
+            distance=vec_distances.get(path, _BM25_ONLY_DISTANCE),
         ))
         if len(results) >= k:
             break

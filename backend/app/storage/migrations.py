@@ -74,7 +74,7 @@ MIGRATIONS_V3 = [
     """,
 ]
 
-CURRENT_VERSION = 21
+CURRENT_VERSION = 22
 
 # Миграция v4: расширение card_states — добавление колонки anon_tokens JSON
 MIGRATIONS_V4 = [
@@ -615,6 +615,87 @@ MIGRATIONS_V21 = [
 ]
 
 
+# Миграция v22 (M-K4 ИТС-KB Hybrid): FTS5 BM25 поверх its_chunks + bsp_chunks.
+#
+# До v22 поиск по ИТС/БСП был ТОЛЬКО векторный (semantic_search) — требует
+# embedding-ключ и пропускает точные термины (имена методов БСП, номера
+# стандартов). v22 добавляет standalone FTS5 (BM25) по образцу messages_fts
+# (v5): виртуальная таблица + 3 триггера синхронизации (INSERT/UPDATE/DELETE) +
+# одноразовый backfill существующих чанков. rowid FTS = id обвязочной таблицы.
+#
+# Hybrid retrieval (vector ANN + BM25 → RRF) живёт в its_search/bsp_search.
+# BM25 работает БЕЗ embedding-ключа → ИТС-поиск деградирует gracefully на
+# keyword-only, когда embedding недоступен (нет ключа / провайдер упал).
+#
+# object_path UNINDEXED — хранится в FTS для прямого маппинга на vec-ранжирование
+# без лишнего JOIN. tokenize 'unicode61' (без porter-стемминга: для русских
+# терминов и точных имён методов 1С стемминг скорее вредит, чем помогает).
+MIGRATIONS_V22 = [
+    # --- ИТС (its_chunks) ---
+    """
+    CREATE VIRTUAL TABLE IF NOT EXISTS its_chunks_fts USING fts5(
+        content,
+        title,
+        section_title,
+        object_path UNINDEXED,
+        tokenize = 'unicode61'
+    )
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS its_chunks_fts_ai AFTER INSERT ON its_chunks BEGIN
+        INSERT INTO its_chunks_fts(rowid, content, title, section_title, object_path)
+        VALUES (new.id, new.content, new.title, COALESCE(new.section_title, ''), new.object_path);
+    END
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS its_chunks_fts_au AFTER UPDATE ON its_chunks BEGIN
+        UPDATE its_chunks_fts
+        SET content = new.content,
+            title = new.title,
+            section_title = COALESCE(new.section_title, '')
+        WHERE rowid = new.id;
+    END
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS its_chunks_fts_ad AFTER DELETE ON its_chunks BEGIN
+        DELETE FROM its_chunks_fts WHERE rowid = old.id;
+    END
+    """,
+    # --- БСП (bsp_chunks) ---
+    """
+    CREATE VIRTUAL TABLE IF NOT EXISTS bsp_chunks_fts USING fts5(
+        content,
+        signature,
+        module_name,
+        method_name,
+        object_path UNINDEXED,
+        tokenize = 'unicode61'
+    )
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS bsp_chunks_fts_ai AFTER INSERT ON bsp_chunks BEGIN
+        INSERT INTO bsp_chunks_fts(rowid, content, signature, module_name, method_name, object_path)
+        VALUES (new.id, new.content, new.signature, new.module_name, new.method_name, new.object_path);
+    END
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS bsp_chunks_fts_au AFTER UPDATE ON bsp_chunks BEGIN
+        UPDATE bsp_chunks_fts
+        SET content = new.content,
+            signature = new.signature,
+            module_name = new.module_name,
+            method_name = new.method_name
+        WHERE rowid = new.id;
+    END
+    """,
+    """
+    CREATE TRIGGER IF NOT EXISTS bsp_chunks_fts_ad AFTER DELETE ON bsp_chunks BEGIN
+        DELETE FROM bsp_chunks_fts WHERE rowid = old.id;
+    END
+    """,
+]
+
+
 async def apply_migrations(db: aiosqlite.Connection) -> None:
     """Идемпотентно применяет миграции схемы БД."""
     # Создаём schema_version первым делом
@@ -866,5 +947,26 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
             (21,),
+        )
+        await db.commit()
+
+    if current < 22:
+        # FTS5 BM25 поверх its_chunks + bsp_chunks (v22, M-K4 ИТС-KB Hybrid).
+        # Virtual tables + триггеры синхронизации + backfill существующих чанков.
+        # Включает hybrid retrieval (vector + BM25 → RRF) в its_search/bsp_search.
+        for stmt in MIGRATIONS_V22:
+            await db.execute(stmt)
+        # Backfill существующих ИТС/БСП-чанков в FTS (один раз)
+        await db.execute(
+            "INSERT INTO its_chunks_fts(rowid, content, title, section_title, object_path) "
+            "SELECT id, content, title, COALESCE(section_title, ''), object_path FROM its_chunks"
+        )
+        await db.execute(
+            "INSERT INTO bsp_chunks_fts(rowid, content, signature, module_name, method_name, object_path) "
+            "SELECT id, content, signature, module_name, method_name, object_path FROM bsp_chunks"
+        )
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (22,),
         )
         await db.commit()

@@ -17,7 +17,7 @@ import aiosqlite
 import pytest
 import pytest_asyncio
 
-from app.knowledge.embeddings import MockEmbeddingClient
+from app.knowledge.embeddings import EmbeddingError, MockEmbeddingClient
 from app.knowledge.its_indexer import ITS_CHANNEL_ID, index_its_corpus
 from app.knowledge.its_search import (
     DEFAULT_SEARCH_K,
@@ -27,7 +27,6 @@ from app.knowledge.its_search import (
 )
 from app.knowledge.vector_store import upsert_embedding
 from app.storage.migrations import apply_migrations
-
 
 TEST_DIM = 4
 
@@ -274,3 +273,65 @@ def test_hit_object_path_format():
         source_path="x", distance=0.0,
     )
     assert hit.object_path == "its:std400#3"
+
+
+# ---------- M-K4 hybrid: BM25 + RRF + key-free fallback ----------
+
+
+class _FailingEmbeddingClient:
+    """Эмулирует отсутствие embedding-ключа: embed() всегда падает."""
+
+    model = "failing"
+    dim = TEST_DIM
+
+    async def embed(self, texts):  # noqa: ARG002
+        raise EmbeddingError("no embedding key")
+
+    async def aclose(self):
+        return None
+
+
+@pytest.mark.asyncio
+async def test_search_falls_back_to_bm25_without_embedding(db_indexed):
+    """Без рабочего embedding (нет ключа) поиск деградирует на BM25 и всё равно
+    находит по ключевому слову — корпус уже проиндексирован (FTS populated)."""
+    db, _ = db_indexed
+    failing = _FailingEmbeddingClient()
+    hits = await search_its(db, failing, "Транзакции", k=5)
+    assert hits, "BM25 fallback должен вернуть результаты без embedding"
+    assert any(h.doc_id == "std400" for h in hits)
+    # BM25-only находки помечены sentinel-distance (вектора нет)
+    assert all(h.distance == 1.0 for h in hits)
+
+
+@pytest.mark.asyncio
+async def test_search_bm25_surfaces_exact_term(db_indexed):
+    """BM25-слой находит документ по точному термину (hybrid: vector ⊕ BM25)."""
+    db, client = db_indexed
+    hits = await search_its(db, client, "Транзакции", k=3)
+    assert any(h.doc_id == "std400" for h in hits)
+
+
+@pytest.mark.asyncio
+async def test_search_bm25_only_index_without_vectors():
+    """its_chunks заполнен (FTS через триггер), но vec_objects пуст —
+    поиск работает на одном BM25, без векторов."""
+    conn = await aiosqlite.connect(":memory:")
+    try:
+        await apply_migrations(conn)
+        from app.knowledge.vector_store import init_vector_store
+        await init_vector_store(conn, dim=TEST_DIM)  # vec пуст
+        await conn.execute(
+            "INSERT INTO its_chunks(object_path,doc_id,chunk_index,title,section_title,"
+            "content,category,source_path,char_count,chunk_hash) "
+            "VALUES('its:std999#0','std999',0,'Блокировки',NULL,"
+            "'Управляемые блокировки данных при проведении','std','std/999.md',10,'h1')"
+        )
+        await conn.commit()
+        client = MockEmbeddingClient(dim=TEST_DIM)
+        hits = await search_its(conn, client, "блокировки", k=5)
+        assert len(hits) == 1
+        assert hits[0].doc_id == "std999"
+        assert hits[0].distance == 1.0  # BM25-only sentinel
+    finally:
+        await conn.close()
