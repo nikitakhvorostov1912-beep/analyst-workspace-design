@@ -99,6 +99,7 @@ from app.knowledge.its_tool import (
 )
 from app.knowledge.typical.tool import (
     TYPICAL_TOOL_SCHEMAS,
+    build_graph_card,
     dispatch_typical_tool,
     is_typical_tool,
 )
@@ -1782,6 +1783,22 @@ async def run_chat_loop(
                         duration_ms=duration_ms,
                     )
                     yield format_sse("tool_result", tt_event)
+                    # M-K3.17.7: визуальная graph-card поверх текстового
+                    # результата graph-tool (trace_typical_calls). Best-effort,
+                    # никогда не ломает основной поток.
+                    if tt_ok:
+                        try:
+                            graph_card = await build_graph_card(db, tool_name, tool_args)
+                        except Exception:
+                            logger.debug(
+                                "graph-card build пропущен (non-blocking)", exc_info=True
+                            )
+                            graph_card = None
+                        if graph_card is not None:
+                            yield format_sse("card", CardEvent(
+                                type=graph_card["type"], payload=graph_card["payload"],
+                            ))
+                            accumulated_cards.append(graph_card)
                     accumulated_tool_calls.append({
                         "id": tool_id, "name": tool_name, "args": tool_args,
                         "result": tt_result, "error": tt_error,

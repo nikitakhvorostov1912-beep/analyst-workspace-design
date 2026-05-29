@@ -27,7 +27,9 @@
 - **GraphCard (frontend, React Flow `@xyflow/react`)** — визуализация L2-подграфа
   в чате: раскладка слоями по глубине, центр подсвечен accent-рамкой, CALLS-рёбра
   анимированы. Новый тип карточки `graph` (CardEnvelope/CardRenderer/CardHeader);
-  чистая раскладка `lib/graph-card.toFlowElements` под unit-тесты.
+  чистая раскладка `lib/graph-card.toFlowElements` под unit-тесты. Backend
+  эмитит graph-карточку end-to-end из `trace_typical_calls` (`build_graph_card`
+  → `get_subgraph`, CardEvent type `graph`).
 
 #### Fixed
 - **`traverse_bfs` производительность (M-K3.17.1)** — рекурсивный CTE без

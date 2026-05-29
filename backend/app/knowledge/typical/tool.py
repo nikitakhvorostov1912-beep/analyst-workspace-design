@@ -44,11 +44,13 @@ from typing import Any
 import aiosqlite
 
 from app.knowledge.graph_storage import (
+    DEFAULT_SUBGRAPH_MAX_NODES,
     EdgeKind,
     NodeKind,
     count_by_kind,
     find_node,
     get_neighbors,
+    get_subgraph,
     list_nodes,
     traverse_bfs,
 )
@@ -793,3 +795,43 @@ def _coerce_int(value: Any, *, default: int, lo: int, hi: int) -> int:
     except (TypeError, ValueError):
         return default
     return max(lo, min(hi, n))
+
+
+async def build_graph_card(
+    db: aiosqlite.Connection, tool_name: str, tool_args: dict,
+) -> dict | None:
+    """M-K3.17.7: graph-card для graph-производящих типовых tools (GraphCard UI).
+
+    Сейчас — `trace_typical_calls`: CALLS-подграф вокруг метода (узлы + рёбра)
+    для визуализации в React Flow. Возвращает {"type": "graph", "payload": ...}
+    в форме get_subgraph.to_dict() (+ tool_name) либо None, если это не
+    graph-tool / узел не найден / нет рёбер для отображения.
+
+    Не бросает — best-effort визуальное дополнение поверх текстового
+    tool-результата (вызывающий оборачивает в try/except).
+    """
+    if tool_name != TOOL_TRACE_CALLS:
+        return None
+    channel_id = tool_args.get("channel_id")
+    qname = tool_args.get("qualified_name")
+    direction = tool_args.get("direction", "out")
+    if not channel_id or not qname or direction not in ("out", "in"):
+        return None
+    depth = _coerce_int(tool_args.get("depth", 2), default=2, lo=1, hi=_MAX_TRACE_DEPTH)
+
+    subgraph = await get_subgraph(
+        db,
+        channel_id=channel_id,
+        start_qname=qname,
+        max_depth=depth,
+        direction=direction,
+        edge_kind=EdgeKind.CALLS.value,
+        max_nodes=DEFAULT_SUBGRAPH_MAX_NODES,
+    )
+    # Карточка осмысленна только при наличии рёбер (иначе один изолированный узел).
+    if subgraph.center is None or not subgraph.edges:
+        return None
+
+    payload = subgraph.to_dict()
+    payload["tool_name"] = tool_name
+    return {"type": "graph", "payload": payload}
