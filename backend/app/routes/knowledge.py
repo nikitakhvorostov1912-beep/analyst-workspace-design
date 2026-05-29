@@ -27,13 +27,28 @@ import asyncio
 import logging
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Request
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 
 from app.config import get_settings
+from app.knowledge.bsp_indexer import (
+    count_bsp_by_version,
+    count_bsp_methods,
+    count_bsp_modules,
+    index_bsp_corpus,
+)
 from app.knowledge.dossier import (
     DossierNotFoundError,
     ObjectDossier,
     get_dossier,
+)
+from app.knowledge.graph_storage import (
+    DEFAULT_SUBGRAPH_MAX_NODES,
+    MAX_TRAVERSAL_DEPTH,
+    GraphStorageError,
+    NodeKind,
+    count_by_kind,
+    find_node,
+    get_subgraph,
 )
 from app.knowledge.indexer import bulk_refresh_metadata_cache
 from app.knowledge.indexer_state import (
@@ -43,12 +58,6 @@ from app.knowledge.indexer_state import (
     get_current_running,
     get_latest_run,
     start_run,
-)
-from app.knowledge.bsp_indexer import (
-    count_bsp_by_version,
-    count_bsp_methods,
-    count_bsp_modules,
-    index_bsp_corpus,
 )
 from app.knowledge.its_indexer import (
     count_its_chunks,
@@ -61,8 +70,6 @@ from app.knowledge.typical.card_storage import (
     get_card_by_qname,
 )
 from app.knowledge.typical.storage import list_configurations
-from app.knowledge.graph_storage import count_by_kind, find_node
-from app.knowledge.graph_storage import NodeKind
 
 logger = logging.getLogger(__name__)
 
@@ -626,4 +633,79 @@ async def get_typical_object(
         "card_updated_at": card_rec.updated_at if card_rec else None,
         # v2.0-step-2: UI бейдж «Mock data — не верифицировано» когда True.
         "is_mock": bool(card_rec.is_mock) if card_rec else False,
+    }
+
+
+# ── M-K3.17.7: Graph subgraph endpoint (L2 visualization) ─────────────
+
+
+@router.get("/{channel_id}/graph/{qualified_name:path}")
+async def get_object_graph(
+    channel_id: Annotated[str, Path(description="ID канала или типовой (_ut115_*)")],
+    qualified_name: Annotated[
+        str, Path(description="Полное имя узла (e.g. 'ОбщегоНазначения.ЗначениеРеквизитаОбъекта')")
+    ],
+    db=Depends(_get_db),  # noqa: B008
+    depth: Annotated[int, Query(ge=1, le=MAX_TRAVERSAL_DEPTH, description="глубина traversal")] = 2,
+    direction: Annotated[
+        str, Query(pattern="^(out|in)$", description="out=исходящие связи, in=входящие")
+    ] = "out",
+    edge_kind: Annotated[
+        str | None, Query(description="фильтр по типу ребра: CALLS / USES / CONTAINS / ...")
+    ] = None,
+    max_nodes: Annotated[
+        int, Query(ge=1, le=1000, description="cap узлов в подграфе")
+    ] = DEFAULT_SUBGRAPH_MAX_NODES,
+    node_kind: Annotated[
+        str | None, Query(description="тип стартового узла, если имя неоднозначно")
+    ] = None,
+) -> dict:
+    """L2-подграф вокруг узла — данные для GraphCard (React Flow).
+
+    Узлы (с глубиной) + ИНДУЦИРОВАННЫЕ рёбра между ними. Работает и для
+    типовых (`_ut115_*` и т.п.), и для живых каналов — когда граф построен.
+
+    Errors:
+        422 — невалидные query-параметры (depth/direction вне диапазона).
+        404 — узел не найден в графе канала (граф не построен / опечатка).
+    """
+    try:
+        sg = await get_subgraph(
+            db,
+            channel_id=channel_id,
+            start_qname=qualified_name,
+            node_kind=node_kind,
+            max_depth=depth,
+            direction=direction,
+            edge_kind=edge_kind,
+            max_nodes=max_nodes,
+        )
+    except GraphStorageError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail={"error": "invalid_traversal_params", "message": str(exc)},
+        ) from exc
+
+    if sg.center is None:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "node_not_found",
+                "channel_id": channel_id,
+                "qualified_name": qualified_name,
+                "hint": (
+                    "Узел не найден в графе канала. Граф строится из выгрузки "
+                    "типовой (GET /knowledge/typical/configurations) или для "
+                    "живого канала (M-K3 build_live_graph)."
+                ),
+            },
+        )
+
+    return {
+        "channel_id": channel_id,
+        "qualified_name": qualified_name,
+        "depth": depth,
+        "direction": direction,
+        "edge_kind": edge_kind,
+        **sg.to_dict(),
     }
