@@ -491,65 +491,78 @@ async def traverse_bfs(
             f"direction должно быть 'out'|'in', получено {direction!r}"
         )
 
-    # Идём по графу:
-    # direction='out': start → e.src_id == cur.id → next = e.dst_id
-    # direction='in':  start ← e.dst_id == cur.id ← next = e.src_id
+    # Итеративный BFS с visited-множеством вместо рекурсивного CTE.
+    #
+    # Рекурсивный CTE c UNION ALL и без visited-guard переисследует узлы по
+    # ВСЕМ путям: в графе вызовов (циклы + высокий fan-out) число path-строк
+    # длины ≤ max_depth растёт экспоненциально (depth=5 от формы с out-degree
+    # ~267 → сотни тысяч промежуточных строк → ~384мс на типовой УТ, выше
+    # бюджета 300мс). Visited-set даёт O(nodes + edges): каждый узел
+    # посещается один раз, на кратчайшей глубине. См. M-K3.17.1 benchmark.
+    #
+    # direction='out': идём по e.src_id == cur → next = e.dst_id
+    # direction='in':  идём по e.dst_id == cur → next = e.src_id
     if direction == "out":
-        join_clause = "JOIN graph_edges e ON e.src_id = bfs.id"
-        next_id_col = "e.dst_id"
+        cur_col, next_col = "src_id", "dst_id"
     else:
-        join_clause = "JOIN graph_edges e ON e.dst_id = bfs.id"
-        next_id_col = "e.src_id"
+        cur_col, next_col = "dst_id", "src_id"
 
-    edge_filter = "AND e.edge_kind = ?" if edge_kind else ""
+    # depth + path_kinds фиксируются на момент ПЕРВОГО (кратчайшего) достижения.
+    visited: dict[int, tuple[int, tuple[str, ...]]] = {start_id: (0, ())}
+    frontier: list[int] = [start_id]
 
-    # Path-kinds через CONCAT'ация: '/' разделитель + edge_kind.
-    # На уровне SQLite используем string concat: bfs.path || '/' || e.edge_kind.
-    # Начальный path = '' для start node.
-    sql = f"""
-        WITH RECURSIVE bfs(id, depth, path) AS (
-            -- Anchor: start node, depth 0, empty path
-            SELECT id, 0 AS depth, '' AS path
-            FROM graph_nodes WHERE id = ?
+    # SQLite ограничивает число bind-переменных (SQLITE_MAX_VARIABLE_NUMBER,
+    # исторически 999) — бьём frontier/выборку узлов на чанки с запасом.
+    chunk = 800
 
-            UNION ALL
+    for _ in range(max_depth):
+        if not frontier:
+            break
+        next_frontier: list[int] = []
+        for i in range(0, len(frontier), chunk):
+            batch = frontier[i : i + chunk]
+            placeholders = ",".join("?" * len(batch))
+            sql = (
+                f"SELECT {cur_col}, {next_col}, edge_kind FROM graph_edges "
+                f"WHERE {cur_col} IN ({placeholders})"
+            )
+            params: list = list(batch)
+            if edge_kind:
+                sql += " AND edge_kind = ?"
+                params.append(edge_kind)
+            cursor = await db.execute(sql, params)
+            for cur_id, nxt_id, kind in await cursor.fetchall():
+                if nxt_id in visited:
+                    continue
+                depth, path = visited[cur_id]
+                visited[nxt_id] = (depth + 1, (*path, kind))
+                next_frontier.append(nxt_id)
+        frontier = next_frontier
 
-            -- Recursive: для каждого предыдущего hit находим neighbors
-            SELECT {next_id_col}, bfs.depth + 1,
-                   bfs.path || '/' || e.edge_kind
-            FROM bfs
-            {join_clause}
-            WHERE bfs.depth < ?
-            {edge_filter}
+    # Детали узлов одним проходом (теми же чанками).
+    nodes_by_id: dict[int, GraphNode] = {}
+    node_ids = list(visited.keys())
+    for i in range(0, len(node_ids), chunk):
+        batch = node_ids[i : i + chunk]
+        placeholders = ",".join("?" * len(batch))
+        cursor = await db.execute(
+            "SELECT id, channel_id, node_kind, qualified_name, source_path, "
+            f"attributes FROM graph_nodes WHERE id IN ({placeholders})",
+            batch,
         )
-        SELECT n.id, n.channel_id, n.node_kind, n.qualified_name,
-               n.source_path, n.attributes, bfs.depth, bfs.path
-        FROM bfs
-        JOIN graph_nodes n ON n.id = bfs.id
-        ORDER BY bfs.depth, n.qualified_name
-    """
-
-    params: list = [start_id, max_depth]
-    if edge_kind:
-        params.append(edge_kind)
-
-    cursor = await db.execute(sql, params)
-    rows = await cursor.fetchall()
+        for row in await cursor.fetchall():
+            node = _row_to_node(row)
+            nodes_by_id[node.id] = node
 
     results: list[TraversalHit] = []
-    seen_ids: set[int] = set()  # Дедуп: один node может быть достижим по
-                                # разным путям — берём первый (кратчайший).
-    for row in rows:
-        node = _row_to_node(row[:6])
-        if node.id in seen_ids:
-            continue
-        seen_ids.add(node.id)
-        depth = int(row[6])
-        path_raw = row[7] or ""
-        # path = '/X/Y/Z' → ['X', 'Y', 'Z'] (skip ведущий empty)
-        path_kinds = tuple(p for p in path_raw.split("/") if p)
+    for node_id, (depth, path_kinds) in visited.items():
+        node = nodes_by_id.get(node_id)
+        if node is None:
+            continue  # FK гарантирует наличие; страховка от рассинхрона
         results.append(TraversalHit(node=node, depth=depth, path_kinds=path_kinds))
 
+    # Документированный порядок: depth ASC, затем qualified_name ASC.
+    results.sort(key=lambda h: (h.depth, h.node.qualified_name))
     return results
 
 
