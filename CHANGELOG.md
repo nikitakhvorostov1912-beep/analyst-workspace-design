@@ -6,6 +6,35 @@
 
 ## [Unreleased] — feature/v1.3.0-commerce
 
+### Knowledge Layer (M-K3 Relational + Behavioral) — 2026-05-29
+
+> Ветка `feature/m-k3-relational-cfe`. Параллельный поток поверх M7 —
+> слой понимания L2 (граф вызовов/связей) + анти-галлюцинация по БСП.
+> Единый роадмап: `.planning/ROADMAP-2026-05-29.md`.
+
+#### Added
+- **Knowledge Graph subgraph API** — `GET /knowledge/{channel_id}/graph/{qname}`
+  + `get_subgraph()` в `graph_storage.py`: подграф вокруг узла (узлы с глубиной +
+  ИНДУЦИРОВАННЫЕ рёбра, cap `max_nodes`) — данные для будущей GraphCard. Query:
+  `depth`/`direction`/`edge_kind`/`max_nodes`/`node_kind`. Работает на типовых
+  (УТ/ERP/КА); для живых каналов — после `build_live_graph` (нужен BSL-источник,
+  стандартный MCP исходники модулей не отдаёт).
+- **G2 phantom-guardrail** (анти-галлюцинация БСП) — `run_chat_loop` после ответа
+  сверяет упомянутые методы БСП с корпусом `bsp_chunks`; при выдуманных эмитит
+  неблокирующее SSE-событие `bsp_warning` → UI-баннер «сигнатуры не верифицированы».
+- **`scripts/graph_bench.py`** — NIM-safe бенчмарк графа (отдельная БД, не `pilot.db`)
+  для верификации DoD M-K3.17.1; флаг `--traverse-only`.
+
+#### Fixed
+- **`traverse_bfs` производительность (M-K3.17.1)** — рекурсивный CTE без
+  visited-set переисследовал узлы по всем путям (циклы + высокий fan-out →
+  экспоненциальный взрыв path-строк). Заменён на итеративный BFS с
+  visited-множеством — O(nodes+edges). На реальной типовой УТ 11.5 (62.7K nodes /
+  69.4K edges) traversal depth=5: **384мс → 30мс (~12.8×)**. Контракт сохранён
+  (46 тестов `graph_storage`). DoD 17.1 (≤300мс) выполнен.
+
+---
+
 M7 Commerce Readiness — переход от пилот-готового beta к коммерчески
 распространяемой версии. Wave 1 закрывает CRITICAL уязвимости, Wave 2-3
 готовят к публичному релизу.
