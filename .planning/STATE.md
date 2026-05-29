@@ -33,7 +33,7 @@ note: "M-K0 закрыт 100% (28/28) коммитом 00ab58e от 2026-05-25. 
 
 **Current focus:** **M-K3** Relational + Behavioral + EPF/CFE (единый роадмап — `ROADMAP-2026-05-29.md`). M-K2.5 (NIM rebuild 63 203 карточек) — параллельный фоновый трек, не блокер. Старый `PARALLEL-PLAN-2026-05-28.md` архивирован в `_archive/`.
 
-> ⚡ **Снимок 2026-05-29:** M-K0/K1/K2 ✅ закрыты; M-K3 active (EPF-скелет + guardrail G2 `3bd4e5d`); часть M-K4 (hybrid+guardrails) авансом, на паузе до L2-графа. Историчные секции ниже (M6/M7) — не трогать, это запись прошлого.
+> ⚡ **Снимок 2026-05-29 (M-K3 graph/UC):** 17.1 L2-граф ✅ + перф-фикс traversal 384→30мс; 17.4/17.5 (цепочка/impact) ✅ проверены на реальной УТ; **17.7 GraphCard ✅ E2E** (get_subgraph→REST→React Flow→backend-эмит); 17.2 RLS-tracer **R1 ✅** (parse_rights_xml). Дальше: R2 (Role/RLS в граф, temp-БД) → R3 (diagnose+tool) + Preview GraphCard. Детали — `knowledge-layer-2026-05-24/STATE.md`. NIM-ребилд карточек идёт (pilot.db read-only). Историчные секции ниже (M6/M7) — не трогать.
 
 ---
 

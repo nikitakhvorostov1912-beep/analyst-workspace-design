@@ -34,8 +34,22 @@ progress:
 
 ## Где мы сейчас
 
-> ⚡ **АКТУАЛЬНО 2026-05-29 — единый форвард-источник: [`../ROADMAP-2026-05-29.md`](../ROADMAP-2026-05-29.md).**
-> M-K0 ✅ · M-K1 ✅ · **M-K2 ✅** · M-K2.5 🟡 фон (~6.5%, NIM-карточки, не блокер) · **M-K3 🟡 ACTIVE** (EPF-скелет 13a.0/13a.1 готов; guardrail G2 закоммичен `3bd4e5d` авансом из M-K4). Часть M-K4 (hybrid+guardrails) сделана авансом, на паузе. **M-K3.17.1 L2-граф верифицирован** на реальной УТ 11.5 (62.7K nodes/69.4K edges); найден+починен дефект traversal (384→30мс, visited-set BFS, `d7fce26`). Граф пока строится только из снапшотов типовых — следующий gap: `build_live_graph` для живого канала.
+> ⚡ **АКТУАЛЬНО 2026-05-29 (сессия M-K3 graph/UC) — единый форвард-источник: [`../ROADMAP-2026-05-29.md`](../ROADMAP-2026-05-29.md).**
+>
+> M-K0 ✅ · M-K1 ✅ · M-K2 ✅ · M-K2.5 🟡 **NIM-ребилд карточек ИДЁТ** (фон, пишет `pilot.db` — НЕ трогать, read-only) · **M-K3 🟡 ACTIVE**.
+>
+> **Сделано в M-K3 (ветка `feature/m-k3-relational-cfe`, в remote НЕ запушено):**
+> - **17.1 L2-граф** ✅ верифицирован на реальной УТ 11.5 (62.7K nodes / 69.4K edges) + **перф-фикс traversal 384→30мс** (visited-set BFS вместо CTE, `d7fce26`).
+> - **17.4 цепочка вызовов / 17.5 impact** ✅ — tools `trace_typical_calls` (out/in) уже были, **проверены на реальной УТ** (`e242246`).
+> - **17.7 GraphCard** ✅ **E2E**: `get_subgraph` (`75c2f5e`) + REST `/knowledge/{ch}/graph/{qname}` (`864d579`) + React Flow GraphCard (`e66f9fa`) + backend-эмит из trace_typical_calls (`4f75ca2`).
+> - **17.2 RLS-tracer — R1** ✅ `parse_rights_xml` (права + RLS-условия из Rights.xml, cp1251-устойчив, проверен на УТ, `fce67e3`).
+> - Аванс M-K4 (hybrid retrieval + guardrails G2) ✅ закоммичен, на паузе до углубления L4.
+> - Гигиена: единый `ROADMAP-2026-05-29` + Workflow xlsx (`bc35cd8`), 3 STATE синхронизированы (`60e1e44`), CHANGELOG секция KL по стандарту.
+>
+> **В работе / дальше:**
+> - **17.2 RLS-tracer R2** (ACTIVE): Role-узлы + RLS-рёбра `RESTRICTS` в граф (хук Rights.xml в graph_builder). Dev+верификация на **temp-БД** (NIM-safe). R3: diagnose + tool `rls_tracer` + DiagnoseCard.
+> - **Preview GraphCard в браузере** (#34) — визуальная проверка на живых данных (нужен dev-стек).
+> - Боевая заливка Role/RLS в `pilot.db` (типовой граф) — ПОСЛЕ NIM (сейчас pilot.db read-only).
 
 **Active milestone (история до 2026-05-26):** ✅ **M-K2 Knowledge Foundation + Triple RAG — CLOSED SUMMARY 2026-05-26** (12/13 done + 1 deferred).
 
