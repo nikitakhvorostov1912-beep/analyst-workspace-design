@@ -7,6 +7,7 @@ import {
   FileText,
   Link as LinkIcon,
   Lock,
+  Network,
   Table,
   TrendingUp,
   Unlock,
@@ -14,7 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CardActionMenu, type CardActionItem } from "./CardActionMenu";
 
-export type CardType = "table" | "object" | "log" | "metric" | "references" | "code";
+export type CardType = "table" | "object" | "log" | "metric" | "references" | "code" | "graph";
 
 interface TypeMeta {
   icon: ComponentType<{ className?: string }>;
@@ -37,6 +38,7 @@ const TYPE_META: Record<CardType, TypeMeta> = {
     accentClass: "text-[var(--accent)]",
   },
   code: { icon: Code2, label: "Код", accentClass: "text-[var(--accent)]" },
+  graph: { icon: Network, label: "Граф", accentClass: "text-[var(--accent)]" },
 };
 
 interface CardHeaderProps {

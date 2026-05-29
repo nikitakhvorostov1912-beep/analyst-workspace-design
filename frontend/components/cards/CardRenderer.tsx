@@ -7,6 +7,7 @@ import { LogCard } from "./LogCard";
 import { MetricCard } from "./MetricCard";
 import { ReferencesCard } from "./ReferencesCard";
 import { CodeCard } from "./CodeCard";
+import { GraphCard } from "./GraphCard";
 import { deanonymizeCard, loadMoreLogEntries } from "@/lib/api";
 import type { CardEnvelope, CardContext, ReferenceItem } from "@/lib/types";
 
@@ -102,6 +103,12 @@ export function CardRenderer({ card, context, sendMessage }: CardRendererProps) 
       return (
         <CardMountWrapper>
           <CodeCard payload={card.payload} />
+        </CardMountWrapper>
+      );
+    case "graph":
+      return (
+        <CardMountWrapper>
+          <GraphCard payload={card.payload} />
         </CardMountWrapper>
       );
     default: {

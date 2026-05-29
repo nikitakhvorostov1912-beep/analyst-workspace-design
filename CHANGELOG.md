@@ -24,6 +24,10 @@
   неблокирующее SSE-событие `bsp_warning` → UI-баннер «сигнатуры не верифицированы».
 - **`scripts/graph_bench.py`** — NIM-safe бенчмарк графа (отдельная БД, не `pilot.db`)
   для верификации DoD M-K3.17.1; флаг `--traverse-only`.
+- **GraphCard (frontend, React Flow `@xyflow/react`)** — визуализация L2-подграфа
+  в чате: раскладка слоями по глубине, центр подсвечен accent-рамкой, CALLS-рёбра
+  анимированы. Новый тип карточки `graph` (CardEnvelope/CardRenderer/CardHeader);
+  чистая раскладка `lib/graph-card.toFlowElements` под unit-тесты.
 
 #### Fixed
 - **`traverse_bfs` производительность (M-K3.17.1)** — рекурсивный CTE без

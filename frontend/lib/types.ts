@@ -256,6 +256,32 @@ export type CodeCardPayload = {
   card_id?: string | null;
 };
 
+// M-K3.17.7: Knowledge Graph card (L2). Payload = форма get_subgraph.to_dict().
+export type GraphNodePayload = {
+  id: number;
+  node_kind: string;
+  qualified_name: string;
+  source_path?: string | null;
+  depth: number;
+  attributes?: Record<string, unknown>;
+};
+
+export type GraphEdgePayload = {
+  src_id: number;
+  dst_id: number;
+  edge_kind: string;
+};
+
+export type GraphCardPayload = {
+  center: { qualified_name: string; node_kind: string } | null;
+  nodes: GraphNodePayload[];
+  edges: GraphEdgePayload[];
+  total_reached: number;
+  truncated: boolean;
+  tool_name?: string;
+  card_id?: string | null;
+};
+
 // Card discriminated union — для рендеринга inline-карточек в AssistantMessage
 export type CardEnvelope =
   | { type: "table"; payload: TableCardPayload }
@@ -263,7 +289,8 @@ export type CardEnvelope =
   | { type: "log"; payload: LogCardPayload }
   | { type: "metric"; payload: MetricCardPayload }
   | { type: "references"; payload: ReferencesCardPayload }
-  | { type: "code"; payload: CodeCardPayload };
+  | { type: "code"; payload: CodeCardPayload }
+  | { type: "graph"; payload: GraphCardPayload };
 
 // Запись об одном tool call — для Trace panel (Plan 2.5)
 export type ToolCallRecord = {
