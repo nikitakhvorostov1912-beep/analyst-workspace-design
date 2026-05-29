@@ -128,6 +128,34 @@ class TraversalHit:
     path_kinds: tuple[str, ...]
 
 
+@dataclass(frozen=True, slots=True)
+class Subgraph:
+    """Подграф вокруг центрального узла — для GraphCard (React Flow) / REST.
+
+    nodes — достижимые узлы (с глубиной), edges — ИНДУЦИРОВАННЫЕ рёбра: только
+    те, у которых ОБА конца попали в отображаемый набор. truncated=True если
+    достижимых узлов было больше max_nodes (UI: «показаны первые N из M»).
+    """
+
+    center: GraphNode | None
+    hits: tuple[TraversalHit, ...]
+    edges: tuple[GraphEdge, ...]
+    total_reached: int
+    truncated: bool
+
+    def to_dict(self) -> dict:
+        return {
+            "center": self.center.to_dict() if self.center else None,
+            "nodes": [{**h.node.to_dict(), "depth": h.depth} for h in self.hits],
+            "edges": [
+                {"src_id": e.src_id, "dst_id": e.dst_id, "edge_kind": e.edge_kind}
+                for e in self.edges
+            ],
+            "total_reached": self.total_reached,
+            "truncated": self.truncated,
+        }
+
+
 class GraphStorageError(Exception):
     """Любая ошибка graph storage layer."""
 
@@ -564,6 +592,97 @@ async def traverse_bfs(
     # Документированный порядок: depth ASC, затем qualified_name ASC.
     results.sort(key=lambda h: (h.depth, h.node.qualified_name))
     return results
+
+
+# ============================================================================
+# Subgraph (для GraphCard / REST)
+# ============================================================================
+
+# Дефолтный лимит узлов в подграфе для GraphCard — больше рендерить нет
+# смысла (React Flow тормозит, человек не читает). UI помечает truncated.
+DEFAULT_SUBGRAPH_MAX_NODES = 150
+
+
+async def get_subgraph(
+    db: aiosqlite.Connection,
+    *,
+    channel_id: str,
+    start_qname: str,
+    node_kind: str | None = None,
+    max_depth: int = 2,
+    direction: str = "out",
+    edge_kind: str | None = None,
+    max_nodes: int = DEFAULT_SUBGRAPH_MAX_NODES,
+) -> Subgraph:
+    """Собирает подграф вокруг узла start_qname для визуализации (GraphCard).
+
+    Узлы = traverse_bfs(start, max_depth, direction) с cap'ом max_nodes
+    (по возрастанию глубины). Рёбра = ИНДУЦИРОВАННЫЕ: только те, у которых
+    оба конца попали в отображаемый набор узлов.
+
+    node_kind опционален — без него берётся первый узел с таким именем.
+    Если узел не найден — Subgraph с center=None (роут транслирует в 404).
+    Валидация max_depth/direction делегируется traverse_bfs (GraphStorageError).
+    """
+    if node_kind:
+        start = await find_node(
+            db, channel_id=channel_id, qualified_name=start_qname, node_kind=node_kind,
+        )
+    else:
+        cursor = await db.execute(
+            "SELECT id, channel_id, node_kind, qualified_name, source_path, attributes "
+            "FROM graph_nodes WHERE channel_id = ? AND qualified_name = ? LIMIT 1",
+            (channel_id, start_qname),
+        )
+        row = await cursor.fetchone()
+        start = _row_to_node(row) if row else None
+
+    if start is None:
+        return Subgraph(center=None, hits=(), edges=(), total_reached=0, truncated=False)
+
+    hits = await traverse_bfs(
+        db, start.id, max_depth=max_depth, direction=direction, edge_kind=edge_kind,
+    )
+    total_reached = len(hits)
+    truncated = total_reached > max_nodes
+    capped = hits[:max_nodes]
+    node_ids = {h.node.id for h in capped}
+
+    # Индуцированные рёбра: src в наборе И dst в наборе.
+    edges: list[GraphEdge] = []
+    ids_list = list(node_ids)
+    chunk = 800
+    for i in range(0, len(ids_list), chunk):
+        batch = ids_list[i : i + chunk]
+        placeholders = ",".join("?" * len(batch))
+        sql = (
+            "SELECT id, src_id, dst_id, edge_kind, attributes FROM graph_edges "
+            f"WHERE src_id IN ({placeholders})"
+        )
+        params: list = list(batch)
+        if edge_kind:
+            sql += " AND edge_kind = ?"
+            params.append(edge_kind)
+        cursor = await db.execute(sql, params)
+        for r in await cursor.fetchall():
+            if int(r[2]) in node_ids:  # dst_id тоже отображается
+                edges.append(
+                    GraphEdge(
+                        id=int(r[0]),
+                        src_id=int(r[1]),
+                        dst_id=int(r[2]),
+                        edge_kind=r[3],
+                        attributes=json.loads(r[4]) if r[4] else {},
+                    )
+                )
+
+    return Subgraph(
+        center=start,
+        hits=tuple(capped),
+        edges=tuple(edges),
+        total_reached=total_reached,
+        truncated=truncated,
+    )
 
 
 # ============================================================================

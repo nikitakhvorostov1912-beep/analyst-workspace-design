@@ -25,6 +25,7 @@ from app.knowledge.graph_storage import (
     GraphNode,
     GraphStorageError,
     NodeKind,
+    Subgraph,
     TraversalHit,
     _deserialize_attrs,
     _serialize_attrs,
@@ -37,6 +38,7 @@ from app.knowledge.graph_storage import (
     get_edges_to,
     get_neighbors,
     get_node,
+    get_subgraph,
     insert_edge,
     insert_node,
     list_nodes,
@@ -484,6 +486,116 @@ async def test_traverse_bfs_validates_max_depth(db_ready):
         await traverse_bfs(db_ready, a, max_depth=0)
     with pytest.raises(GraphStorageError):
         await traverse_bfs(db_ready, a, max_depth=MAX_TRAVERSAL_DEPTH + 1)
+
+
+# ---------- get_subgraph ----------
+
+
+@pytest.mark.asyncio
+async def test_get_subgraph_basic(db_ready):
+    """A→B→C, A→D. Подграф от A depth=2 → 4 узла + 3 индуцированных ребра."""
+    ids = {}
+    for n in "ABCD":
+        ids[n] = await insert_node(
+            db_ready, channel_id="c", node_kind="Method", qualified_name=n,
+        )
+    await insert_edge(db_ready, src_id=ids["A"], dst_id=ids["B"], edge_kind="CALLS")
+    await insert_edge(db_ready, src_id=ids["B"], dst_id=ids["C"], edge_kind="CALLS")
+    await insert_edge(db_ready, src_id=ids["A"], dst_id=ids["D"], edge_kind="CALLS")
+
+    sg = await get_subgraph(db_ready, channel_id="c", start_qname="A", max_depth=2)
+    assert isinstance(sg, Subgraph)
+    assert sg.center is not None and sg.center.qualified_name == "A"
+    names = {h.node.qualified_name for h in sg.hits}
+    assert names == {"A", "B", "C", "D"}
+    edge_pairs = {(e.src_id, e.dst_id) for e in sg.edges}
+    assert edge_pairs == {
+        (ids["A"], ids["B"]),
+        (ids["B"], ids["C"]),
+        (ids["A"], ids["D"]),
+    }
+    assert sg.truncated is False
+    assert sg.total_reached == 4
+
+
+@pytest.mark.asyncio
+async def test_get_subgraph_induced_edges_only(db_ready):
+    """max_depth=1: C вне набора → ребро B→C НЕ попадает в подграф."""
+    ids = {}
+    for n in "ABC":
+        ids[n] = await insert_node(
+            db_ready, channel_id="c", node_kind="Method", qualified_name=n,
+        )
+    await insert_edge(db_ready, src_id=ids["A"], dst_id=ids["B"], edge_kind="CALLS")
+    await insert_edge(db_ready, src_id=ids["B"], dst_id=ids["C"], edge_kind="CALLS")
+
+    sg = await get_subgraph(db_ready, channel_id="c", start_qname="A", max_depth=1)
+    names = {h.node.qualified_name for h in sg.hits}
+    assert names == {"A", "B"}
+    edge_pairs = {(e.src_id, e.dst_id) for e in sg.edges}
+    assert edge_pairs == {(ids["A"], ids["B"])}  # B→C исключено (C не отображается)
+
+
+@pytest.mark.asyncio
+async def test_get_subgraph_truncated(db_ready):
+    """max_nodes cap → truncated=True, hits урезаны, total_reached полный."""
+    root = await insert_node(
+        db_ready, channel_id="c", node_kind="Method", qualified_name="ROOT",
+    )
+    for i in range(5):
+        child = await insert_node(
+            db_ready, channel_id="c", node_kind="Method", qualified_name=f"N{i}",
+        )
+        await insert_edge(db_ready, src_id=root, dst_id=child, edge_kind="CALLS")
+
+    sg = await get_subgraph(
+        db_ready, channel_id="c", start_qname="ROOT", max_depth=1, max_nodes=3,
+    )
+    assert sg.truncated is True
+    assert len(sg.hits) == 3
+    assert sg.total_reached == 6  # ROOT + 5 детей
+
+
+@pytest.mark.asyncio
+async def test_get_subgraph_not_found(db_ready):
+    sg = await get_subgraph(db_ready, channel_id="c", start_qname="НетТакого", max_depth=2)
+    assert sg.center is None
+    assert sg.hits == ()
+    assert sg.edges == ()
+    assert sg.total_reached == 0
+
+
+@pytest.mark.asyncio
+async def test_get_subgraph_edge_kind_filter(db_ready):
+    """edge_kind='CALLS' → ребро USES не учитывается ни в traversal, ни в edges."""
+    ids = {}
+    for n in "ABC":
+        ids[n] = await insert_node(
+            db_ready, channel_id="c", node_kind="Method", qualified_name=n,
+        )
+    await insert_edge(db_ready, src_id=ids["A"], dst_id=ids["B"], edge_kind="CALLS")
+    await insert_edge(db_ready, src_id=ids["A"], dst_id=ids["C"], edge_kind="USES")
+
+    sg = await get_subgraph(
+        db_ready, channel_id="c", start_qname="A", max_depth=2, edge_kind="CALLS",
+    )
+    names = {h.node.qualified_name for h in sg.hits}
+    assert names == {"A", "B"}
+    assert all(e.edge_kind == "CALLS" for e in sg.edges)
+
+
+@pytest.mark.asyncio
+async def test_get_subgraph_to_dict_shape(db_ready):
+    """to_dict — React-Flow-friendly: nodes с depth, edges с src/dst/kind."""
+    a = await insert_node(db_ready, channel_id="c", node_kind="Method", qualified_name="A")
+    b = await insert_node(db_ready, channel_id="c", node_kind="Method", qualified_name="B")
+    await insert_edge(db_ready, src_id=a, dst_id=b, edge_kind="CALLS")
+
+    d = (await get_subgraph(db_ready, channel_id="c", start_qname="A", max_depth=1)).to_dict()
+    assert set(d) == {"center", "nodes", "edges", "total_reached", "truncated"}
+    assert d["center"]["qualified_name"] == "A"
+    assert all("depth" in n for n in d["nodes"])
+    assert d["edges"][0]["edge_kind"] == "CALLS"
 
 
 # ---------- Counts ----------
