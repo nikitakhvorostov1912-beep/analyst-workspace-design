@@ -63,6 +63,7 @@ from app.knowledge.typical.xml_models import (
     MetadataObject,
     MetadataTabularSection,
     ModuleKind,
+    RoleRight,
 )
 
 logger = logging.getLogger(__name__)
@@ -119,6 +120,68 @@ def _read_xml(path: Path) -> ET.Element:
     if raw.startswith(b"\xef\xbb\xbf"):
         raw = raw[3:]
     return ET.fromstring(raw)
+
+
+def _read_xml_robust(path: Path) -> ET.Element:
+    """Как _read_xml, но устойчив к рассогласованию кодировки.
+
+    1С иногда пишет Rights.xml в cp1251 при declaration UTF-8 →
+    ET.fromstring(bytes) падает на декодировании. Фоллбэк: декодируем
+    cp1251/utf-8 вручную, срезаем XML-декларацию (ET не принимает её в str),
+    парсим из строки.
+    """
+    raw = path.read_bytes()
+    if raw.startswith(b"\xef\xbb\xbf"):
+        raw = raw[3:]
+    try:
+        return ET.fromstring(raw)
+    except (ET.ParseError, UnicodeDecodeError, ValueError):
+        for enc in ("cp1251", "utf-8"):
+            try:
+                text = raw.decode(enc)
+            except UnicodeDecodeError:
+                continue
+            stripped = text.lstrip()
+            if stripped.startswith("<?xml"):
+                text = stripped[stripped.index("?>") + 2:]
+            return ET.fromstring(text)
+        raise
+
+
+def parse_rights_xml(path: str | Path) -> list[RoleRight]:
+    """Парсит Roles/<Role>/Ext/Rights.xml → список RoleRight (право + RLS-условие).
+
+    Namespace http://v8.1c.ru/8.2/roles снимается через _local_name. Структура:
+      <Rights><object><name>Document.X</name>
+        <right><name>Read</name><value>true</value>
+          [<restrictionByCondition><condition>...</condition></restrictionByCondition>]
+        </right>...</object>...</Rights>
+    Возвращает по одному RoleRight на пару (object, right).
+    """
+    p = Path(path)
+    root = _read_xml_robust(p)
+    rights: list[RoleRight] = []
+    for obj in _find_all_local(root, "object"):
+        object_name = _text_of_local(obj, "name")
+        if not object_name:
+            continue
+        for right in _find_all_local(obj, "right"):
+            right_name = _text_of_local(right, "name")
+            if not right_name:
+                continue
+            value = _bool_text(_text_of_local(right, "value", "false"))
+            condition: str | None = None
+            rbc = _find_local(right, "restrictionByCondition")
+            if rbc is not None:
+                cond = _text_of_local(rbc, "condition").strip()
+                condition = cond or None
+            rights.append(RoleRight(
+                object_name=object_name,
+                right_name=right_name,
+                value=value,
+                condition=condition,
+            ))
+    return rights
 
 
 def parse_configuration_xml(path: str | Path) -> MetadataConfiguration:

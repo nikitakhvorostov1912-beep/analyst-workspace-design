@@ -268,6 +268,31 @@ class MetadataObject:
 
 
 @dataclass(frozen=True, slots=True)
+class RoleRight:
+    """Право роли на объект из Roles/<Role>/Ext/Rights.xml (M-K3.17.2 RLS).
+
+    `object_name` — имя в стиле выгрузки («Document.X», «Catalog.Y»,
+    «Subsystem.A.Subsystem.B»). `right_name` — «Read»/«Update»/«View»/...
+    `condition` — текст RLS-ограничения (restrictionByCondition), если есть,
+    например «ВладелецДокумента = &ТекущийПользователь». Источник RLS-условий —
+    ТОЛЬКО снапшот: живой MCP get_access_rights текст условия не возвращает.
+    """
+
+    object_name: str
+    right_name: str
+    value: bool
+    condition: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "object_name": self.object_name,
+            "right_name": self.right_name,
+            "value": self.value,
+            "condition": self.condition,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class MetadataConfiguration:
     """Корень конфигурации — `Configuration.xml`.
 
