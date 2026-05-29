@@ -42,14 +42,15 @@ progress:
 > - **17.1 L2-граф** ✅ верифицирован на реальной УТ 11.5 (62.7K nodes / 69.4K edges) + **перф-фикс traversal 384→30мс** (visited-set BFS вместо CTE, `d7fce26`).
 > - **17.4 цепочка вызовов / 17.5 impact** ✅ — tools `trace_typical_calls` (out/in) уже были, **проверены на реальной УТ** (`e242246`).
 > - **17.7 GraphCard** ✅ **E2E**: `get_subgraph` (`75c2f5e`) + REST `/knowledge/{ch}/graph/{qname}` (`864d579`) + React Flow GraphCard (`e66f9fa`) + backend-эмит из trace_typical_calls (`4f75ca2`).
-> - **17.2 RLS-tracer — R1** ✅ `parse_rights_xml` (права + RLS-условия из Rights.xml, cp1251-устойчив, проверен на УТ, `fce67e3`).
+> - **17.2 RLS-tracer** ✅ **end-to-end на типовых**: R1 `parse_rights_xml` (`fce67e3`) → R2 граф Phase E (521 роль / 2103 RESTRICTS-ребра на УТ, `3ad30b5`) → R3 LLM-tool `explain_rls_restrictions` (`c86f1e2`).
 > - Аванс M-K4 (hybrid retrieval + guardrails G2) ✅ закоммичен, на паузе до углубления L4.
 > - Гигиена: единый `ROADMAP-2026-05-29` + Workflow xlsx (`bc35cd8`), 3 STATE синхронизированы (`60e1e44`), CHANGELOG секция KL по стандарту.
 >
 > **В работе / дальше:**
-> - **17.2 RLS-tracer R2** (ACTIVE): Role-узлы + RLS-рёбра `RESTRICTS` в граф (хук Rights.xml в graph_builder). Dev+верификация на **temp-БД** (NIM-safe). R3: diagnose + tool `rls_tracer` + DiagnoseCard.
 > - **Preview GraphCard в браузере** (#34) — визуальная проверка на живых данных (нужен dev-стек).
-> - Боевая заливка Role/RLS в `pilot.db` (типовой граф) — ПОСЛЕ NIM (сейчас pilot.db read-only).
+> - RLS-tracer полировка (опц.): DiagnoseCard (визуал) + per-user live trace («видит ли Иванов ЭТУ запись» — MCP get_access_rights + данные документа на живом канале).
+> - Остальные Phase 17 UC: 17.3 report-tracer, 17.6 query-optimizer. Прочие треки: build_live_graph (#30, нужен BSL-источник), EPF/CFE (13a/13b), BSL LS detector (15).
+> - Боевая заливка Role/RLS в `pilot.db` (типовой граф) — ПОСЛЕ NIM (сейчас pilot.db read-only); dev+верификация — на temp-БД (NIM-safe).
 
 **Active milestone (история до 2026-05-26):** ✅ **M-K2 Knowledge Foundation + Triple RAG — CLOSED SUMMARY 2026-05-26** (12/13 done + 1 deferred).
 
