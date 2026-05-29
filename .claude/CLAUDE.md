@@ -131,9 +131,14 @@ Electron + electron-builder + PyInstaller (desktop distribution, v1.1.0)
 - **Единый роадмап:** `.planning/ROADMAP-2026-05-29.md` + `Workflow_1C_Analyst_2026-05-29.xlsx` — форвард-источник истины (свёл продуктовую арку M1-M7 и Knowledge Layer M-K0..M-K6).
 - **Milestone:** **M-K3** — Relational + Behavioral + EPF/CFE Delivery (in_progress).
 - **Closed:** M-K0 (28/28 `00ab58e`) · M-K1 (15/17) · M-K2 Triple RAG (12/13) · M6 Hermes · M7 Commerce (код).
-- **M-K3 прогресс:** EPF-скелет 13a.0/13a.1 (`0a3b702`); guardrail G2 `3bd4e5d` (аванс из M-K4). Дальше по плану: M-K3.0 decompose loop.py → собрать ≥20 diagnose-кейсов → **Knowledge Graph (крит. путь 17.1)** → дожать EPF.
-- **Аванс M-K4** (hybrid retrieval + phantom guardrails): `581fec9`,`aff4fb2`,`049680b`,`4dbb60d`,`3bd4e5d` — **на паузе до L2-графа**.
-- **Параллельный фон:** M-K2.5 NIM rebuild карточек ~6.5% (не блокер; проверить жив ли процесс — действие D3).
+- **M-K3 graph/UC — БОЛЬШОЙ прогресс (сессия 2026-05-29, 16 коммитов):**
+  - **17.1 L2-граф** ✅ + перф-фикс traversal **384→30мс** (`d7fce26`), verified на УТ 62.7K/69.4K.
+  - **17.4/17.5** цепочка вызовов / impact ✅ (tools `trace_typical_calls`, проверены `e242246`).
+  - **17.7 GraphCard ✅ E2E**: `get_subgraph`→REST→React Flow→backend-эмит (`75c2f5e`,`864d579`,`e66f9fa`,`4f75ca2`).
+  - **17.2 RLS-tracer ✅ end-to-end на типовых**: R1 `parse_rights_xml` (`fce67e3`) → R2 граф 521 роль / 2103 RESTRICTS (`3ad30b5`) → R3 tool `explain_rls_restrictions` (`c86f1e2`).
+  - Аванс M-K4 (hybrid + guardrail G2) закоммичен, на паузе.
+- **РЕЗЮМЕ ПОСЛЕ COMPACT — дальше (выбор пользователя):** Preview GraphCard в браузере (#34, визуально НЕ смотрел — нужен dev-стек) · 17.3 report-tracer · build_live_graph (#30, нужен BSL-источник) · EPF/CFE (13a/13b) · DiagnoseCard-визуал. Полное состояние — `.planning/knowledge-layer-2026-05-24/STATE.md`.
+- **Параллельный фон:** M-K2.5 NIM rebuild карточек ИДЁТ (пишет `pilot.db` — read-only, НЕ трогать; dev/верификация графа — на temp-БД, NIM-safe).
 - **Ветка:** `feature/m-k3-relational-cfe` (атомарные коммиты; в remote НЕ пушим без запроса).
 - **Гигиена релиза:** код `desktop` v1.4.8, последний git-тег v1.2.2 — сборки не тегались (smoke VM + EV/OV cert pending).
 
