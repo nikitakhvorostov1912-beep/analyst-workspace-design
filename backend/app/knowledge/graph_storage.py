@@ -69,6 +69,7 @@ class EdgeKind(str, Enum):
     WRITES_TO = "WRITES_TO"         # Method WRITES_TO Register (Движения.X.Записать)
     READS_FROM = "READS_FROM"       # Method READS_FROM Register (Запрос или .Остатки())
     REFERENCES = "REFERENCES"       # Generic reference (для редких связей)
+    RESTRICTS = "RESTRICTS"         # Role RESTRICTS access to MetadataObject (M-K3.17.2 RLS; attrs: right, condition)
 
 
 # Максимальная глубина traverse_bfs — защита от infinite cycles

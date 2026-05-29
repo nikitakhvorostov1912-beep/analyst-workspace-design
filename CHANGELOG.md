@@ -30,10 +30,13 @@
   чистая раскладка `lib/graph-card.toFlowElements` под unit-тесты. Backend
   эмитит graph-карточку end-to-end из `trace_typical_calls` (`build_graph_card`
   → `get_subgraph`, CardEvent type `graph`).
-- **RLS-парсер `parse_rights_xml`** (M-K3.17.2, первый кирпич RLS-tracer) —
-  парсит `Roles/<Role>/Ext/Rights.xml` → права роли + RLS-условия
-  (`restrictionByCondition`), модель `RoleRight`. Устойчив к cp1251 при
-  declaration UTF-8 (1С так пишет). Проверено на снапшоте УТ 11.5.
+- **RLS-граф `RESTRICTS`** (M-K3.17.2, кирпичи R1+R2 RLS-tracer):
+  - R1 `parse_rights_xml` — парсит `Roles/<Role>/Ext/Rights.xml` → права роли +
+    RLS-условия (`restrictionByCondition`), модель `RoleRight`. Устойчив к cp1251
+    при declaration UTF-8 (1С так пишет).
+  - R2 Phase E в `graph_builder` — кладёт Role-узлы + рёбра `EdgeKind.RESTRICTS`
+    (Role → MetadataObject, attrs `{right, condition}`) ТОЛЬКО для прав с условием.
+  - Verified на УТ 11.5: **521 роль, 2103 RLS-ограничения** в графе.
 
 #### Fixed
 - **`traverse_bfs` производительность (M-K3.17.1)** — рекурсивный CTE без

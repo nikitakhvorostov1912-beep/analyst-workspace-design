@@ -115,7 +115,10 @@ from app.knowledge.typical.xml_models import (
     MetadataKind,
     MetadataObject,
 )
-from app.knowledge.typical.xml_parser import parse_configuration_tree
+from app.knowledge.typical.xml_parser import (
+    parse_configuration_tree,
+    parse_rights_xml,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -389,6 +392,78 @@ class _ConfigIndex:
 # ── Public API ───────────────────────────────────────────────────────
 
 
+async def _build_role_rls_edges(
+    db: aiosqlite.Connection,
+    *,
+    channel_id: str,
+    config: MetadataConfiguration,
+    snapshot_root: Path,
+    index: _ConfigIndex,
+    stats: GraphBuildStats,
+    progress_callback: Callable[[str, int, int], None] | None = None,
+) -> None:
+    """Phase E (M-K3.17.2): Role-узлы + RESTRICTS-рёбра из Rights.xml.
+
+    Кладём ТОЛЬКО права с RLS-условием (restrictionByCondition) — это
+    «интересные» ограничения для RLS-tracer («почему Иванов не видит X»).
+    Плоские грантты (Read=true без условия) пропускаем: их ~149/роль →
+    взрыв графа, а «кто имеет доступ» лучше отвечает живой MCP
+    get_access_rights. Ребро: Role -RESTRICTS-> MetadataObject,
+    attrs={right, condition}.
+    """
+    roles = [o for o in config.metadata_objects if o.kind == "Role"]
+    total = len(roles)
+    if progress_callback:
+        progress_callback("roles_rls", 0, total)
+
+    for i, role in enumerate(roles, start=1):
+        rights_path = snapshot_root / "Roles" / role.name / "Ext" / "Rights.xml"
+        if not rights_path.is_file():
+            continue
+        try:
+            role_rights = parse_rights_xml(rights_path)
+        except Exception:  # noqa: BLE001 — битый Rights.xml не валит весь билд
+            logger.debug("Rights.xml parse failed для роли %s", role.name, exc_info=True)
+            continue
+
+        restricted = [r for r in role_rights if r.condition]
+        if not restricted:
+            continue
+
+        try:
+            rel_src = str(rights_path.relative_to(snapshot_root))
+        except ValueError:
+            rel_src = None
+        role_id = await _gs_insert_node(
+            db,
+            channel_id=channel_id,
+            node_kind=NodeKind.ROLE.value,
+            qualified_name=f"Role.{role.name}",
+            source_path=rel_src,
+            commit=False,
+        )
+        stats._bump_node(NodeKind.ROLE.value)
+
+        for rr in restricted:
+            target_id = index.metadata_by_qname.get(rr.object_name)
+            if target_id is None:
+                continue  # объект вне индекса (Subsystem.*, вложенный) — пропуск
+            await _gs_insert_edge(
+                db,
+                src_id=role_id,
+                dst_id=target_id,
+                edge_kind=EdgeKind.RESTRICTS.value,
+                attributes={"right": rr.right_name, "condition": rr.condition},
+                commit=False,
+            )
+            stats._bump_edge(EdgeKind.RESTRICTS.value)
+
+        if progress_callback:
+            progress_callback("roles_rls", i, total)
+
+    await db.commit()
+
+
 async def build_typical_graph(
     db: aiosqlite.Connection,
     *,
@@ -456,6 +531,17 @@ async def build_typical_graph(
         index=index,
         stats=stats,
         bsl_file_limit=bsl_file_limit,
+        progress_callback=progress_callback,
+    )
+
+    # Phase E: Role nodes + RESTRICTS edges из Rights.xml (RLS, M-K3.17.2)
+    await _build_role_rls_edges(
+        db,
+        channel_id=channel_id,
+        config=config,
+        snapshot_root=snapshot_root,
+        index=index,
+        stats=stats,
         progress_callback=progress_callback,
     )
 
