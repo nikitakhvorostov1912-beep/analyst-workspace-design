@@ -46,11 +46,12 @@ progress:
 > - Аванс M-K4 (hybrid retrieval + guardrails G2) ✅ закоммичен, на паузе до углубления L4.
 > - Гигиена: единый `ROADMAP-2026-05-29` + Workflow xlsx (`bc35cd8`), 3 STATE синхронизированы (`60e1e44`), CHANGELOG секция KL по стандарту.
 >
-> **В работе / дальше:**
-> - **Preview GraphCard в браузере** (#34) — визуальная проверка на живых данных (нужен dev-стек).
-> - RLS-tracer полировка (опц.): DiagnoseCard (визуал) + per-user live trace («видит ли Иванов ЭТУ запись» — MCP get_access_rights + данные документа на живом канале).
-> - Остальные Phase 17 UC: 17.3 report-tracer, 17.6 query-optimizer. Прочие треки: build_live_graph (#30, нужен BSL-источник), EPF/CFE (13a/13b), BSL LS detector (15).
-> - Боевая заливка Role/RLS в `pilot.db` (типовой граф) — ПОСЛЕ NIM (сейчас pilot.db read-only); dev+верификация — на temp-БД (NIM-safe).
+> **🔀 АРХИТЕКТУРНЫЙ ПИВОТ 2026-05-29 (обсуждение с Никитой):**
+> - **Граф = backend grounding-индекс по ТИПОВЫМ конфам.** Не user-facing «фича с картинкой», а подложка знаний (структурный близнец NIM-карточек: NIM=семантика «что это», граф=структура «что что вызывает»). LLM грунтует структурные ответы (цепочки/impact/RLS) текстом/таблицами.
+> - **GraphCard визуал — ЗАМОРОЖЕН** (решение «только backend, без картинки»). Редизайн откатан, dev-роут удалён. Emit graph-card в `loop.py` — отключить при рефакторинге grounding (pending).
+> - **#30 build_live_graph — ОТМЕНЁН.** Код клиента НЕ берём (приватность + MCP не отдаёт BSL-исходник). Источник графа = наши выгрузки типовых.
+> - **Сейчас:** сборка graph-index по 4 конфам (УТ 11.5 / ERP 2.5 / КА 2.5 / БП 3.0) в `data/graph-index/` (фон `bkq2yte8t`, NIM-safe). Прод-консолидация в `pilot.db` (1 БД / 4 channel_id) — ПОСЛЕ NIM.
+> - Дальше по UC: 17.3 report-tracer, 17.6 query-opt — как backend grounding (без обязательной картинки). RLS — таблица с условием, не граф.
 
 **Active milestone (история до 2026-05-26):** ✅ **M-K2 Knowledge Foundation + Triple RAG — CLOSED SUMMARY 2026-05-26** (12/13 done + 1 deferred).
 
