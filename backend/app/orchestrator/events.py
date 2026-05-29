@@ -109,6 +109,19 @@ class ClarifyRequiredEvent(BaseModel):
     allow_custom: bool = True
 
 
+class BSPWarningEvent(BaseModel):
+    """M-K4 ИТС-KB (G2): неблокирующее предупреждение — в ответе обнаружены
+    выдуманные методы БСП (модуль известен корпусу bsp_chunks, метод отсутствует).
+
+    Frontend показывает баннер «сигнатуры не верифицированы — проверьте вручную».
+    Не ошибка (ответ остаётся), поэтому отдельный event, а не ErrorEvent.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    phantom: list[str]
+
+
 def format_sse(event_name: str, data: BaseModel | dict) -> str:
     """Сериализует SSE-событие в wire-формат.
 

@@ -1984,6 +1984,28 @@ async def run_chat_loop(
         # каскадом, поэтому return сразу — чище.
         return
 
+    # --- G2 guardrail: phantom-method флаг БСП (M-K4 ИТС-KB) ---
+    # Неблокирующая пост-проверка финального ответа: если упомянуты выдуманные
+    # методы БСП (модуль известен корпусу bsp_chunks, а метода нет) — эмитим
+    # bsp_warning для UI. try/except: guardrail НИКОГДА не ломает основной ответ.
+    try:
+        from app.knowledge.phantom_check import check_phantom_methods
+        from app.orchestrator.events import BSPWarningEvent
+
+        phantom_report = await check_phantom_methods(db, accumulated_content)
+        if phantom_report.has_phantom:
+            logger.info(
+                "ИТС-KB phantom guardrail: %d выдуманных метод(ов) БСП в ответе (session=%s)",
+                len(phantom_report.phantom),
+                session_id,
+            )
+            yield format_sse(
+                "bsp_warning",
+                BSPWarningEvent(phantom=list(phantom_report.phantom)),
+            )
+    except Exception:
+        logger.debug("ИТС-KB phantom guardrail пропущен (non-blocking)", exc_info=True)
+
     # --- Auto-title background task для первого сообщения ---
     # Шедулим здесь, а не на старте orchestrator-а: иначе async I/O ниже
     # (load_history_for_llm) даёт auto-title шанс запуститься раньше и
