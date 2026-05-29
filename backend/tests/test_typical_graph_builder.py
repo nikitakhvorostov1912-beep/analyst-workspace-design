@@ -573,6 +573,68 @@ async def test_emit_calls_same_module(db_ready):
 
 
 @pytest.mark.asyncio
+async def test_emit_collects_cross_module_calls(db_ready):
+    """Регресс 2026-05-29: cross-module вызовы `Модуль.Метод()` должны
+    попадать в cross_calls. Раньше терялись → граф был ТОЛЬКО внутримодульным
+    (impact-анализ давал ложное «ничего не сломается»)."""
+    cm = _common_module(
+        "ПроведениеДокументов",
+        modules=(MetadataModule(kind=ModuleKind.COMMON_MODULE_BODY.value, relative_path="CommonModules/ПроведениеДокументов/Ext/Module.bsl"),),
+    )
+    config = _make_config(cm)
+    stats = GraphBuildStats()
+    index = await _insert_structural_nodes(
+        db_ready, channel_id="_test_", config=config, stats=stats, progress_callback=None,
+    )
+    from app.knowledge.graph_storage import insert_node as _ins_node
+
+    caller_id = await _ins_node(
+        db_ready, channel_id="_test_", node_kind=NodeKind.METHOD.value,
+        qualified_name="Document.Реализация.ObjectModule.ОбработкаПроведения",
+    )
+    method = _method(
+        "ОбработкаПроведения",
+        "    ПроведениеДокументов.ОбработкаПроведенияДокумента(ЭтотОбъект, Отказ);",
+    )
+    cross_calls: list[tuple[int, str]] = []
+    await _emit_method_behavior_edges(
+        db_ready, channel_id="_test_", method=method, method_node_id=caller_id,
+        method_node_ids_same_module={"ОбработкаПроведения": caller_id},
+        common_module_names={"ПроведениеДокументов"}, index=index, stats=stats,
+        cross_calls=cross_calls,
+    )
+    assert cross_calls == [
+        (caller_id, "CommonModule.ПроведениеДокументов.CommonModuleBody.ОбработкаПроведенияДокумента")
+    ]
+
+
+@pytest.mark.asyncio
+async def test_emit_cross_module_without_collector_is_noop(db_ready):
+    """Без cross_calls (optional) cross-module вызовы просто пропускаются, без падения."""
+    cm = _common_module(
+        "ПроведениеДокументов",
+        modules=(MetadataModule(kind=ModuleKind.COMMON_MODULE_BODY.value, relative_path="CommonModules/ПроведениеДокументов/Ext/Module.bsl"),),
+    )
+    config = _make_config(cm)
+    stats = GraphBuildStats()
+    index = await _insert_structural_nodes(
+        db_ready, channel_id="_test_", config=config, stats=stats, progress_callback=None,
+    )
+    from app.knowledge.graph_storage import insert_node as _ins_node
+
+    caller_id = await _ins_node(
+        db_ready, channel_id="_test_", node_kind=NodeKind.METHOD.value,
+        qualified_name="Document.Реализация.ObjectModule.М",
+    )
+    method = _method("М", "    ПроведениеДокументов.Метод();")
+    await _emit_method_behavior_edges(
+        db_ready, channel_id="_test_", method=method, method_node_id=caller_id,
+        method_node_ids_same_module={"М": caller_id},
+        common_module_names={"ПроведениеДокументов"}, index=index, stats=stats,
+    )  # cross_calls не передан → no-op, без исключений
+
+
+@pytest.mark.asyncio
 async def test_emit_calls_keyword_filtered(db_ready):
     cm = _common_module(
         "Х",

@@ -382,6 +382,10 @@ class _ConfigIndex:
     metadata_by_qname: dict[str, int] = field(default_factory=dict)
     # CommonModule.Y → node_id of body module (для CALLS резолва)
     common_module_body_module: dict[str, int] = field(default_factory=dict)
+    # полный qualified_name метода → node_id. Для cross-module CALLS резолва.
+    # Полон ТОЛЬКО после вставки методов всех модулей → cross-module CALLS
+    # резолвятся отложенно (см. _build_bsl_edges).
+    method_by_qname: dict[str, int] = field(default_factory=dict)
     # short_name регистра → qualified_name (для WRITES_TO резолва).
     # Если есть коллизия (один и тот же short_name в РегистрНакопления +
     # РегистрСведений) — берём первый встреченный, остальные в conflicts.
@@ -851,6 +855,9 @@ async def _build_bsl_edges(
 
     # Set имён common modules для cross-module CALLS резолва
     common_module_names: set[str] = set(index.common_module_body_module.keys())
+    # Накопитель cross-module вызовов (src_node_id, target_method_qname) —
+    # резолвится после полного прохода Phase D (когда method_by_qname полон).
+    cross_calls: list[tuple[int, str]] = []
 
     for i, (obj, mod_relpath, mod_qname) in enumerate(bsl_tasks, start=1):
         if bsl_file_limit is not None and i > bsl_file_limit:
@@ -900,6 +907,7 @@ async def _build_bsl_edges(
             stats._bump_node(NodeKind.METHOD.value)
             stats.methods_extracted += 1
             method_node_ids[method.name] = method_node_id
+            index.method_by_qname[method_qname] = method_node_id
 
             await insert_edge(
                 db,
@@ -921,6 +929,7 @@ async def _build_bsl_edges(
                 method_node_id=method_node_id,
                 method_node_ids_same_module=method_node_ids,
                 common_module_names=common_module_names,
+                cross_calls=cross_calls,
                 index=index,
                 stats=stats,
             )
@@ -931,7 +940,34 @@ async def _build_bsl_edges(
         if i % _BATCH_COMMIT_BSL_FILES == 0:
             await db.commit()
 
-    await db.commit()  # финальный flush Phase D
+    await db.commit()  # финальный flush Phase D (узлы методов)
+
+    # ── Cross-module CALLS: отложенный резолв ──────────────────────
+    # Теперь index.method_by_qname полон → резолвим накопленные `Модуль.Метод()`.
+    # Без этого граф был бы ТОЛЬКО внутримодульным (баг до 2026-05-29).
+    resolved = 0
+    seen: set[tuple[int, int]] = set()
+    for src_id, target_qname in cross_calls:
+        target_node_id = index.method_by_qname.get(target_qname)
+        if target_node_id is None or target_node_id == src_id:
+            continue
+        key = (src_id, target_node_id)
+        if key in seen:
+            continue
+        seen.add(key)
+        await insert_edge(
+            db,
+            src_id=src_id,
+            dst_id=target_node_id,
+            edge_kind=EdgeKind.CALLS.value,
+            attributes={"resolution": "common_module"},
+        )
+        stats._bump_edge(EdgeKind.CALLS.value)
+        resolved += 1
+    await db.commit()
+    logger.info(
+        "cross-module CALLS: резолвлено %d из %d кандидатов", resolved, len(cross_calls)
+    )
 
 
 async def _emit_method_behavior_edges(
@@ -944,8 +980,14 @@ async def _emit_method_behavior_edges(
     common_module_names: set[str],
     index: _ConfigIndex,
     stats: GraphBuildStats,
+    cross_calls: list[tuple[int, str]] | None = None,
 ) -> None:
-    """Эмитит CALLS / USES / WRITES_TO / READS_FROM для одного метода."""
+    """Эмитит CALLS / USES / WRITES_TO / READS_FROM для одного метода.
+
+    Cross-module CALLS здесь НЕ резолвятся (index.method_by_qname ещё неполон) —
+    копятся в `cross_calls` (если передан) для отложенного резолва в
+    _build_bsl_edges. Без cross_calls cross-module вызовы пропускаются.
+    """
     body = method.body_source
     if not body:
         return
@@ -978,30 +1020,20 @@ async def _emit_method_behavior_edges(
         stats._bump_edge(EdgeKind.CALLS.value)
 
     # ── CALLS: cross-module через CommonModule ─────────────────────
+    # Резолвим ОТЛОЖЕННО: index.method_by_qname полон лишь после вставки
+    # методов ВСЕХ модулей. Здесь только копим (src, target_qname); резолв и
+    # insert делает _build_bsl_edges после полного прохода Phase D.
     for match in _CROSS_MODULE_CALL_RE.finditer(body):
         module_name, callee = match.group(1), match.group(2)
         if module_name not in common_module_names:
             continue
-        # Резолв target method node
-        target_module_qname = (
+        if cross_calls is None:
+            continue
+        target_method_qname = (
             f"{MetadataKind.COMMON_MODULE.value}.{module_name}"
-            f".{_common_module_kind_name()}"
+            f".{_common_module_kind_name()}.{callee}"
         )
-        target_method_qname = f"{target_module_qname}.{callee}"
-        target_node_id = index.metadata_by_qname.get(target_method_qname)
-        if target_node_id is None or target_node_id == method_node_id:
-            continue
-        if target_node_id in emitted_calls:
-            continue
-        emitted_calls.add(target_node_id)
-        await insert_edge(
-            db,
-            src_id=method_node_id,
-            dst_id=target_node_id,
-            edge_kind=EdgeKind.CALLS.value,
-            attributes={"resolution": "common_module"},
-        )
-        stats._bump_edge(EdgeKind.CALLS.value)
+        cross_calls.append((method_node_id, target_method_qname))
 
     # ── USES: метаданные через коллекции ──────────────────────────
     for match in _USES_RE.finditer(body):
