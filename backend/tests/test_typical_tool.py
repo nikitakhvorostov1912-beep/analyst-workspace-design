@@ -98,7 +98,10 @@ async def db_with_seed(db_ready):
 
 
 def test_typical_tool_schemas_count():
-    assert len(TYPICAL_TOOL_SCHEMAS) == 6
+    # 7 = list/search/explain/trace_calls/trace_movements/compare + explain_rls (M-K3.17.2)
+    assert len(TYPICAL_TOOL_SCHEMAS) == 7
+    names = {s["function"]["name"] for s in TYPICAL_TOOL_SCHEMAS}
+    assert "explain_rls_restrictions" in names
 
 
 def test_typical_tool_schemas_valid_openai_format():

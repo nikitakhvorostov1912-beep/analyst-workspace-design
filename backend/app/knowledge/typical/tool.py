@@ -49,7 +49,9 @@ from app.knowledge.graph_storage import (
     NodeKind,
     count_by_kind,
     find_node,
+    get_edges_to,
     get_neighbors,
+    get_node,
     get_subgraph,
     list_nodes,
     traverse_bfs,
@@ -74,6 +76,7 @@ TOOL_EXPLAIN = "explain_typical_object"
 TOOL_TRACE_CALLS = "trace_typical_calls"
 TOOL_TRACE_MOVEMENTS = "trace_typical_movements"
 TOOL_COMPARE = "compare_with_typical"
+TOOL_EXPLAIN_RLS = "explain_rls_restrictions"
 
 
 _TYPICAL_TOOL_NAMES: frozenset[str] = frozenset(
@@ -84,6 +87,7 @@ _TYPICAL_TOOL_NAMES: frozenset[str] = frozenset(
         TOOL_TRACE_CALLS,
         TOOL_TRACE_MOVEMENTS,
         TOOL_COMPARE,
+        TOOL_EXPLAIN_RLS,
     ]
 )
 
@@ -93,6 +97,7 @@ _MAX_SEARCH_TOP_K = 20
 _MAX_EXPLAIN_NEIGHBORS = 30
 _MAX_TRACE_DEPTH = 4
 _MAX_TRACE_HITS = 50
+_MAX_RLS_RESTRICTIONS = 50
 
 
 # ── OpenAI function schemas ──────────────────────────────────────────
@@ -317,6 +322,40 @@ COMPARE_SCHEMA: dict = {
 }
 
 
+EXPLAIN_RLS_SCHEMA: dict = {
+    "type": "function",
+    "function": {
+        "name": TOOL_EXPLAIN_RLS,
+        "description": (
+            "RLS-ограничения (ограничение доступа на уровне записей) на объект "
+            "типовой: какие роли ограничивают доступ к объекту и с каким условием "
+            "(например «ВладелецДокумента = &ТекущийПользователь»). Когда вызывать: "
+            "«почему пользователь не видит документ X», «какие RLS-условия на "
+            "Справочник Y», «кто ограничен по этому объекту». Сначала "
+            "list_typical_configurations для channel_id. object_qualified_name — "
+            "в формате «Document.X» / «Catalog.Y» (как в графе). Источник условий — "
+            "снапшот типовой (для конкретного пользователя нужен живой канал + MCP "
+            "get_access_rights)."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "channel_id": {
+                    "type": "string",
+                    "description": "channel_id типовой (например _ut115_18_193)",
+                },
+                "object_qualified_name": {
+                    "type": "string",
+                    "description": "«Document.X» / «Catalog.Y» / «InformationRegister.Z»",
+                },
+            },
+            "required": ["channel_id", "object_qualified_name"],
+            "additionalProperties": False,
+        },
+    },
+}
+
+
 TYPICAL_TOOL_SCHEMAS: list[dict] = [
     LIST_CONFIGS_SCHEMA,
     SEARCH_OBJECTS_SCHEMA,
@@ -324,6 +363,7 @@ TYPICAL_TOOL_SCHEMAS: list[dict] = [
     TRACE_CALLS_SCHEMA,
     TRACE_MOVEMENTS_SCHEMA,
     COMPARE_SCHEMA,
+    EXPLAIN_RLS_SCHEMA,
 ]
 
 
@@ -360,6 +400,8 @@ async def dispatch_typical_tool(
             return await _handle_trace_movements(db, args)
         if name == TOOL_COMPARE:
             return await _handle_compare(db, args)
+        if name == TOOL_EXPLAIN_RLS:
+            return await _handle_explain_rls(db, args)
     except ValueError as exc:
         return False, None, str(exc)
     except Exception as exc:  # noqa: BLE001 — граница LLM-tool
@@ -780,6 +822,55 @@ def _summarize_children(children: list, limit: int) -> dict[str, list[str]]:
     for kind, names in grouped.items():
         result[kind] = sorted(set(names))[:limit]
     return result
+
+
+async def _handle_explain_rls(
+    db: aiosqlite.Connection, args: dict,
+) -> tuple[bool, Any, str | None]:
+    """M-K3.17.2 R3: RLS-ограничения на объект (роли + условия из графа).
+
+    Читает входящие рёбра RESTRICTS на узел объекта → список (роль, право,
+    условие). Это «почему МОГУТ не видеть»: какие роли и каким условием
+    ограничивают доступ к объекту. Полный per-user trace требует живого
+    канала (MCP get_access_rights + данные документа) — здесь только снапшот.
+    """
+    channel_id = _require_str(args, "channel_id")
+    qname = _require_str(args, "object_qualified_name")
+
+    node = await find_node(
+        db, channel_id=channel_id, qualified_name=qname,
+        node_kind=NodeKind.METADATA_OBJECT.value,
+    )
+    if node is None:
+        return False, None, (
+            f"Объект {qname!r} не найден в графе канала {channel_id}. "
+            "Проверь имя (формат «Document.X» / «Catalog.Y») или загрузи "
+            "типовую через list_typical_configurations."
+        )
+
+    edges = await get_edges_to(db, node.id, edge_kind=EdgeKind.RESTRICTS.value)
+    restrictions: list[dict] = []
+    for e in edges[:_MAX_RLS_RESTRICTIONS]:
+        role = await get_node(db, e.src_id)
+        restrictions.append({
+            "role": role.qualified_name if role else f"node#{e.src_id}",
+            "right": e.attributes.get("right"),
+            "condition": e.attributes.get("condition"),
+        })
+
+    return True, {
+        "channel_id": channel_id,
+        "object": qname,
+        "restrictions": restrictions,
+        "total": len(edges),
+        "note": (
+            "RLS-условия (ограничение доступа на уровне записей) из снапшота "
+            "типовой — роли, ограничивающие доступ к объекту, и их условия. "
+            "Видит ли КОНКРЕТНЫЙ пользователь конкретную запись — определяется "
+            "на живом канале базы (MCP get_access_rights: роли пользователя + "
+            "значения реквизитов документа)."
+        ),
+    }, None
 
 
 def _require_str(args: dict, key: str) -> str:
