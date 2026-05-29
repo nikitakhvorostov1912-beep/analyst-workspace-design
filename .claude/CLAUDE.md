@@ -126,30 +126,25 @@ Electron + electron-builder + PyInstaller (desktop distribution, v1.1.0)
 
 ---
 
-## Текущее состояние (snapshot 2026-05-28)
+## Текущее состояние (snapshot 2026-05-29)
 
-- **Milestone:** **M-K2.5** — Knowledge Layer Real LLM Rebuild (NVIDIA NIM, in_progress)
-- **Closed milestones:**
-  - **M-K0 Stabilization** — 28/28 findings (100%) закрыт `00ab58e` 2026-05-25
-  - **M6 Hermes Integration** — 30/30 фич (Memory + Skills + Curator)
-  - **M7 Commerce Readiness** — code-ready, ждёт EV/OV cert + manual smoke v1.3.0
-- **Активный фон:** NIM rebuild 63 203 карточек (`qwen/qwen3.5-122b-a10b`), 11 python процессов, ETA ~10-43 часа. Watchdog каждые ~30 мин.
-- **v1.3.0** — installer собран (`analyst-setup-v1.3.0.exe` 183-187 МБ), ждёт smoke на VM + git tag + GitHub Release. Подпись отложена до EV/OV cert от admin.
-- **Ветка:** `main` (M-K0 merged, M-K2.5 идёт прямо на main с атомарными коммитами по wave). Последние: `ad74cec` (NIM rebuild pipeline), `9846618` (wave5 partial), `5201893` (wave4 13-20).
-- **Прогресс M-K2.5:** ~4115/63203 (6.5%) на момент 2026-05-28 12:00.
+- **Единый роадмап:** `.planning/ROADMAP-2026-05-29.md` + `Workflow_1C_Analyst_2026-05-29.xlsx` — форвард-источник истины (свёл продуктовую арку M1-M7 и Knowledge Layer M-K0..M-K6).
+- **Milestone:** **M-K3** — Relational + Behavioral + EPF/CFE Delivery (in_progress).
+- **Closed:** M-K0 (28/28 `00ab58e`) · M-K1 (15/17) · M-K2 Triple RAG (12/13) · M6 Hermes · M7 Commerce (код).
+- **M-K3 прогресс:** EPF-скелет 13a.0/13a.1 (`0a3b702`); guardrail G2 `3bd4e5d` (аванс из M-K4). Дальше по плану: M-K3.0 decompose loop.py → собрать ≥20 diagnose-кейсов → **Knowledge Graph (крит. путь 17.1)** → дожать EPF.
+- **Аванс M-K4** (hybrid retrieval + phantom guardrails): `581fec9`,`aff4fb2`,`049680b`,`4dbb60d`,`3bd4e5d` — **на паузе до L2-графа**.
+- **Параллельный фон:** M-K2.5 NIM rebuild карточек ~6.5% (не блокер; проверить жив ли процесс — действие D3).
+- **Ветка:** `feature/m-k3-relational-cfe` (атомарные коммиты; в remote НЕ пушим без запроса).
+- **Гигиена релиза:** код `desktop` v1.4.8, последний git-тег v1.2.2 — сборки не тегались (smoke VM + EV/OV cert pending).
 
 ---
 
-## Parallel tech debt (пока NIM крутится)
+## Параллельные треки и тех-долг
 
-План: `.planning/PARALLEL-PLAN-2026-05-28.md`. Задачи A1-F2 (~5.5 ч):
-- ✅ A1 — STATE.md Wave 6 → DONE (honesty fix)
-- ✅ E1 — этот файл snapshot 2026-05-28
-- 🟡 C1 — ruff E501 в loop.py (8 E501 в SYSTEM_PROMPT)
-- 🟡 B1/B2 — MetricCard → CardHeader + Vitest
-- 🟡 C2 — 7 flaky tests encoding fix (cp1251 на Windows)
-- 🟡 E2/E3/E4/E5 — ARCHITECTURE/BACKLOG/ROADMAP/CERT-PROCESS uplift
-- 🟡 F1 — `.planning/SMOKE-NIM-REBUILD.md` чек-лист
+`PARALLEL-PLAN-2026-05-28.md` **архивирован** (`.planning/_archive/`). Актуальный список — лист «Параллельные треки» в `Workflow_1C_Analyst_2026-05-29.xlsx`:
+- M-K2.5 NIM-карточки (фон, не блокер)
+- Гигиена релиза: smoke VM + EV/OV cert + git tag v1.4.x + 3 Playwright spec
+- Тех-долг: 6 cards refactor (1/6), 7 flaky (cp1251), F841/E501 в loop.py, ToolTrace upgrade
 
 Технический долг v1.3.0+ (исторический):
 - 6 cards refactor через CardHeader — B1 закрывает 1/6 (MetricCard)

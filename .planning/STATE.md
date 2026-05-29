@@ -1,9 +1,11 @@
 ---
 gsd_state_version: 1.0
-milestone: M-K2.5
-milestone_name: "Knowledge Layer Real LLM Rebuild — NVIDIA NIM"
+milestone: M-K3
+milestone_name: "Relational + Behavioral + EPF/CFE Delivery"
 status: in_progress
-last_updated: "2026-05-28T12:00:00Z"
+last_updated: "2026-05-29T10:30:00Z"
+unified_roadmap: "ROADMAP-2026-05-29.md"  # единый форвард-источник (2026-05-29)
+# Прим.: M-K2.5 (NIM rebuild карточек) — параллельный фоновый трек, НЕ основной milestone.
 progress:
   # M-K0 closed 100% (28/28) commits 6a1b228 → 00ab58e
   m_k0_total: 28
@@ -29,7 +31,9 @@ note: "M-K0 закрыт 100% (28/28) коммитом 00ab58e от 2026-05-25. 
 
 **Core value:** Аналитик пишет вопрос на NL → LLM сама дёргает MCP → ответ с inline-карточкой за ≤30 сек
 
-**Current focus:** M-K2.5 Knowledge Layer real LLM rebuild — 63 203 эталонных carts через NVIDIA NIM (qwen/qwen3.5-122b-a10b), фон. Параллельно tech debt cleanup по `.planning/PARALLEL-PLAN-2026-05-28.md`.
+**Current focus:** **M-K3** Relational + Behavioral + EPF/CFE (единый роадмап — `ROADMAP-2026-05-29.md`). M-K2.5 (NIM rebuild 63 203 карточек) — параллельный фоновый трек, не блокер. Старый `PARALLEL-PLAN-2026-05-28.md` архивирован в `_archive/`.
+
+> ⚡ **Снимок 2026-05-29:** M-K0/K1/K2 ✅ закрыты; M-K3 active (EPF-скелет + guardrail G2 `3bd4e5d`); часть M-K4 (hybrid+guardrails) авансом, на паузе до L2-графа. Историчные секции ниже (M6/M7) — не трогать, это запись прошлого.
 
 ---
 

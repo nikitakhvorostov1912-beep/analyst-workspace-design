@@ -1,9 +1,10 @@
 ---
 plan_version: 1.7
-milestone: M-K2
-milestone_name: "Knowledge Foundation — Indexer + Triple RAG"
-status: complete  # M-K2 12/13 done + SUMMARY (1 deferred → M-K3.smoke). 2026-05-26.
-last_updated: "2026-05-26T23:45:00Z"
+milestone: M-K3
+milestone_name: "Relational + Behavioral + EPF/CFE Delivery"
+status: in_progress  # M-K0/K1/K2 ✅. M-K3 active (EPF-скелет). Часть M-K4 авансом. 2026-05-29.
+last_updated: "2026-05-29T10:30:00Z"
+unified_roadmap: "../ROADMAP-2026-05-29.md"  # единый форвард-источник (2026-05-29)
 m6_handoff_integrated: true
 m6_handoff_doc: "../milestones/M6-INTEGRATED-PLAN.md"
 m6_handoff_decisions: "../milestones/INTEGRATION-DECISIONS.md"
@@ -33,7 +34,10 @@ progress:
 
 ## Где мы сейчас
 
-**Active milestone:** ✅ **M-K2 Knowledge Foundation + Triple RAG — CLOSED SUMMARY 2026-05-26** (12/13 done + 1 deferred).
+> ⚡ **АКТУАЛЬНО 2026-05-29 — единый форвард-источник: [`../ROADMAP-2026-05-29.md`](../ROADMAP-2026-05-29.md).**
+> M-K0 ✅ · M-K1 ✅ · **M-K2 ✅** · M-K2.5 🟡 фон (~6.5%, NIM-карточки, не блокер) · **M-K3 🟡 ACTIVE** (EPF-скелет 13a.0/13a.1 готов; guardrail G2 закоммичен `3bd4e5d` авансом из M-K4). Часть M-K4 (hybrid+guardrails) сделана авансом и **поставлена на паузу до построения L2-графа** (критический путь M-K3.17.1).
+
+**Active milestone (история до 2026-05-26):** ✅ **M-K2 Knowledge Foundation + Triple RAG — CLOSED SUMMARY 2026-05-26** (12/13 done + 1 deferred).
 
 **Closed phases:** 2.1, 2.2, 2.3 (Incremental), 2.4 (MCP Cache), 2.5, 2.6, 2.7 (ИТС), 2.8 (БСП), 2.9, 2.10, 2.11 (Privacy badge), **2.SUMMARY**.  
 **Deferred:** M-K2.smoke → M-K3.smoke (требует CI + live backend).
