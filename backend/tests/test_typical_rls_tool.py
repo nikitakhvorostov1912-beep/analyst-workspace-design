@@ -53,6 +53,40 @@ async def test_explain_rls_returns_restrictions(db):
 
 
 @pytest.mark.asyncio
+async def test_explain_rls_expands_per_right_restrictions(db):
+    """Phase E v2: одно ребро роль→объект разворачивается в per-right записи.
+
+    Регрессия фикса схлопывания: раньше (role,object) с разными условиями для
+    Read/Update теряли вторичные. Теперь все хранятся в attributes.restrictions
+    и tool разворачивает их обратно.
+    """
+    cond_update = "Организация В (&ДоступныеОрганизации)"
+    doc = await insert_node(
+        db, channel_id="_t", node_kind="MetadataObject", qualified_name="Document.ОПП"
+    )
+    role = await insert_node(
+        db, channel_id="_t", node_kind="Role", qualified_name="Role.Кладовщик"
+    )
+    await insert_edge(
+        db, src_id=role, dst_id=doc, edge_kind="RESTRICTS",
+        attributes={"restrictions": [
+            {"right": "Read", "condition": _COND},
+            {"right": "Update", "condition": cond_update},
+        ]},
+    )
+
+    ok, result, err = await dispatch_typical_tool(
+        db, "explain_rls_restrictions",
+        {"channel_id": "_t", "object_qualified_name": "Document.ОПП"},
+    )
+    assert ok is True and err is None
+    assert result["roles_total"] == 1       # одна ограничивающая роль (1 ребро)
+    assert result["total"] == 2             # развёрнуто в 2 per-right записи
+    by_right = {r["right"]: r["condition"] for r in result["restrictions"]}
+    assert by_right == {"Read": _COND, "Update": cond_update}
+
+
+@pytest.mark.asyncio
 async def test_explain_rls_no_restrictions(db):
     """Объект есть в графе, но RLS-ограничений нет → пустой список, ok."""
     await insert_node(

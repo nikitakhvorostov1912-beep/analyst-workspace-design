@@ -184,6 +184,43 @@ def parse_rights_xml(path: str | Path) -> list[RoleRight]:
     return rights
 
 
+def parse_register_records(path: str | Path) -> list[str]:
+    """Парсит `<RegisterRecords>` документа → список qualified_name регистров.
+
+    «Регистры движений» документа (платформенная вкладка «Регистраторы» со
+    стороны регистра) — это ПОЛНЫЙ и точный перечень регистров, в которые
+    документ может писать движения. Источник лучше BSL-эвристик: платформа
+    гарантирует, что `Движения.X` доступно только для X из этого списка.
+
+    Структура (Documents/<Name>.xml, namespace снимается _local_name):
+      <RegisterRecords>
+        <xr:Item xsi:type="xr:MDObjectRef">AccumulationRegister.ТоварыНаСкладах</xr:Item>
+        ...
+      </RegisterRecords>
+    Item-текст уже в английской форме (`AccumulationRegister.X`) — совпадает
+    с ключами index.metadata_by_qname. Возвращает уникальные ссылки в порядке
+    объявления. Битый/отсутствующий XML → пустой список (не валит билд).
+    """
+    p = Path(path)
+    try:
+        root = _read_xml_robust(p)
+    except (ET.ParseError, UnicodeDecodeError, ValueError, OSError):
+        return []
+    regs: list[str] = []
+    seen: set[str] = set()
+    for elem in root.iter():
+        if _local_name(elem.tag) != "RegisterRecords":
+            continue
+        for item in elem:
+            if _local_name(item.tag) != "Item":
+                continue
+            ref = (item.text or "").strip()
+            if ref and ref not in seen:
+                seen.add(ref)
+                regs.append(ref)
+    return regs
+
+
 def parse_configuration_xml(path: str | Path) -> MetadataConfiguration:
     """Парсит только корневой `Configuration.xml` — без обхода объектов.
 

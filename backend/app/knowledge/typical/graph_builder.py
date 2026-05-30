@@ -117,6 +117,7 @@ from app.knowledge.typical.xml_models import (
 )
 from app.knowledge.typical.xml_parser import (
     parse_configuration_tree,
+    parse_register_records,
     parse_rights_xml,
 )
 
@@ -467,22 +468,88 @@ async def _build_role_rls_edges(
         )
         stats._bump_node(NodeKind.ROLE.value)
 
+        # Группируем по объекту: ОДНО ребро роль→объект со списком всех
+        # (right, condition). Иначе insert_edge дедуплицирует на (src,dst,kind)
+        # и теряет вторичные права/условия — было 35% пар, где Read/Update/Insert
+        # имеют РАЗНЫЕ условия, схлопывались в одно (терялась часть RLS).
+        by_object: dict[str, list] = {}
         for rr in restricted:
-            target_id = index.metadata_by_qname.get(rr.object_name)
+            by_object.setdefault(rr.object_name, []).append(rr)
+        for object_name, object_rights in by_object.items():
+            target_id = index.metadata_by_qname.get(object_name)
             if target_id is None:
                 continue  # объект вне индекса (Subsystem.*, вложенный) — пропуск
+            restrictions = [
+                {"right": r.right_name, "condition": r.condition}
+                for r in object_rights
+            ]
             await _gs_insert_edge(
                 db,
                 src_id=role_id,
                 dst_id=target_id,
                 edge_kind=EdgeKind.RESTRICTS.value,
-                attributes={"right": rr.right_name, "condition": rr.condition},
+                attributes={"restrictions": restrictions},
                 commit=False,
             )
             stats._bump_edge(EdgeKind.RESTRICTS.value)
 
         if progress_callback:
             progress_callback("roles_rls", i, total)
+
+    await db.commit()
+
+
+async def _build_register_records_edges(
+    db: aiosqlite.Connection,
+    *,
+    channel_id: str,
+    config: MetadataConfiguration,
+    snapshot_root: Path,
+    index: _ConfigIndex,
+    stats: GraphBuildStats,
+    progress_callback: Callable[[str, int, int], None] | None = None,
+) -> None:
+    """Phase F: WRITES_TO Document→Register из метаданных «Регистры движений».
+
+    Источник — `<RegisterRecords>` в Documents/<Name>.xml. Это полный и точный
+    перечень регистров, в которые документ пишет движения (платформенная связь
+    «Регистраторы»). На порядок полнее BSL-эвристики `Движения.X`, которая
+    ловит лишь легаси прямой direct-add и пропускает доминирующий в современной
+    УТ recordset/запросный паттерн (флагман ТоварыНаСкладах через BSL = 0).
+
+    Ребро: Document -WRITES_TO-> Register, attrs={resolution: register_records}.
+    Объектный уровень (документ→регистр) — ровно то, что нужно для UC
+    «какие документы формируют движения по регистру X».
+    """
+    documents = [o for o in config.metadata_objects if o.kind == "Document"]
+    total = len(documents)
+    if progress_callback:
+        progress_callback("register_records", 0, total)
+
+    for i, doc in enumerate(documents, start=1):
+        doc_node_id = index.metadata_by_qname.get(doc.qualified_name)
+        if doc_node_id is None:
+            continue
+        doc_xml = snapshot_root / "Documents" / f"{doc.name}.xml"
+        if not doc_xml.is_file():
+            continue
+        register_refs = parse_register_records(doc_xml)
+        for reg_qname in register_refs:
+            target_id = index.metadata_by_qname.get(reg_qname)
+            if target_id is None or target_id == doc_node_id:
+                continue  # регистр вне индекса (расширение/ошибка) — пропуск
+            await _gs_insert_edge(
+                db,
+                src_id=doc_node_id,
+                dst_id=target_id,
+                edge_kind=EdgeKind.WRITES_TO.value,
+                attributes={"resolution": "register_records"},
+                commit=False,
+            )
+            stats._bump_edge(EdgeKind.WRITES_TO.value)
+
+        if progress_callback:
+            progress_callback("register_records", i, total)
 
     await db.commit()
 
@@ -559,6 +626,17 @@ async def build_typical_graph(
 
     # Phase E: Role nodes + RESTRICTS edges из Rights.xml (RLS, M-K3.17.2)
     await _build_role_rls_edges(
+        db,
+        channel_id=channel_id,
+        config=config,
+        snapshot_root=snapshot_root,
+        index=index,
+        stats=stats,
+        progress_callback=progress_callback,
+    )
+
+    # Phase F: WRITES_TO Document→Register из метаданных RegisterRecords
+    await _build_register_records_edges(
         db,
         channel_id=channel_id,
         config=config,

@@ -852,17 +852,31 @@ async def _handle_explain_rls(
     restrictions: list[dict] = []
     for e in edges[:_MAX_RLS_RESTRICTIONS]:
         role = await get_node(db, e.src_id)
-        restrictions.append({
-            "role": role.qualified_name if role else f"node#{e.src_id}",
-            "right": e.attributes.get("right"),
-            "condition": e.attributes.get("condition"),
-        })
+        role_name = role.qualified_name if role else f"node#{e.src_id}"
+        # Новый формат (Phase E v2): список всех (right, condition) на пару
+        # роль→объект — сохранена per-right гранулярность. Старый формат
+        # (одиночные right/condition в атрибутах) поддержан для совместимости.
+        per_right = e.attributes.get("restrictions")
+        if isinstance(per_right, list) and per_right:
+            for r in per_right:
+                restrictions.append({
+                    "role": role_name,
+                    "right": r.get("right"),
+                    "condition": r.get("condition"),
+                })
+        else:
+            restrictions.append({
+                "role": role_name,
+                "right": e.attributes.get("right"),
+                "condition": e.attributes.get("condition"),
+            })
 
     return True, {
         "channel_id": channel_id,
         "object": qname,
         "restrictions": restrictions,
-        "total": len(edges),
+        "roles_total": len(edges),
+        "total": len(restrictions),
         "note": (
             "RLS-условия (ограничение доступа на уровне записей) из снапшота "
             "типовой — роли, ограничивающие доступ к объекту, и их условия. "

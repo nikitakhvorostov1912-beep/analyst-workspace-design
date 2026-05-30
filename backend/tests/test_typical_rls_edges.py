@@ -96,10 +96,59 @@ async def test_build_role_rls_edges_creates_role_and_restricts(tmp_path, db):
     # Catalog.Контрагенты (без условия) рёбер НЕ дают.
     assert len(edges) == 1
     assert edges[0].dst_id == doc_id
-    assert edges[0].attributes["right"] == "Read"
-    assert edges[0].attributes["condition"] == "ВладелецДокумента = &ТекущийПользователь"
+    # Phase E v2: атрибуты — список restrictions (per-right), не одиночные поля.
+    restr = edges[0].attributes["restrictions"]
+    assert restr == [
+        {"right": "Read", "condition": "ВладелецДокумента = &ТекущийПользователь"}
+    ]
     assert stats.by_edge_kind.get("RESTRICTS") == 1
     assert stats.by_node_kind.get("Role") == 1
+
+
+_RIGHTS_XML_MULTI = """<?xml version="1.0" encoding="UTF-8"?>
+<Rights xmlns="http://v8.1c.ru/8.2/roles" version="2.20">
+  <object>
+    <name>Document.ОПП</name>
+    <right>
+      <name>Read</name><value>true</value>
+      <restrictionByCondition><condition>Условие_Чтение</condition></restrictionByCondition>
+    </right>
+    <right>
+      <name>Update</name><value>true</value>
+      <restrictionByCondition><condition>Условие_Изменение</condition></restrictionByCondition>
+    </right>
+  </object>
+</Rights>
+"""
+
+
+@pytest.mark.asyncio
+async def test_build_role_rls_edges_groups_per_right_in_one_edge(tmp_path, db):
+    """Регрессия фикса схлопывания: Read+Update с РАЗНЫМИ условиями на одном
+    объекте → ОДНО ребро роль→объект со списком обоих (раньше второе терялось
+    из-за дедупа insert_edge на (src,dst,kind))."""
+    doc_id = await insert_node(
+        db, channel_id="_t", node_kind=NodeKind.METADATA_OBJECT.value,
+        qualified_name="Document.ОПП",
+    )
+    index = _ConfigIndex(metadata_by_qname={"Document.ОПП": doc_id})
+    ext = tmp_path / "Roles" / "Роль" / "Ext"
+    ext.mkdir(parents=True)
+    (ext / "Rights.xml").write_text(_RIGHTS_XML_MULTI, encoding="utf-8")
+
+    stats = GraphBuildStats()
+    await _build_role_rls_edges(
+        db, channel_id="_t", config=_role_config("Роль"),
+        snapshot_root=tmp_path, index=index, stats=stats,
+    )
+    role = await find_node(
+        db, channel_id="_t", qualified_name="Role.Роль", node_kind=NodeKind.ROLE.value,
+    )
+    edges = await get_edges_from(db, role.id, edge_kind=EdgeKind.RESTRICTS.value)
+    assert len(edges) == 1  # одно ребро, не два
+    restr = edges[0].attributes["restrictions"]
+    by_right = {r["right"]: r["condition"] for r in restr}
+    assert by_right == {"Read": "Условие_Чтение", "Update": "Условие_Изменение"}
 
 
 @pytest.mark.asyncio

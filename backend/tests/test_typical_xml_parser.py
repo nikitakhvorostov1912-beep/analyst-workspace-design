@@ -34,6 +34,7 @@ from app.knowledge.typical.xml_parser import (
     parse_configuration_tree,
     parse_configuration_xml,
     parse_metadata_file,
+    parse_register_records,
 )
 
 
@@ -499,3 +500,46 @@ def test_directory_to_kind_includes_main_types():
         "Constants", "Enums", "CommonModules", "Roles", "Subsystems",
     }
     assert expected_dirs <= set(DIRECTORY_TO_KIND.keys())
+
+
+# ── parse_register_records (Phase F — «Регистры движений» документа) ──
+
+_DOC_WITH_REGISTER_RECORDS = """<?xml version="1.0" encoding="UTF-8"?>
+<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses"
+    xmlns:xr="http://v8.1c.ru/8.3/xcf/readable" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Document uuid="x">
+    <Properties>
+      <Name>РеализацияТоваровУслуг</Name>
+      <RegisterRecords>
+        <xr:Item xsi:type="xr:MDObjectRef">AccumulationRegister.ТоварыНаСкладах</xr:Item>
+        <xr:Item xsi:type="xr:MDObjectRef">AccumulationRegister.СебестоимостьТоваров</xr:Item>
+        <xr:Item xsi:type="xr:MDObjectRef">AccumulationRegister.ТоварыНаСкладах</xr:Item>
+      </RegisterRecords>
+    </Properties>
+  </Document>
+</MetaDataObject>
+"""
+
+
+def test_parse_register_records_returns_unique_refs(tmp_path):
+    f = _write(tmp_path / "Documents" / "РеализацияТоваровУслуг.xml",
+               _DOC_WITH_REGISTER_RECORDS)
+    regs = parse_register_records(f)
+    # Уникальные, в порядке объявления (дубликат ТоварыНаСкладах схлопнут).
+    assert regs == [
+        "AccumulationRegister.ТоварыНаСкладах",
+        "AccumulationRegister.СебестоимостьТоваров",
+    ]
+
+
+def test_parse_register_records_no_block_returns_empty(tmp_path):
+    f = _write(tmp_path / "Documents" / "Пустой.xml",
+               '<?xml version="1.0" encoding="UTF-8"?>\n'
+               '<MetaDataObject xmlns="http://v8.1c.ru/8.3/MDClasses">\n'
+               '  <Document><Properties><Name>Пустой</Name></Properties></Document>\n'
+               '</MetaDataObject>\n')
+    assert parse_register_records(f) == []
+
+
+def test_parse_register_records_missing_file_returns_empty(tmp_path):
+    assert parse_register_records(tmp_path / "Documents" / "Нет.xml") == []
