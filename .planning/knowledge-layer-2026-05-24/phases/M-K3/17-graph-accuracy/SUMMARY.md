@@ -19,6 +19,88 @@
 
 ---
 
+## 0.5. ОБНОВЛЕНИЕ 2026-05-30 — Grounding доказан live + реальная картина прода
+
+> Записано после live-прогонов MiMo. Эта секция КОРРЕКТИРУЕТ ранние допущения
+> (разделы 2–3 ниже частично устарели — приоритет у этой секции).
+
+### A. Grounding доказан LIVE (но не идеально)
+- `app/knowledge/typical/grounding.py::run_grounding_turn` + 8 детерм. тестов
+  (`test_typical_grounding.py`, FakeLLMClient + синт.граф) — `cff7f6a`.
+- `scripts/grounding_harness.py` — ручное демо с реальным MiMo.
+- **LIVE MiMo (`mimo-v2.5-pro`) против исправленного `ut115.db`:**
+  - **движения: 44/44 ТОЧНО** (0 галлюцинаций, 0 пропусков — сверено
+    `_mimo_diff.txt`). Оба прогона. Killer-фикс Phase F vindicated.
+  - **RLS: 1 роль / 2 права-условия** ✓ (per-right фикс).
+  - **цепочка/impact: смешанно** — с инжектом канала ✓ (7 вызовов + 50 impact);
+    с discovery (list_configs) **✗ ПРОВАЛ**: MiMo взяла qname ОБЪЕКТА вместо
+    МЕТОДА, не нашла метод через search (карточек нет), уперлась в лимит раундов.
+- **MiMo креды:** endpoint `https://api.xiaomimimo.com/v1`, model `mimo-v2.5-pro`
+  (1000+ tool_calls), ключ формата `sk-...` → env `DEFAULT_LLM_API_KEY`
+  (или `.env`). **Мои инструменты ЗАБЛОКИРОВАНЫ от `.env`** — ключ кладёт
+  пользователь сам. Резолв: `settings.resolve_default_api_key(endpoint)`.
+- **Discovery требует регистрации конфига:** `list_typical_configurations`
+  читает таблицу `typical_configurations`; пусто → LLM не найдёт channel_id.
+
+### B. КОРРЕКТНОЕ понимание прода (правит мои ранние допущения)
+- **`pilot.db` = ПРОДАКШН-БД грунтинга.** 4 конфига зарегистрированы:
+  `_ut115_17_226`, `_erp25_21_118`, `_ka2_25_92`, `_bp30_138_24` (все
+  `graph_built`). 2.26М узлов / 4.3М рёбер. `list_configs` там работает.
+- **НО граф УСТАРЕЛ:** УТ `WRITES_TO_total=0`, `RLS_v2=False` (vs `ut115.db`
+  2485/True). Ни одного фикса сессии. Грунтинг в реальном чате СЕЙЧАС — на
+  старых данных.
+- **`pilot.db` ЗАЛОЧЕН NIM** (фоновая пересборка карточек). НЕ писать.
+- `data/app.db` (default `database_url`) НЕ существует; `backend/data/app.db`
+  мелкая (sessions/messages, без графа). Реальный `database_url` — в `.env`
+  (мне закрыт), вероятно → `pilot.db`.
+- **Грунт-инструменты читают из ТОГО ЖЕ `db`, что `loop.py`** (одно соединение)
+  → граф обязан быть в БД приложения (в проде = `pilot.db`).
+- **Продакшн-сборка УЖЕ регистрирует конфиги** (`rebuild_all_typical.py` /
+  `typical_graph_pilot.py` зовут `create_configuration`). Registry-гэп — ТОЛЬКО
+  у bench (`graph_bench.py` использует канал `_bench`, без регистрации).
+  **«Loader» строить НЕ нужно — он есть.**
+- **`ut115.db`: вручную добавлен конфиг `_bench`** (для проверки discovery).
+  Канал графа в `ut115.db` = `_bench` (НЕ `_ut115_17_226`); валидаторы это юзают.
+
+### C. ТОЧНЫЙ пост-NIM план пересборки pilot.db (graph-only)
+Инструмент: `scripts/typical_graph_pilot.py` (graph-only, билдер с фиксами,
+конфиги зарегистрированы). После окончания NIM (pilot.db свободна):
+```
+cd backend
+python -m scripts.typical_graph_pilot --channel _ut115_17_226 --db data/pilot.db
+python -m scripts.typical_graph_pilot --channel _erp25_21_118 --db data/pilot.db
+python -m scripts.typical_graph_pilot --channel _ka2_25_92   --db data/pilot.db
+python -m scripts.typical_graph_pilot --channel _bp30_138_24 --db data/pilot.db
+```
+**⚠️ КРИТИЧНО — WIPE перед пересборкой канала.** `insert_edge` дедуплицирует на
+(src,dst,kind). Старые RESTRICTS (collapsed-формат) заблокируют новые RLS-v2
+рёбра (тот же src-dst-kind) → **RLS-v2 НЕ применится**, как было при попытке
+инкрементального re-run на `ut115.db`. ПЕРЕД пересборкой канала — удалить его
+граф (`DELETE FROM graph_edges WHERE src_id/dst_id в канале; DELETE FROM
+graph_nodes WHERE channel_id=X`) ИЛИ подтвердить, что `typical_graph_pilot`
+делает per-channel wipe (**НЕ проверено** — pilot.db залочена). WRITES_TO Phase F
+и manager-CALLS — новые рёбра, дедуп их не блокирует, но stale-узлы без wipe
+останутся. **Вывод: обязательно wipe канала перед re-build.**
+После — валидировать `graph_movements_rls_proof.py` (поправить DB→pilot.db,
+channel→`_ut115_17_226`).
+
+### D. ОТКРЫТЫЙ ДЕФЕКТ — цепочка вызовов (Q2) хрупкая
+LIVE discovery-прогон: MiMo не нашла qname метода (search пуст без карточек),
+взяла qname объекта, уперлась в лимит раундов. **Лечение (не сделано):**
+1. гайд в системном промпте — для метода qname `Document.X.ObjectModule.Метод`;
+   если неизвестен — сначала `explain_typical_object` (отдаёт методы объекта);
+2. поднять `MAX_ROUNDS` в `run_grounding_turn`;
+3. карточки в проде дадут рабочий `search_typical_objects`.
+Движения/RLS — надёжны и без этого.
+
+### E. Коммиты сессии (ветка `feature/m-k3-relational-cfe`, НЕ пушены)
+`cefeb41` cross-module CALLS · `8a5b4cd` pivot · `86bfa77` manager-CALLS ·
+`32bb949` tool-proof · `afd3fbd` движения+RLS · `674295f` scorecard ·
+`b532936` plan · `cff7f6a` grounding+тесты · `99c9c05` harness(inject) ·
+`788557a` harness(discovery).
+
+---
+
 ## 1. Что сделано (коммиты сессии)
 
 | Коммит | Что |
@@ -68,6 +150,11 @@
 ## 3. PENDING (упорядочено)
 
 ### 3.1. Батч-пересборка ERP/КА/БП (×3, после NIM) — ЧЕКЛИСТ
+> ⚠️ **СКОРРЕКТИРОВАНО — см. раздел 0.5.C выше.** Пересборка идёт В `pilot.db`
+> (не в standalone-БД), инструмент `typical_graph_pilot.py --channel X --db
+> data/pilot.db`, конфиги уже зарегистрированы, ОБЯЗАТЕЛЕН wipe канала. Ниже —
+> исторический вариант (standalone bench-БД), оставлен для контекста.
+
 Текущий билдер уже содержит все фиксы. Команда (из `backend/`, NIM-safe, отдельные БД):
 ```
 python -m scripts.graph_bench --snapshot <ABS_snapshot> --db <ABS_db>
