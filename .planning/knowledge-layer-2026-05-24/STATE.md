@@ -53,6 +53,14 @@ progress:
 > - **Сейчас:** сборка graph-index по 4 конфам (УТ 11.5 / ERP 2.5 / КА 2.5 / БП 3.0) в `data/graph-index/` (фон `bkq2yte8t`, NIM-safe). Прод-консолидация в `pilot.db` (1 БД / 4 channel_id) — ПОСЛЕ NIM.
 > - Дальше по UC: 17.3 report-tracer, 17.6 query-opt — как backend grounding (без обязательной картинки). RLS — таблица с условием, не граф.
 
+> **✅ ВАЛИДАЦИЯ ТОЧНОСТИ ГРАФА 2026-05-30 (сессия после пивота) — все 4 киллер-UC доказаны на УТ ground-truth vs исходник:**
+> - **Цепочка вызовов / impact** ✅ — cross-module CALLS был сломан (28% → 100%): фикс резолва CommonModule (`cefeb41`) + менеджеров Документы/Регистры.X.Метод (`86bfa77`). impact: 46 документов на общий метод проведения. CALLS 480K→704K. Tool-layer proof + регрессия (`32bb949`).
+> - **READS_FROM** ✅ — 3/3 ground-truth (ТоварыНаСкладах), 5250 методов / 1312 объектов, physical+virtual. Зрелый query-парсер, не трогался.
+> - **Движения (WRITES_TO)** ✅ — было: флагман ТоварыНаСкладах = 0 писателей (BSL `Движения.X` ловил лишь легаси direct-add). Решение (ресёрч): метаданные `<RegisterRecords>` документа. Phase F `_build_register_records_edges`. WRITES_TO 94→2485; ТоварыНаСкладах 0→44 документа (`afd3fbd`).
+> - **RLS per-right** ✅ — было: 419 пар (35%) с разными условиями Read/Update схлопывались (дедуп insert_edge). Решение: список `[{right,condition}]` в ребре. Объектный резолв был 100% (1188 пар). (`afd3fbd`)
+> - **Граф достоверен для grounding по ВСЕМ киллер-UC.** UC-traverse (CALLS depth=4) = 222ms.
+> - **PENDING:** батч-пересборка ERP/КА/БП с CALLS-Phase2 + Phase F + RLS-v2 (×4, после NIM; УТ `ut115.db` уже полный). Прод-консолидация в `pilot.db` — после NIM. Grounding в чате (LLM подмешивает граф) — не начат.
+
 **Active milestone (история до 2026-05-26):** ✅ **M-K2 Knowledge Foundation + Triple RAG — CLOSED SUMMARY 2026-05-26** (12/13 done + 1 deferred).
 
 **Closed phases:** 2.1, 2.2, 2.3 (Incremental), 2.4 (MCP Cache), 2.5, 2.6, 2.7 (ИТС), 2.8 (БСП), 2.9, 2.10, 2.11 (Privacy badge), **2.SUMMARY**.  
