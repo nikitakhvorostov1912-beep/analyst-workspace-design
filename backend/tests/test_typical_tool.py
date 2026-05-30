@@ -6,7 +6,13 @@ import aiosqlite
 import pytest
 import pytest_asyncio
 
-from app.knowledge.graph_storage import EdgeKind, NodeKind, insert_edge, insert_node
+from app.knowledge.graph_storage import (
+    EdgeKind,
+    NodeKind,
+    find_node,
+    insert_edge,
+    insert_node,
+)
 from app.knowledge.typical.card_models import CardStatus, TypicalObjectCard
 from app.knowledge.typical.card_storage import upsert_card
 from app.knowledge.typical.registry import TypicalConfigKind
@@ -275,6 +281,57 @@ async def test_trace_calls_no_calls(db_with_seed):
     assert ok is True
     # Стартовый node всегда в hits (depth=0)
     assert result["total"] >= 1
+
+
+@pytest.mark.asyncio
+async def test_trace_calls_surfaces_cross_module_edge(db_with_seed):
+    """Регрессия cross-module fix: tool отдаёт CALLS на чужой модуль наружу.
+
+    До фикса резолва (cefeb41) граф был на 100% внутримодульным, и этот
+    обход возвращал бы только стартовый узел. Здесь проверяем оба
+    направления через РЕАЛЬНЫЙ dispatch — out (цепочка) и in (impact).
+    """
+    channel = "_bp30_138_24"
+    caller = "Document.Заказ.ObjectModule.ОбработкаПроведения"
+    callee = "CommonModule.ПроведениеДокументов.CommonModuleBody.ОбработкаПроведенияДокумента"
+
+    callee_id = await insert_node(
+        db_with_seed, channel_id=channel, node_kind=NodeKind.METHOD.value,
+        qualified_name=callee,
+        attributes={"name": "ОбработкаПроведенияДокумента", "module_kind": "CommonModuleBody"},
+    )
+    caller_node = await dispatch_typical_tool(
+        db_with_seed, TOOL_TRACE_CALLS,
+        {"channel_id": channel, "qualified_name": caller, "direction": "out"},
+    )
+    # До ребра — наружу никого нет.
+    assert callee not in {h["qualified_name"] for h in caller_node[1]["hits"]}
+
+    # Узел-метод caller уже есть в seed — берём его id для ребра.
+    caller_id = (await find_node(
+        db_with_seed, channel_id=channel, qualified_name=caller,
+        node_kind=NodeKind.METHOD.value,
+    )).id
+    await insert_edge(
+        db_with_seed, src_id=caller_id, dst_id=callee_id,
+        edge_kind=EdgeKind.CALLS.value, attributes={"resolution": "cross_module"},
+    )
+
+    # out: цепочка вызовов видит чужой модуль.
+    ok_out, res_out, _ = await dispatch_typical_tool(
+        db_with_seed, TOOL_TRACE_CALLS,
+        {"channel_id": channel, "qualified_name": caller, "direction": "out"},
+    )
+    assert ok_out is True
+    assert callee in {h["qualified_name"] for h in res_out["hits"]}
+
+    # in: impact-анализ от общего метода находит вызывающий документ.
+    ok_in, res_in, _ = await dispatch_typical_tool(
+        db_with_seed, TOOL_TRACE_CALLS,
+        {"channel_id": channel, "qualified_name": callee, "direction": "in"},
+    )
+    assert ok_in is True
+    assert caller in {h["qualified_name"] for h in res_in["hits"]}
 
 
 @pytest.mark.asyncio
