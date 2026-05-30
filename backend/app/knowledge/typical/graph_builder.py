@@ -292,6 +292,25 @@ _CROSS_MODULE_CALL_RE = re.compile(
 )
 
 
+# CALLS — вызов метода менеджера объекта: `Документы.Объект.Метод(` (3 сегмента).
+# Цель — метод в ManagerModule объекта. Префиксы коллекций — как в
+# _USES_PREFIX_TO_KIND (без ОбщиеМодули/CommonModules — их ловит cross-module RE).
+_MANAGER_CALL_RE = re.compile(
+    r"\b(Документы|Справочники|Перечисления|"
+    r"РегистрыНакопления|РегистрыСведений|РегистрыБухгалтерии|РегистрыРасчета|"
+    r"ПланыСчетов|ПланыВидовХарактеристик|ПланыВидовРасчета|"
+    r"БизнесПроцессы|Задачи|Отчеты|Обработки|"
+    r"Documents|Catalogs|Enums|"
+    r"AccumulationRegisters|InformationRegisters|AccountingRegisters|CalculationRegisters|"
+    r"ChartsOfAccounts|ChartsOfCharacteristicTypes|ChartsOfCalculationTypes|"
+    r"BusinessProcesses|Tasks|Reports|DataProcessors)"
+    r"\.([А-ЯA-Z][А-Яа-яA-Za-z0-9_]+)\.([А-ЯA-Z][А-Яа-яA-Za-z0-9_]+)\s*\("
+)
+
+# Сегмент модуля менеджера в qualified_name (как строит _module_qualified_name).
+_MANAGER_MODULE_SEGMENT = "ManagerModule"
+
+
 # Ключевые слова BSL которые не являются вызовами методов
 # (фильтр для same-module CALLS).
 _BSL_KEYWORDS: frozenset[str] = frozenset(
@@ -960,7 +979,7 @@ async def _build_bsl_edges(
             src_id=src_id,
             dst_id=target_node_id,
             edge_kind=EdgeKind.CALLS.value,
-            attributes={"resolution": "common_module"},
+            attributes={"resolution": "cross_module"},
         )
         stats._bump_edge(EdgeKind.CALLS.value)
         resolved += 1
@@ -1034,6 +1053,19 @@ async def _emit_method_behavior_edges(
             f".{_common_module_kind_name()}.{callee}"
         )
         cross_calls.append((method_node_id, target_method_qname))
+
+    # ── CALLS: метод менеджера объекта (Документы.X.Метод -> ManagerModule) ──
+    # Тоже отложенно — цель резолвится по method_by_qname в _build_bsl_edges.
+    if cross_calls is not None:
+        for match in _MANAGER_CALL_RE.finditer(body):
+            prefix, obj_name, callee = match.group(1), match.group(2), match.group(3)
+            kind = _USES_PREFIX_TO_KIND.get(prefix)
+            if kind is None:
+                continue
+            cross_calls.append((
+                method_node_id,
+                f"{kind}.{obj_name}.{_MANAGER_MODULE_SEGMENT}.{callee}",
+            ))
 
     # ── USES: метаданные через коллекции ──────────────────────────
     for match in _USES_RE.finditer(body):
