@@ -355,6 +355,21 @@ async def build_card_context(
             for (target_qname,) in call_targets:
                 top_calls_counter[target_qname] = top_calls_counter.get(target_qname, 0) + 1
 
+    # 5b. WRITES_TO уровня объекта — движения по регистрам из метаданных
+    # документа (Phase F `<RegisterRecords>`). Рёбра висят на узле самого
+    # объекта, а не на методе, поэтому цикл по методам их не видит.
+    obj_wt_targets = await _fetch_all(
+        db,
+        """
+        SELECT n.qualified_name FROM graph_nodes n
+        JOIN graph_edges e ON e.dst_id = n.id
+        WHERE e.src_id = ? AND e.edge_kind = ?
+        """,
+        (obj_id, EdgeKind.WRITES_TO.value),
+    )
+    for (target_qname,) in obj_wt_targets:
+        writes_to.add(target_qname)
+
     # 6. Приоритезация методов: handlers → exported → остальное
     methods.sort(
         key=lambda m: (
