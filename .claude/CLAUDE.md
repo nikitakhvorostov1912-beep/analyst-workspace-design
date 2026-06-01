@@ -126,21 +126,23 @@ Electron + electron-builder + PyInstaller (desktop distribution, v1.1.0)
 
 ---
 
-## Текущее состояние (snapshot 2026-05-29)
+## ★ КАНОНИЧЕСКИЙ ПЛАН (по нему двигаемся; snapshot 2026-05-30)
 
-- **Единый роадмап:** `.planning/ROADMAP-2026-05-29.md` + `Workflow_1C_Analyst_2026-05-29.xlsx` — форвард-источник истины (свёл продуктовую арку M1-M7 и Knowledge Layer M-K0..M-K6).
-- **Milestone:** **M-K3** — Relational + Behavioral + EPF/CFE Delivery (in_progress).
-- **Closed:** M-K0 (28/28 `00ab58e`) · M-K1 (15/17) · M-K2 Triple RAG (12/13) · M6 Hermes · M7 Commerce (код).
-- **M-K3 graph/UC — БОЛЬШОЙ прогресс (сессия 2026-05-29, 16 коммитов):**
-  - **17.1 L2-граф** ✅ + перф-фикс traversal **384→30мс** (`d7fce26`), verified на УТ 62.7K/69.4K.
-  - **17.4/17.5** цепочка вызовов / impact ✅ (tools `trace_typical_calls`, проверены `e242246`).
-  - **17.7 GraphCard ✅ E2E**: `get_subgraph`→REST→React Flow→backend-эмит (`75c2f5e`,`864d579`,`e66f9fa`,`4f75ca2`).
-  - **17.2 RLS-tracer ✅ end-to-end на типовых**: R1 `parse_rights_xml` (`fce67e3`) → R2 граф 521 роль / 2103 RESTRICTS (`3ad30b5`) → R3 tool `explain_rls_restrictions` (`c86f1e2`).
-  - Аванс M-K4 (hybrid + guardrail G2) закоммичен, на паузе.
-- **РЕЗЮМЕ ПОСЛЕ COMPACT — дальше (выбор пользователя):** Preview GraphCard в браузере (#34, визуально НЕ смотрел — нужен dev-стек) · 17.3 report-tracer · build_live_graph (#30, нужен BSL-источник) · EPF/CFE (13a/13b) · DiagnoseCard-визуал. Полное состояние — `.planning/knowledge-layer-2026-05-24/STATE.md`.
-- **Параллельный фон:** M-K2.5 NIM rebuild карточек ИДЁТ (пишет `pilot.db` — read-only, НЕ трогать; dev/верификация графа — на temp-БД, NIM-safe).
-- **Ветка:** `feature/m-k3-relational-cfe` (атомарные коммиты; в remote НЕ пушим без запроса).
-- **Гигиена релиза:** код `desktop` v1.4.8, последний git-тег v1.2.2 — сборки не тегались (smoke VM + EV/OV cert pending).
+> **ЕДИНЫЙ ИСТОЧНИК ИСТИНЫ — двигаемся ТОЛЬКО по этой цепочке, не путать с другими:**
+> 1. **Роадмап:** `.planning/ROADMAP-2026-05-29.md` ← форвард-план (M1–M7 + M-K0..M-K6). `.planning/ROADMAP.md` (без даты) — УСТАРЕЛ, не использовать.
+> 2. **Активная работа M-K3 граф/grounding — живое состояние:** `.planning/knowledge-layer-2026-05-24/phases/M-K3/17-graph-accuracy/SUMMARY.md` (раздел **0.5** — самый свежий).
+> 3. **Критерии приёмки «Объяснителя»:** `.planning/knowledge-layer-2026-05-24/ACCEPTANCE-explainer.md` (гейты G0–G3; G0/G2 честность > G1 точность).
+> 4. Задачи-трекеры: #35–#39 (TaskList).
+
+- **Milestone:** **M-K3** — Relational + Behavioral + EPF/CFE (in_progress). Closed: M-K0/M-K1/M-K2/M6/M7.
+- **Что сделано (сессии 2026-05-29/30, ветка `feature/m-k3-relational-cfe`, НЕ пушено):**
+  - **Граф L2 — точность ВАЛИДИРОВАНА на УТ** (ground-truth vs исходник), 4 киллер-UC: цепочка/impact (cross-module CALLS был сломан 28%→100%), READS_FROM (3/3), движения (RegisterRecords: флагман 0→44 док, WRITES_TO 94→2485), RLS per-right (35%→100%). `ut115.db` (channel `_bench`) готов.
+  - **Grounding доказан LIVE** (MiMo `mimo-v2.5-pro`): движения 44/44 без галлюцинаций, RLS ✓. `run_grounding_turn` + 8 тестов. ЦЕПОЧКА вызовов — **дефект #38** (молчит до лимита = нарушение G0.3, блокер приёмки).
+  - GraphCard **заморожен** (граф = backend grounding, без картинки). #30 build_live_graph **отменён** (код клиента не берём).
+- **🔴 ГЛАВНЫЙ БЛОКЕР:** прод-БД грунтинга **`pilot.db`** (4 конфига зарегистрированы) — граф УСТАРЕЛ (УТ WRITES_TO=0, без фиксов) И **залочена NIM** (фон пишет карточки). Писать в неё нельзя.
+- **РЕЗЮМЕ ОТСЮДА (после окончания NIM):** → пост-NIM пересборка графов В `pilot.db` (`typical_graph_pilot.py --channel X --db data/pilot.db` ×4, **с обязательным wipe канала** — см. SUMMARY §0.5.C) → реальный чат начнёт грунтить верно → потом #38 (цепочка), #39 (golden-set приёмки из практики — нужен пользователь), wire в чат-UI с ключом MiMo.
+- **NIM-трек НЕ трогать/НЕ коммитить:** `nvidia_nim_rebuild.py`, `response-nim-*`, `response-haiku-*`, `batch-compact-*`, `wave*-erp*`, `apply_loop_erp8.py`, `build_chunks_from_mock.py`, `samples.json`. Появляются по ходу NIM.
+- **Гигиена релиза:** код `desktop` v1.4.8, git-тег v1.2.2 — не тегалось (smoke VM + cert pending).
 
 ---
 

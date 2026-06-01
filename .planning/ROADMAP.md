@@ -1,5 +1,8 @@
 # Roadmap: 1С Аналитик — чат с MCP
 
+> ⚠️ **УСТАРЕЛ (исторический).** Канонический план — `.planning/ROADMAP-2026-05-29.md`.
+> Оставлен как исторический детальный источник по ранним фазам.
+
 **Created:** 2026-05-13
 **Granularity:** coarse (6 phases)
 **Mode:** mvp (vertical slices)

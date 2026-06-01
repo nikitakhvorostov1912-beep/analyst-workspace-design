@@ -10,9 +10,12 @@
 
 При запросе «продолжай Knowledge Layer» / «продолжи план» / «давай дальше по плану»:
 
-1. **Прочитать `STATE.md`** в этой же папке — узнать active milestone + phase  
-   ⚠ Текущий active — **M-K0 Stabilization** (НЕ M-K1!). Сначала закрываем  
-   дыры из общего аудита, потом Knowledge Layer.
+1. **★ КАНОНИЧЕСКИЙ ПЛАН (2026-05-30):** двигаемся по `../ROADMAP-2026-05-29.md`.
+   Активная работа — **M-K3 граф/grounding**. Живое состояние:
+   `phases/M-K3/17-graph-accuracy/SUMMARY.md` **§0.5**; критерии приёмки:
+   `../ACCEPTANCE-explainer.md`. Резюме после NIM — §0.5.C (пересборка `pilot.db`).
+   Полный якорь — секция «★ КАНОНИЧЕСКИЙ ПЛАН» в `.claude/CLAUDE.md`.
+   ⚠ Старый указатель «active = M-K0» — НЕВЕРЕН (M-K0/K1/K2 закрыты).
 2. **Прочитать `phases/<active-milestone>/STATE.md`** если файл существует
 3. **Прочитать `phases/<active-milestone>/<active-phase>/PLAN.md`** если phase активна
 4. **Озвучить в ОДНОМ сообщении:**

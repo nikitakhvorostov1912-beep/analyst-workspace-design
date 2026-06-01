@@ -1,5 +1,6 @@
 # ROADMAP — 1С Аналитик
 
+> ⚠️ **УСТАРЕЛ (исторический).** Канонический план — `.planning/ROADMAP-2026-05-29.md`.
 > GSD-style phased roadmap. Каждая phase = atomic deliverable + acceptance criteria.
 
 ## Milestones
