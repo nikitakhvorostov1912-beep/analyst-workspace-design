@@ -60,18 +60,18 @@
 - **Устаревшие роадмапы:** `ROADMAP.md` (корень) и `.planning/ROADMAP.md` → заменены `ROADMAP-2026-05-29.md` (помечены баннерами).
 - **Дубли (РАСХОЖДЕНИЕ — к консолидации):** `.planning/PROJECT.md` / `.planning/REQUIREMENTS.md` разошлись с корневыми. Актуальная концепция — корневой `CLAUDE.md` + `ROADMAP-2026-05-29.md`.
 - **Релизные/QA артефакты:** `.planning/` — `BASELINE-*`, `COMMERCE-*`, `RELEASE-NOTES-*`, `SMOKE-*`, `VERIFICATION-*`, `SPRINT-SUMMARY.md`, `*-CHECKLIST*.md`, `RESEARCH_*`, `UI-REVIEW-*`.
-- **Хэндоффы/фазы:** `.planning/handoff/`, `handoff-2026-05-23/`, `milestones/`, `development-plan-2026-05-24/`, `qa-prod-release-2026-05-24/`, `phases/`, `intel/`, `research/`, `ui-reviews/`.
-- **Архив:** `.planning/_archive/` (старые планы/промпты).
+- **Фазы/QA:** `.planning/milestones/`, `development-plan-2026-05-24/`, `qa-prod-release-2026-05-24/`, `phases/`, `intel/`, `research/`, `ui-reviews/`.
+- **Архив:** `.planning/_archive/` — старые планы/промпты + перенесённые сюда `handoff/`, `handoff-2026-05-23/` (2026-05-30).
 - **Мёртвый код:** `docs/_archive-v0-object-ide/`, `mockups/_legacy/` — провальные итерации v0, НЕ трогать.
 
 ---
 
-## 4. Известный беспорядок (к чистке — не блокер, см. задачи)
+## 4. Чистка 2026-05-30 (сделано) + остаток
 
-1. **Локальный мусор в корне** (gitignored, в репо НЕТ): `backend-*.log` ×11, `frontend-sprint1.log`, `next-dev.log`, `full-pytest*.log`, `*.zip`, `.coverage`, `.last-bundle-path.txt`. → можно удалить локально, репо чист.
-2. **Дубли** `PROJECT.md`/`REQUIREMENTS.md` (корень vs `.planning/`) — консолидировать в один.
-3. **Две handoff-папки** — слить в `_archive/` при случае.
-4. **NIM-трек** (`samples.json`, `wave*-erp*`, `response-*`, `batch-*`, `apply_loop_erp8.py`, `build_chunks_from_mock.py`) — рабочие файлы фоновой пересборки карточек, **не трогать/не коммитить**.
+- ✅ **Локальный мусор в корне удалён** (`backend-*.log`, `*.zip` v1.2.x, `.coverage`, `next-dev.log`, `full-pytest*.log`, `.last-bundle-path.txt`) — были gitignored, репо не затронут.
+- ✅ **handoff-папки → `_archive/`** (`handoff/`, `handoff-2026-05-23/`).
+- ✅ **Дубли** `.planning/PROJECT.md` / `REQUIREMENTS.md` помечены баннером (init-эра → канон в корне + ROADMAP-2026-05-29). Полное слияние — опционально потом.
+- ⛔ **NIM-трек НЕ трогать** (`samples.json`, `wave*-erp*`, `response-*`, `batch-*`, `apply_loop_erp8.py`, `build_chunks_from_mock.py`) — рабочие файлы фоновой пересборки карточек.
 
 ---
 

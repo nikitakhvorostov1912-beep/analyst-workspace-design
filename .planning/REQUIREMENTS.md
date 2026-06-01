@@ -1,5 +1,9 @@
 # Requirements: 1С Аналитик — чат с MCP
 
+> ⚠️ **Базовые требования (init-эра).** Есть дубль в корне (`/REQUIREMENTS.md`).
+> Актуальные требования/критерии — `.planning/ROADMAP-2026-05-29.md` +
+> `.planning/knowledge-layer-2026-05-24/ACCEPTANCE-explainer.md`. Карта — `/PROJECT-INDEX.md`.
+
 **Defined:** 2026-05-13
 **Core Value:** Аналитик пишет вопрос на NL → LLM сама дёргает MCP → ответ с inline-карточкой за ≤30 сек
 
