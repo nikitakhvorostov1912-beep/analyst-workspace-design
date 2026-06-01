@@ -129,6 +129,7 @@ Electron + electron-builder + PyInstaller (desktop distribution, v1.1.0)
 ## ★ КАНОНИЧЕСКИЙ ПЛАН (по нему двигаемся; snapshot 2026-05-30)
 
 > **ЕДИНЫЙ ИСТОЧНИК ИСТИНЫ — двигаемся ТОЛЬКО по этой цепочке, не путать с другими:**
+> 0. **Карта всего проекта (что где лежит):** корневой `PROJECT-INDEX.md`.
 > 1. **Роадмап:** `.planning/ROADMAP-2026-05-29.md` ← форвард-план (M1–M7 + M-K0..M-K6). `.planning/ROADMAP.md` (без даты) — УСТАРЕЛ, не использовать.
 > 2. **Активная работа M-K3 граф/grounding — живое состояние:** `.planning/knowledge-layer-2026-05-24/phases/M-K3/17-graph-accuracy/SUMMARY.md` (раздел **0.5** — самый свежий).
 > 3. **Критерии приёмки «Объяснителя»:** `.planning/knowledge-layer-2026-05-24/ACCEPTANCE-explainer.md` (гейты G0–G3; G0/G2 честность > G1 точность).
