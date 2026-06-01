@@ -133,13 +133,15 @@ Electron + electron-builder + PyInstaller (desktop distribution, v1.1.0)
 > 1. **Роадмап:** `.planning/ROADMAP-2026-05-29.md` ← форвард-план (M1–M7 + M-K0..M-K6). `.planning/ROADMAP.md` (без даты) — УСТАРЕЛ, не использовать.
 > 2. **Активная работа M-K3 граф/grounding — живое состояние:** `.planning/knowledge-layer-2026-05-24/phases/M-K3/17-graph-accuracy/SUMMARY.md` (раздел **0.5** — самый свежий).
 > 3. **Критерии приёмки «Объяснителя»:** `.planning/knowledge-layer-2026-05-24/ACCEPTANCE-explainer.md` (гейты G0–G3; G0/G2 честность > G1 точность).
-> 4. Задачи-трекеры: #35–#39 (TaskList).
+> 4. **1c-buddy (живая ИТС, L5):** ROADMAP §6.0 (обязательный параллельный трек).
+> 5. Задачи-трекеры: #35–#40 (TaskList).
 
 - **Milestone:** **M-K3** — Relational + Behavioral + EPF/CFE (in_progress). Closed: M-K0/M-K1/M-K2/M6/M7.
 - **Что сделано (сессии 2026-05-29/30, ветка `feature/m-k3-relational-cfe`, НЕ пушено):**
   - **Граф L2 — точность ВАЛИДИРОВАНА на УТ** (ground-truth vs исходник), 4 киллер-UC: цепочка/impact (cross-module CALLS был сломан 28%→100%), READS_FROM (3/3), движения (RegisterRecords: флагман 0→44 док, WRITES_TO 94→2485), RLS per-right (35%→100%). `ut115.db` (channel `_bench`) готов.
   - **Grounding доказан LIVE** (MiMo `mimo-v2.5-pro`): движения 44/44 без галлюцинаций, RLS ✓. `run_grounding_turn` + 8 тестов. ЦЕПОЧКА вызовов — **дефект #38** (молчит до лимита = нарушение G0.3, блокер приёмки).
   - GraphCard **заморожен** (граф = backend grounding, без картинки). #30 build_live_graph **отменён** (код клиента не берём).
+  - **1c-buddy живая ИТС (L5, отдельно от графа) — промпт-фикс готов+live** (`7ce7727`): LLM теперь для ИТС/методик зовёт ПЕРВЫМ `buddy.search_its` (живой Напарник, инфа меняется постоянно), наш статический RAG — fallback. Проверено: buddy первым 2/2, dot-имя ОК, buddy :6002 жив. Остаток (#40): OPS-2 телеметрия + lifecycle 01.10.2026 (платить vs свой RAG) + autostart Напарника на машине аналитика.
 - **🔴 ГЛАВНЫЙ БЛОКЕР:** прод-БД грунтинга **`pilot.db`** (4 конфига зарегистрированы) — граф УСТАРЕЛ (УТ WRITES_TO=0, без фиксов) И **залочена NIM** (фон пишет карточки). Писать в неё нельзя.
 - **РЕЗЮМЕ ОТСЮДА (после окончания NIM):** → пост-NIM пересборка графов В `pilot.db` (`typical_graph_pilot.py --channel X --db data/pilot.db` ×4, **с обязательным wipe канала** — см. SUMMARY §0.5.C) → реальный чат начнёт грунтить верно → потом #38 (цепочка), #39 (golden-set приёмки из практики — нужен пользователь), wire в чат-UI с ключом MiMo.
 - **NIM-трек НЕ трогать/НЕ коммитить:** `nvidia_nim_rebuild.py`, `response-nim-*`, `response-haiku-*`, `batch-compact-*`, `wave*-erp*`, `apply_loop_erp8.py`, `build_chunks_from_mock.py`, `samples.json`. Появляются по ходу NIM.
