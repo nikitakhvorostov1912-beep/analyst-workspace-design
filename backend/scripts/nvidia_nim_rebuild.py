@@ -122,8 +122,8 @@ SYSTEM_PROMPT = """Ты эксперт-методолог 1С. Получаеш�
 
 ПРАВИЛА:
 - Всё на русском
-- summary 100-200 chars
-- purpose 200-500 chars
+- summary МИНИМУМ 110 символов (не короче!), до 220
+- purpose МИНИМУМ 240 символов (не короче!), до 500
 - movements ТОЛЬКО из item.writes_to (если writes_to пусто — movements []). Префикс канонический: AccumulationRegister./AccountingRegister./InformationRegister./CalculationRegister.
 - direction строго один из: приход, расход, приход/расход, запись, пустая строка
 
@@ -140,7 +140,7 @@ SYSTEM_PROMPT = """Ты эксперт-методолог 1С. Получаеш�
 - НИКОГДА не выдумывай атрибуты («Имя», «Тип», «Доступность», «Ссылка», «Назначение») — если реальных нет, оставь массив пустым
 - Топ-5 наиболее значимых реквизитов с осмысленной ролью (бизнес-смысл, не техническая роль)
 
-- typical_scenarios: 2-3 кратких сценария использования
+- typical_scenarios: РОВНО 3 конкретных сценария использования (минимум 2, лучше 3)
 - preconditions: 1-3 предусловия если уместно, иначе []
 - Без преамбулы, БЕЗ объяснений, БЕЗ ```json — только JSON-объект."""
 
@@ -187,21 +187,28 @@ async def _resolve_mock_qnames(
     db: aiosqlite.Connection,
     channel_id: str,
     limit: int | None,
+    offset: int = 0,
 ) -> list[str]:
-    """Возвращает qname'ы mock-карточек в канале (отсортированные по приоритету)."""
-    if limit is None:
-        query = (
-            "SELECT object_qualified_name FROM typical_object_cards "
-            "WHERE channel_id = ? AND is_mock = 1"
-        )
-        args: tuple[Any, ...] = (channel_id,)
-    else:
-        query = (
-            "SELECT object_qualified_name FROM typical_object_cards "
-            "WHERE channel_id = ? AND is_mock = 1 LIMIT ?"
-        )
-        args = (channel_id, limit)
-    cur = await db.execute(query, args)
+    """Возвращает qname'ы mock-карточек в канале (отсортированные по приоритету).
+
+    offset позволяет разделить работу между несколькими параллельными
+    процессами на одном канале (SQLite требует LIMIT перед OFFSET, поэтому
+    при offset>0 без limit используем LIMIT -1).
+    """
+    query = (
+        "SELECT object_qualified_name FROM typical_object_cards "
+        "WHERE channel_id = ? AND is_mock = 1 ORDER BY object_qualified_name"
+    )
+    params: list[Any] = [channel_id]
+    if limit is not None:
+        query += " LIMIT ?"
+        params.append(limit)
+    elif offset:
+        query += " LIMIT -1"
+    if offset:
+        query += " OFFSET ?"
+        params.append(offset)
+    cur = await db.execute(query, tuple(params))
     rows = await cur.fetchall()
     return [r[0] for r in rows]
 
@@ -247,6 +254,7 @@ async def _call_nim(
     user_prompt: str,
     *,
     max_retries: int = 3,
+    max_tokens: int = 1100,
 ) -> str | None:
     """Один запрос к NIM. Возвращает текст ответа или None при провале."""
     payload = {
@@ -257,7 +265,7 @@ async def _call_nim(
         ],
         "temperature": 0.2,
         "top_p": 0.9,
-        "max_tokens": 1100,
+        "max_tokens": max_tokens,
         "response_format": {"type": "json_object"},
     }
     headers = {
@@ -327,6 +335,8 @@ async def _process_one(
     channel_id: str,
     qname: str,
     domain: str,
+    *,
+    max_tokens: int = 1100,
 ) -> dict[str, Any] | None:
     """Обработать один объект: context -> NIM -> parse -> item."""
     async with sem:
@@ -343,7 +353,7 @@ async def _process_one(
         compact = _compact_context(ctx_dict)
         user_prompt = _build_user_prompt(compact, domain)
 
-        raw = await _call_nim(client, api_key, model, user_prompt)
+        raw = await _call_nim(client, api_key, model, user_prompt, max_tokens=max_tokens)
         if raw is None:
             return None
         card = _extract_json(raw)
@@ -413,7 +423,16 @@ async def amain(args: argparse.Namespace) -> int:
         total_done = 0
         sem = asyncio.Semaphore(args.concurrency)
 
-        async with httpx.AsyncClient() as client:
+        # HTTP/2 multiplexing + keepalive pool. NIM поддерживает HTTP/2.
+        async with httpx.AsyncClient(
+            http2=True,
+            limits=httpx.Limits(
+                max_connections=50,
+                max_keepalive_connections=30,
+                keepalive_expiry=30.0,
+            ),
+            timeout=httpx.Timeout(120.0, connect=10.0),
+        ) as client:
             for channel_id in channels:
                 if channel_id not in CHANNEL_DOMAIN:
                     log.error("Unknown channel: %s", channel_id)
@@ -421,7 +440,7 @@ async def amain(args: argparse.Namespace) -> int:
                 domain = CHANNEL_DOMAIN[channel_id]
 
                 limit = args.limit if args.limit and not args.all else None
-                qnames = await _resolve_mock_qnames(db, channel_id, limit)
+                qnames = await _resolve_mock_qnames(db, channel_id, limit, args.offset)
                 log.info("Channel %s: %d mock objects to process", channel_id, len(qnames))
                 if not qnames:
                     continue
@@ -434,7 +453,7 @@ async def amain(args: argparse.Namespace) -> int:
                     t0 = time.time()
 
                     tasks = [
-                        _process_one(sem, client, db, api_key, args.model, channel_id, q, domain)
+                        _process_one(sem, client, db, api_key, args.model, channel_id, q, domain, max_tokens=args.max_tokens)
                         for q in chunk_qnames
                     ]
                     results = await asyncio.gather(*tasks, return_exceptions=False)
@@ -496,6 +515,7 @@ def main() -> int:
     p.add_argument("--channel-id", help="_bp30_138_24 / _ut115_17_226 / _ka2_25_92 / _erp25_21_118")
     p.add_argument("--all", action="store_true", help="Все 4 канала подряд")
     p.add_argument("--limit", type=int, default=None, help="Тест-режим: только N объектов")
+    p.add_argument("--offset", type=int, default=0, help="Смещение в mock-списке (для split между процессами)")
     p.add_argument(
         "--provider",
         default="nim",
@@ -505,6 +525,7 @@ def main() -> int:
     p.add_argument("--model", default=None, help="Если не задан — берёт default_model провайдера")
     p.add_argument("--concurrency", type=int, default=10)
     p.add_argument("--chunk-size", type=int, default=50)
+    p.add_argument("--max-tokens", type=int, default=1100, help="max completion tokens (tradeoff: latency vs cutoff)")
     p.add_argument(
         "--apply-immediately",
         action="store_true",

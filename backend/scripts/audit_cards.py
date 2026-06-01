@@ -70,6 +70,16 @@ NO_ATTR_KINDS = {
     "WSReference", "XDTOPackage", "CommonPicture", "CommonTemplate",
 }
 
+# Типы, у которых typical_scenarios не имеют смысла (картинки, макеты, подсистемы,
+# параметры сеанса и пр. технические/структурные объекты) — не штрафуем за их отсутствие.
+NO_SCENARIO_KINDS = {
+    "CommonPicture", "CommonTemplate", "Style", "StyleItem",
+    "Subsystem", "SessionParameter", "FunctionalOption",
+    "FunctionalOptionsParameter", "DefinedType", "CommandGroup",
+    "Language", "CommonAttribute", "XDTOPackage", "WSReference",
+    "CommonCommand", "EventSubscription", "ScheduledJob", "Constant",
+}
+
 # Типы для которых key_attributes должен быть
 HAS_ATTR_KINDS = {
     "Catalog", "Document", "ChartOfAccounts", "ChartOfCharacteristicTypes",
@@ -119,10 +129,17 @@ def score_card(
         score -= 1.5
         violations.append(f"META-поля в ka: {sorted(bad_meta)}")
 
-    # P3: HAS_ATTR_KIND с пустым key_attributes
+    # P3: HAS_ATTR_KIND с пустым key_attributes — штраф ТОЛЬКО если у объекта
+    # реально есть реквизиты в графе (иначе карточка корректна, штрафовать = гнать
+    # модель выдумывать несуществующие реквизиты).
     if kind in HAS_ATTR_KINDS and len(ka) == 0:
-        score -= 1.0
-        violations.append(f"HAS_ATTR_KIND[{kind}] но key_attributes пустой")
+        ctx_attrs = ctx_summary.get("attrs") if ctx_summary else None
+        if ctx_attrs:
+            score -= 1.0
+            violations.append(
+                f"HAS_ATTR_KIND[{kind}] но key_attributes пустой "
+                f"(в графе attrs={len(ctx_attrs)})"
+            )
 
     # P4: summary слишком короткое
     summary = card.get("summary") or ""
@@ -136,9 +153,9 @@ def score_card(
         score -= 1.0
         violations.append(f"purpose слишком короткое ({len(purpose)} < 200)")
 
-    # P6: мало typical_scenarios
+    # P6: мало typical_scenarios — кроме видов, где сценарии не имеют смысла
     scenarios = card.get("typical_scenarios") or []
-    if len(scenarios) < 2:
+    if len(scenarios) < 2 and kind not in NO_SCENARIO_KINDS:
         score -= 1.0
         violations.append(f"typical_scenarios={len(scenarios)} < 2")
 
