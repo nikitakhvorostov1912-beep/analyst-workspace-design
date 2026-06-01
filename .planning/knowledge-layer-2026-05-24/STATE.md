@@ -67,7 +67,8 @@ progress:
 > - **Движения (WRITES_TO)** ✅ — было: флагман ТоварыНаСкладах = 0 писателей (BSL `Движения.X` ловил лишь легаси direct-add). Решение (ресёрч): метаданные `<RegisterRecords>` документа. Phase F `_build_register_records_edges`. WRITES_TO 94→2485; ТоварыНаСкладах 0→44 документа (`afd3fbd`).
 > - **RLS per-right** ✅ — было: 419 пар (35%) с разными условиями Read/Update схлопывались (дедуп insert_edge). Решение: список `[{right,condition}]` в ребре. Объектный резолв был 100% (1188 пар). (`afd3fbd`)
 > - **Граф достоверен для grounding по ВСЕМ киллер-UC.** UC-traverse (CALLS depth=4) = 222ms.
-> - **PENDING:** батч-пересборка ERP/КА/БП с CALLS-Phase2 + Phase F + RLS-v2 (×4, после NIM; УТ `ut115.db` уже полный). Прод-консолидация в `pilot.db` — после NIM. Grounding в чате (LLM подмешивает граф) — не начат.
+> - **✅ ПЕРЕСБОРКА ГРАФОВ В `pilot.db` ЗАВЕРШЕНА (2026-06-01)** — все 4 канала с фиксами (CALLS cross-module + Phase F движения + RLS-v2 per-right). Процедура: `wipe_channel_graph.py` (обязательный per-channel wipe, билдер сам не чистит) → `typical_graph_pilot.py`. Валидация: WRITES_TO ut115 2485 / erp25 8602 / ka2 7672 / bp30 2969 (везде ≠0); RLS 1188/3808/3845/1888. Карточки забэкаплены (`pilot_cards_backup_2026-06-01.db`).
+> - **PENDING:** Grounding в чате (LLM подмешивает граф) — не начат (#38 цепочка вызовов хрупкая + wire в чат-UI с ключом MiMo + #39 golden-set из практики).
 
 **Active milestone (история до 2026-05-26):** ✅ **M-K2 Knowledge Foundation + Triple RAG — CLOSED SUMMARY 2026-05-26** (12/13 done + 1 deferred).
 
