@@ -4,7 +4,34 @@
 
 Формат — [Keep a Changelog](https://keepachangelog.com/ru/1.1.0/), версионирование — [SemVer](https://semver.org/lang/ru/).
 
-## [Unreleased] — feature/v1.3.0-commerce
+## [Unreleased]
+
+## [1.5.0] — 2026-06-01 — Knowledge Layer Grounding (карточки + граф + buddy)
+
+> Веха: знаниевый слой работает в проде end-to-end, проверено живым LLM (MiMo
+> `mimo-v2.5-pro`). Карточки (смысл «что это») + граф (структура «что с чем
+> связано») + grounding в чате. Ветка `feature/m-k3-relational-cfe`.
+
+### Added / Changed (сессия 2026-06-01)
+- **Ребилд карточек типовых — 63 207 шт, 100% `is_mock=0`, 99.9% score 5.0**
+  (NIM qwen3.5-122b + Claude Haiku + Claude Sonnet; 4 канала: БП 3.0 / УТ 11.5 /
+  КА 2.5 / ЕРП 2.5). Аудит `audit_cards.py` сделан kind-aware (graph-aware):
+  не штрафует корректные карточки объектов без реквизитов/сценариев (без подгонки
+  под метрику, без выдуманных данных). Инструментарий: `build_chunks_from_mock.py`,
+  `apply_loop_erp8.py` (salvage частично битого JSON), `apply_sonnet_final.py`.
+- **Пересборка графов в `pilot.db` (4 конфигурации)** с фиксами Phase F (движения
+  `RegisterRecords`), RLS-v2 (per-right), cross-module CALLS. `wipe_channel_graph.py`
+  (обязательный per-channel wipe — билдер сам не чистит). Валидация WRITES_TO:
+  ut115 2485 / erp25 8602 / ka2 7672 / bp30 2969 (везде ≠0).
+- **Fix grounding read-path** — `build_card_context` подхватывает движения уровня
+  объекта (Phase F): Реализация 1→44 регистра в контексте LLM (числа — из графа,
+  не из прозы карточки).
+- **#38 — цепочка вызовов:** системный промпт (гайд по qname метода, «не молчать
+  до лимита, факты из графа»), `grounding.py` MAX_ROUNDS 6→10. Закрыт и подтверждён
+  LIVE (MiMo): движения / impact / RLS 3/3 без галлюцинаций.
+- **#40 — 1С:Напарник (buddy MCP):** healthcheck + circuit-breaker (`buddy_monitor.py`,
+  30s ping → degraded в `/health.buddy`), usage-телеметрия (`_BuddyTelemetryClient`),
+  autostart проверен (Startup-ярлык + :6002 жив).
 
 ### Knowledge Layer (M-K3 Relational + Behavioral) — 2026-05-29
 
