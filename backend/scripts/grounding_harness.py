@@ -31,7 +31,8 @@ from app.config import get_settings  # noqa: E402
 from app.knowledge.typical.grounding import run_grounding_turn  # noqa: E402
 from app.knowledge.typical.tool import TYPICAL_TOOL_SCHEMAS  # noqa: E402
 
-DB = os.path.join(os.path.dirname(__file__), "..", "..", "data", "graph-index", "ut115.db")
+DB = os.environ.get("GROUNDING_DB") or os.path.join(
+    os.path.dirname(__file__), "..", "..", "data", "graph-index", "ut115.db")
 OUT = os.path.join(os.path.dirname(__file__), "..", "..", "data", "graph-index", "_grounding.txt")
 ENDPOINT = "https://api.xiaomimimo.com/v1"
 MODEL = "mimo-v2.5-pro"
@@ -44,6 +45,10 @@ SYSTEM = (
     "чтобы узнать channel_id загруженной типовой (это УТ 11.5). Затем используй "
     "его во всех вызовах. Имена объектов в форме «Document.X», "
     "«AccumulationRegister.Y», «Catalog.Z». "
+    "Для trace_typical_calls qname метода = «Document.X.ObjectModule.ОбработкаПроведения» "
+    "(или «CommonModule.X.Module.Метод»); если точный qname метода неизвестен — сперва "
+    "explain_typical_object по объекту (вернёт его методы), затем trace_typical_calls. "
+    "НЕ зацикливайся: не нашёл метод за 1-2 вызова — ответь по доступным фактам, не молчи. "
     "В финальном ответе приводи конкретику из инструментов как пруфы."
 )
 
