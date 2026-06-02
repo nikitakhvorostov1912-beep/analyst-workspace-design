@@ -49,6 +49,10 @@ class HealthResponse(BaseModel):
     status: Literal["ok", "degraded"]
     version: str
     db: Literal["ok", "error"]
+    # #40: статус 1С:Напарник (buddy MCP) — None если монитор не активен.
+    # Ключи: enabled/status(up|down|disabled|unknown)/degraded/calls_*. Фронт
+    # показывает degraded-предупреждение при buddy.degraded=true.
+    buddy: dict | None = None
 
 
 # Тип подключения к 1С MCP: "embedded" — EPF MCP_Toolkit на машине аналитика

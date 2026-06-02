@@ -5,6 +5,7 @@ import aiosqlite
 from fastapi import APIRouter, Depends
 
 from app.config import get_settings
+from app.knowledge import buddy_monitor
 from app.models import HealthResponse
 from app.storage.db import get_db
 
@@ -29,6 +30,7 @@ async def health(db: DbDep) -> HealthResponse:
         status="ok" if db_status == "ok" else "degraded",
         version=settings.app_version,
         db=db_status,  # type: ignore[arg-type]
+        buddy=buddy_monitor.snapshot(),
     )
 
 

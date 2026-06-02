@@ -10,6 +10,7 @@ from slowapi.errors import RateLimitExceeded
 
 from app.config import get_settings
 from app.context import ContextFilter, generate_request_id, request_id_var
+from app.knowledge import buddy_monitor
 from app.log_setup import setup_file_logging
 from app.routes import admin as admin_router
 from app.routes import chat as chat_router
@@ -68,7 +69,14 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             "Установите BACKEND_ALLOWED_ORIGINS=https://your-frontend.example.com"
         )
     await init_db(app)
+    # #40: healthcheck/circuit-breaker 1С:Напарник (buddy MCP)
+    buddy_monitor.start(
+        settings.buddy_mcp_endpoint,
+        enabled=settings.buddy_mcp_enabled,
+        interval=settings.buddy_mcp_healthcheck_interval_s,
+    )
     yield
+    await buddy_monitor.stop()
     await close_db(app)
     logger.info("Backend остановлен")
 
