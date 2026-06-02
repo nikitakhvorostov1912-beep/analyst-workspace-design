@@ -27,6 +27,7 @@ import { publishToast } from "@/lib/toast";
 import { getLLMApiKey } from "@/lib/api-keys";
 import { resolveProviderAndModel } from "@/lib/llm-providers";
 import { KindBadge } from "@/components/shell/KindBadge";
+import { SourcesStatusSection } from "@/components/knowledge/SourcesStatusSection";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { CopyButton } from "@/components/ui/CopyButton";
@@ -282,6 +283,10 @@ export default function StatusPage() {
         </div>
       )}
 
+      {/* P0 user-facing: источники знаний (База / Типовая / ИТС-Напарник).
+          Самодостаточная секция — не зависит от агрегации checks выше. */}
+      <SourcesStatusSection />
+
       {checks.length === 0 && (
         <div className="text-center text-[var(--fg-muted)] py-8 text-sm">
           Запускаем проверки...
@@ -337,9 +342,10 @@ export default function StatusPage() {
           Опционально. Помогает модели точнее называть методы платформы.
         </p>
         <p>
-          <strong>Модель ИИ</strong> — внешний сервис (NVIDIA NIM с DeepSeek V4 Flash
+          <strong>Модель ИИ</strong> — внешний сервис (NVIDIA NIM с вшитым ключом
           по умолчанию, либо Cloud.ru для 152-ФЗ, либо свой OpenAI-совместимый
-          endpoint), который читает ваши вопросы и решает, какие данные из 1С достать.
+          endpoint — например Xiaomi MiMo). Активная модель видна в карточке
+          «Модель ИИ» выше. Читает ваши вопросы и решает, какие данные из 1С достать.
         </p>
         <p>
           <strong>Окружение приложения</strong> — параметры, с которыми запустился backend.

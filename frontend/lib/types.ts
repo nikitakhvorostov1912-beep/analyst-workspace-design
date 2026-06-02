@@ -43,10 +43,28 @@ export type ChatRequest = {
   attachments?: ChatAttachment[];
 };
 
+/**
+ * Статус живого 1С:Напарника (buddy MCP) из /health.
+ * Питается buddy_monitor (#40): healthcheck-пинги + телеметрия вызовов.
+ */
+export type BuddyHealth = {
+  enabled: boolean;
+  status: "up" | "down" | "unknown";
+  degraded: boolean;
+  consecutive_fails: number;
+  endpoint: string;
+  checks_total: number;
+  calls_total: number;
+  calls_ok: number;
+  calls_fail: number;
+};
+
 export type HealthResponse = {
   status: "ok" | "degraded";
   version: string;
   db: "ok" | "error";
+  /** Живой Напарник (ИТС). null/отсутствует — старый backend без поля. */
+  buddy?: BuddyHealth | null;
 };
 
 /**

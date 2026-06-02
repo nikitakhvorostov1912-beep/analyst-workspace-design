@@ -1,25 +1,28 @@
 import type { ComponentType } from "react";
 import {
   BarChart3,
+  BookMarked,
   Box,
+  Boxes,
   FileText,
+  GitBranch,
   RotateCcw,
   ScrollText,
   Search,
-  Users,
 } from "lucide-react";
 
 /**
- * Sprint 03 (handoff 06 · Welcome → ComposerHub): шаблоны быстрых вопросов
- * для welcome screen.
+ * Шаблоны быстрых вопросов для welcome screen.
  *
- * Аналитик жмёт чип → text вставляется в композер (но не отправляется), курсор
- * остаётся на конце — он может дописать конкретику и нажать Enter.
+ * Аналитик жмёт чип → text вставляется в композер (не отправляется), курсор
+ * в конце — он дописывает конкретику и жмёт Enter.
  *
- * «↺ Повторить последний» — динамический: title подменяется на «↺ Повторить
- * "{first 30 chars of last user msg}…"», text = это сообщение. Берётся из
- * `lastUserMessage` prop (если есть).
+ * P1 (user-facing): шаблоны сгруппированы по ТРЁМ источникам знаний, чтобы
+ * пользователь с первого экрана понял, что можно спрашивать не только про
+ * свою базу, но и про устройство типовой и про методики ИТС.
  */
+export type TemplateGroup = "база" | "типовая" | "итс";
+
 export interface WelcomeTemplate {
   id: string;
   /** Что показывается на чипе */
@@ -28,44 +31,76 @@ export interface WelcomeTemplate {
   text: string;
   /** Иконка слева. Опционально. */
   icon?: ComponentType<{ className?: string }>;
+  /** Источник знаний, к которому относится пример. */
+  group: TemplateGroup;
 }
 
+/** Метаданные групп для рендера (порядок + подпись). */
+export const TEMPLATE_GROUPS: { id: TemplateGroup; label: string }[] = [
+  { id: "база", label: "По вашей базе" },
+  { id: "типовая", label: "По типовой конфигурации" },
+  { id: "итс", label: "По ИТС · Напарнику" },
+];
+
 export const WELCOME_TEMPLATES: WelcomeTemplate[] = [
+  // --- Ваша живая база 1С ---
   {
     id: "find-counterparty",
     title: "Найти контрагента по ИНН",
     text: "Найди контрагента с ИНН ",
     icon: Search,
-  },
-  {
-    id: "sales-period",
-    title: "Продажи за период",
-    text: "Покажи продажи за апрель 2026 с разбивкой по складам",
-    icon: BarChart3,
-  },
-  {
-    id: "doc-by-number",
-    title: "Документ по номеру",
-    text: "Покажи документ № ",
-    icon: FileText,
-  },
-  {
-    id: "user-actions",
-    title: "Действия пользователя",
-    text: "Что делал пользователь ",
-    icon: Users,
+    group: "база",
   },
   {
     id: "stock-balance",
     title: "Остатки на складе",
     text: "Остатки на складе ",
     icon: Box,
+    group: "база",
   },
   {
     id: "event-log-errors",
     title: "Ошибки в журнале",
     text: "Покажи ошибки в журнале регистрации за сегодня",
     icon: ScrollText,
+    group: "база",
+  },
+  {
+    id: "sales-period",
+    title: "Продажи за период",
+    text: "Покажи продажи за апрель 2026 с разбивкой по складам",
+    icon: BarChart3,
+    group: "база",
+  },
+  // --- Устройство типовой конфигурации (граф + карточки) ---
+  {
+    id: "typical-object",
+    title: "Как устроена Реализация в УТ",
+    text: "Как устроен типовой документ Реализация товаров и услуг в УТ 11.5: назначение, ключевые реквизиты, движения",
+    icon: Boxes,
+    group: "типовая",
+  },
+  {
+    id: "typical-movements",
+    title: "Куда пишет движения документ",
+    text: "По каким регистрам делает движения Приходный кассовый ордер в БП 3.0",
+    icon: GitBranch,
+    group: "типовая",
+  },
+  // --- ИТС / Напарник (живая методология) ---
+  {
+    id: "its-month-close",
+    title: "Как закрыть месяц (ИТС)",
+    text: "Как по методике ИТС правильно закрыть месяц в УТ 11.5? Дай ссылки на статьи ИТС",
+    icon: BookMarked,
+    group: "итс",
+  },
+  {
+    id: "its-method",
+    title: "Методика по ИТС",
+    text: "Что рекомендует ИТС по ",
+    icon: FileText,
+    group: "итс",
   },
 ];
 
@@ -85,5 +120,6 @@ export function buildRepeatTemplate(
     title: `↺ Повторить «${preview}»`,
     text: trimmed,
     icon: RotateCcw,
+    group: "база",
   };
 }

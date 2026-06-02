@@ -176,6 +176,11 @@ export function TypicalSelector({ onChange }: Props) {
         className="min-w-[320px] max-h-[420px] overflow-y-auto"
       >
         <DropdownMenuLabel>Типовые конфигурации</DropdownMenuLabel>
+        <div className="px-3 pb-2 text-[11px] text-[var(--fg-3)] leading-snug">
+          Выберите эталон, чтобы спрашивать «как устроена УТ / ERP / КА / БП» —
+          движения, цепочки вызовов, реквизиты. Это про устройство типовой,
+          а не про данные вашей базы.
+        </div>
         <DropdownMenuSeparator />
 
         <DropdownMenuItem

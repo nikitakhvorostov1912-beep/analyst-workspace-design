@@ -1,42 +1,66 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
+import { Database, Boxes, BookMarked } from "lucide-react";
 
-import { useKnowledgeStatus } from "@/hooks/useKnowledgeStatus";
+import { useSourcesStatus, type SourceState } from "@/hooks/useSourcesStatus";
 
 /**
- * M-K2.11 «Local Knowledge» badge — компактный индикатор статуса ИТС + БСП
- * индексов в Shell header.
+ * Бейдж «Источники знаний» в шапке.
  *
- * Поведение:
- * - При hover/click — popover с подробностями (counts, model, провайдер).
- * - Цвет точки: зелёная если оба индекса ready, жёлтая если один, серая
- *   если оба пустые/disabled.
- * - При loading — pulse animation.
- * - В подсказке честная privacy-нотификация: индексы локальные, но
- *   query-text для embedding'а отправляется в OpenAI (provider name).
+ * Заменил прежний «ИТС N · БСП N» (он показывал только статический RAG и врал
+ * «ИТС 0» при живом Напарнике). Теперь — три источника, из которых продукт
+ * грунтит ответы, с честным live-статусом:
+ *   • База     — активное подключение к живой 1С
+ *   • Типовая  — граф + карточки типовых конфигураций
+ *   • ИТС       — живой 1С:Напарник (или локальный RAG как fallback)
+ *
+ * Hover/click → попап с пояснением каждого источника, статусом и тем,
+ * что через него можно спрашивать. Ссылка на /status и /guide.
  */
+
+const DOT_CLASS: Record<SourceState, string> = {
+  ready: "bg-[var(--success)]",
+  down: "bg-[var(--error)]",
+  unknown: "bg-[var(--warning)] animate-pulse",
+  disabled: "bg-[var(--fg-4)]",
+};
+
+const STATE_WORD: Record<SourceState, string> = {
+  ready: "готов",
+  down: "недоступен",
+  unknown: "проверка",
+  disabled: "выключен",
+};
+
 export function KnowledgeBadge() {
-  const { its, bsp, anyReady, bothReady, totalEntries, loading } =
-    useKnowledgeStatus();
+  const { base, typical, its, itsStatic, bspStatic, loading } = useSourcesStatus();
   const [open, setOpen] = useState(false);
 
-  // Цвет статус-точки
-  const dotClass = loading
-    ? "bg-zinc-400 animate-pulse"
-    : bothReady
-      ? "bg-emerald-500"
-      : anyReady
-        ? "bg-amber-500"
-        : "bg-zinc-500";
-
-  // Текстовая компактная сводка: «ИТС 2543 · БСП 1820»
-  const itsCount = its?.chunks ?? 0;
-  const bspCount = bsp?.methods ?? 0;
-  const labelParts: string[] = [];
-  if (its?.enabled) labelParts.push(`ИТС ${itsCount}`);
-  if (bsp?.enabled) labelParts.push(`БСП ${bspCount}`);
-  const label = labelParts.length ? labelParts.join(" · ") : "База знаний";
+  const rows = [
+    {
+      key: "base",
+      icon: Database,
+      title: "Ваша база 1С",
+      ask: "конкретные данные, структура, журнал регистрации",
+      info: base,
+    },
+    {
+      key: "typical",
+      icon: Boxes,
+      title: "Типовая конфигурация",
+      ask: "как устроена УТ / ERP / КА / БП — движения, цепочки, реквизиты",
+      info: typical,
+    },
+    {
+      key: "its",
+      icon: BookMarked,
+      title: "ИТС · Напарник",
+      ask: "методики, стандарты, инструкции 1С (живая документация)",
+      info: its,
+    },
+  ];
 
   return (
     <div className="relative">
@@ -45,97 +69,86 @@ export function KnowledgeBadge() {
         onClick={() => setOpen((v) => !v)}
         onMouseEnter={() => setOpen(true)}
         onMouseLeave={() => setOpen(false)}
-        className="flex items-center gap-2 rounded-md border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-xs font-mono text-zinc-300 transition-colors hover:border-zinc-700 hover:text-zinc-100"
-        aria-label="Статус локальной базы знаний"
+        className="flex items-center gap-2 rounded-md border border-[var(--bd-2)] bg-[var(--bg-2)] px-2.5 py-1.5 text-[11px] font-mono text-[var(--fg-2)] transition-colors hover:border-[var(--bd-3)] hover:text-[var(--fg-1)]"
+        style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
+        aria-label="Статус источников знаний"
         data-testid="knowledge-badge"
       >
-        <span className={`h-2 w-2 rounded-full ${dotClass}`} aria-hidden />
-        <span>{label}</span>
+        <span className="flex items-center gap-1" aria-hidden>
+          {rows.map((r) => (
+            <span
+              key={r.key}
+              className={`h-2 w-2 rounded-full ${loading ? "bg-[var(--fg-4)] animate-pulse" : DOT_CLASS[r.info.state]}`}
+            />
+          ))}
+        </span>
+        <span className="tracking-[0.08em] uppercase">Источники</span>
       </button>
 
       {open && (
         <div
-          className="absolute right-0 top-full z-50 mt-2 w-80 rounded-lg border border-zinc-800 bg-zinc-950 p-4 text-xs shadow-2xl"
+          className="absolute right-0 top-full z-50 mt-2 w-[340px] rounded-lg border border-[var(--bd-2)] bg-[var(--bg-1)] p-4 text-xs shadow-2xl"
           role="tooltip"
           data-testid="knowledge-badge-popover"
         >
-          <div className="mb-3 font-mono uppercase tracking-wider text-zinc-400">
-            Локальная база знаний
+          <div
+            className="mb-3 font-mono uppercase tracking-[0.14em] text-[var(--fg-3)] text-[10px]"
+            style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
+          >
+            Источники знаний · откуда берутся ответы
           </div>
 
-          {/* ИТС */}
-          {its && (
-            <div className="mb-3 border-l-2 border-emerald-500/60 pl-3">
-              <div className="font-semibold text-zinc-100">ИТС-стандарты</div>
-              <div className="mt-1 text-zinc-400">
-                {its.enabled ? (
-                  <>
-                    {its.chunks} фрагментов из {its.documents} документов
-                    <br />
-                    {its.ready
-                      ? "✓ готов к поиску"
-                      : "⚠ embedding-провайдер не настроен"}
-                  </>
-                ) : (
-                  <>отключён через настройки</>
-                )}
-              </div>
+          <div className="space-y-3">
+            {rows.map((r) => {
+              const Icon = r.icon;
+              return (
+                <div key={r.key} className="flex gap-2.5">
+                  <Icon className="h-4 w-4 flex-shrink-0 mt-0.5 text-[var(--accent)]" />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-semibold text-[13px] text-[var(--fg-1)]">
+                        {r.title}
+                      </span>
+                      <span className="flex items-center gap-1 ml-auto">
+                        <span className={`h-1.5 w-1.5 rounded-full ${DOT_CLASS[r.info.state]}`} />
+                        <span className="text-[10px] uppercase tracking-wide text-[var(--fg-3)]">
+                          {STATE_WORD[r.info.state]}
+                        </span>
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-[var(--fg-3)] mt-0.5">{r.info.detail}</div>
+                    <div className="text-[11.5px] text-[var(--fg-2)] mt-1 leading-snug">
+                      Спросить: {r.ask}
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Детали статического RAG (для технического пользователя) */}
+          {(itsStatic || bspStatic) && (
+            <div className="mt-3 border-t border-[var(--bd-1)] pt-2.5 text-[10.5px] text-[var(--fg-3)] leading-relaxed">
+              Локальный RAG: ИТС {itsStatic?.chunks ?? 0} фрагм. · БСП{" "}
+              {bspStatic?.methods ?? 0} методов. Текст запроса при поиске уходит в{" "}
+              <span className="text-[var(--fg-2)]">{itsStatic?.provider ?? "OpenAI"}</span>{" "}
+              для embedding-вектора.
             </div>
           )}
 
-          {/* БСП */}
-          {bsp && (
-            <div className="mb-3 border-l-2 border-amber-500/60 pl-3">
-              <div className="font-semibold text-zinc-100">
-                БСП Pattern Index
-              </div>
-              <div className="mt-1 text-zinc-400">
-                {bsp.enabled ? (
-                  <>
-                    {bsp.methods} методов из {bsp.modules} модулей
-                    {Object.keys(bsp.by_version).length > 0 && (
-                      <>
-                        <br />
-                        Версии:{" "}
-                        {Object.entries(bsp.by_version)
-                          .map(([v, n]) => `${v} (${n})`)
-                          .join(", ")}
-                      </>
-                    )}
-                    <br />
-                    {bsp.ready
-                      ? "✓ готов к поиску"
-                      : "⚠ embedding-провайдер не настроен"}
-                  </>
-                ) : (
-                  <>отключён через настройки</>
-                )}
-              </div>
-            </div>
-          )}
-
-          {totalEntries === 0 && (
-            <div className="mb-3 text-zinc-500">
-              Индексы пусты. Запустите{" "}
-              <code className="rounded bg-zinc-800 px-1 text-zinc-300">
-                POST /knowledge/its/reload
-              </code>{" "}
-              или{" "}
-              <code className="rounded bg-zinc-800 px-1 text-zinc-300">
-                POST /knowledge/bsp/reload
-              </code>{" "}
-              для индексации.
-            </div>
-          )}
-
-          <div className="mt-3 border-t border-zinc-800 pt-3 text-zinc-500">
-            <div className="mb-1 font-mono uppercase tracking-wider text-zinc-600">
-              Privacy
-            </div>
-            Данные индексов хранятся локально в SQLite. Текст запроса при
-            поиске отправляется в{" "}
-            <span className="text-zinc-300">{its?.provider ?? "OpenAI"}</span>{" "}
-            для генерации embedding-вектора.
+          <div className="mt-3 flex items-center justify-between border-t border-[var(--bd-1)] pt-2.5">
+            <Link
+              href="/status"
+              className="text-[11px] text-[var(--accent)] hover:underline"
+            >
+              Диагностика →
+            </Link>
+            <Link
+              href="/guide"
+              className="text-[11px] text-[var(--accent)] hover:underline"
+            >
+              Как это работает →
+            </Link>
           </div>
         </div>
       )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookOpen, CheckCircle2, Info } from "lucide-react";
+import { BookMarked, BookOpen, Boxes, CheckCircle2, Database, Info } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -423,6 +423,44 @@ export function OnboardingDialog({
                 )}
                 .
               </p>
+            </div>
+
+            {/* P1 user-facing: три источника знаний — пользователь сразу
+                понимает, что спрашивать можно не только про свою базу. */}
+            <div className="rounded-lg border border-[var(--bd-2)] bg-[var(--bg-2)] p-3 space-y-2.5">
+              <div className="text-[11px] font-medium text-[var(--fg-1)]">
+                Что я умею — три источника знаний:
+              </div>
+              {[
+                {
+                  icon: Database,
+                  title: "Ваша база 1С",
+                  desc: "данные, структура, журнал регистрации",
+                },
+                {
+                  icon: Boxes,
+                  title: "Типовая конфигурация",
+                  desc: "как устроена УТ / ERP / КА / БП — движения, цепочки",
+                },
+                {
+                  icon: BookMarked,
+                  title: "ИТС · Напарник",
+                  desc: "методики, стандарты, инструкции 1С",
+                },
+              ].map((s) => {
+                const Icon = s.icon;
+                return (
+                  <div key={s.title} className="flex items-start gap-2.5">
+                    <Icon className="h-4 w-4 text-[var(--accent)] flex-shrink-0 mt-0.5" />
+                    <div className="min-w-0">
+                      <span className="text-[12.5px] font-medium text-[var(--fg-1)]">
+                        {s.title}
+                      </span>
+                      <span className="text-[12px] text-[var(--fg-3)]"> — {s.desc}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             {/* Sprint 04 (handoff O-5): quick-start примеры. Если caller

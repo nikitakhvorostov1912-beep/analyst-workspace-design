@@ -1,106 +1,106 @@
 /**
- * Tests for KnowledgeBadge (M-K2.11).
+ * Tests for KnowledgeBadge — бейдж «3 источника знаний» (P0 user-facing).
  */
 
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { KnowledgeBadge } from "../KnowledgeBadge";
+import type { UseSourcesStatus } from "@/hooks/useSourcesStatus";
 
-vi.mock("@/lib/api", () => ({
-  getITSStatus: vi.fn(),
-  getBSPStatus: vi.fn(),
+vi.mock("@/hooks/useSourcesStatus", () => ({
+  useSourcesStatus: vi.fn(),
 }));
 
-import { getBSPStatus, getITSStatus } from "@/lib/api";
+import { useSourcesStatus } from "@/hooks/useSourcesStatus";
 
-const mockITS = vi.mocked(getITSStatus);
-const mockBSP = vi.mocked(getBSPStatus);
+const mockHook = vi.mocked(useSourcesStatus);
 
-const itsReady = {
-  chunks: 2543,
-  documents: 600,
-  enabled: true,
-  ready: true,
-  provider: "openai",
-  model: "text-embedding-3-small",
-  dim: 1536,
-  docs_root: "/repo/tools/v8std/docs",
-};
-
-const bspReady = {
-  methods: 1820,
-  modules: 556,
-  by_version: { "3.2": 1820 },
-  enabled: true,
-  ready: true,
-  ssl_roots: ["/repo/tools/ssl_3_2"],
-};
-
-beforeEach(() => {
-  // По умолчанию оба готовы — переопределяем в тестах
-  mockITS.mockResolvedValue(itsReady);
-  mockBSP.mockResolvedValue(bspReady);
-});
+function makeStatus(over: Partial<UseSourcesStatus> = {}): UseSourcesStatus {
+  return {
+    base: { state: "ready", detail: "подключение живо · 12 инструментов" },
+    typical: { state: "ready", detail: "4 конфигурации · 63 207 карточек" },
+    its: { state: "ready", detail: "Напарник на связи · живая ИТС" },
+    itsStatic: {
+      chunks: 2543,
+      documents: 600,
+      enabled: true,
+      ready: true,
+      provider: "openai",
+      model: "text-embedding-3-small",
+      dim: 1536,
+      docs_root: "/repo/tools/v8std/docs",
+    },
+    bspStatic: {
+      methods: 1820,
+      modules: 556,
+      by_version: { "3.2": 1820 },
+      enabled: true,
+      ready: true,
+      ssl_roots: ["/repo/tools/ssl_3_2"],
+    },
+    loading: false,
+    refresh: vi.fn(),
+    ...over,
+  };
+}
 
 afterEach(() => {
   vi.resetAllMocks();
 });
 
-describe("KnowledgeBadge", () => {
-  it("renders badge with label containing counts", async () => {
+describe("KnowledgeBadge (3 источника)", () => {
+  it("рендерит бейдж с подписью «Источники»", () => {
+    mockHook.mockReturnValue(makeStatus());
     render(<KnowledgeBadge />);
-    await waitFor(() => {
-      expect(screen.getByTestId("knowledge-badge")).toBeInTheDocument();
-    });
-    await waitFor(() => {
-      expect(screen.getByText(/ИТС 2543/)).toBeInTheDocument();
-      expect(screen.getByText(/БСП 1820/)).toBeInTheDocument();
-    });
+    expect(screen.getByTestId("knowledge-badge")).toBeInTheDocument();
+    expect(screen.getByText("Источники")).toBeInTheDocument();
   });
 
-  it("показывает фоллбэк-надпись если оба индекса пустые/disabled", async () => {
-    mockITS.mockResolvedValue({ ...itsReady, enabled: false });
-    mockBSP.mockResolvedValue({ ...bspReady, enabled: false });
-
+  it("открывает popover c тремя источниками по клику", async () => {
+    mockHook.mockReturnValue(makeStatus());
     render(<KnowledgeBadge />);
-    await waitFor(() => {
-      expect(screen.getByText("База знаний")).toBeInTheDocument();
-    });
-  });
-
-  it("открывает popover по клику с подробностями", async () => {
-    render(<KnowledgeBadge />);
-    await waitFor(() => {
-      expect(screen.getByTestId("knowledge-badge")).toBeInTheDocument();
-    });
-
     fireEvent.click(screen.getByTestId("knowledge-badge"));
     await waitFor(() => {
       expect(screen.getByTestId("knowledge-badge-popover")).toBeInTheDocument();
     });
-
-    expect(screen.getByText("Локальная база знаний")).toBeInTheDocument();
-    expect(screen.getByText("ИТС-стандарты")).toBeInTheDocument();
-    expect(screen.getByText("БСП Pattern Index")).toBeInTheDocument();
+    expect(screen.getByText("Ваша база 1С")).toBeInTheDocument();
+    expect(screen.getByText("Типовая конфигурация")).toBeInTheDocument();
+    expect(screen.getByText("ИТС · Напарник")).toBeInTheDocument();
   });
 
-  it("popover содержит privacy-нотификацию", async () => {
+  it("показывает live-детали источников и статический RAG", async () => {
+    mockHook.mockReturnValue(makeStatus());
     render(<KnowledgeBadge />);
-    fireEvent.click(await screen.findByTestId("knowledge-badge"));
-
+    fireEvent.click(screen.getByTestId("knowledge-badge"));
     await waitFor(() => {
-      expect(screen.getByTestId("knowledge-badge-popover")).toBeInTheDocument();
+      expect(
+        screen.getByText(/Напарник на связи · живая ИТС/),
+      ).toBeInTheDocument();
     });
-    expect(screen.getByText("Privacy")).toBeInTheDocument();
-    expect(screen.getByText(/локально/i)).toBeInTheDocument();
-    // provider name (openai)
+    expect(screen.getByText(/Локальный RAG: ИТС 2543/)).toBeInTheDocument();
     expect(screen.getByText("openai")).toBeInTheDocument();
   });
 
-  it("popover закрывается повторным кликом", async () => {
+  it("ИТС down — показывает «недоступен»", async () => {
+    mockHook.mockReturnValue(
+      makeStatus({
+        its: { state: "down", detail: "Напарник недоступен — запустите 1c-buddy :6002" },
+      }),
+    );
     render(<KnowledgeBadge />);
-    const badge = await screen.findByTestId("knowledge-badge");
+    fireEvent.click(screen.getByTestId("knowledge-badge"));
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Напарник недоступен/),
+      ).toBeInTheDocument();
+    });
+  });
+
+  it("popover закрывается повторным кликом", async () => {
+    mockHook.mockReturnValue(makeStatus());
+    render(<KnowledgeBadge />);
+    const badge = screen.getByTestId("knowledge-badge");
     fireEvent.click(badge);
     await waitFor(() => {
       expect(screen.getByTestId("knowledge-badge-popover")).toBeInTheDocument();
@@ -110,38 +110,6 @@ describe("KnowledgeBadge", () => {
       expect(
         screen.queryByTestId("knowledge-badge-popover"),
       ).not.toBeInTheDocument();
-    });
-  });
-
-  it("показывает версии БСП в popover если есть by_version", async () => {
-    mockBSP.mockResolvedValue({
-      ...bspReady,
-      by_version: { "3.1": 500, "3.2": 1320 },
-    });
-    render(<KnowledgeBadge />);
-    fireEvent.click(await screen.findByTestId("knowledge-badge"));
-
-    await waitFor(() => {
-      expect(
-        screen.getByText(/3\.1 \(500\)/),
-      ).toBeInTheDocument();
-      expect(screen.getByText(/3\.2 \(1320\)/)).toBeInTheDocument();
-    });
-  });
-
-  it("показывает hint про пустые индексы когда totalEntries=0", async () => {
-    mockITS.mockResolvedValue({ ...itsReady, chunks: 0, documents: 0 });
-    mockBSP.mockResolvedValue({
-      ...bspReady,
-      methods: 0,
-      modules: 0,
-      by_version: {},
-    });
-    render(<KnowledgeBadge />);
-    fireEvent.click(await screen.findByTestId("knowledge-badge"));
-
-    await waitFor(() => {
-      expect(screen.getByText(/Индексы пусты/)).toBeInTheDocument();
     });
   });
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { Markdown } from "./Markdown";
+import { AnswerSources } from "./AnswerSources";
 import { CardRenderer } from "@/components/cards/CardRenderer";
 import { ToolTrace } from "./ToolTrace";
 import { StreamingStages } from "./StreamingStages";
@@ -64,6 +65,12 @@ export function AssistantMessage({
           <div className="border border-[var(--error-40)] bg-[var(--error-12)] rounded-md px-3 py-2 text-sm text-[var(--error)] mb-2">
             ⚠ {message.error.message}
           </div>
+        )}
+
+        {/* Ярлык-источник: откуда grounded ответ (P2). Показываем только когда
+            стрим завершён (нет активной стадии) и были вызовы инструментов. */}
+        {!streamingStage && (
+          <AnswerSources toolCalls={message.tool_calls ?? []} />
         )}
 
         {/* TL;DR — markdown с безопасным рендером */}

@@ -6,8 +6,10 @@ import { useSessionsStore } from "@/lib/sessions-store";
 import { getActiveChannelId } from "@/lib/storage";
 import { publishToast } from "@/lib/toast";
 import { ChatInput } from "@/components/chat/Input";
+import Link from "next/link";
 import {
   WELCOME_TEMPLATES,
+  TEMPLATE_GROUPS,
   buildRepeatTemplate,
   type WelcomeTemplate,
 } from "@/lib/welcome-templates";
@@ -27,6 +29,36 @@ interface ComposerHubProps {
   activeConnectionConfigType?: string | null;
   /** Backend has env API key — пробрасывается в ChatInput. */
   hasEnvApiKey?: boolean;
+}
+
+/** Чип-шаблон быстрого вопроса. Клик → prefill композера (не отправляет). */
+function TemplateChip({
+  tpl,
+  onClick,
+}: {
+  tpl: WelcomeTemplate;
+  onClick: (tpl: WelcomeTemplate) => void;
+}) {
+  const Icon = tpl.icon;
+  return (
+    <button
+      type="button"
+      onClick={() => onClick(tpl)}
+      className={cn(
+        "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full",
+        "border border-[var(--bd-2)] bg-[var(--bg-1)] text-[12.5px] text-[var(--fg-2)]",
+        "hover:border-[var(--bd-3)] hover:bg-[var(--bg-2)] hover:text-[var(--fg-1)] transition-colors",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-0)]",
+      )}
+      style={{
+        fontFamily:
+          "var(--font-plex-mono), 'IBM Plex Mono', ui-monospace, monospace",
+      }}
+    >
+      {Icon && <Icon className="h-3 w-3 text-[var(--fg-3)]" />}
+      {tpl.title}
+    </button>
+  );
 }
 
 /**
@@ -67,9 +99,6 @@ export function ComposerHub({
       : null;
 
   const repeatTemplate = buildRepeatTemplate(lastUserMessage);
-  const allTemplates: WelcomeTemplate[] = repeatTemplate
-    ? [repeatTemplate, ...WELCOME_TEMPLATES]
-    : WELCOME_TEMPLATES;
 
   // Когда юзер выбрал шаблон — пробрасываем text в ChatInput через ключ.
   // ChatInput читает initialValue prop при mount; мы пересоздаём его сменой key.
@@ -196,38 +225,51 @@ export function ComposerHub({
         />
       </div>
 
-      {/* Templates chips */}
-      <div className="w-full">
-        <div
-          className="text-[10px] tracking-[0.18em] uppercase text-[var(--fg-4)] mb-2 text-center"
-          style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
-        >
-          Шаблоны
-        </div>
-        <div className="flex flex-wrap gap-2 justify-center">
-          {allTemplates.map((tpl) => {
-            const Icon = tpl.icon;
-            return (
-              <button
-                key={tpl.id}
-                type="button"
-                onClick={() => handleTemplateClick(tpl)}
-                className={cn(
-                  "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full",
-                  "border border-[var(--bd-2)] bg-[var(--bg-1)] text-[12.5px] text-[var(--fg-2)]",
-                  "hover:border-[var(--bd-3)] hover:bg-[var(--bg-2)] hover:text-[var(--fg-1)] transition-colors",
-                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-0)]",
-                )}
+      {/* Templates chips — сгруппированы по 3 источникам знаний (P1).
+          Так пользователь с первого экрана видит, что спрашивать можно не
+          только про свою базу, но и про устройство типовой и методики ИТС. */}
+      <div className="w-full space-y-4">
+        {/* «↺ Повторить последний» — отдельной строкой над группами */}
+        {repeatTemplate && (
+          <div className="flex justify-center">
+            <TemplateChip tpl={repeatTemplate} onClick={handleTemplateClick} />
+          </div>
+        )}
+
+        {TEMPLATE_GROUPS.map((grp) => {
+          const items = WELCOME_TEMPLATES.filter((t) => t.group === grp.id);
+          if (items.length === 0) return null;
+          return (
+            <div key={grp.id}>
+              <div
+                className="text-[10px] tracking-[0.18em] uppercase text-[var(--fg-4)] mb-2 text-center"
                 style={{
-                  fontFamily:
-                    "var(--font-plex-mono), 'IBM Plex Mono', ui-monospace, monospace",
+                  fontFamily: "var(--font-jb-mono), ui-monospace, monospace",
                 }}
               >
-                {Icon && <Icon className="h-3 w-3 text-[var(--fg-3)]" />}
-                {tpl.title}
-              </button>
-            );
-          })}
+                {grp.label}
+              </div>
+              <div className="flex flex-wrap gap-2 justify-center">
+                {items.map((tpl) => (
+                  <TemplateChip
+                    key={tpl.id}
+                    tpl={tpl}
+                    onClick={handleTemplateClick}
+                  />
+                ))}
+              </div>
+            </div>
+          );
+        })}
+
+        <div className="text-center pt-1">
+          <Link
+            href="/guide"
+            className="text-[11px] tracking-[0.14em] uppercase text-[var(--accent)] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-0)] rounded-sm px-1"
+            style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
+          >
+            Как это работает →
+          </Link>
         </div>
       </div>
 
