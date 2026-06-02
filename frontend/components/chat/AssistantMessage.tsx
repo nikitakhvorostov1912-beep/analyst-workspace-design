@@ -1,15 +1,31 @@
 "use client";
 
 import { Markdown } from "./Markdown";
-import { AnswerSources } from "./AnswerSources";
+import { AnswerProvenance } from "./AnswerProvenance";
 import { Alert } from "@/components/ui/Alert";
+import { CopyButton } from "@/components/ui/CopyButton";
+import { BrandMark } from "@/components/shell/BrandMark";
 import { CardRenderer } from "@/components/cards/CardRenderer";
 import { ToolTrace } from "./ToolTrace";
 import { StreamingStages } from "./StreamingStages";
 import { buildStreamingStages } from "@/lib/streaming-stages";
 import { getMCPConnections, getActiveChannelId } from "@/lib/storage";
+import { parseBackendDate } from "@/lib/utils";
+import { formatDuration } from "@/lib/format-duration";
 import type { StreamingStage } from "@/lib/streaming-stages";
 import type { ChatMessage, CardContext } from "@/lib/types";
+
+function formatTime(iso: string | undefined): string {
+  if (!iso) return "";
+  try {
+    return parseBackendDate(iso).toLocaleTimeString("ru-RU", {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+}
 
 interface AssistantMessageProps {
   message: ChatMessage;
@@ -53,12 +69,33 @@ export function AssistantMessage({
     toolCalls: message.tool_calls ?? [],
   });
 
+  const time = formatTime(message.created_at);
+  const isStreaming = Boolean(streamingStage);
+
   return (
-    <div className="flex w-full justify-start">
-      <div className="max-w-3xl w-full">
-        {/* Метка роли */}
-        <div className="text-xs text-[var(--fg-muted)] mb-1 font-medium">
-          Ассистент
+    <div className="group flex w-full justify-start gap-3">
+      {/* Аватар-глиф (F-06) */}
+      <BrandMark size={28} className="flex-none mt-0.5" />
+
+      <div className="max-w-3xl w-full min-w-0">
+        {/* Имя · время · длительность */}
+        <div
+          className="flex items-center gap-2 mb-1 text-[11px] text-[var(--fg-3)]"
+          style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
+        >
+          <span className="font-medium text-[var(--fg-2)]">Аналитик</span>
+          {time && (
+            <>
+              <span className="text-[var(--fg-4)]">·</span>
+              <span className="tabular-nums">{time}</span>
+            </>
+          )}
+          {message.duration_ms != null && message.duration_ms > 0 && (
+            <>
+              <span className="text-[var(--fg-4)]">·</span>
+              <span className="tabular-nums">{formatDuration(message.duration_ms)}</span>
+            </>
+          )}
         </div>
 
         {/* Inline error — единый Alert (F-04), без emoji, lucide-иконка */}
@@ -68,16 +105,17 @@ export function AssistantMessage({
           </div>
         )}
 
-        {/* Ярлык-источник: откуда grounded ответ (P2). Показываем только когда
-            стрим завершён (нет активной стадии) и были вызовы инструментов. */}
-        {!streamingStage && (
-          <AnswerSources toolCalls={message.tool_calls ?? []} />
+        {/* Тело ответа — 15px / line-height 1.6 (redesign 2.0 §1.7) */}
+        {message.content && (
+          <div className="text-[15px] leading-[1.6]">
+            <Markdown>{message.content}</Markdown>
+          </div>
         )}
 
-        {/* TL;DR — markdown с безопасным рендером */}
-        {message.content && (
-          <div className="text-sm leading-relaxed">
-            <Markdown>{message.content}</Markdown>
+        {/* Грунт ответа — провенанс под текстом (F-02). Только по завершении стрима. */}
+        {!isStreaming && (
+          <div className="mt-2">
+            <AnswerProvenance toolCalls={message.tool_calls ?? []} />
           </div>
         )}
 
@@ -97,6 +135,13 @@ export function AssistantMessage({
             {message.cards.map((card, i) => (
               <CardRenderer key={i} card={card} context={cardContext} />
             ))}
+          </div>
+        )}
+
+        {/* Hover-действия (F-06): появляются при наведении/фокусе на сообщение */}
+        {!isStreaming && message.content && (
+          <div className="mt-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150">
+            <CopyButton value={message.content} label="Копировать ответ" />
           </div>
         )}
 

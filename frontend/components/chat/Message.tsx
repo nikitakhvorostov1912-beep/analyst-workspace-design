@@ -31,8 +31,8 @@ export function Message({ message, streamingStage, currentToolName, sessionId }:
     <div className={cn("flex w-full justify-end")}>
       <div
         className={cn(
-          "max-w-3xl rounded-lg p-4 text-sm leading-relaxed",
-          "bg-[var(--bg-elevated)] text-[var(--fg)] border border-[var(--border)]",
+          "max-w-3xl rounded-[12px] p-4 text-[15px] leading-[1.6]",
+          "bg-[var(--bg-2)] text-[var(--fg-1)] border border-[var(--bd-1)]",
         )}
       >
         <p className="whitespace-pre-wrap break-words">{message.content}</p>
