@@ -34,7 +34,31 @@ from dataclasses import dataclass
 
 from app.clients.mcp import MCPClient
 from app.config import Settings
+from app.knowledge import buddy_monitor
 from app.orchestrator.mcp_orchestrator import MCPOrchestrator
+
+
+class _BuddyTelemetryClient:
+    """Обёртка над buddy MCPClient: считает вызовы (#40 lifecycle-телеметрия).
+
+    Делегирует всё во внутренний клиент, перехватывая только call_tool для
+    `buddy_monitor.record_call(ok)`. Остальные атрибуты (aclose и пр.) — passthrough.
+    """
+
+    def __init__(self, inner: MCPClient) -> None:
+        self._inner = inner
+
+    async def call_tool(self, name: str, arguments: dict) -> dict:
+        try:
+            result = await self._inner.call_tool(name, arguments)
+        except Exception:
+            buddy_monitor.record_call(False)
+            raise
+        buddy_monitor.record_call(True)
+        return result
+
+    def __getattr__(self, item):  # passthrough (aclose, и т.п.)
+        return getattr(self._inner, item)
 
 logger = logging.getLogger(__name__)
 
@@ -121,7 +145,7 @@ def build_orchestrator(
         endpoint = (settings.buddy_mcp_endpoint or "").strip()
         if endpoint:
             try:
-                buddy_client = MCPClient(endpoint)
+                buddy_client = _BuddyTelemetryClient(MCPClient(endpoint))
                 orchestrator.register("buddy", buddy_client)
                 buddy_registered = True
                 logger.info(
