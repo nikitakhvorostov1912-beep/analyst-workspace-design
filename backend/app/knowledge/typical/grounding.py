@@ -20,7 +20,9 @@ import aiosqlite
 from app.knowledge.typical.tool import TYPICAL_TOOL_SCHEMAS, dispatch_typical_tool
 
 _DEFAULT_TOOL_RESULT_CAP = 8000
-_DEFAULT_MAX_ROUNDS = 6
+# #38: 6 раундов не хватало на цепочку explain_typical_object → trace_typical_calls
+# (резолв qname метода) — LLM упиралась в лимит. 10 даёт запас.
+_DEFAULT_MAX_ROUNDS = 10
 
 
 class _StreamingLLM(Protocol):

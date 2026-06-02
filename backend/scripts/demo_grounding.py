@@ -4,6 +4,7 @@
 """
 from __future__ import annotations
 
+import argparse
 import asyncio
 import json
 import sys
@@ -18,8 +19,13 @@ if str(_ROOT) not in sys.path:
 from app.knowledge.typical.card_context import build_card_context  # noqa: E402
 
 DB = "C:/CLOUDE_PR/projects/analyst-workspace-design/data/pilot.db"
-CH = "_ut115_17_226"
-QN = "Document.РеализацияТоваровУслуг"
+_ap = argparse.ArgumentParser()
+_ap.add_argument("--channel", default="_ut115_17_226")
+_ap.add_argument("--qname", default="Document.РеализацияТоваровУслуг")
+_ap.add_argument("--out", default="C:/CLOUDE_PR/projects/analyst-workspace-design/demo_grounding_out.txt")
+_args, _ = _ap.parse_known_args()
+CH = _args.channel
+QN = _args.qname
 
 OUT = []
 def p(s=""): OUT.append(s)
@@ -47,8 +53,10 @@ async def main():
     ctx = await build_card_context(db, channel_id=CH, object_qualified_name=QN)
     d = ctx.to_dict() if ctx else {}
 
+    _names = {"_ut115_17_226": "УТ 11.5", "_erp25_21_118": "ЕРП 2.5",
+              "_ka2_25_92": "КА 2.5", "_bp30_138_24": "БП 3.0"}
     p("=" * 72)
-    p(f"ДЕМО GROUNDING — {QN}  (канал УТ 11.5, из pilot.db)")
+    p(f"ДЕМО GROUNDING — {QN}  (канал {_names.get(CH, CH)}, из pilot.db)")
     p("=" * 72)
 
     p("\n■ СЛОЙ «КАРТОЧКА» (смысл — что это):")
@@ -103,14 +111,28 @@ async def main():
             pass
         p(f"     • {qn_role}{('  [' + rights + ']') if rights else ''}")
 
+    p("\n" + "─" * 72)
+    p("Вопрос 5: «Какие процедуры запускаются от этого документа?» (CALLS — связи по коду)")
+    crows = await (await db.execute(
+        """SELECT d.qualified_name, COUNT(*) cnt FROM graph_edges e
+           JOIN graph_nodes s ON e.src_id=s.id
+           JOIN graph_nodes d ON e.dst_id=d.id
+           WHERE s.channel_id=? AND e.edge_kind='CALLS'
+             AND s.qualified_name LIKE ?
+           GROUP BY d.qualified_name ORDER BY cnt DESC LIMIT 15""",
+        (CH, QN + ".%"))).fetchall()
+    p(f"  → вызывает {len(crows)} процедур (топ-15 по частоте):")
+    for qn_t, cnt in crows:
+        short = qn_t.replace("CommonModule.", "ОМ.").replace(".Module.", ".")
+        p(f"     • ({cnt}×) {short}")
+
     p("\n" + "=" * 72)
-    p("ИТОГ: на все 4 вопроса ответ собран ПО ФАКТУ из графа+карточки —")
+    p("ИТОГ: на все 5 вопросов ответ собран ПО ФАКТУ из графа+карточки —")
     p("без выдумок. Это и есть grounding, который получит LLM в чате.")
     p("=" * 72)
 
     await db.close()
-    Path("C:/CLOUDE_PR/projects/analyst-workspace-design/demo_grounding_out.txt").write_text(
-        "\n".join(OUT), encoding="utf-8")
+    Path(_args.out).write_text("\n".join(OUT), encoding="utf-8")
 
 
 if __name__ == "__main__":
