@@ -102,7 +102,7 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
-/* Scrollbar styling for dark theme */
+/* Scrollbar styling — токенизировано (redesign 2.0), подстраивается под тему */
 ::-webkit-scrollbar {
   width: 10px;
   height: 10px;
@@ -113,11 +113,11 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #262626;
+  background: var(--bd-2);
   border-radius: 5px;
   border: 2px solid var(--bg-0);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #303030;
+  background: var(--bd-3);
 }

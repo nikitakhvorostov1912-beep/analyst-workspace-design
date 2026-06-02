@@ -1,0 +1,956 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Аналитик · Аудит и Дизайн-система 2.0</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="layout">
+
+  <!-- ======================= NAV ======================= -->
+  <aside class="nav">
+    <div class="nav-brand">
+      <span class="nav-glyph"><span>А</span></span>
+      <div>
+        <b>Аналитик</b>
+        <small>Аудит · Система 2.0</small>
+      </div>
+    </div>
+
+    <div class="nav-group">
+      <p class="nav-group-t">Документ</p>
+      <a href="#cover"><span class="num">00</span> Обзор</a>
+      <a href="#audit"><span class="num">01</span> Аудит</a>
+      <a href="#principles"><span class="num">02</span> Принципы</a>
+    </div>
+    <div class="nav-group">
+      <p class="nav-group-t">Система</p>
+      <a href="#system"><span class="num">03</span> Дизайн-система</a>
+      <a href="#voice"><span class="num">04</span> Голос и тон</a>
+      <a href="#components"><span class="num">05</span> Компоненты</a>
+    </div>
+    <div class="nav-group">
+      <p class="nav-group-t">Редизайн</p>
+      <a href="#home"><span class="num">06</span> Главный экран</a>
+      <a href="#chat"><span class="num">07</span> Чат и доверие</a>
+      <a href="#flows"><span class="num">08</span> Онбординг · Ошибки</a>
+    </div>
+    <div class="nav-group">
+      <p class="nav-group-t">Итоги</p>
+      <a href="#a11y"><span class="num">09</span> Доступность</a>
+      <a href="#roadmap"><span class="num">10</span> Дорожная карта</a>
+    </div>
+
+    <button class="theme-btn" type="button">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.5 1.5M17.5 17.5L19 19M19 5l-1.5 1.5M6.5 17.5L5 19"/></svg>
+      <span class="tlabel">Тёмная</span>
+    </button>
+  </aside>
+
+  <!-- ======================= MAIN ======================= -->
+  <main class="main">
+
+  <!-- ============ 00 · COVER ============ -->
+  <section id="cover" class="cover" style="border-bottom:none;">
+    <div class="wrap">
+      <p class="kicker">UX / UI Аудит · Десктоп-ассистент 1С · Июнь 2026</p>
+      <h1>Я прошёл «Аналитик»<br>как самый придирчивый<br>пользователь в мире.</h1>
+      <p class="lead">И нашёл, за что зацепиться. Это не косметика — за приятным Stencil-логотипом живёт интерфейс, который местами не доверяет пользователю, прячет самое важное и разговаривает на трёх языках сразу. Ниже — честный разбор по косточкам и цельная дизайн-система, которая всё это лечит.</p>
+
+      <div class="scorecard">
+        <div class="score"><div class="grade warn">C+</div><div class="lbl">Иерархия и чистота</div><div class="sub">шум микро-лейблов</div></div>
+        <div class="score"><div class="grade bad">D</div><div class="lbl">Доверие к данным</div><div class="sub">провенанс спрятан</div></div>
+        <div class="score"><div class="grade bad">D+</div><div class="lbl">Голос и тон</div><div class="sub">вы / ты вперемешку</div></div>
+        <div class="score"><div class="grade warn">C</div><div class="lbl">Обработка ошибок</div><div class="sub">5 разных систем</div></div>
+        <div class="score"><div class="grade warn">C−</div><div class="lbl">Онбординг</div><div class="sub">стена настроек</div></div>
+        <div class="score"><div class="grade ok">B</div><div class="lbl">Бренд-ДНК</div><div class="sub">сильная, но кричит</div></div>
+      </div>
+
+      <div class="cover-meta">
+        <div><div class="k">Продукт</div><div class="v">ИИ-ассистент аналитика 1С</div></div>
+        <div><div class="k">Платформа</div><div class="v">Desktop (Electron)</div></div>
+        <div><div class="k">Охват аудита</div><div class="v">Всё приложение · 8 экранов</div></div>
+        <div><div class="k">Находок</div><div class="v">12 ключевых</div></div>
+        <div><div class="k">Темы</div><div class="v">Dark + Light (Sand)</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 01 · AUDIT ============ -->
+  <section id="audit">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">01 · Аудит</div>
+          <h2>Где болит — по-честному</h2>
+          <p class="lead">Сгруппировал по тяжести. Каждая находка — это конкретное место в продукте, объяснение «почему это бесит» и принцип, которым лечим. Без воды.</p>
+        </div>
+        <div class="meta">12 находок · 4 critical</div>
+      </div>
+
+      <div class="findings">
+
+        <!-- F-01 -->
+        <div class="finding" data-sev="crit">
+          <div class="finding-top">
+            <span class="f-id">F-01</span>
+            <span class="f-area">Голос · Копирайт</span>
+            <span class="tag crit">Critical</span>
+          </div>
+          <h3>Приложение говорит на «вы» и «ты» одновременно</h3>
+          <div class="quote">«О чём <b>спросим</b> базу?» рядом с «<b>Напиши</b> вопрос», а тосты вообще: «Провер<b>ь</b> связь с backend».</div>
+          <div class="finding-grid">
+            <div class="fg-box prob">
+              <h4>▸ Проблема</h4>
+              <ul>
+                <li>Главный экран — мягкое «мы вместе»: «спросим», «возьмёт на себя».</li>
+                <li>Пустой чат — приказное «ты»: «Напиши», «Задай первый вопрос».</li>
+                <li>Настройки — официальное «Вы»: «Адреса баз, к которым <b>вы</b>...».</li>
+                <li>Тосты — внезапно фамильярное: «Провер<b>ь</b>», «Не удалось».</li>
+              </ul>
+            </div>
+            <div class="fg-box fix">
+              <h4>▸ Лечение</h4>
+              <ul>
+                <li>Единый регистр — <b>«вы», строчное, в потоке</b>. B2B-аудитория 1С этого ждёт.</li>
+                <li>Глаголы — спокойные и инструктивные: «Спросите базу», «Проверьте подключение».</li>
+                <li>Свод правил микрокопирайта в разделе «Голос и тон» (04).</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- F-02 -->
+        <div class="finding" data-sev="crit">
+          <div class="finding-top">
+            <span class="f-id">F-02</span>
+            <span class="f-area">Доверие · Провенанс</span>
+            <span class="tag crit">Critical</span>
+          </div>
+          <h3>Аналитик не может проверить, откуда взялась цифра</h3>
+          <div class="quote">Ярлык «Источник: база» — это 10,5px текст, выведенный <b>эвристикой по имени инструмента</b>. А сам запрос к 1С спрятан за свёрнутым аккордеоном «3 инструмента ›».</div>
+          <div class="finding-grid">
+            <div class="fg-box prob">
+              <h4>▸ Проблема</h4>
+              <ul>
+                <li>Профессия аналитика = «доверяй, но проверяй». Здесь проверять <b>нечем</b>.</li>
+                <li>Трейс инструментов свёрнут по умолчанию — доказательство ответа невидимо.</li>
+                <li>Нет связи «эта строка таблицы ← этот запрос». Цифры висят в воздухе.</li>
+                <li>Баннер «показаны первые 500 из N» — мелкий, легко пропустить и принять решение по неполным данным.</li>
+              </ul>
+            </div>
+            <div class="fg-box fix">
+              <h4>▸ Лечение</h4>
+              <ul>
+                <li>Провенанс — <b>гражданин первого класса</b>: полоса «Грунт ответа» под каждым ответом.</li>
+                <li>Запрос/источник видно в один клик прямо у карточки, не в подвале.</li>
+                <li>Усечение данных — заметный статус на карточке, а не строчка-сноска.</li>
+                <li>Подробно — вариант B в разделе «Чат и доверие» (07).</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- F-03 -->
+        <div class="finding" data-sev="crit">
+          <div class="finding-top">
+            <span class="f-id">F-03</span>
+            <span class="f-area">Навигация · IA</span>
+            <span class="tag crit">Critical</span>
+          </div>
+          <h3>Правый угол шапки — ящик с десятью загадочными иконками</h3>
+          <div class="quote">UpdateBanner · KnowledgeBadge · Аноним · Модель · Search⌘K · Activity · BookOpen · HelpCircle · Тема · Settings — всё 15px, без подписей, в ряд.</div>
+          <div class="finding-grid">
+            <div class="fg-box prob">
+              <h4>▸ Проблема</h4>
+              <ul>
+                <li>Три «помощь»-пункта (Диагностика / Гайд / О приложении) — иконки <code>Activity</code>, <code>BookOpen</code>, <code>HelpCircle</code> неразличимы.</li>
+                <li>Статусы (база, аноним, модель) и действия (поиск, настройки) свалены в одну линию — разные сущности, один вид.</li>
+                <li>Тач-таргет 15px — мимо гайдлайнов (минимум 44px по высоте зоны).</li>
+              </ul>
+            </div>
+            <div class="fg-box fix">
+              <h4>▸ Лечение</h4>
+              <ul>
+                <li>Разделить <b>статус</b> (живой индикатор базы+модели слева) и <b>действия</b> (меню «?» объединяет помощь).</li>
+                <li>Справку — в одно меню с подписями, не три иконки.</li>
+                <li>Иконки с подписью либо в выпадающем меню, цель ≥ 32px.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- F-04 -->
+        <div class="finding" data-sev="crit">
+          <div class="finding-top">
+            <span class="f-id">F-04</span>
+            <span class="f-area">Ошибки</span>
+            <span class="tag crit">Critical</span>
+          </div>
+          <h3>Пять разных способов сообщить об ошибке + утечка жаргона</h3>
+          <div class="quote">BackendDownBanner, ConnectionStatusBanner, ErrorBanner, inline «⚠ …», тосты, FieldError — у каждого свой вид. И всюду «backend», «SSE», «MCP», «env».</div>
+          <div class="finding-grid">
+            <div class="fg-box prob">
+              <h4>▸ Проблема</h4>
+              <ul>
+                <li>Нет единого языка ошибок — пользователь каждый раз учит новый паттерн.</li>
+                <li>Emoji «⚠» в продукте, где бренд-гайд <b>прямо запрещает emoji</b>.</li>
+                <li>«Backend не ответил», «Проверь связь с backend» — для смешанной аудитории это набор букв.</li>
+              </ul>
+            </div>
+            <div class="fg-box fix">
+              <h4>▸ Лечение</h4>
+              <ul>
+                <li>Один компонент <b>Alert</b> с 4 тонами (см. 05). Один баннер на всё приложение.</li>
+                <li>Иконки из набора, не emoji.</li>
+                <li>Человеческий язык: «Нет связи с базой 1С» + кнопка «Повторить» + «Что это значит?».</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- F-05 -->
+        <div class="finding" data-sev="high">
+          <div class="finding-top">
+            <span class="f-id">F-05</span>
+            <span class="f-area">Визуал · Иерархия</span>
+            <span class="tag high">High</span>
+          </div>
+          <h3>«Всё — это микро-лейбл»: стенсил-текстура перегружена</h3>
+          <div class="quote">Eyebrow’ы, маркеры-квадраты, brand-tick, SectionHead, uppercase JetBrains Mono с трекингом .18em — на одном экране их десятки. Глаз не находит, что главное.</div>
+          <div class="finding-grid">
+            <div class="fg-box prob">
+              <h4>▸ Проблема</h4>
+              <ul>
+                <li>Когда «кричит» всё — не слышно ничего. Акцент-оранжевый размазан по декору.</li>
+                <li>10px uppercase + .18em трекинг трудночитаем — особенно для светлой темы.</li>
+              </ul>
+            </div>
+            <div class="fg-box fix">
+              <h4>▸ Лечение</h4>
+              <ul>
+                <li><b>Оранжевый = только действие, фокус, «живое».</b> Не декор.</li>
+                <li>Mono — для данных, кода и логотипа. Не для каждой подписи.</li>
+                <li>Eyebrow’ы дозированно: один на секцию, трекинг .1em.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- F-06 -->
+        <div class="finding" data-sev="high">
+          <div class="finding-top">
+            <span class="f-id">F-06</span>
+            <span class="f-area">Чат · Сообщения</span>
+            <span class="tag high">High</span>
+          </div>
+          <h3>У ответа ассистента нет лица и нет действий</h3>
+          <div class="quote">Ответ — это просто текст с подписью «Ассистент» (12px). Ни копирования, ни «переспросить», ни оценки, ни времени. Реплика пользователя — пузырь справа, ответ — голый слева.</div>
+          <div class="finding-grid">
+            <div class="fg-box prob">
+              <h4>▸ Проблема</h4>
+              <ul>
+                <li>Слабое различие ролей, нет визуального якоря ответа.</li>
+                <li>Нельзя скопировать ответ, перегенерировать, дать сигнал «неверно».</li>
+                <li>Нет тайм-штампа и длительности у важных запросов.</li>
+              </ul>
+            </div>
+            <div class="fg-box fix">
+              <h4>▸ Лечение</h4>
+              <ul>
+                <li>Глиф-аватар бренда + имя + время. Hover-действия: копировать, повторить, источники.</li>
+                <li>Оценка ответа — тихий механизм обратной связи для качества.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- F-07 -->
+        <div class="finding" data-sev="high">
+          <div class="finding-top">
+            <span class="f-id">F-07</span>
+            <span class="f-area">Онбординг</span>
+            <span class="tag high">High</span>
+          </div>
+          <h3>Первый запуск — стена технической настройки</h3>
+          <div class="quote">«В 1С должна быть запущена обработка-обработчик от ИТ-отдела (по умолчанию на порту 6010)» — и сразу форма с endpoint и API-ключом. Для «бизнес-пользователя без техфона» это тупик.</div>
+          <div class="finding-grid">
+            <div class="fg-box prob">
+              <h4>▸ Проблема</h4>
+              <ul>
+                <li>Жаргон в первом же предложении. Порты, обработки, ключи.</li>
+                <li>«Пропустить» на каждом шаге → пользователь проскакивает в сломанное пустое состояние.</li>
+                <li>Шаг «Память/обучение» занимает целый экран, хотя выключен и опционален.</li>
+              </ul>
+            </div>
+            <div class="fg-box fix">
+              <h4>▸ Лечение</h4>
+              <ul>
+                <li>Сначала <b>ценность</b> («что вы сможете спрашивать»), потом настройка.</li>
+                <li>Роль-развилка: «я аналитик» / «мне настроил ИТ-отдел».</li>
+                <li>Память — тумблер в финале, не отдельный шаг.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- F-08 -->
+        <div class="finding" data-sev="high">
+          <div class="finding-top">
+            <span class="f-id">F-08</span>
+            <span class="f-area">Плотность · Карточки</span>
+            <span class="tag high">High</span>
+          </div>
+          <h3>Карточка-таблица — стопка предупреждений и крошечных кнопок</h3>
+          <div class="quote">CardHeader + отдельный тулбар + баннер сортировки + баннер усечения + футер анонимизации — до пяти полос вокруг данных. Кнопки высотой 28px, текст 11–12px.</div>
+          <div class="finding-grid">
+            <div class="fg-box prob">
+              <h4>▸ Проблема</h4>
+              <ul>
+                <li>Хром вокруг данных весит больше самих данных.</li>
+                <li>Четыре цвета чипов трейса (оранж/синий/зелёный/фиол) спорят с единым акцентом.</li>
+              </ul>
+            </div>
+            <div class="fg-box fix">
+              <h4>▸ Лечение</h4>
+              <ul>
+                <li>Единый заголовок карточки: тип · мета · действия в одной строке.</li>
+                <li>Одна система статусов вместо стопки баннеров.</li>
+                <li>Спокойная зебра-таблица, числа — табличные цифры справа.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- F-09 -->
+        <div class="finding" data-sev="med">
+          <div class="finding-top">
+            <span class="f-id">F-09</span>
+            <span class="f-area">Композер</span>
+            <span class="tag med">Medium</span>
+          </div>
+          <h3>«0 / 4 000 ТОКЕНОВ» — шум, который никто не просил</h3>
+          <div class="quote">Счётчик токенов капсом+моно в подвале поля ввода. Что такое токен? Почему 4000? Что будет на пределе? Для аналитика — ноль смысла, минус внимание.</div>
+          <div class="finding-grid">
+            <div class="fg-box prob">
+              <h4>▸ Проблема</h4>
+              <ul>
+                <li>Технический показатель выдан за пользовательский.</li>
+                <li>Подсказка-хинт дублируется и в композере, и в hint-row.</li>
+                <li>Слэш-команды и @-упоминания никак не обнаружимы.</li>
+              </ul>
+            </div>
+            <div class="fg-box fix">
+              <h4>▸ Лечение</h4>
+              <ul>
+                <li>Токены — тонкая полоска заполнения, без чисел. Цифры — только у предела.</li>
+                <li>Один короткий хинт + ненавязчивая подсказка про «/» и «@».</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- F-10 -->
+        <div class="finding" data-sev="med">
+          <div class="finding-top">
+            <span class="f-id">F-10</span>
+            <span class="f-area">Терминология</span>
+            <span class="tag med">Medium</span>
+          </div>
+          <h3>Один объект — четыре названия</h3>
+          <div class="quote">«канал» = «подключение» = «база 1С». «сессия» = «чат». «обучение» = «память». Код, UI и онбординг зовут вещи по-разному.</div>
+          <div class="finding-grid">
+            <div class="fg-box prob">
+              <h4>▸ Проблема</h4>
+              <ul>
+                <li>Пользователь не уверен, что «подключение» и «база» — одно и то же.</li>
+                <li>Тосты роняют внутренние термины («канал не найден»).</li>
+              </ul>
+            </div>
+            <div class="fg-box fix">
+              <h4>▸ Лечение</h4>
+              <ul>
+                <li>Глоссарий из одного слова на сущность: <b>База · Чат · Память · Модель</b>.</li>
+                <li>«Канал» остаётся только во внутреннем коде, в UI не показывается.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- F-11 -->
+        <div class="finding" data-sev="med">
+          <div class="finding-top">
+            <span class="f-id">F-11</span>
+            <span class="f-area">Сайдбар</span>
+            <span class="tag med">Medium</span>
+          </div>
+          <h3>Список чатов — без поиска, закрепления и переименования</h3>
+          <div class="quote">Сессии копятся, но найти вчерашний разбор миграции нечем. В свёрнутом виде сайдбар просто гаснет (opacity 0) — две иконки и пустота.</div>
+          <div class="finding-grid">
+            <div class="fg-box prob">
+              <h4>▸ Проблема</h4>
+              <ul>
+                <li>Нет поиска по чатам, нет закрепления важных, нет ручного имени.</li>
+                <li>Кнопка «Новый чат» конкурирует с тумблером сворачивания за место.</li>
+              </ul>
+            </div>
+            <div class="fg-box fix">
+              <h4>▸ Лечение</h4>
+              <ul>
+                <li>Поиск вверху, закрепление и переименование по hover/контекст-меню.</li>
+                <li>Свёрнутый режим — иконки чатов-аватарок, а не пустота.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <!-- F-12 -->
+        <div class="finding" data-sev="med">
+          <div class="finding-top">
+            <span class="f-id">F-12</span>
+            <span class="f-area">Пустые состояния</span>
+            <span class="tag med">Medium</span>
+          </div>
+          <h3>Два разных «пустых экрана», которые спорят друг с другом</h3>
+          <div class="quote">ComposerHub «О чём спросим базу?» на главной и Thread «Задай первый вопрос» в сессии — разный копирайт, разные примеры, разная вёрстка. Делают одно и то же по-разному.</div>
+          <div class="finding-grid">
+            <div class="fg-box prob">
+              <h4>▸ Проблема</h4>
+              <ul>
+                <li>Дублирование логики и расхождение тона.</li>
+                <li>Примеры вопросов в двух местах не совпадают.</li>
+              </ul>
+            </div>
+            <div class="fg-box fix">
+              <h4>▸ Лечение</h4>
+              <ul>
+                <li>Один компонент пустого состояния и один набор примеров на оба места.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 02 · PRINCIPLES ============ -->
+  <section id="principles">
+    <div class="wrap">
+      <div class="eyebrow">02 · Принципы</div>
+      <h2>Шесть правил, которыми лечим всё разом</h2>
+      <p class="lead">Не точечные фиксы, а позвоночник. Каждое решение в системе ниже проверяется этими шестью.</p>
+      <div class="principles" style="margin-top:32px;">
+        <div class="principle"><div class="pn">01</div><h4>Спокойный холст, решительный акцент</h4><p>Оранжевый перестаёт быть декором. Он маркирует только действие, фокус и «живое». Всё остальное — уверенные нейтрали.</p></div>
+        <div class="principle"><div class="pn">02</div><h4>Доверие по умолчанию</h4><p>Откуда взялась цифра — видно сразу, не из аккордеона. Аналитик проверяет ответ в один клик.</p></div>
+        <div class="principle"><div class="pn">03</div><h4>Один язык на всё</h4><p>Один регистр («вы»), один глоссарий, один компонент ошибок, один пустой экран. Меньше паттернов — меньше нагрузки.</p></div>
+        <div class="principle"><div class="pn">04</div><h4>Данные важнее хрома</h4><p>Вокруг таблицы — минимум полос. Контент дышит, цифры читаются, действия — там, где ждут.</p></div>
+        <div class="principle"><div class="pn">05</div><h4>Сначала ценность, потом настройка</h4><p>Новичок видит, что он сможет, до того как его просят про порты и ключи. Техника — за развилкой ролей.</p></div>
+        <div class="principle"><div class="pn">06</div><h4>Доступно по-настоящему</h4><p>Контраст AA+, цель ≥ 32px, клавиатура и скринридер — не post-fix, а условие приёмки.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 03 · DESIGN SYSTEM ============ -->
+  <section id="system">
+    <div class="wrap">
+      <div class="eyebrow">03 · Дизайн-система</div>
+      <h2>Основа: цвет, тип, ритм</h2>
+      <p class="lead">Stencil-ДНК сохранена — оранжевый Signal и IBM Plex Mono узнаваемы. Но палитра потеплела, контраст подрос, а mono перестал быть на каждой подписи.</p>
+
+      <h3 style="margin-top:48px;">Палитра — тёмная</h3>
+      <p>Тёплый near-black вместо холодного #0a0a0a. Текст с песочным подтоном. Три уверенные ступени серого вместо пяти размытых.</p>
+      <div class="spec-grid">
+        <div class="swatch"><div class="chip" style="background:#ff6a3d;"></div><div class="info"><div class="n">Signal</div><div class="h">#FF6A3D</div><div class="u">Действие · фокус · «живое»</div></div></div>
+        <div class="swatch"><div class="chip" style="background:#0c0d10;"></div><div class="info"><div class="n">Canvas</div><div class="h">#0C0D10</div><div class="u">Фон приложения</div></div></div>
+        <div class="swatch"><div class="chip" style="background:#14151a;"></div><div class="info"><div class="n">Surface 1</div><div class="h">#14151A</div><div class="u">Карточки (= Ink бренда)</div></div></div>
+        <div class="swatch"><div class="chip" style="background:#1b1d23;"></div><div class="info"><div class="n">Surface 2</div><div class="h">#1B1D23</div><div class="u">Поповеры · поля</div></div></div>
+        <div class="swatch"><div class="chip" style="background:#f3f1ec;"></div><div class="info"><div class="n">Text Hi</div><div class="h">#F3F1EC</div><div class="u">Тёплый белый</div></div></div>
+        <div class="swatch"><div class="chip" style="background:#4fcf9a;"></div><div class="info"><div class="n">Success</div><div class="h">#4FCF9A</div><div class="u">Меньше неона — годен для текста</div></div></div>
+        <div class="swatch"><div class="chip" style="background:#f0b429;"></div><div class="info"><div class="n">Warning</div><div class="h">#F0B429</div><div class="u">Тёплая охра</div></div></div>
+        <div class="swatch"><div class="chip" style="background:#f2675f;"></div><div class="info"><div class="n">Danger</div><div class="h">#F2675F</div><div class="u">Ошибки · разрушающие действия</div></div></div>
+      </div>
+
+      <h3 style="margin-top:48px;">Палитра — светлая (Sand)</h3>
+      <p>Песочный фон бренда. Оранжевый чуть глубже (#E8551F) — чтобы держать контраст AA на песке. Все нейтрали — solid, без прозрачностей, которые роняли контраст в старой версии.</p>
+      <div class="spec-grid">
+        <div class="swatch"><div class="chip" style="background:#e8551f;"></div><div class="info"><div class="n">Signal / Sand</div><div class="h">#E8551F</div><div class="u">Глубже для контраста</div></div></div>
+        <div class="swatch"><div class="chip" style="background:#f1efe8;"></div><div class="info"><div class="n">Canvas</div><div class="h">#F1EFE8</div><div class="u">Sand</div></div></div>
+        <div class="swatch"><div class="chip" style="background:#faf9f5;border-bottom:1px solid rgba(0,0,0,.1);"></div><div class="info"><div class="n">Surface 1</div><div class="h">#FAF9F5</div><div class="u">Карточки</div></div></div>
+        <div class="swatch"><div class="chip" style="background:#15161a;"></div><div class="info"><div class="n">Ink</div><div class="h">#15161A</div><div class="u">Текст · 21:1</div></div></div>
+      </div>
+
+      <h3 style="margin-top:48px;">Типографика</h3>
+      <p>Три гарнитуры, три роли. <strong>Plex Mono</strong> — дисплей и логотип. <strong>Plex Sans</strong> — весь интерфейс и чтение. <strong>JetBrains Mono</strong> — только данные, код и дозированные мета-подписи. Базовый размер вырос с 13–14px до <strong>15–16px</strong>.</p>
+      <div style="margin-top:18px; border-top:1px solid var(--c-line);">
+        <div class="type-row"><span class="tag2">Display · Mono 700</span><span style="font-family:var(--f-mono);font-weight:700;font-size:38px;letter-spacing:-.02em;">О чём спросить базу</span></div>
+        <div class="type-row"><span class="tag2">Heading · Sans 600</span><span style="font-weight:600;font-size:24px;">Документы реализации за май</span></div>
+        <div class="type-row"><span class="tag2">Body · Sans 400</span><span style="font-size:16px;color:var(--c-mid);">Свободная формулировка — модель сама подберёт запросы к 1С и оформит ответ.</span></div>
+        <div class="type-row"><span class="tag2">Data · JB Mono 500</span><span style="font-family:var(--f-jb);font-size:14px;">SELECT · 1 248 строк · 340 мс</span></div>
+        <div class="type-row"><span class="tag2">Meta · JB Mono</span><span style="font-family:var(--f-jb);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--c-lo);">База 1С · подключено</span></div>
+      </div>
+
+      <h3 style="margin-top:48px;">Ритм и форма</h3>
+      <div class="spec-grid">
+        <div class="panel"><div class="panel-t">Spacing · шаг 4</div><div class="row" style="align-items:flex-end;">
+          <span style="width:4px;height:4px;background:var(--c-acc);"></span>
+          <span style="width:8px;height:8px;background:var(--c-acc);"></span>
+          <span style="width:12px;height:12px;background:var(--c-acc);"></span>
+          <span style="width:16px;height:16px;background:var(--c-acc);"></span>
+          <span style="width:24px;height:24px;background:var(--c-acc);"></span>
+          <span style="width:32px;height:32px;background:var(--c-acc);"></span>
+        </div><p style="font-size:13px;margin-top:14px;">4 · 8 · 12 · 16 · 24 · 32 · 48 · 64</p></div>
+        <div class="panel"><div class="panel-t">Радиусы</div><div class="row">
+          <span style="width:46px;height:34px;border:1px solid var(--c-line-2);border-radius:6px;"></span>
+          <span style="width:46px;height:34px;border:1px solid var(--c-line-2);border-radius:10px;"></span>
+          <span style="width:46px;height:34px;border:1px solid var(--c-line-2);border-radius:14px;"></span>
+          <span style="width:46px;height:34px;border:1px solid var(--c-line-2);border-radius:999px;"></span>
+        </div><p style="font-size:13px;margin-top:14px;">6 контролы · 10 карточки · 14 диалоги · pill</p></div>
+        <div class="panel"><div class="panel-t">Тени</div><div class="row">
+          <span style="width:70px;height:44px;background:var(--c-s2);border-radius:10px;box-shadow:var(--sh-1);"></span>
+          <span style="width:70px;height:44px;background:var(--c-s2);border-radius:10px;box-shadow:var(--sh-2);"></span>
+        </div><p style="font-size:13px;margin-top:14px;">Две ступени. Мягкие, без неона.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 04 · VOICE ============ -->
+  <section id="voice">
+    <div class="wrap">
+      <div class="eyebrow">04 · Голос и тон</div>
+      <h2>Один голос: спокойный профессионал на «вы»</h2>
+      <p class="lead">Аналитик 1С — занятой специалист. Говорим уважительно, по делу, без панибратства и без жаргона. Лечит F-01 и F-10.</p>
+
+      <div class="tone" style="margin-top:28px;">
+        <div class="th">Было — вперемешку</div>
+        <div class="th">Стало — единый «вы»</div>
+
+        <div class="no"><s>«О чём спросим базу?»</s></div>
+        <div class="yes">«О чём спросить базу?»</div>
+
+        <div class="no"><s>«Напиши вопрос на русском»</s></div>
+        <div class="yes">«Спросите базу обычными словами»</div>
+
+        <div class="no"><s>«Проверь связь с backend»</s></div>
+        <div class="yes">«Проверьте подключение к базе 1С»</div>
+
+        <div class="no"><s>«Backend не ответил за 10 с»</s></div>
+        <div class="yes">«Сервис не отвечает. Попробуем ещё раз?»</div>
+
+        <div class="no"><s>«канал не найден»</s></div>
+        <div class="yes">«Эта база больше недоступна — выбрал другую»</div>
+      </div>
+
+      <div class="callout">
+        <div class="eyebrow" style="color:var(--c-acc);">Глоссарий из одного слова</div>
+        <div class="row" style="gap:18px;">
+          <span class="pill"><span class="dot acc"></span>База</span>
+          <span style="color:var(--c-lo);font-size:13px;">не «канал», не «подключение»</span>
+        </div>
+        <div class="row" style="gap:18px;"><span class="pill">Чат</span><span style="color:var(--c-lo);font-size:13px;">не «сессия»</span></div>
+        <div class="row" style="gap:18px;"><span class="pill">Память</span><span style="color:var(--c-lo);font-size:13px;">не «обучение»</span></div>
+        <div class="row" style="gap:18px;"><span class="pill">Модель</span><span style="color:var(--c-lo);font-size:13px;">не «LLM», не «движок»</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 05 · COMPONENTS ============ -->
+  <section id="components">
+    <div class="wrap">
+      <div class="eyebrow">05 · Компоненты</div>
+      <h2>Живая библиотека</h2>
+      <p class="lead">Всё ниже — настоящие элементы новой системы, не картинки. Переключите тему в сайдбаре — они подстроятся.</p>
+
+      <div class="comp-board" style="margin-top:32px;">
+        <div class="panel">
+          <div class="panel-t">Кнопки</div>
+          <div class="row"><button class="btn btn-primary">Спросить базу</button><button class="btn btn-secondary">Отмена</button></div>
+          <div class="row"><button class="btn btn-ghost">Скачать CSV</button><button class="btn btn-primary" disabled style="opacity:.45;cursor:default;">Готовится…</button></div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-t">Статусы и чипы</div>
+          <div class="row">
+            <span class="pill"><span class="dot ok"></span>Подключено</span>
+            <span class="pill"><span class="dot warn"></span>Аноним · вкл</span>
+            <span class="pill"><span class="dot bad"></span>Нет связи</span>
+          </div>
+          <div class="row">
+            <span class="pill" style="font-family:var(--f-jb);font-size:11px;letter-spacing:.06em;">MIMO-V2.5-PRO</span>
+            <span class="pill"><span class="dot acc"></span>База: УТ 11.5</span>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-t">Alert — единая система</div>
+          <div class="alert bad" style="margin-bottom:10px;">
+            <svg class="ico bad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+            <div><b>Нет связи с базой 1С</b><div class="sub">Проверьте, что обработка запущена. <a class="inline" href="#flows">Повторить</a></div></div>
+          </div>
+          <div class="alert warn">
+            <svg class="ico warn" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17h.01"/></svg>
+            <div><b>Показаны 500 из 12 480 строк</b><div class="sub">Сузьте период или добавьте условие.</div></div>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-t">Композер</div>
+          <div class="m-input" style="--m-line2:var(--c-line-2);--m-s2:var(--c-s2);--m-lo:var(--c-lo);">
+            Спросите базу или прикрепите документ…
+            <span class="send"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#1a0f0a" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+          </div>
+          <div style="height:3px;border-radius:2px;background:var(--c-line);margin-top:10px;overflow:hidden;"><span style="display:block;width:22%;height:100%;background:var(--c-acc);"></span></div>
+          <p style="font-size:11px;color:var(--c-lo);margin:8px 0 0;font-family:var(--f-jb);letter-spacing:.06em;">/ — команды · @ — объекты базы</p>
+        </div>
+
+        <div class="panel">
+          <div class="panel-t">Карточка-таблица</div>
+          <div class="m-card" style="--m-line:var(--c-line);--m-s1:var(--c-s1);--m-lo:var(--c-lo);--m-mid:var(--c-mid);">
+            <div class="m-card-h" style="--m-line:var(--c-line);">
+              <span class="ic"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9h18M9 3v18M4 4h16v16H4z"/></svg></span>
+              <b style="font-size:13px;">Реализация</b>
+              <span style="margin-left:auto;font-family:var(--f-jb);font-size:10px;color:var(--c-lo);">128 строк · 210 мс</span>
+            </div>
+            <table class="m-table" style="--m-line:var(--c-line);--m-lo:var(--c-lo);--m-mid:var(--c-mid);">
+              <tr><th>Контрагент</th><th class="num">Сумма</th></tr>
+              <tr><td>ООО «Вектор»</td><td class="num">418 200</td></tr>
+              <tr><td>ИП Соколов</td><td class="num">96 540</td></tr>
+            </table>
+          </div>
+        </div>
+
+        <div class="panel">
+          <div class="panel-t">Ответ ассистента</div>
+          <div style="display:flex;gap:10px;align-items:flex-start;">
+            <span class="m-avatar" style="--m-line:var(--c-line);"><span>А</span></span>
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;"><b style="font-size:13px;">Аналитик</b><span style="font-family:var(--f-jb);font-size:10px;color:var(--c-lo);">14:32 · 1.2 с</span></div>
+              <p style="font-size:13px;margin:0 0 8px;color:var(--c-mid);">За май проведено 128 документов реализации на 4,1 млн ₽.</p>
+              <div class="m-source" style="--m-mid:var(--c-mid);"><span class="dot acc"></span>Грунт: запрос к базе · <a class="inline" href="#chat">показать</a></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 06 · HOME ============ -->
+  <section id="home">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">06 · Редизайн</div>
+          <h2>Главный экран — три направления</h2>
+          <p class="lead">Цель: новичок понимает, что спрашивать, за 3 секунды; опытный — сразу печатает. Сравните три подхода.</p>
+        </div>
+        <div class="meta">2–3 варианта · dark + light</div>
+      </div>
+
+      <div class="variants">
+        <!-- Variant A -->
+        <div class="variant">
+          <div class="vh"><span class="vn">Вариант A</span><span class="vt">Спокойный фокус</span></div>
+          <div class="vd">Чистый композер по центру, статус базы — тихий, примеры — одна строка. Минимум текстуры.</div>
+          <div class="mock dark">
+            <div class="m-bar">
+              <span class="m-glyph"><span>А</span></span><span class="m-word">Аналитик</span>
+              <span class="m-spacer"></span>
+              <span class="m-pill"><span class="dot ok"></span>УТ 11.5</span>
+              <span class="m-icobtn"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg></span>
+            </div>
+            <div class="m-body" style="text-align:center;">
+              <div class="m-eyebrow" style="margin-bottom:14px;">База 1С · подключено</div>
+              <div class="m-h" style="margin-bottom:8px;">О чём спросить базу?</div>
+              <div class="m-sub" style="margin-bottom:20px;">Обычными словами — запросы соберёт модель.</div>
+              <div class="m-input">Например: документы реализации за май…<span class="send"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1a0f0a" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+              <div style="display:flex;gap:7px;justify-content:center;flex-wrap:wrap;margin-top:16px;">
+                <span class="m-chip">Структура базы</span><span class="m-chip">Ошибки за день</span><span class="m-chip">Топ контрагентов</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Variant B -->
+        <div class="variant">
+          <div class="vh"><span class="vn">Вариант B</span><span class="vt">Три источника</span></div>
+          <div class="vd">Явно показываем: спрашивать можно базу, типовую и методики ИТС. Снимает «а что вообще можно?».</div>
+          <div class="mock light">
+            <div class="m-bar">
+              <span class="m-glyph"><span>А</span></span><span class="m-word">Аналитик</span>
+              <span class="m-spacer"></span>
+              <span class="m-pill"><span class="dot ok"></span>УТ 11.5</span>
+            </div>
+            <div class="m-body">
+              <div class="m-h" style="margin-bottom:6px;">Спросите что угодно</div>
+              <div class="m-sub" style="margin-bottom:18px;">Я отвечаю из трёх источников:</div>
+              <div style="display:grid;gap:8px;margin-bottom:18px;">
+                <div class="m-chip" style="justify-content:flex-start;padding:10px 12px;border-radius:9px;"><span class="dot acc"></span><b style="color:var(--m-hi);">Ваша база</b> — данные, документы, журнал</div>
+                <div class="m-chip" style="justify-content:flex-start;padding:10px 12px;border-radius:9px;"><span class="dot" style="background:var(--c-typ);"></span><b style="color:var(--m-hi);">Типовая</b> — как устроена УТ / ERP</div>
+                <div class="m-chip" style="justify-content:flex-start;padding:10px 12px;border-radius:9px;"><span class="dot" style="background:var(--c-its);"></span><b style="color:var(--m-hi);">ИТС</b> — методики и стандарты</div>
+              </div>
+              <div class="m-input">Спросите базу…<span class="send"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Variant C -->
+        <div class="variant">
+          <div class="vh"><span class="vn">Вариант C</span><span class="vt">Продолжить работу</span></div>
+          <div class="vd">Для возвращающихся: сверху — последние чаты и «повторить», композер — ниже. Меньше кликов до дела.</div>
+          <div class="mock dark">
+            <div class="m-bar">
+              <span class="m-glyph"><span>А</span></span><span class="m-word">Аналитик</span>
+              <span class="m-spacer"></span><span class="m-pill"><span class="dot ok"></span>УТ 11.5</span>
+            </div>
+            <div class="m-body">
+              <div class="m-input" style="margin-bottom:18px;">О чём спросить базу?<span class="send"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1a0f0a" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span></div>
+              <div class="m-eyebrow" style="margin-bottom:10px;">Продолжить</div>
+              <div style="display:grid;gap:7px;">
+                <div class="m-card" style="padding:10px 12px;display:flex;align-items:center;gap:10px;"><span class="dot acc"></span><div style="flex:1;min-width:0;"><div style="font-size:12.5px;color:var(--m-hi);">Миграция остатков КА → ERP</div><div style="font-family:var(--f-jb);font-size:9.5px;color:var(--m-lo);">вчера · 12 сообщений</div></div></div>
+                <div class="m-card" style="padding:10px 12px;display:flex;align-items:center;gap:10px;"><span class="dot acc"></span><div style="flex:1;min-width:0;"><div style="font-size:12.5px;color:var(--m-hi);">Ошибки проведения за неделю</div><div style="font-family:var(--f-jb);font-size:9.5px;color:var(--m-lo);">пн · 5 сообщений</div></div></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="callout">
+        <div class="eyebrow">Рекомендация</div>
+        <p style="margin:0;"><strong>A как база, B при первом запуске.</strong> Спокойный фокус (A) — для ежедневной работы; «три источника» (B) показываем новичку, пока он не задал ~3 вопроса, потом сворачиваем до A. C — как блок «Продолжить» внутри A для тех, у кого уже есть история.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 07 · CHAT ============ -->
+  <section id="chat">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">07 · Редизайн · Доверие</div>
+          <h2>Чат, которому веришь</h2>
+          <p class="lead">Главная битва продукта. Ответ ИИ бесполезен, если аналитик не может его проверить. Два варианта подачи провенанса.</p>
+        </div>
+        <div class="meta">Лечит F-02 · F-06 · F-08</div>
+      </div>
+
+      <div class="variants" style="grid-template-columns:repeat(auto-fit,minmax(380px,1fr));">
+        <!-- Variant A: inline grounding strip -->
+        <div class="variant">
+          <div class="vh"><span class="vn">Вариант A</span><span class="vt">Грунт под ответом</span></div>
+          <div class="vd">Под каждым ответом — компактная полоса «Грунт»: источники + запрос в один клик. Трейс не нужен для проверки.</div>
+          <div class="mock dark">
+            <div class="m-bar"><span class="m-glyph"><span>А</span></span><span class="m-word">Аналитик</span><span class="m-spacer"></span><span class="m-pill"><span class="dot ok"></span>УТ 11.5</span></div>
+            <div class="m-body">
+              <div style="display:flex;justify-content:flex-end;margin-bottom:14px;"><div class="m-bubble user" style="--m-s2:var(--c-s2);--m-line:var(--c-line);max-width:80%;">Сколько реализаций за май и на какую сумму?</div></div>
+              <div style="display:flex;gap:10px;align-items:flex-start;">
+                <span class="m-avatar"><span>А</span></span>
+                <div style="flex:1;min-width:0;">
+                  <div style="display:flex;align-items:center;gap:8px;margin-bottom:5px;"><b style="font-size:12.5px;">Аналитик</b><span style="font-family:var(--f-jb);font-size:9.5px;color:var(--m-lo);">14:32 · 1.2 с</span></div>
+                  <p style="font-size:12.5px;margin:0 0 10px;color:var(--m-mid);">За май проведено <b style="color:var(--m-hi);">128</b> документов реализации на <b style="color:var(--m-hi);">4 132 740 ₽</b>.</p>
+                  <div class="m-source"><span class="dot acc"></span>Грунт: 1 запрос к базе</div>
+                  <div style="display:flex;gap:8px;margin-top:10px;">
+                    <span class="m-icobtn" style="width:auto;padding:0 8px;height:24px;font-size:10px;color:var(--m-lo);gap:5px;border:1px solid var(--m-line);border-radius:6px;">копировать</span>
+                    <span class="m-icobtn" style="width:auto;padding:0 8px;height:24px;font-size:10px;color:var(--m-lo);gap:5px;border:1px solid var(--m-line);border-radius:6px;">повторить</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Variant B: expanded provenance card -->
+        <div class="variant">
+          <div class="vh"><span class="vn">Вариант B</span><span class="vt">Раскрытый запрос</span></div>
+          <div class="vd">Клик по «Грунт» раскрывает сам запрос к 1С и его результат. Аналитик видит SQL/выборку — полное доверие.</div>
+          <div class="mock light">
+            <div class="m-bar"><span class="m-glyph"><span>А</span></span><span class="m-word">Аналитик</span><span class="m-spacer"></span><span class="m-pill"><span class="dot ok"></span>УТ 11.5</span></div>
+            <div class="m-body">
+              <div style="display:flex;gap:10px;align-items:flex-start;">
+                <span class="m-avatar"><span>А</span></span>
+                <div style="flex:1;min-width:0;">
+                  <p style="font-size:12.5px;margin:0 0 10px;color:var(--m-mid);">128 реализаций на 4,1 млн ₽.</p>
+                  <div class="m-card" style="--m-line:var(--c-line);--m-s1:var(--c-s1);">
+                    <div class="m-card-h" style="--m-line:var(--c-line);"><span class="dot acc"></span><b style="font-size:11.5px;">Грунт · запрос к базе</b><span style="margin-left:auto;font-family:var(--f-jb);font-size:9.5px;color:var(--m-lo);">210 мс</span></div>
+                    <div style="padding:10px 12px;font-family:var(--f-jb);font-size:10.5px;color:var(--m-mid);line-height:1.6;background:#0d0e11;color:#cfceca;">ВЫБРАТЬ КОЛИЧЕСТВО(*),<br>&nbsp;&nbsp;СУММА(СуммаДокумента)<br>ИЗ Документ.РеализацияТоваров<br>ГДЕ Дата МЕЖДУ '20260501' И '20260531'</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <h3 style="margin-top:40px;">Карточка результата — спокойнее и плотнее</h3>
+      <p>Один заголовок вместо стопки полос (F-08). Усечение — статус в шапке, не отдельный баннер. Зебра, табличные числа, действия справа.</p>
+      <div class="variants" style="grid-template-columns:1fr 1fr;">
+        <div class="variant">
+          <div class="vh"><span class="vn">Dark</span></div>
+          <div class="mock dark"><div class="m-body" style="padding:16px;">
+            <div class="m-card" style="--m-line:var(--c-line);--m-s1:var(--c-s1);">
+              <div class="m-card-h" style="--m-line:var(--c-line);">
+                <span class="ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9h18M9 3v18M4 4h16v16H4z"/></svg></span>
+                <b style="font-size:12.5px;">Реализация · май</b>
+                <span class="m-chip" style="margin-left:8px;font-size:9.5px;padding:2px 7px;color:var(--c-warn);border-color:var(--c-warn-bg);">500 из 12 480</span>
+                <span style="margin-left:auto;font-family:var(--f-jb);font-size:9.5px;color:var(--m-lo);">CSV</span>
+              </div>
+              <table class="m-table" style="--m-line:var(--c-line);--m-lo:var(--c-lo);--m-mid:var(--c-mid);">
+                <tr><th>Контрагент</th><th>Документ</th><th class="num">Сумма ₽</th></tr>
+                <tr><td>ООО «Вектор»</td><td>УТ-0042</td><td class="num">418 200</td></tr>
+                <tr style="background:var(--c-s2);"><td>ИП Соколов</td><td>УТ-0043</td><td class="num">96 540</td></tr>
+                <tr><td>АО «Темп»</td><td>УТ-0044</td><td class="num">1 204 000</td></tr>
+              </table>
+            </div>
+          </div></div>
+        </div>
+        <div class="variant">
+          <div class="vh"><span class="vn">Light · Sand</span></div>
+          <div class="mock light"><div class="m-body" style="padding:16px;">
+            <div class="m-card" style="--m-line:var(--c-line);--m-s1:var(--c-s1);">
+              <div class="m-card-h" style="--m-line:var(--c-line);">
+                <span class="ic"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9h18M9 3v18M4 4h16v16H4z"/></svg></span>
+                <b style="font-size:12.5px;">Реализация · май</b>
+                <span style="margin-left:auto;font-family:var(--f-jb);font-size:9.5px;color:var(--m-lo);">CSV</span>
+              </div>
+              <table class="m-table" style="--m-line:var(--c-line);--m-lo:var(--c-lo);--m-mid:var(--c-mid);">
+                <tr><th>Контрагент</th><th>Документ</th><th class="num">Сумма ₽</th></tr>
+                <tr><td>ООО «Вектор»</td><td>УТ-0042</td><td class="num">418 200</td></tr>
+                <tr style="background:var(--c-s3);"><td>ИП Соколов</td><td>УТ-0043</td><td class="num">96 540</td></tr>
+                <tr><td>АО «Темп»</td><td>УТ-0044</td><td class="num">1 204 000</td></tr>
+              </table>
+            </div>
+          </div></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 08 · FLOWS ============ -->
+  <section id="flows">
+    <div class="wrap">
+      <div class="section-head">
+        <div>
+          <div class="eyebrow">08 · Редизайн · Потоки</div>
+          <h2>Онбординг и ошибки</h2>
+          <p class="lead">Два места, где новичок чаще всего отваливается. Лечит F-04 и F-07.</p>
+        </div>
+      </div>
+
+      <div class="variants" style="grid-template-columns:repeat(auto-fit,minmax(380px,1fr));">
+        <div class="variant">
+          <div class="vh"><span class="vn">Онбординг</span><span class="vt">Сначала ценность, потом порты</span></div>
+          <div class="vd">Развилка ролей убирает жаргон с глаз бизнес-пользователя. Аналитику — ценность; «мне настроил ИТ» — короткий путь.</div>
+          <div class="mock dark">
+            <div class="m-body" style="text-align:center;padding:28px 22px;">
+              <span class="m-avatar" style="width:38px;height:38px;margin:0 auto 16px;"><span style="font-size:17px;">А</span></span>
+              <div class="m-h" style="font-size:18px;margin-bottom:6px;">Задавайте вопросы своей базе 1С<br>обычными словами</div>
+              <div class="m-sub" style="margin-bottom:20px;">Реализации, остатки, ошибки, контрагенты — без запросов и выгрузок.</div>
+              <div style="display:grid;gap:9px;text-align:left;">
+                <div class="m-card" style="padding:13px 14px;display:flex;align-items:center;gap:11px;border-color:var(--c-acc-22);background:var(--c-acc-08);">
+                  <span class="dot acc"></span><div style="flex:1;"><div style="font-size:12.5px;color:var(--m-hi);font-weight:600;">Я аналитик — настрою сам</div><div style="font-size:11px;color:var(--m-lo);">адрес базы и ключ модели</div></div>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--c-acc)" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+                </div>
+                <div class="m-card" style="padding:13px 14px;display:flex;align-items:center;gap:11px;">
+                  <span class="dot" style="background:var(--m-lo);"></span><div style="flex:1;"><div style="font-size:12.5px;color:var(--m-hi);font-weight:600;">Мне всё настроил ИТ-отдел</div><div style="font-size:11px;color:var(--m-lo);">просто начать работу</div></div>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--m-lo)" stroke-width="2"><path d="M9 6l6 6-6 6"/></svg>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="variant">
+          <div class="vh"><span class="vn">Ошибка</span><span class="vt">Один Alert, человеческий язык</span></div>
+          <div class="vd">Вместо пяти разных баннеров с «backend» — один компонент, понятный текст, путь к решению и тихая техническая деталь по запросу.</div>
+          <div class="mock light">
+            <div class="m-bar"><span class="m-glyph"><span>А</span></span><span class="m-word">Аналитик</span><span class="m-spacer"></span><span class="m-pill"><span class="dot bad"></span>Нет связи</span></div>
+            <div class="m-body" style="padding:22px;">
+              <div class="alert bad" style="--c-bad-bg:rgba(210,58,48,.1);">
+                <svg class="ico bad" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+                <div>
+                  <b>База 1С не отвечает</b>
+                  <div class="sub">Похоже, обработка в 1С остановлена или сменился адрес. Данные пока недоступны.</div>
+                  <div style="display:flex;gap:9px;margin-top:12px;">
+                    <button class="btn btn-primary" style="height:32px;font-size:13px;">Повторить</button>
+                    <button class="btn btn-ghost" style="height:32px;font-size:13px;">Что это значит?</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 09 · A11Y ============ -->
+  <section id="a11y">
+    <div class="wrap">
+      <div class="eyebrow">09 · Доступность</div>
+      <h2>Не post-fix, а условие приёмки</h2>
+      <p class="lead">Смешанная аудитория = разные устройства, зрение, привычки. Чек-лист, который входит в Definition of Done.</p>
+      <div class="a11y" style="margin-top:28px;">
+        <div class="a11y-item"><div class="st"><span class="dot ok"></span>Контраст</div><h4>Текст ≥ 4.5:1, крупный ≥ 3:1</h4><p>Три ступени серого вместо пяти размытых. Конец войны с #8a8a8a. Светлая тема — solid-цвета без альфы.</p></div>
+        <div class="a11y-item"><div class="st"><span class="dot ok"></span>Клавиатура</div><h4>Весь путь без мыши</h4><p>Видимый focus-ring (2px Signal, offset 2px) на всех контролах. ⌘K, Enter, Esc, Tab по порядку.</p></div>
+        <div class="a11y-item"><div class="st"><span class="dot ok"></span>Цели</div><h4>Тач/клик ≥ 32px</h4><p>Иконки-действия в шапке вырастают и получают подписи в меню. Конец 15px-иконкам впритык.</p></div>
+        <div class="a11y-item"><div class="st"><span class="dot ok"></span>Движение</div><h4>prefers-reduced-motion</h4><p>Уже уважается в коде — сохраняем. Никаких бесконечных мерцаний на контенте.</p></div>
+        <div class="a11y-item"><div class="st"><span class="dot ok"></span>Не только цветом</div><h4>Статус = цвет + форма + текст</h4><p>«Подключено» — точка + слово, не только зелёный. Ошибка — иконка + текст, не только красный.</p></div>
+        <div class="a11y-item"><div class="st"><span class="dot ok"></span>Скринридер</div><h4>Роли и подписи</h4><p>aria-label на иконках, live-region на стриме ответа и тостах, осмысленный порядок чтения.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 10 · ROADMAP ============ -->
+  <section id="roadmap">
+    <div class="wrap">
+      <div class="eyebrow">10 · Дорожная карта</div>
+      <h2>С чего начать — по влиянию</h2>
+      <p class="lead">Чинить всё сразу не нужно. Порядок — по соотношению «боль пользователя / стоимость».</p>
+      <div class="road" style="margin-top:28px;">
+        <div class="road-item">
+          <div class="phase">Спринт 1<span class="wk">быстрые победы</span></div>
+          <ul>
+            <li>Единый голос «вы» + глоссарий (F-01, F-10) — это правки текста, влияние огромное.</li>
+            <li>Один компонент Alert, убрать emoji и жаргон из ошибок (F-04).</li>
+            <li>Убрать счётчик токенов, почистить hint-row композера (F-09).</li>
+          </ul>
+        </div>
+        <div class="road-item">
+          <div class="phase">Спринт 2<span class="wk">доверие</span></div>
+          <ul>
+            <li>Полоса «Грунт ответа» + раскрытие запроса (F-02) — ядро ценности продукта.</li>
+            <li>Аватар, время и hover-действия у ответа ассистента (F-06).</li>
+            <li>Единая карточка-результат, спокойная таблица (F-08).</li>
+          </ul>
+        </div>
+        <div class="road-item">
+          <div class="phase">Спринт 3<span class="wk">структура</span></div>
+          <ul>
+            <li>Перебрать шапку: статус слева, действия и справка — в меню (F-03).</li>
+            <li>Снизить стенсил-шум, перевести токены на новую палитру и тип (F-05).</li>
+            <li>Один пустой экран на главную и сессию (F-12).</li>
+          </ul>
+        </div>
+        <div class="road-item">
+          <div class="phase">Спринт 4<span class="wk">рост</span></div>
+          <ul>
+            <li>Онбординг с развилкой ролей и «ценность вперёд» (F-07).</li>
+            <li>Поиск, закрепление и переименование чатов в сайдбаре (F-11).</li>
+            <li>Аудит доступности по чек-листу как Definition of Done (раздел 09).</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="wrap foot">
+    <span class="f-word">АНАЛИТИК</span> · Аудит и Дизайн-система 2.0 · документ-эталон предлагаемой системы.<br>
+    Переключите тему в сайдбаре — все компоненты и макеты живые.
+  </div>
+
+  </main>
+</div>
+<script src="app.js"></script>
+</body>
+</html>

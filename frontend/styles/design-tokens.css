@@ -14,11 +14,11 @@
 
 :root {
   /* Background levels — granular (Stencil/Mono redesign 2026-05-20) */
-  --bg-0: #0a0a0a; /* root background, app shell */
-  --bg-1: #141414; /* surface — header, sidebar, cards */
-  --bg-2: #1a1a1a; /* raised — popovers, hovered cards */
-  --bg-3: #202020; /* deepest — code blocks, expanded states */
-  --bg-4: #262626; /* strongest dark step — disabled inputs, send-rest */
+  --bg-0: #0c0d10; /* root background, app shell (тёплый sand-подтон, redesign 2.0) */
+  --bg-1: #14151a; /* surface — header, sidebar, cards (= Ink бренда) */
+  --bg-2: #1b1d23; /* raised — popovers, hovered cards */
+  --bg-3: #24262e; /* deepest — code blocks, expanded states */
+  --bg-4: #2d2f37; /* strongest dark step — disabled inputs, send-rest */
 
   /* Code surface — всегда тёмная независимо от темы, фирменный «code ground» */
   --code-bg: #0d0e11;
@@ -29,10 +29,10 @@
      2026-05-21 контраст-bump: --fg-3 был #8a8a8a (54%) → слишком блёкло на
      тёмном фоне для длительного чтения (sidebar eyebrow, meta-чипы).
      Подняли до #b0b0b0 (69%). --fg-4 для крайне subtle — тоже подняли. */
-  --fg-1: #e5e5e5; /* primary text */
-  --fg-2: #cccccc; /* secondary — meta info, captions */
-  --fg-3: #b0b0b0; /* muted — placeholders, subtle hints */
-  --fg-4: #888888; /* subtle — disabled, decorative */
+  --fg-1: #f3f1ec; /* primary text — тёплый белый (~17:1 AAA) */
+  --fg-2: #bdbbb4; /* secondary — meta info, captions (~9:1 AAA) */
+  --fg-3: #a4a29b; /* muted — placeholders, hints, eyebrow/мета (~6.5:1) */
+  --fg-4: #8c8a83; /* subtle — ТОЛЬКО декор/disabled крупный (~4.8:1, не для подписей) */
 
   /* Border levels — granular */
   --bd-1: #1f1f1f; /* subtle — main dividers */
@@ -46,21 +46,21 @@
   --accent-20: rgba(255, 106, 61, 0.20);
   --accent-32: rgba(255, 106, 61, 0.32);
 
-  /* Semantic colors — Stencil palette (mint success, warm warning) */
-  --success: #7cf0c4;
-  --success-12: rgba(124, 240, 196, 0.12);
-  --success-20: rgba(124, 240, 196, 0.20);
-  --success-40: rgba(124, 240, 196, 0.40);
+  /* Semantic colors — redesign 2.0: меньше неона, годны для текста */
+  --success: #4fcf9a;
+  --success-12: rgba(79, 207, 154, 0.12);
+  --success-20: rgba(79, 207, 154, 0.20);
+  --success-40: rgba(79, 207, 154, 0.40);
 
-  --warning: #f7c948;
-  --warning-12: rgba(247, 201, 72, 0.12);
-  --warning-20: rgba(247, 201, 72, 0.20);
-  --warning-40: rgba(247, 201, 72, 0.40);
+  --warning: #f0b429; /* тёплая охра */
+  --warning-12: rgba(240, 180, 41, 0.12);
+  --warning-20: rgba(240, 180, 41, 0.20);
+  --warning-40: rgba(240, 180, 41, 0.40);
 
-  --error: #f87171;
-  --error-12: rgba(248, 113, 113, 0.12);
-  --error-20: rgba(248, 113, 113, 0.20);
-  --error-40: rgba(248, 113, 113, 0.40);
+  --error: #f2675f; /* без кислотности */
+  --error-12: rgba(242, 103, 95, 0.12);
+  --error-20: rgba(242, 103, 95, 0.20);
+  --error-40: rgba(242, 103, 95, 0.40);
 
   /* Info — neutral hint colour, не путать с accent (CTA).
      Используется в hint-блоках, inline-чипах «Проверяю...», info-banner. */
@@ -77,6 +77,10 @@
 
   /* Density */
   --row-h: 36px;
+
+  /* Shadows — две ступени (redesign 2.0 §1.8). Использовать вместо случайных shadow-sm. */
+  --sh-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --sh-2: 0 8px 30px rgba(0, 0, 0, 0.45);
 
   /* Stencil lockup tokens — приглушённый slash / version / subtitle.
      Меняются в зависимости от темы (dark/light) — используются в StencilLockup. */
@@ -105,11 +109,11 @@
  * ---------------------------------------------------------------------------- */
 
 [data-theme="light"] {
-  /* Background — Sand палитра (Stencil/Mono redesign 2026-05-20) */
-  --bg-0: #f3f1ec; /* основной фон — sand */
-  --bg-1: #faf8f3; /* surface — карточки, header (почти белый sand для контраста) */
-  --bg-2: #e7e4dc; /* raised — popovers, hover (sand-2) */
-  --bg-3: #ddd9cf; /* deepest — sand-3 */
+  /* Background — Sand палитра (redesign 2.0 §1.4: чистый белый для raised-глубины) */
+  --bg-0: #f1efe8; /* основной фон — sand */
+  --bg-1: #faf9f5; /* surface — карточки, header */
+  --bg-2: #ffffff; /* raised — popovers, hover (чистый белый для глубины) */
+  --bg-3: #e9e6dd; /* deepest — sand-3 */
   --bg-4: #cfcabd; /* strongest sand step — disabled inputs */
 
   /* Foreground — solid colors с проверенным WCAG AA contrast на sand #f3f1ec.
@@ -165,38 +169,26 @@
   /* (--code-bg / --code-fg / --code-dim наследуются из :root) */
 }
 
+/* Светлый акцент (redesign 2.0 §1.4): #ff6a3d на песке проваливает контраст для
+   текста/иконок → глубже #e8551f (держит AA на sand).
+   ВАЖНО: селектор `html[data-theme="light"]` (специфичность 0,1,1) намеренно
+   перебивает `[data-accent="signal"]` (0,1,0) — оба атрибута на <html>, и блок
+   signal идёт ПОЗЖЕ в файле, поэтому простой `[data-theme="light"]` не сработал бы
+   (отклонение от §1.4 «в блоке [data-theme=light]» — зафиксировано в отчёте спринта). */
+html[data-theme="light"] {
+  --accent: #e8551f;
+  --accent-08: rgba(232, 85, 31, 0.08);
+  --accent-12: rgba(232, 85, 31, 0.12);
+  --accent-20: rgba(232, 85, 31, 0.20);
+  --accent-32: rgba(232, 85, 31, 0.32);
+}
+
 /* ----------------------------------------------------------------------------
  * Accent variants — переключать через `<body data-accent="X">`
  * ---------------------------------------------------------------------------- */
 
-[data-accent="blue"] {
-  --accent: #3b82f6;
-  --accent-08: rgba(59, 130, 246, 0.08);
-  --accent-12: rgba(59, 130, 246, 0.12);
-  --accent-20: rgba(59, 130, 246, 0.20);
-}
-
-[data-accent="clinical"] {
-  --accent: #5cb8ff;
-  --accent-08: rgba(92, 184, 255, 0.08);
-  --accent-12: rgba(92, 184, 255, 0.12);
-  --accent-20: rgba(92, 184, 255, 0.20);
-}
-
-[data-accent="indigo"] {
-  --accent: #6366f1;
-  --accent-08: rgba(99, 102, 241, 0.08);
-  --accent-12: rgba(99, 102, 241, 0.12);
-  --accent-20: rgba(99, 102, 241, 0.20);
-}
-
-[data-accent="orange"] {
-  /* Legacy brand accent (v1.0–v1.1.x) */
-  --accent: #f97316;
-  --accent-08: rgba(249, 115, 22, 0.08);
-  --accent-12: rgba(249, 115, 22, 0.12);
-  --accent-20: rgba(249, 115, 22, 0.20);
-}
+/* (redesign 2.0 §1.5) Мёртвые accent-варианты blue/clinical/indigo/orange удалены —
+   это легаси отменённых редизайнов. Единственный акцент — signal (ниже). */
 
 /* Stencil brand (2026-05-19) — официальный фирменный стиль «Аналитик».
    Signal #FF6A3D — primary accent, IBM Plex Mono 700 uppercase для логотипа,
