@@ -319,7 +319,7 @@ export default function HomePage() {
       const message = err instanceof Error ? err.message : "Не удалось создать чат";
       publishToast({
         type: "error",
-        message: `Не удалось создать чат: ${message}. Проверь связь с backend (индикатор справа внизу).`,
+        message: `Не удалось создать чат: ${message}. Проверьте связь с базой 1С.`,
       });
     }
   }

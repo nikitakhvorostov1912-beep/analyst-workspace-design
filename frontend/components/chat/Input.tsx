@@ -123,7 +123,7 @@ export function ChatInput({
     if (!apiKey && !hasEnvApiKey) {
       publishToast({
         type: "warning",
-        message: "Введите API ключ в разделе Настройки или пропишите DEFAULT_LLM_API_KEY в backend/.env",
+        message: "Не задан ключ модели. Откройте «Настройки → Модель».",
       });
       return;
     }
@@ -366,7 +366,7 @@ export function ChatInput({
 
       {disabledReason === "banner" && (
         <p className="text-xs text-[var(--error)] px-1">
-          Нет соединения с базой. Восстановите подключение для отправки.
+          Нет связи с базой 1С. Восстановите подключение, чтобы отправить.
         </p>
       )}
 
@@ -424,7 +424,7 @@ export function ChatInput({
               void handleFilesAdded(imageFiles);
             }
           }}
-          placeholder="Спросите про базу 1С или прикрепите документ / скрин..."
+          placeholder="Спросите базу или прикрепите документ…"
           rows={1}
           readOnly={disabled}
           autoComplete="off"
@@ -478,19 +478,33 @@ export function ChatInput({
         )}
       </div>
 
-      {/* Hint-row под composer: brand mono uppercase + token counter */}
-      <div
-        className="flex items-center gap-3 px-1 text-[10px] tracking-[0.14em] uppercase text-[var(--fg-4)]"
-        style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
-      >
-        <span>
-          {disabledReason === "banner"
-            ? "Нет соединения — восстановите подключение"
-            : "Естественный язык · модель сама выберет инструменты"}
-        </span>
-        <span className="ml-auto tabular-nums">
-          {tokenEstimate.toLocaleString("ru-RU")} / 4 000 ТОКЕНОВ
-        </span>
+      {/* Hint-row под composer (F-09): одна подсказка про «/» и «@» + тонкая полоса
+          заполнения вместо счётчика токенов. Число показываем только у предела (>90%). */}
+      <div className="px-1">
+        <div
+          className="flex items-center gap-3 text-[11px] tracking-[0.06em] text-[var(--fg-3)]"
+          style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
+        >
+          <span>
+            {disabledReason === "banner"
+              ? "Нет связи с базой 1С — восстановите подключение"
+              : "/ — команды · @ — объекты базы"}
+          </span>
+          {tokenEstimate > 3600 && (
+            <span className="ml-auto tabular-nums text-[var(--warning)]">
+              {tokenEstimate.toLocaleString("ru-RU")} / 4 000
+            </span>
+          )}
+        </div>
+        <div
+          className="mt-1.5 h-[3px] w-full rounded-full bg-[var(--bd-1)] overflow-hidden"
+          aria-hidden="true"
+        >
+          <div
+            className="h-full bg-[var(--accent)]"
+            style={{ width: `${Math.min(100, (tokenEstimate / 4000) * 100)}%` }}
+          />
+        </div>
       </div>
     </div>
   );

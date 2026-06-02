@@ -2,6 +2,7 @@
 
 import { Markdown } from "./Markdown";
 import { AnswerSources } from "./AnswerSources";
+import { Alert } from "@/components/ui/Alert";
 import { CardRenderer } from "@/components/cards/CardRenderer";
 import { ToolTrace } from "./ToolTrace";
 import { StreamingStages } from "./StreamingStages";
@@ -60,10 +61,10 @@ export function AssistantMessage({
           Ассистент
         </div>
 
-        {/* Inline error — красный border, иконка ⚠, без stack trace */}
+        {/* Inline error — единый Alert (F-04), без emoji, lucide-иконка */}
         {message.error && (
-          <div className="border border-[var(--error-40)] bg-[var(--error-12)] rounded-md px-3 py-2 text-sm text-[var(--error)] mb-2">
-            ⚠ {message.error.message}
+          <div className="mb-2">
+            <Alert tone="error" title={message.error.message} />
           </div>
         )}
 

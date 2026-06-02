@@ -8,6 +8,7 @@ import { MCPConnectionList } from "@/components/settings/MCPConnectionList";
 import { LLMConfigForm } from "@/components/settings/LLMConfigForm";
 import { LocalDataSection } from "@/components/settings/LocalDataSection";
 import { Skeleton } from "@/components/ui/Skeleton";
+import { Alert } from "@/components/ui/Alert";
 import { ThemeToggle } from "@/components/shell/ThemeToggle";
 import type { LLMConfigResponse, MCPConnection } from "@/lib/types";
 
@@ -33,7 +34,7 @@ export default function SettingsPage() {
         if (cancelled) return;
         // REM-2 (2026-05-24): убрали docker hint — приложение в Electron, не Docker.
         setError(
-          "Серверная часть не отвечает. Проверьте, что приложение запущено корректно, и попробуйте перезагрузить страницу.",
+          "Сервис не отвечает. Перезапустите приложение и попробуйте снова.",
         );
       } finally {
         if (!cancelled) setLoading(false);
@@ -92,9 +93,7 @@ export default function SettingsPage() {
       )}
 
       {!loading && error && (
-        <div className="border border-red-800 rounded-lg p-5 bg-[var(--bg-elevated)]">
-          <p className="text-sm text-[var(--error)]">{error}</p>
-        </div>
+        <Alert tone="error" title={error} />
       )}
 
       {!loading && !error && (

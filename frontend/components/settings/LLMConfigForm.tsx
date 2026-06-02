@@ -522,7 +522,7 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
           <div
             data-testid="key-stored-backend"
             className="flex h-9 items-center px-3 rounded-md border border-[var(--success-40)] bg-[var(--success-12)] text-sm text-[var(--success)] font-mono"
-            title="Ключ зашифрован AES-256 GCM и сохранён в локальной БД backend. Переживает перезаход и переустановку приложения."
+            title="Ключ зашифрован AES-256 GCM и сохранён в локальной базе приложения. Переживает перезаход и переустановку приложения."
           >
             ✓ Ключ сохранён в защищённом хранилище
           </div>

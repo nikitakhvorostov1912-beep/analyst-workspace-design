@@ -348,7 +348,7 @@ export function OnboardingDialog({
             <div className="flex items-center justify-between p-4 bg-[var(--bg-2)] border border-[var(--bd-2)] rounded-lg">
               <div className="flex-1 min-w-0 pr-3">
                 <div className="text-sm font-medium text-[var(--fg-1)]">
-                  Включить обучение сейчас
+                  Включить память сейчас
                 </div>
                 <div className="text-xs text-[var(--fg-3)] mt-0.5">
                   По умолчанию выключено · приватно
@@ -357,7 +357,7 @@ export function OnboardingDialog({
               <LearnSwitch
                 checked={learnOn}
                 onCheckedChange={setLearnOn}
-                label="Включить обучение на сессиях"
+                label="Включить память по этой базе"
               />
             </div>
 

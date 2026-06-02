@@ -8,7 +8,7 @@ describe("ErrorBanner", () => {
     const { container } = render(<ErrorBanner title="Ошибка соединения" />);
     const banner = container.querySelector('[role="alert"]');
     expect(banner).toBeInTheDocument();
-    expect(banner).toHaveAttribute("data-severity", "error");
+    expect(banner).toHaveAttribute("data-tone", "error");
     expect(screen.getByText("Ошибка соединения")).toBeInTheDocument();
   });
 
@@ -21,7 +21,7 @@ describe("ErrorBanner", () => {
       />,
     );
     const banner = container.querySelector('[role="alert"]');
-    expect(banner).toHaveAttribute("data-severity", "warning");
+    expect(banner).toHaveAttribute("data-tone", "warning");
     expect(screen.getByText("Внимание")).toBeInTheDocument();
     expect(screen.getByText("Сессия скоро истечёт")).toBeInTheDocument();
   });
@@ -29,7 +29,7 @@ describe("ErrorBanner", () => {
   it("renders info severity", () => {
     const { container } = render(<ErrorBanner severity="info" title="Подсказка" />);
     expect(container.querySelector('[role="alert"]')).toHaveAttribute(
-      "data-severity",
+      "data-tone",
       "info",
     );
   });

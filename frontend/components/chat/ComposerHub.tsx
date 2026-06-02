@@ -134,7 +134,7 @@ export function ComposerHub({
       const reason = err instanceof Error ? err.message : "Не удалось создать чат";
       publishToast({
         type: "error",
-        message: `Не удалось создать чат: ${reason}. Проверьте связь с backend (баннер вверху).`,
+        message: `Не удалось создать чат: ${reason}. Проверьте связь с базой 1С.`,
       });
     }
   }
@@ -204,19 +204,15 @@ export function ComposerHub({
           className="font-semibold text-[28px] tracking-[0] mb-2 text-[var(--fg-1)]"
           style={{ fontFamily: "var(--font-plex-mono), ui-monospace, monospace" }}
         >
-          О чём спросим базу?
+          О чём спросить базу?
         </h2>
         <p className="text-sm text-[var(--fg-3)] max-w-md mx-auto leading-relaxed">
-          Свободная формулировка — оформление и запросы возьмёт на себя модель.
+          Спросите обычными словами — запросы и оформление модель возьмёт на себя.
         </p>
       </div>
 
-      {/* Composer (ChatInput с brand-tick сверху) */}
+      {/* Composer — brand-tick рисует сам ChatInput (F-09: дубль убран) */}
       <div className="w-full relative">
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute top-0 left-6 h-[2px] w-[22px] bg-[var(--accent)] z-10"
-        />
         <ChatInput
           key={composerKey}
           onSubmit={handleFirstQuestion}

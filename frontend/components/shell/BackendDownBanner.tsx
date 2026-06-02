@@ -50,7 +50,7 @@ export function BackendDownBanner({
           aria-hidden="true"
         />
         <span className="text-[var(--fg-1)] font-medium">
-          Серверная часть не отвечает.
+          Сервис не отвечает.
         </span>
         <span className="text-[var(--fg-3)] truncate hidden md:inline">
           Откройте «Диагностика» — там кнопка перезапуска и подробности.

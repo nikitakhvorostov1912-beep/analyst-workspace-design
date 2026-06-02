@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { ChevronRight, ChevronDown, Wrench, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { ChevronRight, ChevronDown, Wrench, AlertTriangle, Database, ListTodo, HelpCircle } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { formatDuration } from "@/lib/format-duration";
 import { cn } from "@/lib/utils";
 import { TraceSummary } from "./TraceSummary";
@@ -13,12 +14,13 @@ function pluralTools(n: number): string {
 }
 
 /**
- * Категория инструмента — для визуального code мини-chip'а в ToolTrace.
+ * Категория инструмента. Redesign 2.0 §1.6: категория передаётся ИКОНКОЙ,
+ * а не цветом (оранжевый = только действие). Цвет чипа — только ok/error.
  *
- * - mcp: реальные 1С MCP tools (execute_query, get_metadata, …) — orange
- * - memory: memory_append / memory_remove — blue
- * - todo: todo_add / todo_complete / todo_list — green
- * - clarify: clarify_question — purple (требует диалога)
+ * - mcp: реальные 1С MCP tools (execute_query, get_metadata, …) → Wrench
+ * - memory: memory_* → Database
+ * - todo: todo_* → ListTodo
+ * - clarify: clarify_question → HelpCircle
  */
 type ToolCategory = "mcp" | "memory" | "todo" | "clarify";
 
@@ -29,27 +31,21 @@ function getToolCategory(name: string): ToolCategory {
   return "mcp";
 }
 
+const CATEGORY_ICON: Record<ToolCategory, LucideIcon> = {
+  mcp: Wrench,
+  memory: Database,
+  todo: ListTodo,
+  clarify: HelpCircle,
+};
+
 /**
- * Цветовая палитра chip per категории — light/dark тема через CSS-переменные.
- * accent/success/warning — стандартные семантические токены design-tokens.css.
+ * Тон chip — только два состояния (redesign 2.0 §1.6, без «радуги»):
+ * ok — нейтральный, error — семантический error. Никаких blue/green/purple.
  */
-const CATEGORY_STYLE: Record<ToolCategory, { ok: string; error: string }> = {
-  mcp: {
-    ok: "bg-[var(--bg-2)] text-[var(--fg-2)] border-[var(--bd-2)] hover:border-[var(--accent-32)]",
-    error: "bg-[var(--error-12)] text-[var(--error)] border-[var(--error-20)] hover:bg-[var(--error-20)]",
-  },
-  memory: {
-    ok: "bg-[var(--info-12,var(--bg-2))] text-[var(--info,var(--fg-2))] border-[var(--info-20,var(--bd-2))] hover:opacity-90",
-    error: "bg-[var(--error-12)] text-[var(--error)] border-[var(--error-20)] hover:bg-[var(--error-20)]",
-  },
-  todo: {
-    ok: "bg-[var(--success-12,var(--bg-2))] text-[var(--success,var(--fg-2))] border-[var(--success-20,var(--bd-2))] hover:opacity-90",
-    error: "bg-[var(--error-12)] text-[var(--error)] border-[var(--error-20)] hover:bg-[var(--error-20)]",
-  },
-  clarify: {
-    ok: "bg-[var(--warning-12)] text-[var(--warning)] border-[var(--warning-20)] hover:opacity-90",
-    error: "bg-[var(--error-12)] text-[var(--error)] border-[var(--error-20)] hover:bg-[var(--error-20)]",
-  },
+const TONE_STYLE: Record<"ok" | "error", string> = {
+  ok: "bg-[var(--bg-2)] text-[var(--fg-2)] border-[var(--bd-2)] hover:border-[var(--bd-3)]",
+  error:
+    "bg-[var(--error-12)] text-[var(--error)] border-[var(--error-20)] hover:bg-[var(--error-20)]",
 };
 
 type ToolTraceProps = {
@@ -75,11 +71,10 @@ function ToolChip({
   onClick: () => void;
 }) {
   const isError = tc.ok === false;
-  const Icon = isError ? AlertTriangle : tc.ok === true ? CheckCircle2 : Wrench;
-  // TD-7 (2026-05-24): цветной accent per категории — пользователь
-  // мгновенно понимает что LLM делает (1С запрос / память / план / уточнение).
   const category = getToolCategory(tc.name);
-  const styleVariant = isError ? CATEGORY_STYLE[category].error : CATEGORY_STYLE[category].ok;
+  // §1.6: категория = иконка; цвет = только ok/error (error перебивает иконку).
+  const Icon = isError ? AlertTriangle : CATEGORY_ICON[category];
+  const styleVariant = isError ? TONE_STYLE.error : TONE_STYLE.ok;
   return (
     <button
       type="button"

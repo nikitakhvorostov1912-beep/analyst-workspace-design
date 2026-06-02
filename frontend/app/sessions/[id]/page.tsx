@@ -118,7 +118,7 @@ export default function SessionPage() {
           setActiveChannelId(effectiveChannelId);
           publishToast({
             type: "warning",
-            message: `Подключение этой сессии не найдено (вероятно, удалено). Переключил на «${fallback.name}».`,
+            message: `Эта база больше недоступна — переключил на «${fallback.name}».`,
           });
         } else if (!sessionChannelId && connections.length > 0) {
           effectiveChannelId = getActiveChannelId() ?? connections[0]!.id;
@@ -176,7 +176,7 @@ export default function SessionPage() {
       await pingConnection(conn.id);
       setBannerVisible(false);
     } catch {
-      publishToast({ type: "error", message: "База всё ещё недоступна" });
+      publishToast({ type: "error", message: "База 1С пока не отвечает." });
     } finally {
       setBannerRetrying(false);
     }
@@ -242,7 +242,7 @@ export default function SessionPage() {
       const message = err instanceof Error ? err.message : "Не удалось создать чат";
       publishToast({
         type: "error",
-        message: `Не удалось создать чат: ${message}. Проверь связь с backend.`,
+        message: `Не удалось создать чат: ${message}. Проверьте связь с базой 1С.`,
       });
       await store.refresh();
     }
