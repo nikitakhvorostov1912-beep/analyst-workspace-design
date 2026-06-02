@@ -11,13 +11,70 @@ LLM видит инструменты от всех источников в ед
 """
 
 import logging
+from types import SimpleNamespace
 from typing import Any
 
 from app.clients.mcp import MCPClient, MCPDisconnectedError
 from app.clients.mcp_stdio import StdioMCPClient, StdioMCPConfig
 from app.config import Settings
+from app.knowledge import buddy_monitor
 
 logger = logging.getLogger(__name__)
+
+
+class BuddyAuxClient:
+    """HTTP aux MCP-клиент 1С:Напарник с namespace-префиксом `buddy.` + телеметрией #40.
+
+    Зачем префикс `buddy.`:
+    - Напарник экспонирует `search_its` / `fetch_its` — теми же именами, что и
+      статический ИТС RAG (`search_its`). Без префикса диспетчер чата (loop.py)
+      поймал бы `search_its` в static-ветке (`is_its_tool`) и реальный Напарник
+      НИКОГДА бы не вызвался — ровно этот баг и наблюдался.
+    - С префиксом `buddy.search_its`: `is_its_tool()` == False → tool падает в
+      MCP-ветку диспетчера → `pool.client_for()` возвращает этот клиент →
+      `call_tool()` снимает префикс перед делегированием реальному серверу.
+
+    Телеметрия (#40): `buddy_monitor.record_call(ok)` на каждый вызов питает
+    `/health` (calls_total / ok / fail).
+
+    Совместимость с MCPPool: имеет `config.name` (для логов) и `_is_http_aux=True`
+    (MCPPool.list_all_tools пропускает _proc-проверку для HTTP-aux).
+    """
+
+    _PREFIX = "buddy."
+
+    def __init__(self, endpoint: str) -> None:
+        self._inner = MCPClient(endpoint)
+        self.config = SimpleNamespace(name="1c-buddy")
+        self._is_http_aux = True
+
+    async def initialize(self) -> Any:
+        return await self._inner.initialize()
+
+    async def list_tools(self) -> list[dict]:
+        tools = await self._inner.list_tools()
+        prefixed: list[dict] = []
+        for tool in tools:
+            name = str(tool.get("name", "")).strip()
+            if not name:
+                continue
+            t2 = dict(tool)
+            t2["name"] = self._PREFIX + name
+            prefixed.append(t2)
+        return prefixed
+
+    async def call_tool(self, name: str, arguments: dict) -> dict:
+        raw = name[len(self._PREFIX):] if name.startswith(self._PREFIX) else name
+        try:
+            result = await self._inner.call_tool(raw, arguments)
+        except Exception:
+            buddy_monitor.record_call(False)
+            raise
+        buddy_monitor.record_call(True)
+        return result
+
+    async def aclose(self) -> None:
+        await self._inner.aclose()
 
 
 class MCPPool:
@@ -68,9 +125,12 @@ class MCPPool:
 
         # Aux tools
         for aux in self.aux_clients:
-            # Если aux не инициализирован — пропускаем (initialize_all уже залогировал)
-            if aux._proc is None or aux._proc.returncode is not None:
-                continue
+            # HTTP aux (buddy): нет _proc — готовность определяется через
+            # initialize_all (если упал — list_tools ниже бросит → except → continue).
+            # stdio aux: пропускаем если процесс не запущен/умер.
+            if not getattr(aux, "_is_http_aux", False):
+                if aux._proc is None or aux._proc.returncode is not None:
+                    continue
             try:
                 aux_tools = await aux.list_tools()
             except Exception:
@@ -111,12 +171,26 @@ class MCPPool:
                 pass
 
 
-def build_aux_clients(settings: Settings) -> list[StdioMCPClient]:
+def build_aux_clients(settings: Settings) -> list[Any]:
     """Собирает список aux MCP-клиентов на основе настроек.
 
-    Сейчас поддерживается только bsl-context. В будущем — другие справочники.
+    Поддерживаются:
+    - bsl-context (stdio) — справочник API платформы 1С;
+    - 1С:Напарник (HTTP, BuddyAuxClient) — живая ИТС/БСП документация (L5),
+      если `settings.buddy_mcp_enabled` и задан endpoint.
     """
-    aux: list[StdioMCPClient] = []
+    aux: list[Any] = []
+
+    # --- 1С:Напарник (живая ИТС, primary L5) ---
+    if settings.buddy_mcp_enabled:
+        endpoint = (settings.buddy_mcp_endpoint or "").strip()
+        if endpoint:
+            aux.append(BuddyAuxClient(endpoint))
+            logger.info("Aux MCP buddy (1С:Напарник) configured: %s", endpoint)
+        else:
+            logger.info("Aux MCP buddy пропущен: buddy_mcp_endpoint пустой")
+    else:
+        logger.info("Aux MCP buddy пропущен: buddy_mcp_enabled=false")
 
     # Используем resolved_* — они подставляют bundled JAR / системный java /
     # auto-detected платформу 1С, если env vars не заданы. Только когда все

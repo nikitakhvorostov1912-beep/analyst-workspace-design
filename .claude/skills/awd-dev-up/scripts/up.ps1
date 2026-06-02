@@ -17,13 +17,26 @@ if (-not (Test-Path $venvPython)) {
     exit 1
 }
 
+# 2b. Grounding prod DB = pilot.db (4 channels: typical-object cards + L2 graph).
+# Backend default reads /data/app.db (no typical tables -> cards/graph/trace_typical_*
+# are empty in chat). For the working product we point backend at pilot.db when present.
+# Passed to the uvicorn child via env inheritance (Start-Process inherits parent $env).
+# Durable: applied on every /awd-dev-up.
+$pilotDb = Join-Path $root 'data\pilot.db'
+if (Test-Path $pilotDb) {
+    $env:DATABASE_URL = 'sqlite+aiosqlite:///' + ($pilotDb -replace '\\', '/')
+    Write-Output "DB: pilot.db -> $($env:DATABASE_URL)"
+} else {
+    Write-Output "WARN: pilot.db not found ($pilotDb) - backend uses default DB (cards/graph will be empty)"
+}
+
 # 3. Start backend (background, hidden)
 Start-Process -FilePath $venvPython `
     -ArgumentList '-m', 'uvicorn', 'app.main:app', '--reload', '--port', '8010' `
     -WorkingDirectory $backendDir `
     -WindowStyle Hidden -PassThru | Out-Null
 
-# 4. Start frontend (background, hidden) — npx через .cmd
+# 4. Start frontend (background, hidden) - npx via .cmd
 $npxCmd = $null
 $cmd = Get-Command npx.cmd -ErrorAction SilentlyContinue
 if ($cmd) { $npxCmd = $cmd.Source }
@@ -53,7 +66,7 @@ for ($i = 0; $i -lt 30; $i++) {
             break
         }
     } catch {
-        # Not ready yet — keep polling
+        # Not ready yet - keep polling
     }
 }
 
@@ -62,6 +75,6 @@ if ($ok) {
     Write-Output "PASS Frontend: http://localhost:3010"
     exit 0
 } else {
-    Write-Error "FAIL: серверы не отвечают за 60 сек. Проверь backend/.venv и pnpm install."
+    Write-Error "FAIL: servers did not respond within 60s. Check backend/.venv and pnpm install."
     exit 1
 }
