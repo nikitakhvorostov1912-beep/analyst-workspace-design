@@ -68,7 +68,11 @@ progress:
 > - **RLS per-right** ✅ — было: 419 пар (35%) с разными условиями Read/Update схлопывались (дедуп insert_edge). Решение: список `[{right,condition}]` в ребре. Объектный резолв был 100% (1188 пар). (`afd3fbd`)
 > - **Граф достоверен для grounding по ВСЕМ киллер-UC.** UC-traverse (CALLS depth=4) = 222ms.
 > - **✅ ПЕРЕСБОРКА ГРАФОВ В `pilot.db` ЗАВЕРШЕНА (2026-06-01)** — все 4 канала с фиксами (CALLS cross-module + Phase F движения + RLS-v2 per-right). Процедура: `wipe_channel_graph.py` (обязательный per-channel wipe, билдер сам не чистит) → `typical_graph_pilot.py`. Валидация: WRITES_TO ut115 2485 / erp25 8602 / ka2 7672 / bp30 2969 (везде ≠0); RLS 1188/3808/3845/1888. Карточки забэкаплены (`pilot_cards_backup_2026-06-01.db`).
-> - **PENDING:** Grounding в чате (LLM подмешивает граф) — не начат (#38 цепочка вызовов хрупкая + wire в чат-UI с ключом MiMo + #39 golden-set из практики).
+> - **✅ GROUNDING СВЕДЁН (2026-06-01):** живой чат `loop.py` уже импортирует typical-инструменты (list/search/explain/trace_calls/trace_movements/compare) — wire был на месте. Доделано:
+>   - **read-path фикс** `card_context.py`: движения уровня объекта (Phase F) теперь в `writes_to` (демо: Реализация 1→44). Демо end-to-end на 2 конфигах (УТ продажи / ЕРП кадры), 5 типов вопросов — `scripts/demo_grounding.py`.
+>   - **#38 закрыт:** системный промпт — гайд по qname метода + «не молчать до лимита, отвечать по фактам»; убран устаревший каркас «is_mock=true» (карточки реальны); правило «числа из графа, не из прозы карточки». `grounding.py` MAX_ROUNDS 6→10 (живой чат уже 100). Тесты 57/57.
+>   - **#39 golden-set:** каркас `phases/M-K3/GOLDEN-SET.md` засеян 8 проверенными эталонами (S1–S8, вкл. 2 G0-ловушки).
+> - **🟡 ОСТАЛОСЬ ВЛАДЕЛЬЦУ (нельзя без него):** (1) live-прогон чата с ключом MiMo на реальных вопросах; (2) наполнить golden-set #39 реальными вопросами из практики (15–20, синтетика не заменяет); (3) прогнать гейты G0–G3 приёмки.
 
 **Active milestone (история до 2026-05-26):** ✅ **M-K2 Knowledge Foundation + Triple RAG — CLOSED SUMMARY 2026-05-26** (12/13 done + 1 deferred).
 
