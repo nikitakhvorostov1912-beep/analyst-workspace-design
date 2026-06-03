@@ -408,6 +408,7 @@ export default function HomePage() {
         headerProps={{
           activeChannelId,
           onChannelChange: handleChannelChange,
+          onOpenCmdK: () => setCmdPaletteOpen(true),
         }}
       >
         {/* Sprint 04 (handoff O-2 + O-3): resume banner / config warning над

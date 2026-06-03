@@ -1,17 +1,13 @@
 "use client";
 
-import Link from "next/link";
-import { PanelLeft, Search, Settings } from "lucide-react";
+import { PanelLeft, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { HelpMenu } from "./HelpMenu";
-import { KnowledgeBadge } from "@/components/knowledge/KnowledgeBadge";
 import { BrandMark } from "./BrandMark";
 import { StencilLockup } from "./StencilLockup";
 import { ChannelSelector } from "./ChannelSelector";
-import { ModelBadge } from "./ModelBadge";
-import { AnonymizationStatus } from "./AnonymizationStatus";
-import { ThemeToggle } from "./ThemeToggle";
 import { TypicalSelector } from "./TypicalSelector";
+import { StatusCapsule } from "./StatusCapsule";
+import { OverflowMenu } from "./OverflowMenu";
 import { UpdateBanner } from "./UpdateBanner";
 
 export interface HeaderProps {
@@ -21,6 +17,17 @@ export interface HeaderProps {
   onOpenCmdK?: () => void;
 }
 
+/**
+ * Header (shell v3 §1) — три зоны вместо «свалки справа».
+ *
+ *   Зона 1 (слева):  ☰  ◆ АНАЛИТИК │ <ChannelSelector + EnvBadge> <TypicalSelector>
+ *   SPACER:          flex-1
+ *   Зона 3 (справа): <Search ⌘K>  <StatusCapsule>  <OverflowMenu ⋯>
+ *
+ * Контекст базы (ChannelSelector) — главный левый якорь «куда я шлю запросы».
+ * Статус (модель/база/анонимизация) собран в StatusCapsule; справка/тема/
+ * настройки — в OverflowMenu. UpdateBanner — Electron-only (null в браузере).
+ */
 export function Header({
   activeChannelId,
   onChannelChange,
@@ -29,80 +36,61 @@ export function Header({
 }: HeaderProps) {
   return (
     <header
-      className="sticky top-0 z-10 grid grid-cols-[260px_1fr_auto] items-center gap-[18px] h-[52px] px-3.5 bg-[var(--bg-1)] border-b border-[var(--bd-1)] col-span-2"
+      className="sticky top-0 z-10 flex items-center gap-3 h-[52px] px-3.5 bg-[var(--bg-1)] border-b border-[var(--bd-1)] col-span-2"
       data-testid="app-header"
     >
-      {/* Left: sidebar toggle + brand */}
-      <div className="flex items-center gap-2.5">
-        {onToggleSidebar && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={onToggleSidebar}
-            aria-label="Свернуть/развернуть боковую панель"
-            className="h-7 w-7"
-          >
-            <PanelLeft className="h-4 w-4" />
-          </Button>
-        )}
-        <div className="flex items-center gap-2.5 min-w-0">
-          <BrandMark size={36} />
-          <StencilLockup fontSize={16} />
-        </div>
-      </div>
-
-      {/* Center: channel selector + typical selector */}
-      <div className="flex justify-center items-center gap-2">
-        <ChannelSelector
-          activeId={activeChannelId}
-          onChange={onChannelChange}
-        />
-        {/* M-K2.5.7: типовая для compare/explain. Опциональный — без неё
-            LLM-tools требуют явный channel_id от пользователя. */}
-        <TypicalSelector />
-      </div>
-
-      {/* Right: anon + model + cmd-K + status icons */}
-      <div className="flex items-center gap-1.5">
-        {/* P1.4: UpdateBanner появляется только в Electron когда есть обновление */}
-        <UpdateBanner />
-        {/* M-K2.11: Local Knowledge badge — счётчики ИТС + БСП + privacy. */}
-        <KnowledgeBadge />
-        <AnonymizationStatus activeChannelId={activeChannelId} />
-        <ModelBadge />
-        {onOpenCmdK && (
-          <button
-            type="button"
-            onClick={onOpenCmdK}
-            aria-label="Командное меню"
-            className="inline-flex items-center gap-2 h-[30px] px-2.5 rounded-md bg-[var(--bg-2)] border border-[var(--bd-2)] text-[var(--fg-2)] hover:text-[var(--fg-1)] hover:border-[var(--bd-3)] transition-colors"
-            style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
-          >
-            <Search className="h-3 w-3" />
-            <span className="text-[10px] tracking-[0.16em] uppercase">Search</span>
-            <kbd className="text-[9px] tracking-[0.1em] px-1 py-0.5 rounded border border-[var(--bd-2)] text-[var(--fg-3)]">
-              ⌘K
-            </kbd>
-          </button>
-        )}
-        {/* F-03: три иконки справки → одно меню «?» с подписями */}
-        <HelpMenu />
-        <ThemeToggle />
+      {/* ── ЗОНА 1: toggle + бренд + контекст базы ── */}
+      {onToggleSidebar && (
         <Button
           variant="ghost"
           size="icon"
-          asChild
-          className="h-[30px] w-[30px] text-[var(--fg-3)] hover:text-[var(--fg-1)]"
+          onClick={onToggleSidebar}
+          aria-label="Свернуть/развернуть боковую панель"
+          className="h-7 w-7 flex-none"
         >
-          <Link
-            href="/settings"
-            aria-label="Настройки"
-            title="Настройки — базы 1С и модель ИИ"
-          >
-            <Settings className="h-[15px] w-[15px]" />
-          </Link>
+          <PanelLeft className="h-4 w-4" />
         </Button>
+      )}
+      <div className="flex items-center gap-2.5 min-w-0 flex-none">
+        <BrandMark size={32} />
+        <StencilLockup fontSize={15} />
       </div>
+
+      {/* вертикальный разделитель */}
+      <span aria-hidden className="h-[26px] w-px bg-[var(--bd-2)] flex-none" />
+
+      {/* контекст базы — главный левый якорь */}
+      <ChannelSelector activeId={activeChannelId} onChange={onChannelChange} />
+
+      {/* M-K2.5.7: типовая для compare/explain (опциональна) */}
+      <TypicalSelector />
+
+      {/* ── SPACER ── */}
+      <span className="flex-1" />
+
+      {/* ── ЗОНА 3: поиск · статус · overflow ── */}
+      {onOpenCmdK && (
+        <button
+          type="button"
+          onClick={onOpenCmdK}
+          aria-label="Поиск и команды"
+          className="inline-flex items-center gap-2 h-[34px] px-2.5 rounded-md bg-[var(--bg-2)] border border-[var(--bd-2)] text-[var(--fg-2)] hover:text-[var(--fg-1)] hover:border-[var(--bd-3)] transition-colors flex-none"
+        >
+          <Search className="h-3.5 w-3.5" />
+          <span className="text-[12.5px] hidden md:inline">Поиск по чатам…</span>
+          <kbd
+            className="text-[9px] tracking-[0.1em] px-1 py-0.5 rounded border border-[var(--bd-2)] text-[var(--fg-3)]"
+            style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
+          >
+            ⌘K
+          </kbd>
+        </button>
+      )}
+
+      {/* P1.4: UpdateBanner — Electron-only, null в браузере (апдейты не теряем) */}
+      <UpdateBanner />
+      <StatusCapsule activeChannelId={activeChannelId} />
+      <OverflowMenu />
     </header>
   );
 }

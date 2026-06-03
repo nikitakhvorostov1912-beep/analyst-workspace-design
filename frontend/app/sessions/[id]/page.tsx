@@ -374,6 +374,7 @@ export default function SessionPage() {
         headerProps={{
           activeChannelId: activeChannelId ?? detail?.channel_id ?? null,
           onChannelChange: handleChannelChange,
+          onOpenCmdK: () => setCmdPaletteOpen(true),
         }}
         bottom={
           <ChatInput

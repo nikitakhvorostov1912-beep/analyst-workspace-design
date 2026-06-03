@@ -17,10 +17,16 @@ import {
 } from "@/components/ui/StatusDot";
 import { KindBadge } from "@/components/shell/KindBadge";
 import { ModeBadge } from "@/components/shell/ModeBadge";
+import { EnvBadge } from "@/components/shell/EnvBadge";
 import { IndexerProgress } from "@/components/knowledge/IndexerProgress";
 import type { ChannelMode } from "@/lib/capabilities";
 import { fetchConnections, pingConnection } from "@/lib/api";
-import { getMCPConnections, setActiveChannelId, syncMCPConnections } from "@/lib/storage";
+import {
+  getConnectionEnvironment,
+  getMCPConnections,
+  setActiveChannelId,
+  syncMCPConnections,
+} from "@/lib/storage";
 import {
   formatRelativeTime,
   pluralObject,
@@ -132,6 +138,8 @@ export function ChannelSelector({ activeId, onChange }: Props) {
       }
       const withStatus: ConnectionWithStatus[] = initialConns.map((c) => ({
         ...c,
+        // shell v3 §5 (Вариант B): окружение из localStorage, backend его не отдаёт.
+        environment: getConnectionEnvironment(c.id),
         ping: "checking" as PingStatus,
       }));
       setConnections(withStatus);
@@ -224,7 +232,7 @@ export function ChannelSelector({ activeId, onChange }: Props) {
   // Empty state — крупно, чтобы аналитик сразу заметил «надо настроить»
   if (connections.length === 0) {
     return (
-      <div className="flex items-center gap-3 h-9 px-3 rounded-md border border-dashed border-[var(--warning-40)] bg-[var(--warning-12)] text-[13px] text-[var(--fg-1)] select-none min-w-[320px]">
+      <div className="flex items-center gap-3 h-9 px-3 rounded-md border border-dashed border-[var(--warning-40)] bg-[var(--warning-12)] text-[13px] text-[var(--fg-1)] select-none flex-none">
         <Database className="h-3.5 w-3.5 text-[var(--warning)] flex-none" />
         <span
           className="text-[10px] tracking-[0.16em] uppercase text-[var(--warning)] flex-none"
@@ -248,30 +256,21 @@ export function ChannelSelector({ activeId, onChange }: Props) {
     <DropdownMenu open={open} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
         <button
-          className="flex items-center gap-3 h-9 px-3 rounded-md border border-[var(--bd-2)] bg-[var(--bg-2)] hover:bg-[var(--bg-hover)] hover:border-[var(--bd-3)] transition-colors min-w-[320px] cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--accent-20)]"
+          className="flex items-center gap-2 h-9 px-3 rounded-md border border-[var(--bd-2)] bg-[var(--bg-2)] hover:bg-[var(--bg-hover)] hover:border-[var(--bd-3)] transition-colors cursor-pointer focus:outline-none focus:ring-2 focus:ring-[var(--accent-20)] flex-none"
           aria-label="Выбор базы 1С"
           title={activeConn ? `${activeConn.name} — ${activeConn.endpoint}` : undefined}
           data-testid="channel-selector-button"
         >
-          {/* Brand-eyebrow: иконка + БАЗА 1С uppercase */}
+          {/* shell v3 §4: чип слева — eyebrow «База 1С» убран (иконка уже понятна),
+              min-w убран (не растягивает левую зону), добавлен EnvBadge. Одна строка. */}
           <Database className="h-3.5 w-3.5 text-[var(--accent)] flex-none" />
           <span
-            className="text-[10px] tracking-[0.16em] uppercase text-[var(--fg-3)] flex-none"
-            style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
-          >
-            База 1С
-          </span>
-
-          {/* Название канала — IBM Plex Mono 600. Технических подробностей
-              (порт, embedded/proxy) тут нет: аналитику важно «база подключена / нет»,
-              а не как именно она настроена. Полный адрес показывается в dropdown. */}
-          <span
-            className="flex-1 text-left truncate text-[12.5px] font-semibold text-[var(--fg-1)]"
+            className="text-left truncate max-w-[180px] text-[12.5px] font-semibold text-[var(--fg-1)]"
             style={{ fontFamily: "var(--font-plex-mono), 'IBM Plex Mono', ui-monospace, monospace" }}
           >
             {activeConn ? activeConn.name : "Выберите подключение"}
           </span>
-
+          <EnvBadge env={activeConn?.environment} />
           <PingDot status={activeConn?.ping ?? "unknown"} />
           <ChevronDown className="h-3.5 w-3.5 text-[var(--fg-3)] flex-none" />
         </button>
@@ -309,6 +308,7 @@ export function ChannelSelector({ activeId, onChange }: Props) {
                     >
                       {conn.name}
                     </span>
+                    <EnvBadge env={conn.environment} />
                     {conn.config_type && (
                       <span
                         className={cn(
