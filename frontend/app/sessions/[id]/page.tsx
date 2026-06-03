@@ -13,7 +13,7 @@ import { ExportSessionButton } from "@/components/chat/ExportSessionButton";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useChatStream } from "@/components/chat/useChatStream";
 import { useSessionsStore } from "@/lib/sessions-store";
-import { fetchSessionDetail, fetchSessionMessages, fetchConnections, fetchLLMConfig, pingConnection, patchSessionTitle } from "@/lib/api";
+import { fetchSessionDetail, fetchSessionMessages, fetchConnections, fetchLLMConfig, pingConnection, patchSessionTitle, setSessionPinned } from "@/lib/api";
 import { getActiveChannelId, setActiveChannelId } from "@/lib/storage";
 import { publishToast } from "@/lib/toast";
 import { publishUndoToast } from "@/lib/undo-toast";
@@ -255,6 +255,12 @@ export default function SessionPage() {
     });
   }
 
+  function handlePin(sessionId: string, pinned: boolean): void {
+    void setSessionPinned(sessionId, pinned)
+      .then(() => store.refresh())
+      .catch(() => store.refresh());
+  }
+
   function handleDelete(sessionId: string) {
     // Sprint 02 A · UndoToast: оптимистично удаляем сессию, через 5с —
     // реальный DELETE. Если удалили текущую сессию — переходим на главную
@@ -364,6 +370,7 @@ export default function SessionPage() {
         onCreateNew={handleCreateNew}
         onDeleteSession={handleDelete}
         onRenameSession={handleRename}
+        onPinSession={handlePin}
         headerProps={{
           activeChannelId: activeChannelId ?? detail?.channel_id ?? null,
           onChannelChange: handleChannelChange,

@@ -159,10 +159,11 @@ async def list_sessions_grouped(
     rows = await db.execute_fetchall(
         """
         SELECT s.id, s.title, s.channel_id, s.updated_at,
-               (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id) AS message_count
+               (SELECT COUNT(*) FROM messages m WHERE m.session_id = s.id) AS message_count,
+               COALESCE(s.pinned, 0) AS pinned
         FROM sessions s
         WHERE (? IS NULL OR s.channel_id = ?)
-        ORDER BY s.updated_at DESC
+        ORDER BY COALESCE(s.pinned, 0) DESC, s.updated_at DESC
         """,
         (channel_id, channel_id),
     )
@@ -175,7 +176,7 @@ async def list_sessions_grouped(
     result: dict = {"today": [], "yesterday": [], "this_week": [], "earlier": []}
 
     for row in rows:
-        session_id, title, ch_id, updated_at_raw, message_count = row
+        session_id, title, ch_id, updated_at_raw, message_count, pinned = row
         updated_at = _parse_updated_at(str(updated_at_raw))
 
         item = {
@@ -184,6 +185,7 @@ async def list_sessions_grouped(
             "channel_id": ch_id,
             "updated_at": updated_at,
             "message_count": int(message_count),
+            "pinned": bool(pinned),
         }
 
         if updated_at >= today_start:
@@ -309,6 +311,31 @@ async def update_session_title(
     await db.execute(
         "UPDATE sessions SET title = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         (title, session_id),
+    )
+    await db.commit()
+    return True
+
+
+async def set_session_pinned(
+    db: aiosqlite.Connection,
+    session_id: str,
+    pinned: bool,
+) -> bool:
+    """Закрепляет/открепляет сессию (F-11). НЕ трогает updated_at — закрепление
+    не должно сбивать сортировку по времени.
+
+    Returns:
+        True если сессия найдена и обновлена.
+    """
+    rows = await db.execute_fetchall(
+        "SELECT id FROM sessions WHERE id = ?", (session_id,)
+    )
+    if not rows:
+        return False
+
+    await db.execute(
+        "UPDATE sessions SET pinned = ? WHERE id = ?",
+        (1 if pinned else 0, session_id),
     )
     await db.commit()
     return True

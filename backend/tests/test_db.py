@@ -44,7 +44,10 @@ async def test_sessions_table_has_correct_columns(db: aiosqlite.Connection):
     """Таблица sessions содержит ожидаемые колонки."""
     rows = await db.execute_fetchall("PRAGMA table_info(sessions)")
     columns = {row[1] for row in rows}
-    assert {"id", "title", "channel_id", "created_at", "updated_at"} == columns
+    # v23: pinned для закрепления чатов (F-11 редизайн)
+    assert {
+        "id", "title", "channel_id", "created_at", "updated_at", "pinned",
+    } == columns
 
 
 @pytest.mark.asyncio

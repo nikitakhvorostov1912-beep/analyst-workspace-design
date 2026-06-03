@@ -2,7 +2,7 @@
 
 import { useRef, useState } from "react";
 import Link from "next/link";
-import { Check, Pencil, Trash2, X } from "lucide-react";
+import { Check, Pencil, Pin, Trash2, X } from "lucide-react";
 import type { SessionListItem, SessionsGrouped } from "@/lib/types";
 import { parseBackendDate } from "@/lib/utils";
 
@@ -12,6 +12,8 @@ interface SessionListProps {
   onDelete: (id: string) => void;
   /** F-11: переименование чата. Если не задан — карандаш скрыт. */
   onRename?: (id: string, title: string) => void;
+  /** F-11: закрепить/открепить чат. Если не задан — кнопка скрыта. */
+  onPin?: (id: string, pinned: boolean) => void;
 }
 
 /** Форматирует relative время на русском.
@@ -47,9 +49,10 @@ interface GroupSectionProps {
   activeId: string | null;
   onDelete: (id: string) => void;
   onRename?: (id: string, title: string) => void;
+  onPin?: (id: string, pinned: boolean) => void;
 }
 
-function GroupSection({ label, items, activeId, onDelete, onRename }: GroupSectionProps) {
+function GroupSection({ label, items, activeId, onDelete, onRename, onPin }: GroupSectionProps) {
   if (items.length === 0) return null;
 
   // Brand pattern: «СЕГОДНЯ ──────── 03»
@@ -81,6 +84,7 @@ function GroupSection({ label, items, activeId, onDelete, onRename }: GroupSecti
           isActive={item.id === activeId}
           onDelete={onDelete}
           onRename={onRename}
+          onPin={onPin}
         />
       ))}
     </div>
@@ -92,9 +96,10 @@ interface SessionItemProps {
   isActive: boolean;
   onDelete: (id: string) => void;
   onRename?: (id: string, title: string) => void;
+  onPin?: (id: string, pinned: boolean) => void;
 }
 
-function SessionItem({ item, isActive, onDelete, onRename }: SessionItemProps) {
+function SessionItem({ item, isActive, onDelete, onRename, onPin }: SessionItemProps) {
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(item.title ?? "");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -218,7 +223,27 @@ function SessionItem({ item, isActive, onDelete, onRename }: SessionItemProps) {
           </button>
         </div>
       ) : (
-        <div className="flex-none flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+        <div
+          className={`flex-none flex items-center gap-0.5 transition-opacity ${
+            item.pinned ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          }`}
+        >
+          {onPin && (
+            <button
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onPin(item.id, !item.pinned);
+              }}
+              className={`p-0.5 rounded hover:text-[var(--accent)] ${
+                item.pinned ? "text-[var(--accent)]" : "text-[var(--fg-3)]"
+              }`}
+              aria-label={item.pinned ? "Открепить чат" : "Закрепить чат"}
+              title={item.pinned ? "Открепить" : "Закрепить"}
+            >
+              <Pin size={13} className={item.pinned ? "fill-current" : ""} />
+            </button>
+          )}
           {onRename && (
             <button
               onClick={startEdit}
@@ -242,7 +267,7 @@ function SessionItem({ item, isActive, onDelete, onRename }: SessionItemProps) {
   );
 }
 
-export function SessionList({ grouped, activeId, onDelete, onRename }: SessionListProps) {
+export function SessionList({ grouped, activeId, onDelete, onRename, onPin }: SessionListProps) {
   const totalCount =
     grouped.today.length +
     grouped.yesterday.length +
@@ -259,10 +284,10 @@ export function SessionList({ grouped, activeId, onDelete, onRename }: SessionLi
 
   return (
     <div>
-      <GroupSection label="Сегодня" items={grouped.today} activeId={activeId} onDelete={onDelete} onRename={onRename} />
-      <GroupSection label="Вчера" items={grouped.yesterday} activeId={activeId} onDelete={onDelete} onRename={onRename} />
-      <GroupSection label="На этой неделе" items={grouped.this_week} activeId={activeId} onDelete={onDelete} onRename={onRename} />
-      <GroupSection label="Раньше" items={grouped.earlier} activeId={activeId} onDelete={onDelete} onRename={onRename} />
+      <GroupSection label="Сегодня" items={grouped.today} activeId={activeId} onDelete={onDelete} onRename={onRename} onPin={onPin} />
+      <GroupSection label="Вчера" items={grouped.yesterday} activeId={activeId} onDelete={onDelete} onRename={onRename} onPin={onPin} />
+      <GroupSection label="На этой неделе" items={grouped.this_week} activeId={activeId} onDelete={onDelete} onRename={onRename} onPin={onPin} />
+      <GroupSection label="Раньше" items={grouped.earlier} activeId={activeId} onDelete={onDelete} onRename={onRename} onPin={onPin} />
     </div>
   );
 }

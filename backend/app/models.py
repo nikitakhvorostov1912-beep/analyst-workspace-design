@@ -237,6 +237,7 @@ class SessionListItem(BaseModel):
     channel_id: str
     updated_at: datetime
     message_count: int
+    pinned: bool = False
 
 
 class SessionsGrouped(BaseModel):
@@ -279,7 +280,9 @@ class SessionMessages(BaseModel):
 class SessionPatch(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
 
-    title: str = Field(min_length=1, max_length=200)
+    # F-11: оба поля опциональны — можно патчить только title ИЛИ только pinned.
+    title: str | None = Field(default=None, min_length=1, max_length=200)
+    pinned: bool | None = None
 
 
 class ConfirmRequest(BaseModel):

@@ -23,6 +23,7 @@ from app.orchestrator.persistence import (
     get_session_messages,
     list_sessions_grouped,
     update_session_title,
+    set_session_pinned,
 )
 from app.storage.db import get_db
 
@@ -126,9 +127,16 @@ async def patch_session(
     body: SessionPatch,
     db: Annotated[aiosqlite.Connection, Depends(get_db)],
 ) -> SessionDetail:
-    """Переименовывает сессию."""
-    updated = await update_session_title(db, session_id, body.title)
-    if not updated:
+    """Переименовывает и/или закрепляет сессию (F-11)."""
+    if body.title is None and body.pinned is None:
+        raise HTTPException(status_code=400, detail="nothing to update")
+
+    found = True
+    if body.title is not None:
+        found = await update_session_title(db, session_id, body.title)
+    if found and body.pinned is not None:
+        found = await set_session_pinned(db, session_id, body.pinned)
+    if not found:
         raise HTTPException(status_code=404, detail="session not found")
 
     row = await get_session(db, session_id)

@@ -74,7 +74,7 @@ MIGRATIONS_V3 = [
     """,
 ]
 
-CURRENT_VERSION = 22
+CURRENT_VERSION = 23
 
 # Миграция v4: расширение card_states — добавление колонки anon_tokens JSON
 MIGRATIONS_V4 = [
@@ -695,6 +695,12 @@ MIGRATIONS_V22 = [
     """,
 ]
 
+# Миграция v23: закрепление чатов (F-11 редизайн). Закреплённые сессии всплывают
+# наверх списка (ORDER BY pinned DESC, updated_at DESC). Additive, default 0.
+MIGRATIONS_V23 = [
+    "ALTER TABLE sessions ADD COLUMN pinned INTEGER DEFAULT 0",
+]
+
 
 async def apply_migrations(db: aiosqlite.Connection) -> None:
     """Идемпотентно применяет миграции схемы БД."""
@@ -968,5 +974,15 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
             (22,),
+        )
+        await db.commit()
+
+    if current < 23:
+        # Закрепление чатов (F-11 редизайн): колонка pinned в sessions.
+        for stmt in MIGRATIONS_V23:
+            await db.execute(stmt)
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (23,),
         )
         await db.commit()

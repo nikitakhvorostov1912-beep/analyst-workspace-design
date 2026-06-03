@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog";
 import { OnboardingResumeBanner } from "@/components/onboarding/OnboardingResumeBanner";
 import { MemoryHint } from "@/components/memory/MemoryHint";
-import { fetchConnections, fetchLLMConfig, patchSessionTitle } from "@/lib/api";
+import { fetchConnections, fetchLLMConfig, patchSessionTitle, setSessionPinned } from "@/lib/api";
 import { useBackendHealth } from "@/lib/use-backend-health";
 import { BackendDownBanner } from "@/components/shell/BackendDownBanner";
 
@@ -358,6 +358,13 @@ export default function HomePage() {
     });
   }
 
+  // F-11: закрепление — persist + refresh (пересортирует pinned наверх).
+  function handlePin(sessionId: string, pinned: boolean): void {
+    void setSessionPinned(sessionId, pinned)
+      .then(() => store.refresh())
+      .catch(() => store.refresh());
+  }
+
   // Основной layout — AppShell с welcome screen (нет активной сессии).
   // Важно: не рендерить здесь пустой <Thread /> рядом с welcome — оба имеют h-full,
   // main:overflow-y-auto скроллит вниз из-за Thread auto-scrollIntoView, welcome уходит выше viewport.
@@ -397,6 +404,7 @@ export default function HomePage() {
         onCreateNew={handleCreateNew}
         onDeleteSession={handleDelete}
         onRenameSession={handleRename}
+        onPinSession={handlePin}
         headerProps={{
           activeChannelId,
           onChannelChange: handleChannelChange,

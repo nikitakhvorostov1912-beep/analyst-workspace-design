@@ -342,6 +342,8 @@ export type SessionListItem = {
   channel_id: string;
   updated_at: string;
   message_count: number;
+  /** F-11: закреплён ли чат (всплывает наверх списка). */
+  pinned?: boolean;
 };
 
 export type SessionsGrouped = {

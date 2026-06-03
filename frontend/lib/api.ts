@@ -794,6 +794,22 @@ export async function patchSessionTitle(
   return response.json() as Promise<SessionDetail>;
 }
 
+/** F-11: закрепить/открепить чат (PATCH /sessions/{id} с pinned). */
+export async function setSessionPinned(
+  id: string,
+  pinned: boolean,
+): Promise<SessionDetail> {
+  const response = await fetch(`${getBackend()}/sessions/${id}`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ pinned }),
+  });
+  if (!response.ok) {
+    throw new Error(`Ошибка закрепления сессии: ${response.status}`);
+  }
+  return response.json() as Promise<SessionDetail>;
+}
+
 // --- LLM Config API (Plan 5.1) ---
 
 /**
