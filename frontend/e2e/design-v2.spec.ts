@@ -31,117 +31,93 @@ const LEGACY_LLM = {
   temperature: 0.3,
 };
 
-test.describe("Design v2 — Header layout (Phase 11.3)", () => {
-  test("Header содержит brand mark «1С» в accent square 28×28", async ({ page }) => {
+test.describe("Shell v3 — Header layout (3 зоны)", () => {
+  test("Header: 3 цели справа (Search · StatusCapsule · ⋯), база слева", async ({ page }) => {
     await setupOnboardingMocks(page, {
       initialConnections: LEGACY_CONNECTIONS,
       initialLLM: LEGACY_LLM,
     });
-    await page.addInitScript(() => {
-      localStorage.clear();
-    });
+    await page.addInitScript(() => localStorage.clear());
 
     await page.goto("/");
 
-    // Header rendered (legacy guard auto-set onboarding flag)
     const header = page.getByTestId("app-header");
     await expect(header).toBeVisible({ timeout: 15000 });
 
-    // Brand mark «1С» в accent square
-    await expect(header.getByText("1С", { exact: true })).toBeVisible();
+    // Зона 1 — контекст базы слева
+    await expect(page.getByTestId("channel-selector-button")).toBeVisible();
+    // Зона 3 — статус + overflow (Search-кнопка появляется при onOpenCmdK)
+    await expect(page.getByTestId("status-capsule")).toBeVisible();
+    await expect(page.getByTestId("overflow-menu")).toBeVisible();
 
-    // Версия и app name
-    await expect(header.getByText("v1.2.1")).toBeVisible();
-    await expect(header.getByText("Аналитик")).toBeVisible();
+    // ModelBadge / отдельный anon-pill убраны из хедера (поглощены StatusCapsule)
+    await expect(page.getByTestId("model-badge")).toHaveCount(0);
   });
 
-  test("AnonymizationToggle переключается ВКЛ → amber pill", async ({ page }) => {
+  test("StatusCapsule открывается → база / модель / анонимизация в одном месте", async ({ page }) => {
     await setupOnboardingMocks(page, {
       initialConnections: LEGACY_CONNECTIONS,
       initialLLM: LEGACY_LLM,
     });
-    await page.addInitScript(() => {
-      localStorage.clear();
-    });
+    await page.addInitScript(() => localStorage.clear());
 
     await page.goto("/");
 
-    const toggle = page.getByRole("button", { name: "Переключатель анонимизации" });
-    await expect(toggle).toBeVisible({ timeout: 15000 });
+    const capsule = page.getByTestId("status-capsule");
+    await expect(capsule).toBeVisible({ timeout: 15000 });
+    await capsule.click();
 
-    // Изначально ВЫКЛ
-    await expect(toggle).toHaveAttribute("data-anon", "off");
+    // В поповере — подсистемы (стабильные русские подписи)
+    await expect(page.getByText("Модель", { exact: true })).toBeVisible();
+    await expect(page.getByTestId("anon-status")).toBeVisible();
+    await expect(page.getByText("Анонимизация")).toBeVisible();
 
-    // Клик → ВКЛ + amber styling
-    await toggle.click();
-    await expect(toggle).toHaveAttribute("data-anon", "on");
-    await expect(toggle).toHaveAttribute("aria-pressed", "true");
-
-    // Visual: amber pill — class содержит warning palette
-    const cls = await toggle.getAttribute("class");
-    expect(cls).toMatch(/warning/);
-
-    // Повторный клик → ВЫКЛ
-    await toggle.click();
-    await expect(toggle).toHaveAttribute("data-anon", "off");
+    // Esc закрывает
+    await page.keyboard.press("Escape");
+    await expect(page.getByText("Анонимизация")).not.toBeVisible();
   });
 
-  test("ModelBadge показывает Sparkles + читаемое имя модели + tech id в data-model", async ({ page }) => {
+  test("OverflowMenu «⋯» — подписанные пункты + переключение темы", async ({ page }) => {
     await setupOnboardingMocks(page, {
       initialConnections: LEGACY_CONNECTIONS,
-      initialLLM: { ...LEGACY_LLM, model: "claude-sonnet-4-6", temperature: 0.7 },
+      initialLLM: LEGACY_LLM,
     });
-    await page.addInitScript(() => {
-      localStorage.clear();
-    });
+    await page.addInitScript(() => localStorage.clear());
 
     await page.goto("/");
 
-    const badge = page.getByTestId("model-badge");
-    await expect(badge).toBeVisible({ timeout: 15000 });
-    // Видимый текст — человекочитаемое имя
-    await expect(badge).toContainText("Claude Sonnet 4.6");
-    await expect(badge).toContainText(/0\.7/);
-    // Tech id доступен в data-атрибуте для интеграций
-    await expect(badge).toHaveAttribute("data-model", "claude-sonnet-4-6");
+    await page.getByTestId("overflow-menu").click();
+    await expect(page.getByTestId("theme-toggle")).toBeVisible();
+    await expect(page.getByText("Настройки")).toBeVisible();
+    await expect(page.getByText("Диагностика")).toBeVisible();
 
-    // Sparkles SVG icon
-    const svg = badge.locator("svg").first();
-    await expect(svg).toBeVisible();
+    // Тема переключается → data-theme на <html>
+    await page.getByTestId("theme-toggle").click();
+    const theme = await page.evaluate(() =>
+      document.documentElement.getAttribute("data-theme"),
+    );
+    expect(theme).toBe("light");
   });
 
-  test("ModelBadge: для unknown модели показывает tech id как есть", async ({ page }) => {
+  test("EnvBadge: помеченная как ПРОД база выделяется в чипе", async ({ page }) => {
     await setupOnboardingMocks(page, {
       initialConnections: LEGACY_CONNECTIONS,
-      initialLLM: { ...LEGACY_LLM, model: "some-custom-model-2025", temperature: 0.5 },
+      initialLLM: LEGACY_LLM,
     });
+    // Вариант B: окружение в localStorage по id подключения + активный канал c1
     await page.addInitScript(() => {
       localStorage.clear();
+      localStorage.setItem("analyst.active_channel", "c1");
+      localStorage.setItem("analyst.connection_env", JSON.stringify({ c1: "prod" }));
     });
 
     await page.goto("/");
 
-    const badge = page.getByTestId("model-badge");
-    await expect(badge).toBeVisible({ timeout: 15000 });
-    await expect(badge).toContainText("some-custom-model-2025");
-    await expect(badge).toHaveAttribute("data-model", "some-custom-model-2025");
-  });
-
-  test("ModelBadge: Xiaomi MiMo v2 Pro отображается человекочитаемо", async ({ page }) => {
-    await setupOnboardingMocks(page, {
-      initialConnections: LEGACY_CONNECTIONS,
-      initialLLM: { ...LEGACY_LLM, model: "mimo-v2-pro", temperature: 0.3 },
-    });
-    await page.addInitScript(() => {
-      localStorage.clear();
-    });
-
-    await page.goto("/");
-
-    const badge = page.getByTestId("model-badge");
-    await expect(badge).toBeVisible({ timeout: 15000 });
-    await expect(badge).toContainText("Xiaomi MiMo v2 Pro");
-    await expect(badge).toHaveAttribute("data-model", "mimo-v2-pro");
+    const chip = page.getByTestId("channel-selector-button");
+    await expect(chip).toBeVisible({ timeout: 15000 });
+    const badge = chip.getByTestId("env-badge");
+    await expect(badge).toHaveText("ПРОД");
+    await expect(badge).toHaveAttribute("data-env", "prod");
   });
 });
 

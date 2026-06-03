@@ -71,6 +71,25 @@ progress:
 > **▶ НАПРАВЛЕНИЕ:** редизайн по ТЗ (см. выше) почти закрыт. Дальше: carryover'ы
 > редизайна (опц.) · релизный гейт (golden-set G1 + слепой тест G3 — нужен пользователь).
 >
+> **✅ РЕДИЗАЙН ОБОЛОЧКИ shell v3 (2026-06-03, ТЗ `ТЗ-Redesign-Shell-v3.md`, ветка `feature/m-k3-relational-cfe`):**
+> Перекомпоновка хедера в 3 зоны + единый статус. 7 коммитов (3c7e46f..7ef2727):
+> - **§1 Header** → flex 3 зоны: [toggle+бренд+ChannelSelector+TypicalSelector] | spacer
+>   | [Search ⌘K · StatusCapsule · OverflowMenu]. Центральная «свалка справа» убрана.
+> - **§2 StatusCapsule** (новый): капсула (агрег.точка+модель+латентность) → поповер
+>   База 1С/Модель/Анонимизация. Поглотил ModelBadge+AnonymizationStatus+KnowledgeBadge.
+> - **§3 OverflowMenu «⋯»** (новый): подписанные пункты (тема/диагностика/гайд/навыки/
+>   память/о приложении/настройки). Поглотил HelpMenu+ThemeToggle+Settings.
+> - **§4 ChannelSelector** влево: min-w-320 убран, EnvBadge (ПРОД/ТЕСТ/ДЕМО) в чипе+dropdown.
+> - **§5 environment** (Вариант B — localStorage, backend не отличает prod/test): тип +
+>   get/setConnectionEnvironment + select в форме. **§6** окружение в welcome eyebrow.
+> - **§7 InspectorDrawer** (новый): drawer объекта справа (radix Dialog, slide+Esc+focus-trap),
+>   открытие событийно (window `open-inspector`, не prop-drill). §8 onOpenCmdK проброшен.
+> - **Решения (флаги):** TypicalSelector сохранён в Зоне 1 (ТЗ опускал); быстрый свитч
+>   модели из шапки убран (модель read-only в капсуле, смена в Настройках) — следствие §2.
+> - **Проверка:** 404 frontend-теста зелёные, tsc baseline (5 пре-существующих, 0 новых),
+>   live Chrome обе темы: Header/StatusCapsule/OverflowMenu/EnvBadge ПРОД/InspectorDrawer.
+>   design-v2.spec.ts переписан под новую раскладку (Playwright не прогонялся — нет dev-stack).
+>
 > **✅ BUG-FIX СЕССИЯ 2026-06-03 (ветка `feature/m-k3-relational-cfe`):**
 > - **✅ `@`-mention ПОЧИНЕН** (`d062a42`): корень — `metadata_suggest` звал
 >   `bulk_refresh_metadata_cache` с `get_metadata({"detail":False})` = summary-режим
