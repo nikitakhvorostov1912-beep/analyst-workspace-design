@@ -195,9 +195,19 @@ export function TableCard({ payload, onDeanonymize }: TableCardProps) {
               <TableHead
                 key={i}
                 onClick={() => toggleSort(i)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    toggleSort(i);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label={`Сортировать по «${col.name}»`}
                 className={cn(
                   "cursor-pointer select-none hover:bg-[var(--bg-2)] whitespace-nowrap",
                   "text-[10px] uppercase tracking-[0.08em] text-[var(--fg-3)]",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--accent)]",
                   col.type === "Number" && "text-right",
                 )}
                 style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
