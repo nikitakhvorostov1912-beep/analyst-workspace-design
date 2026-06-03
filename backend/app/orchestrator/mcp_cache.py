@@ -56,6 +56,12 @@ CACHEABLE_TOOLS: frozenset[str] = frozenset({
     "get_bsl_syntax_help",
     "get_link_of_object",
     "get_object_by_link",
+    # 2026-06-03 (ИТС-латентность): живой Напарник 1С отвечает ~15с/вызов.
+    # Модель часто повторяет search_its с теми же args в одном turn → кешируем
+    # на TTL (2 мин), чтобы идентичный повтор не бил по its.1c.ru снова.
+    # ИТС-контент в пределах 2 мин не «протухает» материально.
+    "buddy.search_its",
+    "buddy.fetch_its",
 })
 
 

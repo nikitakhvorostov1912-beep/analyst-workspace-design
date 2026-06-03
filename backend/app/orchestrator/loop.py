@@ -185,6 +185,13 @@ MAX_TOOL_ITERATIONS = 100
 # Если LLM подряд делает > N одинаковых tool_call (имя + args) — break:
 # это infinite loop, дальнейшие итерации не приблизят к ответу.
 DUPLICATE_TOOL_CALL_THRESHOLD = 5
+
+# 2026-06-03 (ИТС-латентность): живой Напарник 1С (buddy.*) отвечает ~15с/вызов.
+# Модель склонна over-callить его (search → re-search с переформулировкой → fetch
+# → ещё search) — turn растягивается до 1-3 мин. Лимитируем число обращений к
+# Напарнику за один turn: после порога возвращаем модели подсказку «отвечай по
+# уже полученному», не дёргая ИТС снова. Идентичные повторы и так ловит MCP-кеш.
+MAX_BUDDY_CALLS_PER_TURN = 3
 RETRY_DELAY_S = 0.2
 TOOL_CONTENT_CAP = 50_000  # байт — cap для payload в LLM context
 
@@ -243,7 +250,7 @@ SYSTEM_PROMPT = """Ты — аналитик 1С. Работаешь ТОЛЬК�
 
 • submit_for_deanonymization — раскрытие анонимизированных значений в режиме маскировки.
 
-• buddy.search_its / buddy.fetch_its (1С:Напарник, ЕСЛИ доступен) — ЖИВОЙ источник ИТС/методик/инструкций 1С. Инфа ИТС меняется ПОСТОЯННО, поэтому это ПРИОРИТЕТНЫЙ источник для вопросов о методологии/стандартах/инструкциях: пробуй ПЕРВЫМ. buddy.search_its — поиск по ИТС, buddy.fetch_its — полный текст статьи. Цитируй источник явно.
+• buddy.search_its / buddy.fetch_its (1С:Напарник, ЕСЛИ доступен) — ЖИВОЙ источник ИТС/методик/инструкций 1С. Инфа ИТС меняется ПОСТОЯННО, поэтому это ПРИОРИТЕТНЫЙ источник для вопросов о методологии/стандартах/инструкциях: пробуй ПЕРВЫМ. buddy.search_its — поиск по ИТС, buddy.fetch_its — полный текст статьи. Цитируй источник явно. ВАЖНО (Напарник медленный, ~15с/вызов): ОДНОГО точного search_its обычно достаточно — НЕ повторяй поиск с переформулировками; нашёл статью → бери fetch_its и отвечай. Максимум 1-2 search_its + 1 fetch_its за ответ.
 
 • search_its (FALLBACK к Напарнику; если buddy недоступен) — поиск по НАШЕМУ индексу ИТС-стандартов (zeegin/v8std, статический снапшот — может устаревать). Для вопросов о МЕТОДОЛОГИИ (паттерны, БСП, RLS, диагностики BSL LS, оформление кода) — НЕ для данных конкретной базы. Возвращает топ-K фрагментов с цитатами на std396 / pattern-* / diag-* / metod* / lang-*. Приоритет: цитируй ИТС-стандарт явно в ответе. ПОРЯДОК для ИТС-вопросов: сначала buddy.search_its (живое), затем search_its (наш индекс).
 
@@ -1893,6 +1900,35 @@ async def run_chat_loop(
                         "content": f"Пользователь выбрал: {answer_str}",
                     })
                     continue
+
+                # 2026-06-03 (ИТС-латентность): лимит обращений к живому Напарнику
+                # (buddy.*) за turn. Каждый вызов ~15с — без лимита модель
+                # растягивает turn до 1-3 мин. После порога не дёргаем ИТС, а
+                # возвращаем модели подсказку отвечать по уже полученному.
+                if tool_name.startswith("buddy."):
+                    buddy_calls_so_far = sum(
+                        1 for c in accumulated_tool_calls
+                        if str(c.get("name", "")).startswith("buddy.")
+                    )
+                    if buddy_calls_so_far >= MAX_BUDDY_CALLS_PER_TURN:
+                        duration_ms = int((time.monotonic() - start_ts) * 1000)
+                        limit_msg = (
+                            f"Лимит обращений к 1С:Напарнику ({MAX_BUDDY_CALLS_PER_TURN}) "
+                            "за один ответ исчерпан. Сформируй ответ по уже полученным "
+                            "из ИТС данным — не вызывай buddy.* снова."
+                        )
+                        yield format_sse("tool_result", ToolResultEvent(
+                            id=tool_id, ok=False, error=limit_msg, duration_ms=duration_ms,
+                        ))
+                        accumulated_tool_calls.append({
+                            "id": tool_id, "name": tool_name, "args": tool_args,
+                            "result": None, "error": limit_msg, "duration_ms": duration_ms,
+                        })
+                        messages.append({
+                            "role": "tool", "tool_call_id": tool_id,
+                            "content": limit_msg,
+                        })
+                        continue
 
                 # Маршрутизация tool_call → правильный MCP client (primary или aux).
                 # P1.2 phase 3 (2026-05-23): MCP path вынесен в _execute_mcp_tool.
