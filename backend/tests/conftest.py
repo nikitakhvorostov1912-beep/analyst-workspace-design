@@ -1,8 +1,23 @@
 import os
+import sys
 
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
+
+# 2026-06-03 (flaky cp1251 fix): на Windows консоль по умолчанию cp1251.
+# Любой тест/код, печатающий кириллицу в stdout (или subprocess-вывод),
+# падал с UnicodeEncodeError под cp1251 — источник «7 flaky-тестов».
+# Форсируем UTF-8 для stdout/stderr ДО импорта app и запуска тестов.
+# Guard hasattr — reconfigure есть на TextIOWrapper (CPython 3.7+); если
+# stdout подменён (capture), тихо пропускаем.
+for _stream in (sys.stdout, sys.stderr):
+    _reconfigure = getattr(_stream, "reconfigure", None)
+    if callable(_reconfigure):
+        try:
+            _reconfigure(encoding="utf-8")
+        except (ValueError, OSError):
+            pass
 
 # Используем in-memory SQLite для тестов — устанавливаем ДО импорта app
 os.environ["DATABASE_URL"] = "sqlite+aiosqlite:///:memory:"

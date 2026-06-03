@@ -2013,7 +2013,7 @@ async def run_chat_loop(
             x_anon_enabled=x_anon_enabled,
         )
 
-    except Exception as exc:
+    except Exception:
         # BE-3 (M-K0.2, 2026-05-25): silent failure → explicit error.
         # Раньше: message_id='unknown' тихо передавался в done event, frontend
         # молча работал с битым id. Теперь — явный SSE error для пользователя
