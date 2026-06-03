@@ -47,8 +47,8 @@ async def test_metadata_suggest_cache_hit_returns_cached(client):
 
 
 @pytest.mark.asyncio
-async def test_metadata_suggest_cache_miss_refreshes_via_mcp(client):
-    """При отсутствии кеша — обращается к MCP get_metadata и заполняет кеш."""
+async def test_metadata_suggest_cache_miss_goes_live(client):
+    """При отсутствии свежего кеша — live name_mask-поиск через MCP (cached=False)."""
     r = await client.post(
         "/connections",
         json={"name": "test-refresh", "endpoint": "http://localhost:6010/mcp"},
@@ -82,7 +82,9 @@ async def test_metadata_suggest_cache_miss_refreshes_via_mcp(client):
 
     assert resp.status_code == 200
     data = resp.json()
-    assert data["cached"] is True
+    # live-first: результат пришёл из MCP, не из кеша
+    assert data["cached"] is False
+    assert data["stale"] is False
     assert len(data["items"]) >= 1
 
 

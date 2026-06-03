@@ -470,11 +470,18 @@ async def metadata_suggest(
     limit: int = Query(default=20, ge=1, le=100),
     db=Depends(_get_db),  # noqa: B008  — стандартный FastAPI dependency-injection паттерн
 ) -> MetadataSuggestResponse:
-    """Возвращает список объектов метаданных 1С из кеша (TTL 1ч).
+    """Возвращает объекты метаданных 1С под @-автокомплит.
 
-    При cache miss или устаревании — обновляет через MCP get_metadata.
-    При недоступности MCP и наличии кеша — возвращает stale данные.
-    При недоступности MCP и пустом кеше — 502.
+    Стратегия (2026-06-03, фикс @-mention):
+    1. Свежий кеш + совпадение по q → отдаём из кеша локально (cached, не stale).
+    2. Иначе — live substring-поиск через MCP get_metadata(meta_type="*",
+       name_mask=q). Это нативный поиск 1C — точнее и легче, чем балк-кэш 20K+
+       объектов. Результат опционально подогревает кеш (для offline-fallback).
+    3. MCP недоступен + есть кеш → stale данные. Пустой кеш → 502.
+
+    Раньше тут был `bulk_refresh_metadata_cache(detail=False)` — он вызывал
+    summary-режим (типы+счётчики), парсер не извлекал имён → в кеш писалось
+    0 объектов, @-popover всегда показывал «Ничего не найдено».
     """
     # Проверяем существование channel
     rows = await db.execute_fetchall(
@@ -485,41 +492,49 @@ async def metadata_suggest(
         raise HTTPException(status_code=404, detail=f"Канал '{channel_id}' не найден")
 
     endpoint = rows[0][1]
-    is_fresh = await _cache_is_fresh(db, channel_id)
 
-    if is_fresh:
-        items = await _lookup_cache(db, channel_id, q, limit)
-        return MetadataSuggestResponse(items=items, cached=True, stale=False)
+    # 1. Свежий кеш с совпадением — отдаём локально (без обращения к MCP).
+    if await _cache_is_fresh(db, channel_id):
+        cached_items = await _lookup_cache(db, channel_id, q, limit)
+        if cached_items:
+            return MetadataSuggestResponse(items=cached_items, cached=True, stale=False)
 
-    # Cache miss или устарел — пытаемся обновить через MCP.
-    # M-K2.2: используем reusable `bulk_refresh_metadata_cache` вместо
-    # inline-логики. Старый код 35 строк → 3 строки + IndexerProgress.
-    # Поведение идентично: full refresh + DELETE + INSERT batch.
-    from app.knowledge.indexer import bulk_refresh_metadata_cache
+    # 2. Live substring-поиск через MCP (нативный name_mask).
+    from app.knowledge.indexer import live_metadata_suggest, write_cache_batch
 
-    progress = await bulk_refresh_metadata_cache(db, channel_id, endpoint)
-    refresh_ok = progress.is_success
-    if not refresh_ok and progress.error:
-        logger.warning(
-            "metadata_suggest MCP refresh failed for %s: %s",
-            channel_id,
-            progress.error,
+    try:
+        objects = await live_metadata_suggest(endpoint, q, limit)
+    except Exception as exc:  # noqa: BLE001 — граница MCP, дальше fallback на кеш
+        logger.warning("metadata_suggest live MCP failed for %s: %s", channel_id, exc)
+        stale_items = await _lookup_cache(db, channel_id, q, limit)
+        if stale_items:
+            return MetadataSuggestResponse(items=stale_items, cached=True, stale=True)
+        raise HTTPException(status_code=502, detail="MCP недоступен и кеш пуст") from exc
+
+    # Подогреваем кеш найденными объектами (non-destructive) — чтобы повторные
+    # запросы и offline-fallback работали. Best-effort: ошибка записи не фейлит.
+    if objects:
+        try:
+            await write_cache_batch(db, channel_id, objects, replace_existing=False)
+        except Exception:  # noqa: BLE001 — кеш-warming некритичен
+            logger.exception("metadata_suggest cache warm failed for %s", channel_id)
+
+    items = [
+        MetadataSuggestItem(
+            object_type=obj.object_type,
+            name=obj.name,
+            full_path=obj.object_path,
+            presentation=obj.presentation,
         )
-
-    if refresh_ok:
-        items = await _lookup_cache(db, channel_id, q, limit)
-        return MetadataSuggestResponse(items=items, cached=True, stale=False)
-
-    # MCP недоступен — проверяем stale кеш
-    stale_items = await _lookup_cache(db, channel_id, q, limit)
-    if stale_items:
-        return MetadataSuggestResponse(items=stale_items, cached=True, stale=True)
-
-    # Пустой кеш + MCP недоступен
-    raise HTTPException(status_code=502, detail="MCP недоступен и кеш пуст")
+        for obj in objects
+    ]
+    return MetadataSuggestResponse(items=items, cached=False, stale=False)
 
 
 # M-K2.2 (2026-05-26): `_parse_metadata_result` + `_normalize_obj` удалены —
 # логика перенесена в `app.knowledge.indexer.parse_metadata_result` +
-# `_normalize_metadata_object` (с покрытием 29 unit тестами). См. M-K2-PLAN
-# фаза M-K2.1. `metadata_suggest` теперь делегирует `bulk_refresh_metadata_cache`.
+# `_normalize_metadata_object` (с покрытием unit тестами). См. M-K2-PLAN
+# фаза M-K2.1.
+# 2026-06-03 (@-mention фикс): `metadata_suggest` перешёл с `bulk_refresh_metadata_cache`
+# (full-index summary-режимом — давал 0 объектов) на `live_metadata_suggest`
+# (нативный name_mask substring-поиск 1C). Кеш — только offline-fallback.

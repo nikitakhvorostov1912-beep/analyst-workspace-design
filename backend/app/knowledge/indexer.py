@@ -115,19 +115,38 @@ def _normalize_metadata_object(obj: dict[str, Any]) -> NormalizedMetadata | None
     Поддерживаемые синонимы ключей (унаследовано из existing code):
     - name / Name
     - type / object_type / Type
-    - presentation / synonym / Synonym
-    - full_path / path
+    - presentation / synonym / Synonym / Синоним
+    - full_path / path / ПолноеИмя / ИмяОбъекта
+
+    1C MCP list-mode (`meta_type` + `name_mask`) отдаёт только `ПолноеИмя`
+    (формат «Тип.Имя») + `Синоним` — type/name выводим из самого пути.
     """
     name = str(obj.get("name") or obj.get("Name") or "").strip()
     obj_type = str(
         obj.get("type") or obj.get("object_type") or obj.get("Type") or ""
     ).strip()
 
+    # full_path: explicit или из 1C list-mode (ПолноеИмя/ИмяОбъекта)
+    full_path = str(
+        obj.get("full_path")
+        or obj.get("path")
+        or obj.get("ПолноеИмя")
+        or obj.get("ИмяОбъекта")
+        or ""
+    ).strip()
+
+    # 1C list-mode: type/name не приходят отдельно — выводим из «Тип.Имя».
+    if full_path and (not obj_type or not name):
+        parts = full_path.split(".")
+        if not obj_type:
+            obj_type = parts[0]
+        if not name:
+            name = parts[1] if len(parts) > 1 else parts[0]
+
     if not name and not obj_type:
         return None
 
     # full_path может быть явно задан, иначе собираем из type + name
-    full_path = str(obj.get("full_path") or obj.get("path") or "").strip()
     if not full_path:
         if obj_type and name:
             full_path = f"{obj_type}.{name}"
@@ -136,7 +155,12 @@ def _normalize_metadata_object(obj: dict[str, Any]) -> NormalizedMetadata | None
         else:
             return None
 
-    presentation_raw = obj.get("presentation") or obj.get("synonym") or obj.get("Synonym")
+    presentation_raw = (
+        obj.get("presentation")
+        or obj.get("synonym")
+        or obj.get("Synonym")
+        or obj.get("Синоним")
+    )
     presentation = str(presentation_raw).strip() if presentation_raw else None
 
     return NormalizedMetadata(
@@ -180,8 +204,9 @@ def parse_metadata_result(result: object) -> list[NormalizedMetadata]:
                     except (json.JSONDecodeError, TypeError):
                         continue
 
-        # Прямые wrap-ключи
-        for key in ("content", "objects", "items", "result"):
+        # Прямые wrap-ключи. "data" — формат 1C MCP get_metadata
+        # ({success, data:[...], has_more, ...}).
+        for key in ("content", "objects", "items", "result", "data"):
             value = result.get(key)
             if isinstance(value, list):
                 return [
@@ -203,6 +228,32 @@ def parse_metadata_result(result: object) -> list[NormalizedMetadata]:
         return parse_metadata_result(parsed)
 
     return []
+
+
+async def live_metadata_suggest(
+    mcp_endpoint: str,
+    name_mask: str,
+    limit: int,
+    *,
+    anon_headers: dict[str, str] | None = None,
+) -> list[NormalizedMetadata]:
+    """Live substring-поиск объектов метаданных 1С через get_metadata list-mode.
+
+    Использует нативный 1C MCP `name_mask` (case-insensitive substring) +
+    `meta_type="*"` (поиск по всем корневым типам). Для интерактивного
+    @-автокомплита это точнее и легче, чем балк-кэш 20K+ объектов: один
+    запрос отдаёт уже отфильтрованный и пагинированный список.
+
+    Бросает исключение при недоступности MCP — caller сам решает про fallback
+    на stale-кеш.
+    """
+    async with MCPClient(mcp_endpoint, headers=anon_headers) as client:
+        await client.initialize()
+        result = await client.call_tool(
+            "get_metadata",
+            {"meta_type": "*", "name_mask": name_mask, "limit": limit},
+        )
+    return parse_metadata_result(result)
 
 
 async def write_cache_batch(
