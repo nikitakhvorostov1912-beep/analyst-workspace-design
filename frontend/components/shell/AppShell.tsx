@@ -15,6 +15,7 @@ interface AppShellProps {
   activeId?: string | null;
   onCreateNew?: () => void;
   onDeleteSession?: (id: string) => void;
+  onRenameSession?: (id: string, title: string) => void;
   headerProps?: HeaderProps;
 }
 
@@ -32,6 +33,7 @@ export function AppShell({
   activeId,
   onCreateNew,
   onDeleteSession,
+  onRenameSession,
   headerProps = DEFAULT_HEADER_PROPS,
 }: AppShellProps) {
   // Sprint 04 (M08 · Page enter): main контент проигрывает fade-up при смене
@@ -91,6 +93,7 @@ export function AppShell({
         activeId={activeId}
         onCreateNew={onCreateNew}
         onDelete={onDeleteSession}
+        onRename={onRenameSession}
         collapsed={collapsed}
         onToggleCollapse={toggleSidebar}
       />

@@ -13,7 +13,7 @@ import { ExportSessionButton } from "@/components/chat/ExportSessionButton";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useChatStream } from "@/components/chat/useChatStream";
 import { useSessionsStore } from "@/lib/sessions-store";
-import { fetchSessionDetail, fetchSessionMessages, fetchConnections, fetchLLMConfig, pingConnection } from "@/lib/api";
+import { fetchSessionDetail, fetchSessionMessages, fetchConnections, fetchLLMConfig, pingConnection, patchSessionTitle } from "@/lib/api";
 import { getActiveChannelId, setActiveChannelId } from "@/lib/storage";
 import { publishToast } from "@/lib/toast";
 import { publishUndoToast } from "@/lib/undo-toast";
@@ -248,6 +248,13 @@ export default function SessionPage() {
     }
   }
 
+  function handleRename(sessionId: string, title: string): void {
+    store.renameLocal(sessionId, title);
+    void patchSessionTitle(sessionId, title).catch(() => {
+      void store.refresh();
+    });
+  }
+
   function handleDelete(sessionId: string) {
     // Sprint 02 A · UndoToast: оптимистично удаляем сессию, через 5с —
     // реальный DELETE. Если удалили текущую сессию — переходим на главную
@@ -356,6 +363,7 @@ export default function SessionPage() {
         activeId={id}
         onCreateNew={handleCreateNew}
         onDeleteSession={handleDelete}
+        onRenameSession={handleRename}
         headerProps={{
           activeChannelId: activeChannelId ?? detail?.channel_id ?? null,
           onChannelChange: handleChannelChange,

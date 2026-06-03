@@ -26,6 +26,8 @@ interface SidebarProps {
   activeId?: string | null;
   onCreateNew?: () => void;
   onDelete?: (id: string) => void;
+  /** F-11: переименование чата. */
+  onRename?: (id: string, title: string) => void;
   /** Sprint 04 (M07): свёрнут или развёрнут. */
   collapsed?: boolean;
   /** Sprint 04 (M07): toggle handler. */
@@ -44,6 +46,7 @@ export function Sidebar({
   activeId = null,
   onCreateNew,
   onDelete,
+  onRename,
   collapsed = false,
   onToggleCollapse,
 }: SidebarProps) {
@@ -157,6 +160,7 @@ export function Sidebar({
             grouped={filtered}
             activeId={activeId}
             onDelete={onDelete ?? (() => {})}
+            onRename={onRename}
           />
         )}
       </div>

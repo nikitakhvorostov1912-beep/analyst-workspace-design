@@ -1,7 +1,8 @@
 "use client";
 
+import { useRef, useState } from "react";
 import Link from "next/link";
-import { Trash2 } from "lucide-react";
+import { Check, Pencil, Trash2, X } from "lucide-react";
 import type { SessionListItem, SessionsGrouped } from "@/lib/types";
 import { parseBackendDate } from "@/lib/utils";
 
@@ -9,6 +10,8 @@ interface SessionListProps {
   grouped: SessionsGrouped;
   activeId: string | null;
   onDelete: (id: string) => void;
+  /** F-11: переименование чата. Если не задан — карандаш скрыт. */
+  onRename?: (id: string, title: string) => void;
 }
 
 /** Форматирует relative время на русском.
@@ -43,9 +46,10 @@ interface GroupSectionProps {
   items: SessionListItem[];
   activeId: string | null;
   onDelete: (id: string) => void;
+  onRename?: (id: string, title: string) => void;
 }
 
-function GroupSection({ label, items, activeId, onDelete }: GroupSectionProps) {
+function GroupSection({ label, items, activeId, onDelete, onRename }: GroupSectionProps) {
   if (items.length === 0) return null;
 
   // Brand pattern: «СЕГОДНЯ ──────── 03»
@@ -76,6 +80,7 @@ function GroupSection({ label, items, activeId, onDelete }: GroupSectionProps) {
           item={item}
           isActive={item.id === activeId}
           onDelete={onDelete}
+          onRename={onRename}
         />
       ))}
     </div>
@@ -86,9 +91,14 @@ interface SessionItemProps {
   item: SessionListItem;
   isActive: boolean;
   onDelete: (id: string) => void;
+  onRename?: (id: string, title: string) => void;
 }
 
-function SessionItem({ item, isActive, onDelete }: SessionItemProps) {
+function SessionItem({ item, isActive, onDelete, onRename }: SessionItemProps) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(item.title ?? "");
+  const inputRef = useRef<HTMLInputElement>(null);
+
   // Sprint 02 (handoff A): window.confirm заменён на оптимистичное удаление
   // с UndoToast — onDelete сразу убирает item из UI, через 5с делается
   // реальный DELETE на бэк, либо «↺ Отменить» восстанавливает.
@@ -96,6 +106,25 @@ function SessionItem({ item, isActive, onDelete }: SessionItemProps) {
     e.preventDefault();
     e.stopPropagation();
     onDelete(item.id);
+  }
+
+  function startEdit(e: React.MouseEvent) {
+    e.preventDefault();
+    e.stopPropagation();
+    setDraft(item.title ?? "");
+    setEditing(true);
+    setTimeout(() => inputRef.current?.select(), 0);
+  }
+
+  function commit() {
+    const next = draft.trim();
+    if (next && next !== item.title) onRename?.(item.id, next);
+    setEditing(false);
+  }
+
+  function cancel() {
+    setEditing(false);
+    setDraft(item.title ?? "");
   }
 
   // Короткий ID — первые 4 hex-символа UUID (для brand-eyebrow «#A4F2»)
@@ -109,6 +138,7 @@ function SessionItem({ item, isActive, onDelete }: SessionItemProps) {
           ? "bg-[var(--bg-2)] text-[var(--fg-1)]"
           : "hover:bg-[var(--bg-2)] text-[var(--fg-2)] hover:text-[var(--fg-1)]"
       }`}
+      onClick={editing ? (e) => e.preventDefault() : undefined}
     >
       {/* Active = signal bar slева (brand pattern) */}
       {isActive && (
@@ -130,26 +160,89 @@ function SessionItem({ item, isActive, onDelete }: SessionItemProps) {
           <span className="text-[var(--fg-3)]">{item.message_count} сообщ.</span>
           <span className="ml-auto">{formatRelative(item.updated_at)}</span>
         </div>
-        <div
-          className={`truncate text-[13px] font-medium ${
-            item.title === null ? "text-[var(--fg-3)] italic" : ""
-          }`}
-        >
-          {item.title ?? "Новый чат"}
-        </div>
+        {editing ? (
+          <input
+            ref={inputRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onClick={(e) => e.preventDefault()}
+            onKeyDown={(e) => {
+              e.stopPropagation();
+              if (e.key === "Enter") {
+                e.preventDefault();
+                commit();
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                cancel();
+              }
+            }}
+            onBlur={commit}
+            aria-label="Новое название чата"
+            data-testid="session-rename-input"
+            className="w-full bg-[var(--bg-1)] border border-[var(--accent)] rounded px-1.5 py-0.5 text-[13px] text-[var(--fg-1)] focus:outline-none"
+          />
+        ) : (
+          <div
+            className={`truncate text-[13px] font-medium ${
+              item.title === null ? "text-[var(--fg-3)] italic" : ""
+            }`}
+          >
+            {item.title ?? "Новый чат"}
+          </div>
+        )}
       </div>
-      <button
-        onClick={handleDelete}
-        className="flex-none opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:text-[var(--error)] text-[var(--fg-3)]"
-        aria-label="Удалить сессию"
-      >
-        <Trash2 size={14} />
-      </button>
+
+      {editing ? (
+        <div className="flex-none flex items-center gap-0.5">
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              commit();
+            }}
+            className="p-0.5 rounded text-[var(--success)] hover:bg-[var(--bg-3)]"
+            aria-label="Сохранить название"
+          >
+            <Check size={14} />
+          </button>
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              cancel();
+            }}
+            className="p-0.5 rounded text-[var(--fg-3)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-3)]"
+            aria-label="Отменить"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      ) : (
+        <div className="flex-none flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          {onRename && (
+            <button
+              onClick={startEdit}
+              className="p-0.5 rounded text-[var(--fg-3)] hover:text-[var(--fg-1)]"
+              aria-label="Переименовать чат"
+              title="Переименовать"
+            >
+              <Pencil size={13} />
+            </button>
+          )}
+          <button
+            onClick={handleDelete}
+            className="p-0.5 rounded text-[var(--fg-3)] hover:text-[var(--error)]"
+            aria-label="Удалить сессию"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>
+      )}
     </Link>
   );
 }
 
-export function SessionList({ grouped, activeId, onDelete }: SessionListProps) {
+export function SessionList({ grouped, activeId, onDelete, onRename }: SessionListProps) {
   const totalCount =
     grouped.today.length +
     grouped.yesterday.length +
@@ -166,30 +259,10 @@ export function SessionList({ grouped, activeId, onDelete }: SessionListProps) {
 
   return (
     <div>
-      <GroupSection
-        label="Сегодня"
-        items={grouped.today}
-        activeId={activeId}
-        onDelete={onDelete}
-      />
-      <GroupSection
-        label="Вчера"
-        items={grouped.yesterday}
-        activeId={activeId}
-        onDelete={onDelete}
-      />
-      <GroupSection
-        label="На этой неделе"
-        items={grouped.this_week}
-        activeId={activeId}
-        onDelete={onDelete}
-      />
-      <GroupSection
-        label="Раньше"
-        items={grouped.earlier}
-        activeId={activeId}
-        onDelete={onDelete}
-      />
+      <GroupSection label="Сегодня" items={grouped.today} activeId={activeId} onDelete={onDelete} onRename={onRename} />
+      <GroupSection label="Вчера" items={grouped.yesterday} activeId={activeId} onDelete={onDelete} onRename={onRename} />
+      <GroupSection label="На этой неделе" items={grouped.this_week} activeId={activeId} onDelete={onDelete} onRename={onRename} />
+      <GroupSection label="Раньше" items={grouped.earlier} activeId={activeId} onDelete={onDelete} onRename={onRename} />
     </div>
   );
 }

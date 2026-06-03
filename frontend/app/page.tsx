@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/Skeleton";
 import { OnboardingDialog } from "@/components/onboarding/OnboardingDialog";
 import { OnboardingResumeBanner } from "@/components/onboarding/OnboardingResumeBanner";
 import { MemoryHint } from "@/components/memory/MemoryHint";
-import { fetchConnections, fetchLLMConfig } from "@/lib/api";
+import { fetchConnections, fetchLLMConfig, patchSessionTitle } from "@/lib/api";
 import { useBackendHealth } from "@/lib/use-backend-health";
 import { BackendDownBanner } from "@/components/shell/BackendDownBanner";
 
@@ -349,6 +349,15 @@ export default function HomePage() {
     });
   }
 
+  // F-11: переименование чата — оптимистично локально + persist на бэк,
+  // при ошибке откатываемся через refresh.
+  function handleRename(sessionId: string, title: string): void {
+    store.renameLocal(sessionId, title);
+    void patchSessionTitle(sessionId, title).catch(() => {
+      void store.refresh();
+    });
+  }
+
   // Основной layout — AppShell с welcome screen (нет активной сессии).
   // Важно: не рендерить здесь пустой <Thread /> рядом с welcome — оба имеют h-full,
   // main:overflow-y-auto скроллит вниз из-за Thread auto-scrollIntoView, welcome уходит выше viewport.
@@ -387,6 +396,7 @@ export default function HomePage() {
         activeId={null}
         onCreateNew={handleCreateNew}
         onDeleteSession={handleDelete}
+        onRenameSession={handleRename}
         headerProps={{
           activeChannelId,
           onChannelChange: handleChannelChange,
