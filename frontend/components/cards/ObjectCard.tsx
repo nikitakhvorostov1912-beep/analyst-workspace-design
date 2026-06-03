@@ -13,6 +13,11 @@ interface ObjectCardProps {
   payload: ObjectCardPayload;
   /** Callback для раскрытия anon-токенов — передаётся из CardRenderer */
   onDeanonymize?: (tokens: string[]) => Promise<Record<string, string>>;
+  /**
+   * true — карточка рендерится ВНУТРИ InspectorDrawer (shell v3 §7):
+   * скрываем кнопку «Открыть в инспекторе», чтобы не зациклить.
+   */
+  inInspector?: boolean;
 }
 
 function SectionWrapper({
@@ -84,7 +89,11 @@ function MiniTable({
   );
 }
 
-export function ObjectCard({ payload, onDeanonymize }: ObjectCardProps) {
+export function ObjectCard({
+  payload,
+  onDeanonymize,
+  inInspector = false,
+}: ObjectCardProps) {
   const { header, attributes, tabular_sections, forms, templates } = payload;
   const [revealedMap, setRevealedMap] = useState<Record<string, string> | null>(null);
   const [revealing, setRevealing] = useState(false);
@@ -236,6 +245,27 @@ export function ObjectCard({ payload, onDeanonymize }: ObjectCardProps) {
               {revealing ? "Загрузка..." : `Раскрыть реальные значения (${tokensInPayload.length})`}
             </Button>
           )}
+        </div>
+      )}
+
+      {/* shell v3 §7: открыть карточку в боковом инспекторе. Событийный путь
+          (а не prop-drill через Thread/Message) — идиоматично для этой кодовой
+          базы (connections-updated и пр.). SessionPage слушает и открывает drawer. */}
+      {!inInspector && hasAny && (
+        <div className="px-3 py-2 border-t border-[var(--border)] flex justify-end">
+          <Button
+            size="sm"
+            variant="secondary"
+            className="text-xs h-7 gap-1.5"
+            onClick={() =>
+              window.dispatchEvent(
+                new CustomEvent("open-inspector", { detail: payload }),
+              )
+            }
+          >
+            <Eye className="h-3.5 w-3.5" />
+            Открыть в инспекторе →
+          </Button>
         </div>
       )}
     </div>

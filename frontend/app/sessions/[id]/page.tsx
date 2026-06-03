@@ -4,6 +4,7 @@ import { useParams, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/shell/AppShell";
 import { Thread } from "@/components/chat/Thread";
+import { InspectorDrawer } from "@/components/chat/InspectorDrawer";
 import { ChatInput } from "@/components/chat/Input";
 import { CommandPalette } from "@/components/chat/CommandPalette";
 import { ConfirmExecuteDialog } from "@/components/chat/ConfirmExecuteDialog";
@@ -17,7 +18,13 @@ import { fetchSessionDetail, fetchSessionMessages, fetchConnections, fetchLLMCon
 import { getActiveChannelId, setActiveChannelId } from "@/lib/storage";
 import { publishToast } from "@/lib/toast";
 import { publishUndoToast } from "@/lib/undo-toast";
-import type { ChatAttachment, ChatMessage, MCPConnection, SessionDetail } from "@/lib/types";
+import type {
+  ChatAttachment,
+  ChatMessage,
+  MCPConnection,
+  ObjectCardPayload,
+  SessionDetail,
+} from "@/lib/types";
 
 function messageRowToChat(row: {
   id: string;
@@ -50,6 +57,21 @@ export default function SessionPage() {
   const [ready, setReady] = useState(false);
   const [activeChannelId, setLocalActiveChannelId] = useState<string | null>(null);
   const [cmdPaletteOpen, setCmdPaletteOpen] = useState(false);
+  // shell v3 §7: инспектор объекта. ObjectCard диспатчит `open-inspector` с
+  // payload — слушаем здесь (один общий drawer на страницу), а не drill через Thread.
+  const [inspectorPayload, setInspectorPayload] = useState<ObjectCardPayload | null>(null);
+  const [inspectorOpen, setInspectorOpen] = useState(false);
+  useEffect(() => {
+    function onOpenInspector(e: Event) {
+      const detail = (e as CustomEvent<ObjectCardPayload>).detail;
+      if (detail) {
+        setInspectorPayload(detail);
+        setInspectorOpen(true);
+      }
+    }
+    window.addEventListener("open-inspector", onOpenInspector);
+    return () => window.removeEventListener("open-inspector", onOpenInspector);
+  }, []);
   // Кешируем флаг наличия env-ключа в backend. ChatInput использует его чтобы
   // не показывать toast «введите ключ», когда backend подставит ключ из .env.
   const [hasEnvApiKey, setHasEnvApiKey] = useState(false);
@@ -363,6 +385,11 @@ export default function SessionPage() {
         channelName={bannerChannelName}
         onRetry={handleRetry}
         retrying={bannerRetrying}
+      />
+      <InspectorDrawer
+        open={inspectorOpen}
+        onOpenChange={setInspectorOpen}
+        payload={inspectorPayload}
       />
       <AppShell
         grouped={store.grouped}

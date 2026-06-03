@@ -80,6 +80,8 @@ vi.mock("@/lib/storage", () => ({
   getMCPConnections: vi.fn(),
   setActiveChannelId: vi.fn(),
   syncMCPConnections: vi.fn(),
+  // shell v3 §5: ChannelSelector мёржит окружение из localStorage.
+  getConnectionEnvironment: vi.fn(() => null),
 }));
 
 import { ChannelSelector } from "../../shell/ChannelSelector";
