@@ -233,7 +233,18 @@ export type MCPConnection = {
   capabilities?: string[];
   /** 12-char slug fingerprint для shared knowledge corpus. */
   fingerprint?: string | null;
+  /**
+   * Окружение базы: prod (боевая — выделяется янтарём) / test / demo.
+   * Источник (shell v3 §5, Вариант B): помечается пользователем в форме
+   * подключения, хранится в localStorage и мёржится при чтении. Backend
+   * не может надёжно отличить прод от теста (оба — localhost:6010), поэтому
+   * значение задаётся вручную. undefined/null → бейдж окружения скрыт.
+   */
+  environment?: Environment | null;
 };
+
+/** Окружение базы 1С — для EnvBadge (shell v3 §4-§5). */
+export type Environment = "prod" | "test" | "demo";
 
 // --- Advanced card types (Plan 04-02) ---
 

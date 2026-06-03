@@ -1,4 +1,4 @@
-import type { LLMConfig, MCPConnection } from "./types";
+import type { Environment, LLMConfig, MCPConnection } from "./types";
 
 const KEY_LLM = "analyst.llm";
 const KEY_MCP = "analyst.mcp_connections";
@@ -117,6 +117,53 @@ export function setActiveTypicalChannelId(id: string | null): void {
   if (typeof window !== "undefined") {
     window.dispatchEvent(
       new CustomEvent("active-typical-changed", { detail: { id } }),
+    );
+  }
+}
+
+// --- Окружение подключений (shell v3 §5, Вариант B) ---
+//
+// Backend не отдаёт environment (нет надёжного сигнала prod/test — обе базы
+// на localhost:6010). Пользователь помечает базу в форме подключения; храним
+// map { connectionId -> "prod"|"test"|"demo" } в localStorage и мёржим при
+// чтении connections. Снятие метки удаляет ключ из map.
+
+const KEY_CONNECTION_ENV = "analyst.connection_env";
+
+function readEnvMap(): Record<string, Environment> {
+  const ls = safeLocalStorage();
+  if (!ls) return {};
+  try {
+    const raw = ls.getItem(KEY_CONNECTION_ENV);
+    if (!raw) return {};
+    const parsed = JSON.parse(raw);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+/** Окружение подключения из localStorage. null если не помечено. */
+export function getConnectionEnvironment(id: string): Environment | null {
+  const map = readEnvMap();
+  const v = map[id];
+  return v === "prod" || v === "test" || v === "demo" ? v : null;
+}
+
+/** Помечает/снимает окружение подключения. null → удаляет метку. */
+export function setConnectionEnvironment(id: string, env: Environment | null): void {
+  const ls = safeLocalStorage();
+  if (!ls) return;
+  const map = readEnvMap();
+  if (env === null) {
+    delete map[id];
+  } else {
+    map[id] = env;
+  }
+  ls.setItem(KEY_CONNECTION_ENV, JSON.stringify(map));
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("connections-updated", { detail: { id, env } }),
     );
   }
 }
