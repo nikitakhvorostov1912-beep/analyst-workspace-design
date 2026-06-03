@@ -191,6 +191,73 @@ function ValueIntro({
   );
 }
 
+/** F-07: развилка ролей — определяет, показывать ли техническую настройку. */
+function RoleChoice({
+  onSelf,
+  onIT,
+  onSkip,
+}: {
+  onSelf: () => void;
+  onIT: () => void;
+  onSkip: () => void;
+}) {
+  const options = [
+    {
+      onClick: onSelf,
+      icon: Database,
+      title: "Я аналитик — настрою сам",
+      desc: "Подключу базу 1С и выберу модель по шагам",
+      testid: "role-self",
+    },
+    {
+      onClick: onIT,
+      icon: CheckCircle2,
+      title: "Мне всё настроил ИТ-отдел",
+      desc: "База и модель уже готовы — сразу к работе",
+      testid: "role-it",
+    },
+  ];
+  return (
+    <div className="space-y-4 animate-fade-up" data-testid="onboarding-role">
+      <div>
+        <DialogTitle className="text-lg font-semibold text-[var(--fg-1)]">
+          Как настроим подключение?
+        </DialogTitle>
+        <p className="text-sm text-[var(--fg-3)] mt-1">
+          Выберите, что ближе — это определит, какие шаги показать.
+        </p>
+      </div>
+      {options.map((o) => {
+        const Icon = o.icon;
+        return (
+          <button
+            key={o.testid}
+            type="button"
+            onClick={o.onClick}
+            data-testid={o.testid}
+            className="w-full flex items-start gap-3 text-left rounded-lg border border-[var(--bd-2)] bg-[var(--bg-2)] p-4 hover:border-[var(--accent-32)] hover:bg-[var(--accent-08)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+          >
+            <Icon className="h-5 w-5 text-[var(--accent)] flex-none mt-0.5" />
+            <span className="min-w-0">
+              <span className="block text-[14px] font-medium text-[var(--fg-1)]">
+                {o.title}
+              </span>
+              <span className="block text-[12.5px] text-[var(--fg-3)] mt-0.5">
+                {o.desc}
+              </span>
+            </span>
+          </button>
+        );
+      })}
+      <div className="flex justify-start pt-1">
+        <Button variant="ghost" size="sm" onClick={onSkip}>
+          Пропустить
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function OnboardingDialog({
   open,
   onComplete,
@@ -200,7 +267,8 @@ export function OnboardingDialog({
   const [step, setStep] = useState<Step>(1);
   // F-07: экран ценности перед техническими шагами. Новичок сперва видит «что
   // это умеет», потом — настройку. Возвращающийся (есть saved progress) — сразу к шагам.
-  const [started, setStarted] = useState(false);
+  // F-07: фаза онбординга. value (ценность) → role (развилка) → steps (настройка).
+  const [phase, setPhase] = useState<"value" | "role" | "steps">("value");
   const [createdConnection, setCreatedConnection] =
     useState<MCPConnection | null>(null);
   const [pingPassed, setPingPassed] = useState(false);
@@ -216,7 +284,7 @@ export function OnboardingDialog({
     if (!open) return;
     const saved = loadProgress();
     if (saved) {
-      setStarted(true); // возвращающийся пользователь — мимо экрана ценности
+      setPhase("steps"); // возвращающийся пользователь — сразу к настройке
       setStep(saved.step);
       setLlmTestPassed(saved.llmTestPassed);
       setLearnOn(saved.learnOn);
@@ -225,7 +293,7 @@ export function OnboardingDialog({
       setPingPassed(saved.createdConnectionId !== null);
       setPingLoading(false);
     } else {
-      setStarted(false);
+      setPhase("value");
       setStep(1);
       setCreatedConnection(null);
       setPingPassed(false);
@@ -323,8 +391,20 @@ export function OnboardingDialog({
         className="max-w-[640px] p-6"
         onPointerDownOutside={(e) => e.preventDefault()}
       >
-        {!started ? (
-          <ValueIntro onStart={() => setStarted(true)} onSkip={handleSkip} />
+        {phase === "value" ? (
+          <ValueIntro onStart={() => setPhase("role")} onSkip={handleSkip} />
+        ) : phase === "role" ? (
+          <RoleChoice
+            onSelf={() => {
+              setPhase("steps");
+              setStep(1);
+            }}
+            onIT={() => {
+              setPhase("steps");
+              setStep(4);
+            }}
+            onSkip={handleSkip}
+          />
         ) : (
           <>
             <StepIndicator current={step} total={4} labels={STEP_LABELS} />

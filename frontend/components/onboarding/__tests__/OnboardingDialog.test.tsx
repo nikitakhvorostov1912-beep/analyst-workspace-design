@@ -150,7 +150,7 @@ describe("OnboardingDialog", () => {
   // ————————————————————
   // 0. Экран ценности (F-07) — для новичка без saved-progress
   // ————————————————————
-  it("новичку показывает экран ценности; «Начать →» ведёт к шагу 1", () => {
+  it("новичок: ценность → развилка ролей → «настрою сам» ведёт к шагу 1", () => {
     window.localStorage.clear(); // нет saved-progress → новичок
     render(
       <OnboardingDialog open={true} onComplete={vi.fn()} onSkip={vi.fn()} />,
@@ -159,8 +159,22 @@ describe("OnboardingDialog", () => {
     expect(
       screen.getByText("Задавайте вопросы своей базе 1С обычными словами"),
     ).toBeInTheDocument();
+    // Начать → развилка ролей
     fireEvent.click(screen.getByRole("button", { name: /Начать/ }));
+    expect(screen.getByTestId("onboarding-role")).toBeInTheDocument();
+    // «настрою сам» → шаг 1 (MCP-форма)
+    fireEvent.click(screen.getByTestId("role-self"));
     expect(screen.getByTestId("mcp-form")).toBeInTheDocument();
+  });
+
+  it("новичок: «настроил ИТ» пропускает настройку и ведёт к финалу «Готово»", () => {
+    window.localStorage.clear();
+    render(
+      <OnboardingDialog open={true} onComplete={vi.fn()} onSkip={vi.fn()} />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Начать/ }));
+    fireEvent.click(screen.getByTestId("role-it"));
+    expect(screen.getByTestId("onboarding-step-done")).toBeInTheDocument();
   });
 
   // ————————————————————

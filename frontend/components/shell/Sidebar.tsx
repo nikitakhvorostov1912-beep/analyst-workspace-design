@@ -1,11 +1,59 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import { ChevronLeft, ChevronRight, Plus, Search, X } from "lucide-react";
 import { Marker } from "@/components/ui/Marker";
 import { SessionList } from "./SessionList";
-import { cn } from "@/lib/utils";
 import type { SessionsGrouped, SessionListItem } from "@/lib/types";
+
+/** F-11: свёрнутый сайдбар — вертикальная полоса иконок чатов (вместо пустоты). */
+function CollapsedSessionStrip({
+  grouped,
+  activeId,
+}: {
+  grouped: SessionsGrouped;
+  activeId: string | null;
+}) {
+  const items = [
+    ...grouped.today,
+    ...grouped.yesterday,
+    ...grouped.this_week,
+    ...grouped.earlier,
+  ].slice(0, 20);
+  if (items.length === 0) return null;
+  return (
+    <div className="flex flex-col items-center gap-1">
+      {items.map((s) => {
+        const active = s.id === activeId;
+        const letter = (s.title ?? "Ч").trim().charAt(0).toUpperCase() || "Ч";
+        return (
+          <Link
+            key={s.id}
+            href={`/sessions/${s.id}`}
+            title={s.title ?? "Новый чат"}
+            aria-label={s.title ?? "Новый чат"}
+            className={`relative h-8 w-8 inline-flex items-center justify-center rounded-md text-[12px] font-medium transition-colors ${
+              active
+                ? "bg-[var(--bg-2)] text-[var(--fg-1)] border border-[var(--accent-32)]"
+                : "text-[var(--fg-3)] hover:bg-[var(--bg-2)] hover:text-[var(--fg-1)] border border-transparent"
+            }`}
+            style={{ fontFamily: "var(--font-plex-mono), ui-monospace, monospace" }}
+          >
+            {active && (
+              <span
+                aria-hidden="true"
+                className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-full"
+                style={{ background: "var(--accent)" }}
+              />
+            )}
+            {letter}
+          </Link>
+        );
+      })}
+    </div>
+  );
+}
 
 /** Фильтрует сгруппированные сессии по подстроке в title (F-11 поиск). */
 function filterGrouped(grouped: SessionsGrouped, query: string): SessionsGrouped {
@@ -143,15 +191,11 @@ export function Sidebar({
         </div>
       )}
 
-      {/* Список сессий — fade-out при collapsed */}
-      <div
-        className={cn(
-          "flex-1 overflow-y-auto p-2 transition-opacity duration-200 ease-out",
-          collapsed && "opacity-0 pointer-events-none",
-        )}
-        aria-hidden={collapsed}
-      >
-        {noMatches ? (
+      {/* Список сессий: развёрнут — полный, свёрнут — полоса иконок (F-11) */}
+      <div className="flex-1 overflow-y-auto p-2">
+        {collapsed ? (
+          <CollapsedSessionStrip grouped={grouped} activeId={activeId} />
+        ) : noMatches ? (
           <p className="text-center text-[12px] text-[var(--fg-3)] py-6">
             Ничего не найдено по «{query.trim()}»
           </p>
