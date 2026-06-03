@@ -131,6 +131,66 @@ function LearnSwitch({ checked, onCheckedChange, label }: LearnSwitchProps) {
   );
 }
 
+/** F-07: экран ценности — что приложение умеет, ДО запроса техданных. */
+function ValueIntro({
+  onStart,
+  onSkip,
+}: {
+  onStart: () => void;
+  onSkip: () => void;
+}) {
+  const examples = [
+    "Сколько документов реализации за май",
+    "Где используется реквизит ИНН справочника Контрагенты",
+    "Как по методике ИТС закрыть месяц в УТ",
+  ];
+  return (
+    <div className="space-y-5 animate-fade-up" data-testid="onboarding-value">
+      <div>
+        <div
+          className="h-10 w-10 rounded-lg bg-[var(--accent-08)] border border-[var(--accent-20)] text-[var(--accent)] inline-flex items-center justify-center mb-3"
+          aria-hidden="true"
+        >
+          <BookOpen className="h-5 w-5" />
+        </div>
+        <DialogTitle className="text-lg font-semibold text-[var(--fg-1)]">
+          Задавайте вопросы своей базе 1С обычными словами
+        </DialogTitle>
+        <p className="text-sm text-[var(--fg-3)] mt-1 leading-relaxed">
+          Вы пишете вопрос по-русски — модель сама обращается к 1С, выполняет
+          запросы и показывает ответ. Без SQL и языка запросов 1С.
+        </p>
+      </div>
+
+      <div className="space-y-2">
+        <div
+          className="text-[10px] tracking-[0.1em] uppercase text-[var(--fg-3)]"
+          style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
+        >
+          Например, можно спросить:
+        </div>
+        {examples.map((q) => (
+          <div
+            key={q}
+            className="px-3 py-2 rounded-md border border-[var(--bd-2)] bg-[var(--bg-2)] text-[13px] text-[var(--fg-1)]"
+          >
+            «{q}»
+          </div>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between pt-1">
+        <Button variant="ghost" size="sm" onClick={onSkip}>
+          Пропустить
+        </Button>
+        <Button size="sm" onClick={onStart}>
+          Начать →
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export function OnboardingDialog({
   open,
   onComplete,
@@ -138,6 +198,9 @@ export function OnboardingDialog({
   onCompleteWithQuestion,
 }: OnboardingDialogProps) {
   const [step, setStep] = useState<Step>(1);
+  // F-07: экран ценности перед техническими шагами. Новичок сперва видит «что
+  // это умеет», потом — настройку. Возвращающийся (есть saved progress) — сразу к шагам.
+  const [started, setStarted] = useState(false);
   const [createdConnection, setCreatedConnection] =
     useState<MCPConnection | null>(null);
   const [pingPassed, setPingPassed] = useState(false);
@@ -153,6 +216,7 @@ export function OnboardingDialog({
     if (!open) return;
     const saved = loadProgress();
     if (saved) {
+      setStarted(true); // возвращающийся пользователь — мимо экрана ценности
       setStep(saved.step);
       setLlmTestPassed(saved.llmTestPassed);
       setLearnOn(saved.learnOn);
@@ -161,6 +225,7 @@ export function OnboardingDialog({
       setPingPassed(saved.createdConnectionId !== null);
       setPingLoading(false);
     } else {
+      setStarted(false);
       setStep(1);
       setCreatedConnection(null);
       setPingPassed(false);
@@ -258,7 +323,11 @@ export function OnboardingDialog({
         className="max-w-[640px] p-6"
         onPointerDownOutside={(e) => e.preventDefault()}
       >
-        <StepIndicator current={step} total={4} labels={STEP_LABELS} />
+        {!started ? (
+          <ValueIntro onStart={() => setStarted(true)} onSkip={handleSkip} />
+        ) : (
+          <>
+            <StepIndicator current={step} total={4} labels={STEP_LABELS} />
 
         {step === 1 && (
           <div className="space-y-4 animate-fade-up">
@@ -501,6 +570,8 @@ export function OnboardingDialog({
               </Button>
             </div>
           </div>
+        )}
+          </>
         )}
       </DialogContent>
     </Dialog>

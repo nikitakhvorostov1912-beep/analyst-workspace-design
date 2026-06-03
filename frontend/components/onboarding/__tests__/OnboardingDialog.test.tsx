@@ -132,7 +132,35 @@ describe("OnboardingDialog", () => {
     vi.clearAllMocks();
     if (typeof window !== "undefined") {
       window.localStorage?.clear?.();
+      // F-07: экран ценности показывается ПЕРВЫМ только новичкам. Эти тесты
+      // проверяют шаги настройки, поэтому сидируем saved-progress — компонент
+      // считает пользователя «возвращающимся» и сразу открывает шаг 1.
+      window.localStorage?.setItem?.(
+        "analyst.onboarding-progress",
+        JSON.stringify({
+          step: 1,
+          createdConnectionId: null,
+          llmTestPassed: false,
+          learnOn: false,
+        }),
+      );
     }
+  });
+
+  // ————————————————————
+  // 0. Экран ценности (F-07) — для новичка без saved-progress
+  // ————————————————————
+  it("новичку показывает экран ценности; «Начать →» ведёт к шагу 1", () => {
+    window.localStorage.clear(); // нет saved-progress → новичок
+    render(
+      <OnboardingDialog open={true} onComplete={vi.fn()} onSkip={vi.fn()} />,
+    );
+    expect(screen.getByTestId("onboarding-value")).toBeInTheDocument();
+    expect(
+      screen.getByText("Задавайте вопросы своей базе 1С обычными словами"),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /Начать/ }));
+    expect(screen.getByTestId("mcp-form")).toBeInTheDocument();
   });
 
   // ————————————————————
