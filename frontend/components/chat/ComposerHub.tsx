@@ -14,7 +14,8 @@ import {
   type WelcomeTemplate,
 } from "@/lib/welcome-templates";
 import { cn } from "@/lib/utils";
-import type { ChatAttachment, SessionListItem } from "@/lib/types";
+import { ENV_LABEL } from "@/components/shell/EnvBadge";
+import type { ChatAttachment, Environment, SessionListItem } from "@/lib/types";
 
 interface ComposerHubProps {
   /** Активный канал (база 1С). Пробрасывается в ChatInput для metadata @-suggest. */
@@ -27,6 +28,8 @@ interface ComposerHubProps {
   activeConnectionName?: string;
   /** Тип конфигурации активного подключения — для eyebrow chip. */
   activeConnectionConfigType?: string | null;
+  /** Окружение активной базы (shell v3 §6) — прод выделяется в eyebrow. */
+  activeConnectionEnvironment?: Environment | null;
   /** Backend has env API key — пробрасывается в ChatInput. */
   hasEnvApiKey?: boolean;
 }
@@ -85,6 +88,7 @@ export function ComposerHub({
   totalSessionCount,
   activeConnectionName,
   activeConnectionConfigType,
+  activeConnectionEnvironment,
   hasEnvApiKey,
 }: ComposerHubProps) {
   const router = useRouter();
@@ -191,6 +195,20 @@ export function ComposerHub({
                 aria-hidden="true"
               />
               <span className="text-[var(--fg-2)]">{activeConnectionName}</span>
+            </>
+          )}
+          {activeConnectionEnvironment && (
+            <>
+              <span className="text-[var(--fg-4)]">·</span>
+              <span
+                className={
+                  activeConnectionEnvironment === "prod"
+                    ? "text-[var(--warning)] font-semibold"
+                    : "text-[var(--fg-3)]"
+                }
+              >
+                {ENV_LABEL[activeConnectionEnvironment]}
+              </span>
             </>
           )}
           {activeConnectionConfigType && (

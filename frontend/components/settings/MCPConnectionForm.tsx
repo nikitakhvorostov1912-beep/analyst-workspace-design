@@ -17,7 +17,11 @@ import { useConfigCache } from "@/lib/config-cache";
 import { mcpConnectionSchema } from "@/lib/form-schemas";
 import { publishToast } from "@/lib/toast";
 import { cn } from "@/lib/utils";
-import type { MCPConnection, MCPKind } from "@/lib/types";
+import {
+  getConnectionEnvironment,
+  setConnectionEnvironment,
+} from "@/lib/storage";
+import type { Environment, MCPConnection, MCPKind } from "@/lib/types";
 
 interface MCPConnectionFormProps {
   initial?: MCPConnection | null;
@@ -122,6 +126,10 @@ export function MCPConnectionForm({
   const [channel, setChannel] = useState(parsed.channel);
   const [proxyBase, setProxyBase] = useState(parsed.proxyBase);
   const [anonEnabled, setAnonEnabled] = useState(initial?.anon_enabled ?? false);
+  // shell v3 §5 (Вариант B): окружение хранится в localStorage, не в backend.
+  const [environment, setEnvironment] = useState<Environment | "">(
+    initial ? (getConnectionEnvironment(initial.id) ?? "") : "",
+  );
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -205,6 +213,10 @@ export function MCPConnectionForm({
       const saved = initial
         ? await updateConnection(initial.id, payload)
         : await createConnection(payload);
+
+      // Окружение (Вариант B) — пишем в localStorage по реальному id (для нового
+      // подключения id появляется только после create). "" → снимаем метку.
+      setConnectionEnvironment(saved.id, environment || null);
 
       configCache.invalidateConnections();
       publishToast({ type: "info", message: "Подключение сохранено" });
@@ -360,6 +372,32 @@ export function MCPConnectionForm({
         >
           Маскировка имён по умолчанию
         </label>
+      </div>
+
+      {/* Окружение (shell v3 §5) — помогает не перепутать прод и тест.
+          Прод выделяется янтарным бейджем в шапке и welcome. */}
+      <div>
+        <label
+          htmlFor="environment"
+          className="block text-xs text-[var(--fg-muted)] mb-1"
+        >
+          Окружение
+        </label>
+        <select
+          id="environment"
+          data-testid="environment-select"
+          value={environment}
+          onChange={(e) => setEnvironment(e.target.value as Environment | "")}
+          className="h-9 w-full rounded-md border border-[var(--bd-2)] bg-[var(--bg-2)] px-3 text-sm text-[var(--fg-1)] focus:outline-none focus:ring-2 focus:ring-[var(--accent-20)]"
+        >
+          <option value="">— не указано</option>
+          <option value="prod">Боевая (ПРОД)</option>
+          <option value="test">Тест</option>
+          <option value="demo">Демо</option>
+        </select>
+        <p className="text-xs text-[var(--fg-3)] mt-1">
+          Боевая база выделяется янтарём в шапке — чтобы не отправить запрос не туда.
+        </p>
       </div>
 
       {/* Расширенные — тип подключения, прокси, базовый адрес. */}

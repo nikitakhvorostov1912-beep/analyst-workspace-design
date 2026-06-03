@@ -48,7 +48,12 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
 }
 import { migrateLegacyApiKey } from "@/lib/api-keys";
 import { useSessionsStore } from "@/lib/sessions-store";
-import { getActiveChannelId, setActiveChannelId } from "@/lib/storage";
+import {
+  getActiveChannelId,
+  getConnectionEnvironment,
+  setActiveChannelId,
+} from "@/lib/storage";
+import type { Environment } from "@/lib/types";
 import { getOnboardingCompleted, setOnboardingCompleted } from "@/lib/onboarding-flag";
 import { publishToast } from "@/lib/toast";
 import { publishUndoToast } from "@/lib/undo-toast";
@@ -68,7 +73,12 @@ export default function HomePage() {
   // eyebrow («БАЗА 1С · {name} · {config_type}»). Загружается одновременно
   // с conns/llm — отдельного fetch не нужно.
   const [connections, setConnections] = useState<
-    Array<{ id: string; name: string; config_type?: string | null }>
+    Array<{
+      id: string;
+      name: string;
+      config_type?: string | null;
+      environment?: Environment | null;
+    }>
   >([]);
   // 2026-05-24 P0: фикс «Введите API ключ» на главной. Раньше hasEnvApiKey={false}
   // был жёстко вшит — даже когда backend имеет ключ в env, Input.tsx показывал
@@ -120,6 +130,8 @@ export default function HomePage() {
             id: c.id,
             name: c.name,
             config_type: c.config_type,
+            // shell v3 §5-6 (Вариант B): окружение из localStorage.
+            environment: getConnectionEnvironment(c.id),
           })),
         );
 
@@ -426,6 +438,7 @@ export default function HomePage() {
           totalSessionCount={totalSessionCount}
           activeConnectionName={activeConn?.name}
           activeConnectionConfigType={activeConn?.config_type ?? null}
+          activeConnectionEnvironment={activeConn?.environment ?? null}
           hasEnvApiKey={hasEnvApiKey}
         />
       </AppShell>
