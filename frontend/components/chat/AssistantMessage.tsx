@@ -1,5 +1,6 @@
 "use client";
 
+import { RotateCcw } from "lucide-react";
 import { Markdown } from "./Markdown";
 import { AnswerProvenance } from "./AnswerProvenance";
 import { Alert } from "@/components/ui/Alert";
@@ -34,6 +35,8 @@ interface AssistantMessageProps {
   currentToolName?: string | null;
   /** ID сессии — для CardContext load-more */
   sessionId?: string;
+  /** F-06: повтор предыдущего вопроса (re-ask). Если не задан — кнопка скрыта. */
+  onRepeat?: () => void;
 }
 
 /**
@@ -48,6 +51,7 @@ export function AssistantMessage({
   streamingStage,
   currentToolName,
   sessionId,
+  onRepeat,
 }: AssistantMessageProps) {
   // Cache fallback after ChannelSelector sync: getMCPConnections() читает localStorage-кеш,
   // который заполняется через syncMCPConnections() в ChannelSelector после успешного fetchConnections().
@@ -142,6 +146,17 @@ export function AssistantMessage({
         {!isStreaming && message.content && (
           <div className="mt-2 flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity duration-150">
             <CopyButton value={message.content} label="Копировать ответ" />
+            {onRepeat && (
+              <button
+                type="button"
+                onClick={onRepeat}
+                className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-[var(--bd-1)] text-[12px] text-[var(--fg-3)] hover:text-[var(--fg-1)] hover:border-[var(--bd-2)] transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--accent)]"
+                title="Задать тот же вопрос ещё раз"
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Повторить
+              </button>
+            )}
           </div>
         )}
 

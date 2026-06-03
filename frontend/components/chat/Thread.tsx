@@ -14,6 +14,8 @@ interface ThreadProps {
   currentToolName?: string | null;
   /** ID сессии — для CardContext load-more (Plan 03-04) */
   sessionId?: string;
+  /** F-06: повтор вопроса — передаётся текст предыдущего user-сообщения. */
+  onRepeat?: (content: string) => void;
 }
 
 /**
@@ -65,7 +67,7 @@ function EmptyState() {
   );
 }
 
-export function Thread({ messages, streamingStage, currentToolName, sessionId }: ThreadProps) {
+export function Thread({ messages, streamingStage, currentToolName, sessionId, onRepeat }: ThreadProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   // Auto-scroll вниз при появлении новых сообщений (стриминг и загрузка истории)
@@ -91,15 +93,25 @@ export function Thread({ messages, streamingStage, currentToolName, sessionId }:
   return (
     <ScrollArea className="h-full">
       <div className="flex flex-col gap-4 p-4 max-w-4xl mx-auto">
-        {visibleMessages.map((msg, i) => (
-          <Message
-            key={msg.id}
-            message={msg}
-            streamingStage={i === lastAssistantIdx ? streamingStage : null}
-            currentToolName={i === lastAssistantIdx ? currentToolName : null}
-            sessionId={sessionId}
-          />
-        ))}
+        {visibleMessages.map((msg, i) => {
+          // F-06: для assistant-сообщения находим предыдущий вопрос пользователя.
+          const prevUser =
+            msg.role === "assistant" && onRepeat
+              ? [...visibleMessages.slice(0, i)]
+                  .reverse()
+                  .find((m) => m.role === "user")?.content
+              : undefined;
+          return (
+            <Message
+              key={msg.id}
+              message={msg}
+              streamingStage={i === lastAssistantIdx ? streamingStage : null}
+              currentToolName={i === lastAssistantIdx ? currentToolName : null}
+              sessionId={sessionId}
+              onRepeat={prevUser ? () => onRepeat?.(prevUser) : undefined}
+            />
+          );
+        })}
         <div ref={bottomRef} />
       </div>
     </ScrollArea>

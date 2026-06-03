@@ -9,9 +9,11 @@ interface MessageProps {
   currentToolName?: string | null;
   /** ID сессии — для CardContext load-more (Plan 03-04) */
   sessionId?: string;
+  /** F-06: повтор предыдущего вопроса (только для assistant-сообщений). */
+  onRepeat?: () => void;
 }
 
-export function Message({ message, streamingStage, currentToolName, sessionId }: MessageProps) {
+export function Message({ message, streamingStage, currentToolName, sessionId, onRepeat }: MessageProps) {
   // tool messages не рендерятся в Thread — только в Trace panel (Plan 2.5)
   if (message.role === "tool") return null;
 
@@ -22,6 +24,7 @@ export function Message({ message, streamingStage, currentToolName, sessionId }:
         streamingStage={streamingStage}
         currentToolName={currentToolName}
         sessionId={sessionId}
+        onRepeat={onRepeat}
       />
     );
   }

@@ -383,6 +383,9 @@ export default function SessionPage() {
             streamingStage={streamingStage}
             currentToolName={currentToolName}
             sessionId={id}
+            onRepeat={(content) => {
+              if (!isStreaming) void send(content);
+            }}
           />
           {pendingClarify && (
             <div className="px-4 max-w-3xl mx-auto">
