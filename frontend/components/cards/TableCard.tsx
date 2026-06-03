@@ -3,6 +3,7 @@
 import { useMemo, useState } from "react";
 import { Download, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Alert } from "@/components/ui/Alert";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { cn } from "@/lib/utils";
 import { rowsToCsv, downloadCsv } from "@/lib/csv";
@@ -79,6 +80,7 @@ export function TableCard({ payload, onDeanonymize }: TableCardProps) {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [revealedMap, setRevealedMap] = useState<Record<string, string> | null>(null);
   const [revealing, setRevealing] = useState(false);
+  const [showTruncDetail, setShowTruncDetail] = useState(false);
 
   // Вычисляем токены в payload (memoized)
   const tokensInPayload = useMemo(
@@ -129,44 +131,59 @@ export function TableCard({ payload, onDeanonymize }: TableCardProps) {
     .filter(Boolean)
     .join(" · ");
 
+  const isTruncated = Boolean(truncated && total_available && total_available > total);
+
   return (
-    <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] overflow-hidden">
-      <CardHeader type="table" title="Таблица" meta={metaLine} />
+    <div className="rounded-[10px] border border-[var(--bd-2)] bg-[var(--bg-1)] overflow-hidden">
+      {/* Один заголовок: иконка+title+мета + (чип усечения) слева, CSV справа (§3.7) */}
+      <CardHeader
+        type="table"
+        title="Таблица"
+        meta={metaLine}
+        chip={
+          isTruncated ? (
+            <button
+              type="button"
+              onClick={() => setShowTruncDetail((v) => !v)}
+              data-testid="result-truncated-chip"
+              className="inline-flex items-center gap-1 px-1.5 py-px rounded text-[11px] bg-[var(--warning-12)] text-[var(--warning)] border border-[var(--warning-20)] tabular-nums"
+              title="Показано не всё — почему?"
+            >
+              {total} из {total_available}
+            </button>
+          ) : undefined
+        }
+        extra={
+          <Button
+            size="sm"
+            variant="ghost"
+            className="gap-1 text-xs h-7"
+            onClick={() => downloadCsv(`table-${Date.now()}.csv`, rowsToCsv(columns, rows))}
+            title="Скачать CSV"
+          >
+            <Download className="h-3 w-3" />
+            CSV
+          </Button>
+        }
+      />
 
-      {/* Toolbar row */}
-      <div className="flex items-center justify-end px-3 py-1.5 border-b border-[var(--bd-1)] bg-[var(--bg-1)]">
-        <Button
-          size="sm"
-          variant="ghost"
-          className="gap-1 text-xs h-7"
-          onClick={() => downloadCsv(`table-${Date.now()}.csv`, rowsToCsv(columns, rows))}
-          title="Скачать CSV"
-        >
-          <Download className="h-3 w-3" />
-          Скачать CSV
-        </Button>
-      </div>
-
-      {showSortWarning && sortBy !== null && (
-        <div className="px-3 py-1 text-xs text-[var(--warning)] bg-[var(--warning-12)] border-b border-[var(--border)]">
-          Большой результат ({total} строк) — сортировка отключена. Скачайте CSV для полного анализа.
+      {/* Деталь усечения — только по клику на чип (§3.7: не полноширинный баннер) */}
+      {isTruncated && showTruncDetail && (
+        <div className="px-3 pt-2" data-testid="result-truncated-banner">
+          <Alert
+            tone="warning"
+            title={`Показаны первые ${total} из ${total_available} строк`}
+            description="Чтобы получить полный набор — сузьте запрос (условие WHERE / временной диапазон) или попросите модель добавить агрегацию. CSV выгрузит видимые строки."
+            onClose={() => setShowTruncDetail(false)}
+          />
         </div>
       )}
 
-      {/* P2.2 ResultSizeGate banner: backend урезал результат до MAX_ROWS_FOR_LLM
-          (по умолчанию 500). Пользователь видит первые N строк, для полного
-          набора — скачать CSV (CSV содержит только видимые rows; для полного
-          датасета — переформулировать запрос с LIMIT/WHERE). */}
-      {truncated && total_available && total_available > total && (
-        <div
-          data-testid="result-truncated-banner"
-          className="px-3 py-2 text-xs text-[var(--warning)] bg-[var(--warning-12)] border-b border-[var(--border)] flex items-center gap-2"
-        >
-          <span className="font-semibold">⚠ Показаны первые {total} из {total_available} строк.</span>
-          <span className="text-[var(--fg-3)]">
-            Чтобы получить полный набор — сузьте запрос (WHERE / временной
-            диапазон) или попросите LLM добавить агрегацию.
-          </span>
+      {/* Предупреждение сортировки — компактная строка (§3.7), не полоса */}
+      {showSortWarning && sortBy !== null && (
+        <div className="px-3 py-1 text-[11px] text-[var(--warning)] flex items-center gap-1.5">
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--warning)] flex-none" aria-hidden="true" />
+          Большой результат — сортировка отключена, выгрузите CSV для полного анализа.
         </div>
       )}
 
@@ -179,9 +196,11 @@ export function TableCard({ payload, onDeanonymize }: TableCardProps) {
                 key={i}
                 onClick={() => toggleSort(i)}
                 className={cn(
-                  "cursor-pointer select-none hover:bg-[var(--bg-elevated)] whitespace-nowrap",
+                  "cursor-pointer select-none hover:bg-[var(--bg-2)] whitespace-nowrap",
+                  "text-[10px] uppercase tracking-[0.08em] text-[var(--fg-3)]",
                   col.type === "Number" && "text-right",
                 )}
+                style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
               >
                 <span className="inline-flex items-center gap-1">
                   {col.name}
@@ -201,12 +220,12 @@ export function TableCard({ payload, onDeanonymize }: TableCardProps) {
         </TableHeader>
         <TableBody>
           {pageRows.map((row, ri) => (
-            <TableRow key={ri}>
+            <TableRow key={ri} className="even:bg-[var(--zebra)]">
               {row.map((cell, ci) => (
                 <TableCell
                   key={ci}
                   className={cn(
-                    "text-xs",
+                    "text-[13px]",
                     columns[ci]?.type === "Number" && "text-right tabular-nums",
                   )}
                 >

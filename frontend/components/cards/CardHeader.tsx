@@ -50,6 +50,10 @@ interface CardHeaderProps {
   anonOn?: boolean;
   onAnonToggle?: () => void;
   actions?: (CardActionItem | "separator")[];
+  /** Чип в строке меты — напр. усечение «500 из 12 480» (§3.7). */
+  chip?: React.ReactNode;
+  /** Доп. действия в правой части шапки (напр. кнопка «Скачать CSV») — в одну строку. */
+  extra?: React.ReactNode;
 }
 
 export function CardHeader({
@@ -61,6 +65,8 @@ export function CardHeader({
   anonOn,
   onAnonToggle,
   actions = [],
+  chip,
+  extra,
 }: CardHeaderProps) {
   const typeMeta = TYPE_META[type];
   const TypeIcon = typeMeta.icon;
@@ -90,9 +96,11 @@ export function CardHeader({
             </span>
           )}
           {meta && <span>{meta}</span>}
+          {chip}
         </div>
       </div>
       <div className="flex items-center gap-1">
+        {extra}
         {anonymizable && (
           <button
             type="button"
