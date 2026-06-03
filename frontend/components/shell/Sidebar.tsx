@@ -1,10 +1,25 @@
 "use client";
 
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { useMemo, useState } from "react";
+import { ChevronLeft, ChevronRight, Plus, Search, X } from "lucide-react";
 import { Marker } from "@/components/ui/Marker";
 import { SessionList } from "./SessionList";
 import { cn } from "@/lib/utils";
-import type { SessionsGrouped } from "@/lib/types";
+import type { SessionsGrouped, SessionListItem } from "@/lib/types";
+
+/** Фильтрует сгруппированные сессии по подстроке в title (F-11 поиск). */
+function filterGrouped(grouped: SessionsGrouped, query: string): SessionsGrouped {
+  const q = query.trim().toLowerCase();
+  if (!q) return grouped;
+  const pick = (arr: SessionListItem[]) =>
+    arr.filter((s) => (s.title ?? "").toLowerCase().includes(q));
+  return {
+    today: pick(grouped.today),
+    yesterday: pick(grouped.yesterday),
+    this_week: pick(grouped.this_week),
+    earlier: pick(grouped.earlier),
+  };
+}
 
 interface SidebarProps {
   grouped?: SessionsGrouped;
@@ -32,6 +47,22 @@ export function Sidebar({
   collapsed = false,
   onToggleCollapse,
 }: SidebarProps) {
+  const [query, setQuery] = useState("");
+  const filtered = useMemo(() => filterGrouped(grouped, query), [grouped, query]);
+  const hasAnySession =
+    grouped.today.length +
+      grouped.yesterday.length +
+      grouped.this_week.length +
+      grouped.earlier.length >
+    0;
+  const noMatches =
+    query.trim() !== "" &&
+    filtered.today.length +
+      filtered.yesterday.length +
+      filtered.this_week.length +
+      filtered.earlier.length ===
+      0;
+
   return (
     <aside className="flex flex-col h-full border-r border-[var(--bd-1)] bg-[var(--bg-0)] overflow-hidden">
       {/* Кнопка нового чата + collapse toggle */}
@@ -81,6 +112,34 @@ export function Sidebar({
         )}
       </div>
 
+      {/* Поиск по чатам (F-11) — скрыт в свёрнутом режиме и при отсутствии чатов */}
+      {!collapsed && hasAnySession && (
+        <div className="px-3 pt-2.5 pb-1.5">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[var(--fg-3)] pointer-events-none" />
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Поиск по чатам"
+              aria-label="Поиск по чатам"
+              data-testid="sidebar-search"
+              className="w-full h-8 pl-8 pr-7 rounded-md bg-[var(--bg-2)] border border-[var(--bd-2)] text-[12.5px] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] focus:outline-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)]"
+            />
+            {query && (
+              <button
+                type="button"
+                onClick={() => setQuery("")}
+                aria-label="Очистить поиск"
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded text-[var(--fg-3)] hover:text-[var(--fg-1)]"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {/* Список сессий — fade-out при collapsed */}
       <div
         className={cn(
@@ -89,11 +148,17 @@ export function Sidebar({
         )}
         aria-hidden={collapsed}
       >
-        <SessionList
-          grouped={grouped}
-          activeId={activeId}
-          onDelete={onDelete ?? (() => {})}
-        />
+        {noMatches ? (
+          <p className="text-center text-[12px] text-[var(--fg-3)] py-6">
+            Ничего не найдено по «{query.trim()}»
+          </p>
+        ) : (
+          <SessionList
+            grouped={filtered}
+            activeId={activeId}
+            onDelete={onDelete ?? (() => {})}
+          />
+        )}
       </div>
     </aside>
   );
