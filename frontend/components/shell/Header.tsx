@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
-import { Activity, BookOpen, HelpCircle, PanelLeft, Search, Settings } from "lucide-react";
+import { PanelLeft, Search, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { HelpMenu } from "./HelpMenu";
 import { KnowledgeBadge } from "@/components/knowledge/KnowledgeBadge";
 import { BrandMark } from "./BrandMark";
 import { StencilLockup } from "./StencilLockup";
@@ -84,48 +85,8 @@ export function Header({
             </kbd>
           </button>
         )}
-        <Button
-          variant="ghost"
-          size="icon"
-          asChild
-          className="h-[30px] w-[30px] text-[var(--fg-3)] hover:text-[var(--fg-1)]"
-        >
-          <Link
-            href="/status"
-            aria-label="Диагностика"
-            title="Диагностика — проверить что всё работает"
-          >
-            <Activity className="h-[15px] w-[15px]" />
-          </Link>
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          asChild
-          className="h-[30px] w-[30px] text-[var(--fg-3)] hover:text-[var(--fg-1)]"
-        >
-          <Link
-            href="/guide"
-            aria-label="Гайд аналитика"
-            title="Гайд аналитика — как работать с приложением"
-          >
-            <BookOpen className="h-[15px] w-[15px]" />
-          </Link>
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          asChild
-          className="h-[30px] w-[30px] text-[var(--fg-3)] hover:text-[var(--fg-1)]"
-        >
-          <Link
-            href="/about"
-            aria-label="О приложении"
-            title="О приложении — что это и как пользоваться"
-          >
-            <HelpCircle className="h-[15px] w-[15px]" />
-          </Link>
-        </Button>
+        {/* F-03: три иконки справки → одно меню «?» с подписями */}
+        <HelpMenu />
         <ThemeToggle />
         <Button
           variant="ghost"

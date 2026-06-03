@@ -180,7 +180,7 @@ export function ComposerHub({
       {/* Eyebrow + Title */}
       <div className="text-center w-full">
         <div
-          className="text-[10px] tracking-[0.18em] uppercase text-[var(--fg-3)] mb-3 flex items-center justify-center gap-2 flex-wrap"
+          className="text-[10px] tracking-[0.1em] uppercase text-[var(--fg-3)] mb-3 flex items-center justify-center gap-2 flex-wrap"
           style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
         >
           База 1С
@@ -238,7 +238,7 @@ export function ComposerHub({
           return (
             <div key={grp.id}>
               <div
-                className="text-[10px] tracking-[0.18em] uppercase text-[var(--fg-4)] mb-2 text-center"
+                className="text-[10px] tracking-[0.1em] uppercase text-[var(--fg-4)] mb-2 text-center"
                 style={{
                   fontFamily: "var(--font-jb-mono), ui-monospace, monospace",
                 }}
@@ -273,7 +273,7 @@ export function ComposerHub({
       {totalSessionCount > 0 && (
         <div className="w-full border-t border-[var(--bd-1)] pt-4 flex items-center justify-between">
           <span
-            className="text-[10px] tracking-[0.18em] uppercase text-[var(--fg-3)]"
+            className="text-[10px] tracking-[0.1em] uppercase text-[var(--fg-3)]"
             style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
           >
             Последние чаты · {totalSessionCount}

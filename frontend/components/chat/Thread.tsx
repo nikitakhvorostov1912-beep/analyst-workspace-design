@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Message } from "./Message";
+import { EXAMPLE_PROMPTS } from "@/lib/welcome-templates";
 import type { StreamingStage } from "@/lib/streaming-stages";
 import type { ChatMessage } from "@/lib/types";
 
@@ -22,12 +23,9 @@ interface ThreadProps {
  * зависло». Список не интерактивный — это намеренно, чтобы не воровать
  * фокус с composer'а. Аналитик читает, понимает идею, пишет своё.
  */
-const EXAMPLE_QUESTIONS = [
-  "Список метаданных базы",
-  "Документы реализации за май 2026",
-  "Контрагент с ИНН 7707083893",
-  "10 последних ошибок из журнала регистрации",
-] as const;
+// F-12: единый источник примеров (lib/welcome-templates · EXAMPLE_PROMPTS),
+// общий с пустым экраном на главной.
+const EXAMPLE_QUESTIONS = EXAMPLE_PROMPTS;
 
 function EmptyState() {
   return (
@@ -45,7 +43,7 @@ function EmptyState() {
 
         <div className="space-y-2">
           <p
-            className="text-[10px] tracking-[0.16em] uppercase text-[var(--fg-4)]"
+            className="text-[10px] tracking-[0.1em] uppercase text-[var(--fg-4)]"
             style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
           >
             Примеры
