@@ -370,3 +370,44 @@ async def test_run_chat_loop_without_anon_no_header():
 async def _async_gen(items):
     for item in items:
         yield item
+
+
+# ---------------------------------------------------------------------------
+# A-10 (audit): детект отсутствия маркеров анонимизации в data-результатах
+# ---------------------------------------------------------------------------
+
+
+class TestCheckAnonMarkers:
+    """_check_anon_markers — advisory-сигнал «анонимизация ВКЛ, но маркеров нет»."""
+
+    def test_anon_off_never_warns(self):
+        from app.orchestrator.loop import _check_anon_markers
+
+        assert _check_anon_markers("execute_query", {"rows": [["ООО Ромашка"]]}, False) is False
+
+    def test_non_data_tool_never_warns(self):
+        from app.orchestrator.loop import _check_anon_markers
+
+        # get_metadata штатно без маркеров — не повод предупреждать
+        assert _check_anon_markers("get_metadata", {"objects": ["Справочник.Контрагенты"]}, True) is False
+
+    def test_empty_result_never_warns(self):
+        from app.orchestrator.loop import _check_anon_markers
+
+        assert _check_anon_markers("execute_query", None, True) is False
+        assert _check_anon_markers("execute_query", {}, True) is False
+
+    def test_data_tool_with_markers_ok(self):
+        from app.orchestrator.loop import _check_anon_markers
+
+        # есть [ORG-001] → анонимизация работает → не предупреждаем
+        result = {"rows": [["[ORG-001]", "[PER-002]"]]}
+        assert _check_anon_markers("execute_query", result, True) is False
+
+    def test_data_tool_without_markers_warns(self):
+        from app.orchestrator.loop import _check_anon_markers
+
+        # анонимизация ВКЛ, data-инструмент, непустой результат, НЕТ маркеров → True
+        result = {"rows": [["ООО Ромашка", "Иванов И.И."]]}
+        assert _check_anon_markers("execute_query", result, True) is True
+        assert _check_anon_markers("get_event_log", {"events": ["user Иванов logged in"]}, True) is True

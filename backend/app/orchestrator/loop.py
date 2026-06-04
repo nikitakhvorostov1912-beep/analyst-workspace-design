@@ -186,6 +186,17 @@ MAX_TOOL_ITERATIONS = 100
 # это infinite loop, дальнейшие итерации не приблизят к ответу.
 DUPLICATE_TOOL_CALL_THRESHOLD = 5
 
+# A-10 (audit): инструменты, чьи результаты содержат КЛИЕНТСКИЕ данные и потому
+# при включённой анонимизации должны прийти из MCP/EPF с маркерами [XXX-NNN].
+# metadata/get_bsl_syntax_help сюда НЕ входят — у них маркеров нет штатно, и
+# предупреждать по ним = ложный сигнал.
+_ANON_EXPECTED_TOOLS = frozenset({
+    "execute_query",
+    "execute_code",
+    "get_object_by_link",
+    "get_event_log",
+})
+
 # 2026-06-03 (ИТС-латентность): живой Напарник 1С (buddy.*) отвечает ~15с/вызов.
 # Модель склонна over-callить его (search → re-search с переформулировкой → fetch
 # → ещё search) — turn растягивается до 1-3 мин. Лимитируем число обращений к
@@ -766,6 +777,23 @@ def _resolve_effective_model(
         )
         return VISION_MODEL
     return requested_model
+
+
+def _check_anon_markers(tool_name: str, result: Any, x_anon_enabled: bool) -> bool:
+    """A-10 (OWASP LLM02): True если для анонимизированной сессии в результате
+    data-инструмента ОТСУТСТВУЮТ маркеры [XXX-NNN].
+
+    Анонимизация выполняется во внешнем MCP/EPF — backend её не контролирует.
+    Отсутствие маркеров в результате execute_query и т.п. при включённой
+    анонимизации = повод заподозрить, что EPF не анонимизирует (старый/
+    misconfigured) и сырой клиентский PII уходит в LLM.
+
+    Returns False если проверка неприменима (анонимизация выкл, не data-инструмент,
+    пустой результат) — чтобы не шуметь ложными предупреждениями.
+    """
+    if not x_anon_enabled or tool_name not in _ANON_EXPECTED_TOOLS or not result:
+        return False
+    return not _extract_anon_tokens_from_payload(result)
 
 
 async def _execute_mcp_tool(
@@ -1966,6 +1994,17 @@ async def run_chat_loop(
                     accumulated_cards.append(card)
                 accumulated_tool_calls.append(accum_entry)
                 messages.append(msg_entry)
+
+                # A-10 (audit): advisory-предупреждение, если анонимизация ВКЛ,
+                # но в результате data-инструмента нет ни одного маркера [XXX-NNN]
+                # — вероятно MCP/EPF не анонимизирует и сырой PII уходит в LLM.
+                if _check_anon_markers(tool_name, accum_entry.get("result"), x_anon_enabled):
+                    logger.warning(
+                        "A-10: анонимизация ВКЛ, но в результате %s нет маркеров "
+                        "[XXX-NNN] — проверьте, что MCP/EPF анонимизирует (channel=%s)",
+                        tool_name,
+                        request.channel_id,
+                    )
 
             yield format_sse("status", StatusEvent(stage="formatting"))
 
