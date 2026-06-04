@@ -153,6 +153,7 @@ Electron + electron-builder + PyInstaller (desktop distribution, v1.1.0)
 
 `PARALLEL-PLAN-2026-05-28.md` **архивирован** (`.planning/_archive/`). Актуальный список — лист «Параллельные треки» в `Workflow_1C_Analyst_2026-05-29.xlsx`:
 - M-K2.5 NIM-карточки (фон, не блокер)
+- **Seed Skills Pack** — план `.planning/SEED-SKILLS-PACK-PLAN-2026-06-04.md` (предустановленные навыки встроенной ИИ, warm-start). Не начато. Роадмап §6.4.
 - Гигиена релиза: smoke VM + EV/OV cert + git tag v1.4.x + 3 Playwright spec
 - Тех-долг: 6 cards refactor (1/6), 7 flaky (cp1251), F841/E501 в loop.py, ToolTrace upgrade
 
@@ -161,3 +162,18 @@ Electron + electron-builder + PyInstaller (desktop distribution, v1.1.0)
 - ToolTrace visual upgrade — рабочий, отложено
 - Playwright design-v2.spec.ts smoke — 3 spec'а unskipped, ждут dev-stack
 - Phase 10 (LEARN sqlite-vec/RAG) — DEFERRED, заменён Hermes Memory+Skills (M6)
+
+---
+
+## ★ Seed Skills Pack (next — что прорабатывать)
+
+**План:** `.planning/SEED-SKILLS-PACK-PLAN-2026-06-04.md` (TDD, 6 тасков, **не начато**). Детали — роадмап §6.4.
+
+**Суть:** встроенная ИИ стартует НЕ холодной. `SeedSkillProvider` (read-only `MemoryProvider`) инжектит curated-плейбуки аналитика (анти-галлюцинация/G0, движения регистров, RLS, журнал, ОПП «без шапки»), фильтр по типу конфигурации (`applies_to`). provenance/skill_store **не трогаем**. Подход C (гибрид): seed-ядро + куратор растит agent-скиллы. Enhancement поверх M6, вне критпути M-K3.
+
+**Исполнять** через superpowers: `executing-plans` (инлайн) или `subagent-driven-development` (субагент на таск).
+
+## ★ Метод проработки доработок (НЕ нарушать — урок 2026-06-04)
+
+Любую доработку вести **цепочкой superpowers**, а не ad-hoc:
+`brainstorming` (дизайн + апрув) → `writing-plans` (план без заглушек) → `subagent-driven-development` / `executing-plans` (реализация); при параллельных независимых треках — `dispatching-parallel-agents`. Если пользователь просит «используй superpowers» — это требование на **каждом** шаге проработки, не одноразовая галочка-вызов в начале.
