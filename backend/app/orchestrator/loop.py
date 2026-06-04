@@ -961,6 +961,10 @@ def _dispatch_sync_internal_tool(
         if tool_result
         else (tool_error or "")
     )
+    # A-02 (OWASP LLM01): результаты internal-tools (memory_*/todo_*) тоже идут
+    # в LLM-контекст. Память пишется по инициативе LLM/пользователя → возможна
+    # двухходовая инъекция. Тот же scan, что на MCP-пути (_execute_mcp_tool).
+    tool_content = scan_sanitize_for_prompt(tool_content)
     message_entry = {
         "role": "tool",
         "tool_call_id": tool_id,
@@ -1281,7 +1285,11 @@ async def run_chat_loop(
         )
         mentions_cards = prefetch_result.cards
         if prefetch_result.context_block:
-            mentions_context_block = prefetch_result.context_block
+            # A-01 (OWASP LLM01): блок @-упоминаний строится из данных 1С
+            # (presentation/object_path из кэша) и идёт в system prompt. Без
+            # этого скана отравленное имя объекта 1С могло бы внедрить инструкцию
+            # в промпт. Тот же scan, что для MCP tool-результатов (см. ниже).
+            mentions_context_block = scan_sanitize_for_prompt(prefetch_result.context_block)
     except Exception:
         logger.exception(
             "Mentions prefetch failed для канала %s — продолжаю без mention cards",
