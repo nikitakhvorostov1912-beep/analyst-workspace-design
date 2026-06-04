@@ -82,12 +82,12 @@ export function AppShell({
       // высотой Header (h-[52px] в Header.tsx). Раньше резерв 56px → визуальный
       // gap 4px между Header и Sidebar.
       style={{
-        gridTemplateColumns: collapsed ? "56px 1fr" : "260px 1fr",
+        gridTemplateColumns: collapsed ? "0px 1fr" : "260px 1fr",
         gridTemplateRows: "52px minmax(0, 1fr) auto",
       }}
     >
-      {/* Header — занимает обе колонки */}
-      <Header {...headerProps} />
+      {/* Header — занимает обе колонки; переключатель панели живёт здесь (верх) */}
+      <Header {...headerProps} onToggleSidebar={toggleSidebar} collapsed={collapsed} />
 
       {/* Sidebar — собственный h-full работает корректно с minmax(0, 1fr) row */}
       <Sidebar
@@ -98,7 +98,6 @@ export function AppShell({
         onRename={onRenameSession}
         onPin={onPinSession}
         collapsed={collapsed}
-        onToggleCollapse={toggleSidebar}
       />
 
       {/* Main content area — animate-fade-up при смене pathname (M08) */}

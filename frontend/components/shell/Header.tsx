@@ -1,6 +1,6 @@
 "use client";
 
-import { PanelLeft, Search } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { BrandMark } from "./BrandMark";
 import { StencilLockup } from "./StencilLockup";
@@ -14,6 +14,8 @@ export interface HeaderProps {
   activeChannelId: string | null;
   onChannelChange: (id: string) => void;
   onToggleSidebar?: () => void;
+  /** Текущее состояние боковой панели — для иконки/подписи переключателя. */
+  collapsed?: boolean;
   onOpenCmdK?: () => void;
 }
 
@@ -32,6 +34,7 @@ export function Header({
   activeChannelId,
   onChannelChange,
   onToggleSidebar,
+  collapsed = false,
   onOpenCmdK,
 }: HeaderProps) {
   return (
@@ -39,25 +42,36 @@ export function Header({
       className="sticky top-0 z-10 flex items-center gap-3 h-[52px] px-3.5 bg-[var(--bg-1)] border-b border-[var(--bd-1)] col-span-2"
       data-testid="app-header"
     >
-      {/* ── ЗОНА 1: toggle + бренд + контекст базы ── */}
+      {/* ── ЗОНА 1: переключатель панели (верхний левый угол) + бренд + база ── */}
       {onToggleSidebar && (
         <Button
           variant="ghost"
           size="icon"
           onClick={onToggleSidebar}
-          aria-label="Свернуть/развернуть боковую панель"
-          className="h-7 w-7 flex-none"
+          aria-label={collapsed ? "Развернуть боковую панель" : "Свернуть боковую панель"}
+          title={collapsed ? "Развернуть панель с чатами" : "Свернуть панель"}
+          className="h-7 w-7 flex-none text-[var(--fg-2)] hover:text-[var(--accent)]"
+          data-testid="sidebar-toggle"
         >
-          <PanelLeft className="h-4 w-4" />
+          {collapsed ? (
+            <PanelLeftOpen className="h-4 w-4" />
+          ) : (
+            <PanelLeftClose className="h-4 w-4" />
+          )}
         </Button>
       )}
-      <div className="flex items-center gap-2.5 min-w-0 flex-none">
-        <BrandMark size={32} />
-        <StencilLockup fontSize={15} />
-      </div>
 
-      {/* вертикальный разделитель */}
-      <span aria-hidden className="h-[26px] w-px bg-[var(--bd-2)] flex-none" />
+      {/* Бренд показываем только в развёрнутом режиме — при свёртке слева пусто. */}
+      {!collapsed && (
+        <>
+          <div className="flex items-center gap-2.5 min-w-0 flex-none">
+            <BrandMark size={32} />
+            <StencilLockup fontSize={15} />
+          </div>
+          {/* вертикальный разделитель */}
+          <span aria-hidden className="h-[26px] w-px bg-[var(--bd-2)] flex-none" />
+        </>
+      )}
 
       {/* контекст базы — главный левый якорь */}
       <ChannelSelector activeId={activeChannelId} onChange={onChannelChange} />
