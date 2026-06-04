@@ -13,7 +13,6 @@ from fastapi import APIRouter, Depends, HTTPException, Path, Query, Request
 
 from app.clients.mcp import MCPClient, is_local_endpoint, normalize_local_endpoint
 from app.clients.mcp_errors import classify_ping_error, collect_local_diagnostics
-from app.services.capability_discovery import discover_capabilities
 from app.models import (
     MCPConnectionCreate,
     MCPConnectionFull,
@@ -23,10 +22,12 @@ from app.models import (
     MetadataSuggestItem,
     MetadataSuggestResponse,
 )
+from app.routes.chat import chat_limiter
 from app.security.mcp_endpoint_validator import (
     MCPEndpointError,
     validate_mcp_endpoint,
 )
+from app.services.capability_discovery import discover_capabilities
 
 TTL_SECONDS = int(os.environ.get("METADATA_CACHE_TTL_S", 3600))
 
@@ -195,6 +196,7 @@ async def _validate_endpoint_ssrf(endpoint: str) -> None:
 
 
 @router.post("", response_model=MCPConnectionFull, status_code=201)
+@chat_limiter.limit("30/minute")  # B-03: DoS-защита (DNS-lookup в thread pool)
 async def create_connection(
     body: MCPConnectionCreate,
     request: Request,
@@ -261,6 +263,7 @@ async def create_connection(
 
 
 @router.put("/{conn_id}", response_model=MCPConnectionFull)
+@chat_limiter.limit("30/minute")  # B-03: DoS-защита (DNS-lookup в thread pool)
 async def update_connection(
     conn_id: Annotated[str, Path(description="ID MCP-подключения")],
     body: MCPConnectionUpdate,
@@ -343,6 +346,7 @@ _PING_TOOLS_CAP = 20
 
 
 @router.post("/{conn_id}/ping", response_model=MCPPingWithTimestampResponse)
+@chat_limiter.limit("20/minute")  # B-03: DoS-защита (открывает MCP TCP-коннект)
 async def ping_connection(
     conn_id: Annotated[str, Path(description="ID MCP-подключения")],
     request: Request,

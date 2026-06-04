@@ -16,6 +16,7 @@ from app.models import (
     LLMConfigTestResponse,
     LLMConfigUpdate,
 )
+from app.routes.chat import chat_limiter
 from app.routes.connections import _validate_endpoint_ssrf
 from app.storage.user_secrets_store import get_secret as get_user_secret
 
@@ -215,6 +216,7 @@ async def delete_llm_config(
 
 
 @router.post("/test", response_model=LLMConfigTestResponse)
+@chat_limiter.limit("10/minute")  # B-03: исходящий httpx (timeout 180s) — DoS/cost
 async def test_llm_config(
     body: LLMConfigTestRequest,
     request: Request,

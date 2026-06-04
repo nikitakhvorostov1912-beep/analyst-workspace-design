@@ -19,6 +19,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request, status
 from pydantic import BaseModel, Field
 
+from app.routes.chat import chat_limiter
 from app.storage.user_secrets_store import (
     delete_secret,
     get_provider_ids_with_secret,
@@ -47,6 +48,7 @@ def _get_db(request: Request):
 
 
 @router.post("", status_code=status.HTTP_204_NO_CONTENT)
+@chat_limiter.limit("20/minute")  # B-03: DoS-защита на запись в БД
 async def save_user_secret(body: UserSecretCreate, request: Request) -> None:
     """Сохраняет (или обновляет) API-ключ провайдера. Тело ответа пустое."""
     db = _get_db(request)
