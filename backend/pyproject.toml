@@ -46,7 +46,7 @@ include = ["app*"]
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-addopts = "--cov=app/orchestrator --cov=app/clients --cov-fail-under=80 --cov-report=term-missing -ra"
+addopts = "--cov=app/orchestrator --cov=app/clients --cov=app/security --cov-fail-under=80 --cov-report=term-missing -ra"
 
 [tool.coverage.run]
 source = ["app"]
