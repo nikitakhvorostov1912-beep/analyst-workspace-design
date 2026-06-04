@@ -87,6 +87,11 @@
 
   /* Easing */
   --ease-design-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  /* Emil Kowalski curves (emil-design-eng): сильнее стандартных CSS-кривых,
+   * дают «характер» движению. ease-out-strong — для входа/выхода UI;
+   * ease-drawer — iOS-подобная кривая для панелей/drawer'ов. */
+  --ease-out-strong: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 * {

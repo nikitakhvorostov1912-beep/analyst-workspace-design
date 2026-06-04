@@ -46,16 +46,46 @@ export function AppShell({
   // Sprint 04 (M07 · Sidebar collapse): persistance в localStorage. Дефолт —
   // развёрнут. Hydration-safe: при SSR collapsed=false, эффект после mount
   // читает реальное значение.
+  //
+  // emil-design-eng: НЕ анимируем grid-template-columns (layout-trigger →
+  // дёрганье на тяжёлом чате). Разводим два состояния:
+  //   • collapsed       — видимый slide самого <aside> через transform/opacity (GPU)
+  //   • columnCollapsed — реальная ширина колонки grid (перекомпоновка ОДИН раз)
+  // collapse: сначала aside уезжает (translateX), затем колонка схлопывается.
+  // expand:   колонка возвращается сразу, aside фикс. ширины въезжает без сжатия.
+  // motionReady гасит переходы на первичном restore, чтобы не было slide при загрузке.
   const [collapsed, setCollapsed] = useState(false);
+  const [columnCollapsed, setColumnCollapsed] = useState(false);
+  const [motionReady, setMotionReady] = useState(false);
+
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    let initialCollapsed = false;
     try {
-      const stored = localStorage.getItem(SIDEBAR_STORAGE_KEY);
-      if (stored === "true") setCollapsed(true);
+      initialCollapsed = localStorage.getItem(SIDEBAR_STORAGE_KEY) === "true";
     } catch {
       // localStorage может быть отключён — оставляем дефолт
     }
+    if (initialCollapsed) {
+      setCollapsed(true);
+      setColumnCollapsed(true);
+    }
+    // Переходы включаем со следующего кадра — иначе restore проиграет slide.
+    const raf = requestAnimationFrame(() => setMotionReady(true));
+    return () => cancelAnimationFrame(raf);
   }, []);
+
+  // Синхронизация ширины колонки с целевым collapsed.
+  // collapse → схлопнуть ПОСЛЕ выезда aside (≈ длительность slide, 200ms).
+  // expand   → вернуть колонку сразу (aside фикс. ширины не сжимается).
+  useEffect(() => {
+    if (!motionReady) return;
+    if (!collapsed) {
+      setColumnCollapsed(false);
+      return;
+    }
+    const t = setTimeout(() => setColumnCollapsed(true), 200);
+    return () => clearTimeout(t);
+  }, [collapsed, motionReady]);
 
   const toggleSidebar = useCallback(() => {
     setCollapsed((prev) => {
@@ -82,7 +112,7 @@ export function AppShell({
       // высотой Header (h-[52px] в Header.tsx). Раньше резерв 56px → визуальный
       // gap 4px между Header и Sidebar.
       style={{
-        gridTemplateColumns: collapsed ? "0px 1fr" : "260px 1fr",
+        gridTemplateColumns: columnCollapsed ? "0px 1fr" : "260px 1fr",
         gridTemplateRows: "52px minmax(0, 1fr) auto",
       }}
     >
@@ -98,6 +128,7 @@ export function AppShell({
         onRename={onRenameSession}
         onPin={onPinSession}
         collapsed={collapsed}
+        animate={motionReady}
       />
 
       {/* Main content area — animate-fade-up при смене pathname (M08) */}

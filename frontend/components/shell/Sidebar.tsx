@@ -31,7 +31,12 @@ interface SidebarProps {
   onPin?: (id: string, pinned: boolean) => void;
   /** Свёрнут или развёрнут. Переключатель живёт в Header. */
   collapsed?: boolean;
+  /** Включить переходы slide/opacity. Гасится на первичном restore (без slide при загрузке). */
+  animate?: boolean;
 }
+
+/** Ширина панели — синхронна с grid-колонкой "260px" в AppShell. */
+const SIDEBAR_WIDTH = 260;
 
 const EMPTY_GROUPED: SessionsGrouped = {
   today: [],
@@ -48,6 +53,7 @@ export function Sidebar({
   onRename,
   onPin,
   collapsed = false,
+  animate = false,
 }: SidebarProps) {
   const [query, setQuery] = useState("");
   const filtered = useMemo(() => filterGrouped(grouped, query), [grouped, query]);
@@ -65,21 +71,32 @@ export function Sidebar({
       filtered.earlier.length ===
       0;
 
-  // Свёрнутый режим — панель пустая и скрытая (ширина колонки 0 задаётся в
-  // AppShell). Контрол разворота вынесен в Header, чтобы рельс не засорять.
-  // Пустой <aside> сохраняем для стабильного grid-placement остальных ячеек.
-  if (collapsed) {
-    return <aside aria-hidden="true" className="h-full overflow-hidden" />;
-  }
-
+  // emil-design-eng: панель уезжает через transform/opacity (GPU), а НЕ через
+  // схлопывание собственной ширины. Ширина фиксирована (SIDEBAR_WIDTH) — при
+  // свёртке колонка grid = 0 и переполнение клипает уехавший aside. Контент не
+  // сжимается во время slide. inert+aria-hidden убирают свёрнутую панель из
+  // tab-порядка и из дерева доступности. Переходы под reduced-motion гасит
+  // universal-правило в design-tokens.css.
   return (
-    <aside className="flex flex-col h-full border-r border-[var(--bd-1)] bg-[var(--bg-0)] overflow-hidden">
+    <aside
+      className="flex flex-col h-full border-r border-[var(--bd-1)] bg-[var(--bg-0)] overflow-hidden will-change-transform"
+      style={{
+        width: SIDEBAR_WIDTH,
+        transform: collapsed ? "translateX(-100%)" : "translateX(0)",
+        opacity: collapsed ? 0 : 1,
+        transition: animate
+          ? "transform var(--duration-normal, 200ms) var(--ease-drawer, cubic-bezier(0.32, 0.72, 0, 1)), opacity var(--duration-micro, 150ms) ease-out"
+          : "none",
+      }}
+      aria-hidden={collapsed || undefined}
+      inert={collapsed}
+    >
       {/* Новый чат */}
       <div className="p-3 border-b border-[var(--bd-1)]">
         <button
           type="button"
           onClick={onCreateNew}
-          className="w-full flex items-center gap-2 h-9 px-3 rounded-md bg-[var(--bg-2)] border border-[var(--bd-2)] hover:border-[var(--bd-3)] hover:bg-[var(--bg-3)] transition-colors text-[var(--fg-1)]"
+          className="w-full flex items-center gap-2 h-9 px-3 rounded-md bg-[var(--bg-2)] border border-[var(--bd-2)] hover:border-[var(--bd-3)] hover:bg-[var(--bg-3)] transition duration-150 ease-out active:scale-[0.98] text-[var(--fg-1)]"
         >
           <Marker size={10} />
           <span

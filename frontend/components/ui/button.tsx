@@ -7,7 +7,10 @@ import { cn } from "@/lib/utils";
 // Signal-orange 1px на песке plain glass — теряется. 2px + offset на --bg-0
 // даёт видимый контраст в обоих темах.
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-0)] focus-visible:ring-[var(--accent)] disabled:pointer-events-none disabled:opacity-50",
+  // EK (emil-design-eng): любой нажимаемый элемент должен «отвечать» на нажатие.
+  // active:scale-[0.97] + transform 150ms ease-out = мгновенный тактильный фидбэк.
+  // `transition` (не `transition-all`) — куратор. список свойств, включает transform.
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition duration-150 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--bg-0)] focus-visible:ring-[var(--accent)] disabled:pointer-events-none disabled:opacity-50",
   {
     variants: {
       variant: {
