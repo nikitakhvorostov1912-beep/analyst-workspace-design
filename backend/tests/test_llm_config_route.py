@@ -317,6 +317,48 @@ async def test_test_endpoint_network_error(client: AsyncClient, monkeypatch):
     assert data["error_code"] == "network_error"
 
 
+# ---------------------------------------------------------------------------
+# B-01 (SSRF / OWASP API10): /llm-config/test обязан валидировать endpoint
+# тем же SSRF-guard, что и /connections, ДО исходящего httpx-запроса.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "endpoint",
+    [
+        "http://169.254.169.254/v1",  # AWS link-local metadata
+        "http://10.0.0.1/v1",  # RFC1918 private
+        "http://192.168.1.1/v1",  # RFC1918 private
+    ],
+)
+@pytest.mark.asyncio
+async def test_test_endpoint_rejects_ssrf(client: AsyncClient, monkeypatch, endpoint):
+    """Внутренний/link-local endpoint → 400 unsafe_endpoint, httpx НЕ вызывается."""
+
+    class _MustNotConnect:
+        def __init__(self, **kwargs):
+            pass
+
+        async def post(self, url: str, **kwargs):
+            raise AssertionError(f"SSRF-guard не сработал — httpx ушёл на {url}")
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_):
+            pass
+
+    monkeypatch.setattr("app.routes.llm_config.httpx.AsyncClient", _MustNotConnect)
+
+    response = await client.post(
+        "/llm-config/test",
+        json={"endpoint": endpoint, "model": "test-model"},
+        headers={"X-LLM-API-Key": "sk-test"},
+    )
+    assert response.status_code == 400
+    assert response.json()["detail"]["error_code"] == "unsafe_endpoint"
+
+
 @pytest.mark.asyncio
 async def test_test_endpoint_timeout(client: AsyncClient, monkeypatch):
     """Mock TimeoutException → error_code='timeout'."""

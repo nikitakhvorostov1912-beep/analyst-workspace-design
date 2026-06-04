@@ -16,6 +16,7 @@ from app.models import (
     LLMConfigTestResponse,
     LLMConfigUpdate,
 )
+from app.routes.connections import _validate_endpoint_ssrf
 from app.storage.user_secrets_store import get_secret as get_user_secret
 
 logger = logging.getLogger(__name__)
@@ -231,6 +232,12 @@ async def test_llm_config(
     даже если ключ был сохранён в `user_secrets` через POST /user-secrets.
     """
     started_at = time.monotonic()
+    # B-01 (SSRF / OWASP API10): endpoint задаёт пользователь и backend делает
+    # к нему исходящий httpx-запрос. Без этой проверки можно нацелить тест на
+    # 169.254.169.254 (cloud metadata) / internal сервисы. Тот же guard, что на
+    # POST /connections. Бросает HTTPException(400, unsafe_endpoint) до сетевого
+    # вызова. Localhost (127.0.0.1) разрешён — как и для MCP.
+    await _validate_endpoint_ssrf(body.endpoint)
     api_key = (x_llm_api_key or "").strip()
     if not api_key:
         # 2026-05-25: fallback на user_secrets — был только env-fallback,
