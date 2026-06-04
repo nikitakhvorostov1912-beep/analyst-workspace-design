@@ -292,7 +292,7 @@ export function ChatInput({
 
   return (
     <div
-      className={`relative flex flex-col gap-1.5 p-3 transition-all duration-200 ease-out ${isDragOver ? "ring-2 ring-[var(--accent)] ring-inset rounded-md bg-[var(--accent-08)] scale-[1.005]" : ""}`}
+      className={`relative flex flex-col gap-1.5 p-3 transition-[transform,background-color,box-shadow] duration-200 ease-out ${isDragOver ? "ring-2 ring-[var(--accent)] ring-inset rounded-md bg-[var(--accent-08)] scale-[1.005]" : ""}`}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}

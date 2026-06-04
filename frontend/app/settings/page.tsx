@@ -160,7 +160,7 @@ export default function SettingsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="text-[14px] font-semibold text-[var(--fg-1)] flex items-center gap-1">
                     Постоянная память
-                    <ChevronRight className="h-3.5 w-3.5 text-[var(--fg-3)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-all" />
+                    <ChevronRight className="h-3.5 w-3.5 text-[var(--fg-3)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-[color,transform] duration-150 ease-out" />
                   </div>
                   <div className="text-[12px] text-[var(--fg-3)] mt-1 leading-snug">
                     Заметки между сессиями — что ассистент помнит про базу и про вас
@@ -178,7 +178,7 @@ export default function SettingsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="text-[14px] font-semibold text-[var(--fg-1)] flex items-center gap-1">
                     Аналитика
-                    <ChevronRight className="h-3.5 w-3.5 text-[var(--fg-3)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-all" />
+                    <ChevronRight className="h-3.5 w-3.5 text-[var(--fg-3)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-[color,transform] duration-150 ease-out" />
                   </div>
                   <div className="text-[12px] text-[var(--fg-3)] mt-1 leading-snug">
                     Сессии, инструменты, ошибки — за период
@@ -196,7 +196,7 @@ export default function SettingsPage() {
                 <div className="flex-1 min-w-0">
                   <div className="text-[14px] font-semibold text-[var(--fg-1)] flex items-center gap-1">
                     Подсказки агента
-                    <ChevronRight className="h-3.5 w-3.5 text-[var(--fg-3)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-all" />
+                    <ChevronRight className="h-3.5 w-3.5 text-[var(--fg-3)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-[color,transform] duration-150 ease-out" />
                   </div>
                   <div className="text-[12px] text-[var(--fg-3)] mt-1 leading-snug">
                     Шаблоны решений + автоочистка устаревших

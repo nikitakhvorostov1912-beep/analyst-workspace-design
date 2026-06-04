@@ -148,7 +148,7 @@ export function StreamingStages({
               data-stage-kind={s.kind}
               data-stage-state={isDone ? "done" : isActive ? "active" : "future"}
               className={cn(
-                "inline-flex items-center gap-1 px-1.5 py-0.5 rounded transition-all duration-normal ease-design-ease",
+                "inline-flex items-center gap-1 px-1.5 py-0.5 rounded transition-[color,background-color,opacity] duration-normal ease-design-ease",
                 toneClass,
                 i > activeIndex && "opacity-45",
               )}

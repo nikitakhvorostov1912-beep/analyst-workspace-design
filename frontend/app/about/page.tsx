@@ -37,7 +37,7 @@ export default function AboutPage() {
                 9 разделов: подключение к 1С · операции в базе · карточки · сценарии · диагностика · безопасность
               </div>
             </div>
-            <ArrowRight className="h-4 w-4 text-[var(--fg-3)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-all flex-shrink-0" />
+            <ArrowRight className="h-4 w-4 text-[var(--fg-3)] group-hover:text-[var(--accent)] group-hover:translate-x-0.5 transition-[color,transform] duration-150 ease-out flex-shrink-0" />
           </div>
         </Link>
 

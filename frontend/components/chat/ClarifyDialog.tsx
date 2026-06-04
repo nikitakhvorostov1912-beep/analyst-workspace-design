@@ -143,7 +143,7 @@ export function ClarifyDialog({ payload, onResolve }: ClarifyDialogProps) {
           type="button"
           onClick={handleSubmit}
           disabled={!canSubmit || submitting}
-          className="px-4 h-8 rounded-md bg-[var(--accent)] text-[var(--brand-ink,#15161a)] text-[12.5px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110 transition-all"
+          className="px-4 h-8 rounded-md bg-[var(--accent)] text-[var(--brand-ink,#15161a)] text-[12.5px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110 transition-[filter,transform] duration-150 ease-out active:scale-[0.97]"
         >
           {submitting ? "Отправка..." : "Ответить"}
         </button>

@@ -266,7 +266,7 @@ export default function SkillsSettingsPage() {
             type="button"
             onClick={handleCreate}
             disabled={creating || !newBody.trim()}
-            className="inline-flex items-center gap-2 px-4 h-9 rounded-md bg-[var(--accent)] text-[var(--brand-ink,#15161a)] text-[13px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110 transition-all"
+            className="inline-flex items-center gap-2 px-4 h-9 rounded-md bg-[var(--accent)] text-[var(--brand-ink,#15161a)] text-[13px] font-semibold disabled:opacity-50 disabled:cursor-not-allowed hover:brightness-110 transition-[filter,transform] duration-150 ease-out active:scale-[0.97]"
           >
             {creating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
             Добавить
