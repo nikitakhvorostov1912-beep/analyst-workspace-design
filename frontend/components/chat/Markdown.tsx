@@ -1,17 +1,26 @@
 "use client";
 
 import React from "react";
+import dynamic from "next/dynamic";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { Components } from "react-markdown";
 import { highlightAnonTokens } from "@/lib/anon-tokens";
 import { CodeCard } from "@/components/cards/CodeCard";
-import {
-  ChartCard,
-  ChartCardError,
-  parseChartSpec,
-} from "@/components/cards/ChartCard";
 import type { CodeCardPayload } from "@/lib/types";
+
+// H-06 (Web Vitals): ChartBlock тянет recharts (~100 KB gzip). Грузим лениво —
+// recharts покидает initial bundle и подтягивается только когда в ответе модели
+// реально встречается ```chart-блок.
+const ChartBlock = dynamic(
+  () => import("@/components/cards/ChartBlock").then((m) => m.ChartBlock),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="my-2 text-xs text-[var(--fg-3)]">Загрузка графика…</div>
+    ),
+  },
+);
 
 /** Языки для которых рендерим CodeCard вместо plain <pre><code>. */
 const CODE_CARD_LANGUAGES = new Set(["bsl", "sql", "json"]);
@@ -47,20 +56,10 @@ const components: Components = {
     if (isBlock) {
       const lang = className?.replace("language-", "") ?? "";
 
-      // ```chart\n{<json spec>}\n``` → Recharts графики
+      // ```chart\n{<json spec>}\n``` → Recharts графики (лениво, см. ChartBlock)
       if (lang === CHART_LANGUAGE) {
         const raw = typeof children === "string" ? children : String(children ?? "");
-        const trimmed = raw.replace(/\n$/, "");
-        const spec = parseChartSpec(trimmed);
-        if (spec) {
-          return <ChartCard spec={spec} />;
-        }
-        return (
-          <ChartCardError
-            raw={trimmed}
-            error="невалидный JSON или неподдерживаемый type (нужен bar / line / pie)"
-          />
-        );
+        return <ChartBlock raw={raw} />;
       }
 
       if (CODE_CARD_LANGUAGES.has(lang)) {

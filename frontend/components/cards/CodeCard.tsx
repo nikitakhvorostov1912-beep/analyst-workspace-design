@@ -40,7 +40,10 @@ export function CodeCard({ payload }: CodeCardProps) {
   // По умолчанию длинные блоки свёрнуты — захламляют ленту чата.
   const [expanded, setExpanded] = useState(!collapsible);
 
-  const highlightedHtml = highlight(displayCode, language);
+  // H-05: highlight() синхронный (Prism) и дорог на крупном BSL. Без useMemo он
+  // пересчитывался на каждый SSE-токен соседнего сообщения (setMessages → ре-рендер
+  // всего дерева карточек), блокируя main-thread. Мемоизируем по контенту+языку.
+  const highlightedHtml = useMemo(() => highlight(displayCode, language), [displayCode, language]);
 
   async function handleCopy() {
     try {

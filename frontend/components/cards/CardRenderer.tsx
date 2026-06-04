@@ -1,14 +1,26 @@
 "use client";
 
 import type { ReactNode } from "react";
+import dynamic from "next/dynamic";
 import { TableCard } from "./TableCard";
 import { ObjectCard } from "./ObjectCard";
 import { LogCard } from "./LogCard";
 import { MetricCard } from "./MetricCard";
 import { ReferencesCard } from "./ReferencesCard";
 import { CodeCard } from "./CodeCard";
-import { GraphCard } from "./GraphCard";
 import { deanonymizeCard, loadMoreLogEntries } from "@/lib/api";
+
+// H-06 (Web Vitals): GraphCard тянет @xyflow/react (~150 KB gzip) + CSS. Карточки
+// типа "graph" появляются редко (граф = backend grounding), поэтому грузим
+// компонент лениво — он не попадает в initial bundle для всех остальных сессий.
+const GraphCard = dynamic(() => import("./GraphCard").then((m) => m.GraphCard), {
+  ssr: false,
+  loading: () => (
+    <div className="rounded-lg border border-[var(--bd-1)] bg-[var(--bg-1)] p-3 text-xs text-[var(--fg-3)]">
+      Загрузка графа…
+    </div>
+  ),
+});
 import type { CardEnvelope, CardContext, ReferenceItem } from "@/lib/types";
 
 interface CardRendererProps {
