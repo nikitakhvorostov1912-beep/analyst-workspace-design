@@ -321,10 +321,11 @@ export function MCPConnectionForm({
     <div className="space-y-4 p-4 border border-[var(--border)] rounded-md bg-[var(--bg)]">
       {/* Название — единственное обязательное текстовое поле верхнего уровня. */}
       <div>
-        <label className="block text-xs text-[var(--fg-muted)] mb-1">
+        <label htmlFor="mcp-conn-name" className="block text-xs text-[var(--fg-muted)] mb-1">
           Название
         </label>
         <Input
+          id="mcp-conn-name"
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Моя база"
@@ -339,10 +340,11 @@ export function MCPConnectionForm({
           Тип подключения по умолчанию embedded. Прокси/канал — за advanced. */}
       {kind === "embedded" && (
         <div>
-          <label className="block text-xs text-[var(--fg-muted)] mb-1">
+          <label htmlFor="mcp-conn-port" className="block text-xs text-[var(--fg-muted)] mb-1">
             Порт обработки в 1С
           </label>
           <Input
+            id="mcp-conn-port"
             value={port}
             onChange={(e) => setPort(e.target.value.replace(/[^0-9]/g, ""))}
             placeholder="6010"

@@ -26,7 +26,16 @@ export function ConfirmExecuteDialog({ open, payload, onResolve, loading }: Prop
   if (!payload) return null;
 
   return (
-    <Dialog open={open}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        // I-02 (WCAG 2.1.1/3.2.2): без onOpenChange Radix не закрывал диалог по
+        // Escape — клавиатурный пользователь не мог отменить опасное действие.
+        // Закрытие (Escape / клик вне) трактуем как «Отменить», но не во время
+        // отправки (loading), чтобы не оборвать уже идущее подтверждение.
+        if (!next && !loading) onResolve(false);
+      }}
+    >
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Подтвердите выполнение кода 1С</DialogTitle>

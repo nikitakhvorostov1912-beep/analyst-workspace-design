@@ -495,7 +495,7 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
             (LocalStorage — после v1.5 удалить) */}
       <div>
         <div className="flex items-center justify-between mb-1">
-          <label className="text-xs text-[var(--fg-muted)]">API ключ</label>
+          <label htmlFor="llm-api-key" className="text-xs text-[var(--fg-muted)]">API ключ</label>
           {(hasBackendKey || storedKey || envKeyApplies) && (
             <button
               type="button"
@@ -508,6 +508,7 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
         </div>
         {showKeyInput ? (
           <Input
+            id="llm-api-key"
             type="password"
             autoComplete="off"
             value={apiKey}
