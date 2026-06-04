@@ -89,7 +89,10 @@ const components: Components = {
     );
   },
   table: ({ children }) => (
-    <div className="overflow-x-auto my-2">
+    // emil-design-eng: таблица «раскрывается» сверху вниз (clip-path) при
+    // появлении. React реконсилирует тот же узел → играет один раз, без
+    // зацикливания на стриминге.
+    <div className="overflow-x-auto my-2 card-reveal">
       <table className="w-full text-sm border-collapse border border-[var(--border)]">
         {children}
       </table>

@@ -32,11 +32,12 @@ interface CardRendererProps {
 }
 
 /**
- * Phase 11.5: animate-fade-up на mount всех cards для плавного появления
- * после streaming partial → final.
+ * Phase 11.5 / emil-design-eng: карточка «раскрывается» сверху вниз через
+ * clip-path (wipe без искажения контента) на mount после streaming partial →
+ * final. См. .card-reveal в design-tokens.css.
  */
 function CardMountWrapper({ children }: { children: ReactNode }) {
-  return <div className="animate-fade-up">{children}</div>;
+  return <div className="card-reveal">{children}</div>;
 }
 
 export function CardRenderer({ card, context, sendMessage }: CardRendererProps) {

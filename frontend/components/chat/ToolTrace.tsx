@@ -65,10 +65,13 @@ function ToolChip({
   tc,
   active,
   onClick,
+  index,
 }: {
   tc: ToolCallRecord;
   active: boolean;
   onClick: () => void;
+  /** Порядковый номер — для stagger pop-in (emil-design-eng). */
+  index: number;
 }) {
   const isError = tc.ok === false;
   const category = getToolCategory(tc.name);
@@ -82,8 +85,10 @@ function ToolChip({
       data-tool-chip={tc.id}
       data-tone={isError ? "error" : "ok"}
       data-category={category}
+      // chip-pop: пружинный влёт со stagger 45мс на чип.
+      style={{ animationDelay: `${index * 45}ms` }}
       className={cn(
-        "inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] border transition-colors duration-micro ease-design-ease",
+        "chip-pop inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] border transition-colors duration-micro ease-design-ease",
         styleVariant,
         active && "ring-1 ring-[var(--accent)]",
       )}
@@ -131,10 +136,11 @@ export function ToolTrace({ toolCalls, totalDurationMs, mcpEndpoint, mcpSessionI
         {/* Mini chips inline — компактный preview только когда свёрнуто */}
         {!open && (
           <div className="flex items-center gap-1 flex-wrap" data-testid="trace-chips">
-            {toolCalls.map((tc) => (
+            {toolCalls.map((tc, i) => (
               <ToolChip
                 key={tc.id}
                 tc={tc}
+                index={i}
                 active={activeId === tc.id}
                 onClick={() => {
                   setOpen(true);
