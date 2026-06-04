@@ -582,10 +582,11 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
             {isCustom && (
               <>
                 <div>
-                  <label className="block text-xs text-[var(--fg-muted)] mb-1">
+                  <label htmlFor="llm-custom-model" className="block text-xs text-[var(--fg-muted)] mb-1">
                     Идентификатор модели
                   </label>
                   <Input
+                    id="llm-custom-model"
                     value={customModel}
                     onChange={(e) => setCustomModel(e.target.value)}
                     placeholder="gpt-4o, claude-3-5-sonnet, ..."
@@ -597,10 +598,11 @@ export function LLMConfigForm({ initial, onSaved }: LLMConfigFormProps) {
                 </div>
 
                 <div>
-                  <label className="block text-xs text-[var(--fg-muted)] mb-1">
+                  <label htmlFor="llm-custom-endpoint" className="block text-xs text-[var(--fg-muted)] mb-1">
                     Адрес сервера
                   </label>
                   <Input
+                    id="llm-custom-endpoint"
                     value={customEndpoint}
                     onChange={(e) => setCustomEndpoint(e.target.value)}
                     placeholder="https://api.openai.com/v1"

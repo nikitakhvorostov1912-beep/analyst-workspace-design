@@ -449,10 +449,11 @@ export function MCPConnectionForm({
             {kind === "proxy" && (
               <>
                 <div>
-                  <label className="block text-xs text-[var(--fg-muted)] mb-1">
+                  <label htmlFor="mcp-conn-channel" className="block text-xs text-[var(--fg-muted)] mb-1">
                     Профиль (для прокси)
                   </label>
                   <Input
+                    id="mcp-conn-channel"
                     value={channel}
                     onChange={(e) => setChannel(e.target.value)}
                     placeholder="tranzit-prod"
@@ -471,10 +472,11 @@ export function MCPConnectionForm({
                   )}
                 </div>
                 <div>
-                  <label className="block text-xs text-[var(--fg-muted)] mb-1">
+                  <label htmlFor="mcp-conn-proxy" className="block text-xs text-[var(--fg-muted)] mb-1">
                     Адрес прокси-сервера
                   </label>
                   <Input
+                    id="mcp-conn-proxy"
                     value={proxyBase}
                     onChange={(e) => setProxyBase(e.target.value)}
                     placeholder={DEFAULT_PROXY_BASE}
