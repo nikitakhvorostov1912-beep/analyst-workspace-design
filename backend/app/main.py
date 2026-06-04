@@ -62,11 +62,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     if log_path:
         logger.info("Лог-файл: %s", log_path)
     logger.info("Запуск 1С Аналитик backend v%s", settings.app_version)
-    # SEC-04: предупреждение если production без CORS origins
+    # SEC-04 / B-04 (audit, OWASP API7): в production пустой CORS = неверная
+    # конфигурация. Раньше был только warning → прод мог стартовать с закрытым
+    # CORS и тихо ломать фронт (или открывать его при дальнейших правках).
+    # Теперь fail-secure: не стартуем без явного BACKEND_ALLOWED_ORIGINS.
+    # Dev (environment="dev" по умолчанию) не затрагивается — там localhost-дефолт.
     if settings.environment == "prod" and not settings.cors_origins_list:
-        logger.warning(
-            "CORS origins пустые в production. "
-            "Установите BACKEND_ALLOWED_ORIGINS=https://your-frontend.example.com"
+        raise RuntimeError(
+            "CORS origins пустые в production. Установите "
+            "BACKEND_ALLOWED_ORIGINS=https://your-frontend.example.com"
         )
     await init_db(app)
     # #40: healthcheck/circuit-breaker 1С:Напарник (buddy MCP)

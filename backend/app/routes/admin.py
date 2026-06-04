@@ -45,7 +45,7 @@ RESET_TABLES: tuple[str, ...] = (
 @router.post("/reset-local-db", status_code=status.HTTP_200_OK)
 @chat_limiter.limit("3/hour")
 async def reset_local_db(
-    request: Request,  # noqa: ARG001 — нужен slowapi для key_func(remote_address)
+    request: Request,  # slowapi key_func(remote_address) + B-05 localhost-guard
     db: Annotated[aiosqlite.Connection, Depends(get_db)],
     x_confirm_reset: Annotated[
         str,
@@ -65,6 +65,16 @@ async def reset_local_db(
     Returns:
         {"status": "ok", "cleared": [список реально очищенных таблиц]}
     """
+    # B-05 (audit, OWASP API5): endpoint без аутентификации (desktop single-user).
+    # Defence-in-depth: разрешаем только с локальной машины. Если backend случайно
+    # окажется доступен по сети (ngrok / LAN / RDP), удалённый клиент не сотрёт данные.
+    client_host = request.client.host if request.client else ""
+    if client_host not in ("127.0.0.1", "::1"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="reset-local-db разрешён только с локальной машины (127.0.0.1)",
+        )
+
     if x_confirm_reset != "true":
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
