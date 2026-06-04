@@ -2,7 +2,6 @@
 
 import { PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { BrandMark } from "./BrandMark";
 import { StencilLockup } from "./StencilLockup";
 import { ChannelSelector } from "./ChannelSelector";
 import { TypicalSelector } from "./TypicalSelector";
@@ -61,11 +60,11 @@ export function Header({
         </Button>
       )}
 
-      {/* Бренд показываем только в развёрнутом режиме — при свёртке слева пусто. */}
+      {/* Лого-текст показываем только в развёрнутом режиме — при свёртке слева
+          пусто. Глиф «А» (BrandMark) убран по фидбэку пользователя. */}
       {!collapsed && (
         <>
-          <div className="flex items-center gap-2.5 min-w-0 flex-none">
-            <BrandMark size={32} />
+          <div className="flex items-center min-w-0 flex-none">
             <StencilLockup fontSize={15} />
           </div>
           {/* вертикальный разделитель */}
