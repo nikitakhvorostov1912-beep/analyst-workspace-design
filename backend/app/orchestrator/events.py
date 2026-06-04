@@ -12,6 +12,7 @@ ErrorCode = Literal[
     "llm_invalid_key",
     "llm_network_error",
     "llm_server_error",
+    "llm_region_blocked",  # A-fix: HTTP 451 — провайдер блокирует по юр./региональным причинам
     "mcp_disconnected",
     "mcp_connect_error",
     "tool_loop_limit",

@@ -211,6 +211,36 @@ async def test_loop_maps_5xx_to_llm_server_error(mem_db, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_loop_maps_451_to_region_blocked(mem_db, monkeypatch):
+    """LLM 451 (Unavailable For Legal Reasons) → code llm_region_blocked + actionable текст."""
+    import app.orchestrator.loop as loop_module
+
+    exc = make_http_status_error(451)
+
+    class FakeLLM:
+        def __init__(self, *a, **kw): pass
+
+        def stream_chat_completion(self, *a, **kw):
+            raise exc
+
+        async def aclose(self): pass
+
+    monkeypatch.setattr(loop_module, "LLMClient", FakeLLM)
+    monkeypatch.setattr(loop_module, "MCPClient", lambda *a, **kw: FakeMCPClient())
+
+    events = await collect_sse(loop_module.run_chat_loop(
+        mem_db, make_request(), "sk-test", "http://fake-llm/v1", "test-model"
+    ))
+
+    error_events = [e for e in events if e["event"] == "error"]
+    assert len(error_events) == 1
+    assert error_events[0]["data"]["code"] == "llm_region_blocked"
+    # Сообщение должно быть actionable, не криптичным "HTTP 451"
+    assert "451" in error_events[0]["data"]["message"]
+    assert "Настройк" in error_events[0]["data"]["message"]
+
+
+@pytest.mark.asyncio
 async def test_loop_maps_request_error_to_llm_network_error(mem_db, monkeypatch):
     """httpx.ConnectError → code llm_network_error."""
     import app.orchestrator.loop as loop_module

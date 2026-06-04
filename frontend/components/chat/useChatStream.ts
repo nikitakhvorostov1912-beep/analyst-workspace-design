@@ -58,6 +58,7 @@ const LLM_ERROR_CODES = new Set<ErrorCode>([
   "llm_invalid_key",
   "llm_network_error",
   "llm_server_error",
+  "llm_region_blocked",
 ]);
 
 /**

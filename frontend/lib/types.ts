@@ -9,6 +9,7 @@ export type ErrorCode =
   | "llm_invalid_key"
   | "llm_network_error"
   | "llm_server_error"
+  | "llm_region_blocked"
   | "mcp_disconnected"
   | "mcp_connect_error"
   | "tool_loop_limit"

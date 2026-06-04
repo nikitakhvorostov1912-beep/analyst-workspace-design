@@ -1585,6 +1585,21 @@ async def run_chat_loop(
                         code="llm_invalid_key",
                     ))
                     return
+                if status == 451:
+                    # 451 Unavailable For Legal Reasons — провайдер отклоняет по
+                    # юридическим/региональным причинам (типично для гео-блокировки).
+                    # Это НЕ наша ошибка — чат не достучится до этой LLM без смены
+                    # провайдера или прокси/VPN. Даём пользователю actionable текст.
+                    logger.warning("LLM 451 — провайдер блокирует по юр./региональным причинам")
+                    yield format_sse("error", ErrorEvent(
+                        message=(
+                            "Провайдер LLM отклонил запрос по региональным/юридическим "
+                            "причинам (HTTP 451). Смените провайдера или модель в Настройках, "
+                            "либо включите прокси/VPN для доступа к этому провайдеру."
+                        ),
+                        code="llm_region_blocked",
+                    ))
+                    return
                 logger.warning("LLM HTTP error %s: %s", status, _safe_error_message(exc))
                 yield format_sse("error", ErrorEvent(
                     message=f"Ошибка LLM-сервера (HTTP {status}).",
