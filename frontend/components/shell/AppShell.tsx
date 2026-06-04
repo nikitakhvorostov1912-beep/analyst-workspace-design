@@ -76,7 +76,7 @@ export function AppShell({
   // что и ломает overflow. minmax(0, 1fr) фиксирует row на доступную высоту.
   return (
     <div
-      className="grid h-screen overflow-hidden transition-[grid-template-columns] duration-300 ease-out"
+      className="grid h-screen overflow-hidden"
       data-sidebar={collapsed ? "collapsed" : "expanded"}
       // HIGH-10 (2026-05-24): header row 56→52px чтобы совпасть с реальной
       // высотой Header (h-[52px] в Header.tsx). Раньше резерв 56px → визуальный
