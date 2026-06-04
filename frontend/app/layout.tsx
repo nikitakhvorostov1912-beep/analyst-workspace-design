@@ -46,7 +46,7 @@ export default function RootLayout({
 }) {
   const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8010";
   return (
-    <html lang="ru" className={`dark ${plexSans.variable} ${plexMono.variable} ${jetbrainsMono.variable}`} data-accent="signal">
+    <html lang="ru" className={`dark ${plexSans.variable} ${plexMono.variable} ${jetbrainsMono.variable}`} data-accent="signal" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
