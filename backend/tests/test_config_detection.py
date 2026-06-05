@@ -424,3 +424,40 @@ def test_gate_confirm_when_margin_small():
         confidence=0.9, family="trade", scores={}, margin=0.05,
     )
     assert gate_decision(result) == "confirm"
+
+
+# ---------- Task 2.2: update_channel_configuration пишет configuration_source ----------
+
+
+@pytest.mark.asyncio
+async def test_update_channel_configuration_writes_source(db):
+    await db.execute(
+        "INSERT INTO mcp_connections (id, name, endpoint, kind) "
+        "VALUES ('ch-s', 'S', 'http://localhost:6010/mcp', 'embedded')"
+    )
+    await db.commit()
+    sig = next(s for s in KNOWN_CONFIGURATIONS if s.key == "ut_11_5")
+    result = detect_configuration_type(sig.characteristic_objects)
+    await update_channel_configuration(db, "ch-s", result, source="auto")
+    cur = await db.execute(
+        "SELECT configuration, configuration_source FROM mcp_connections WHERE id='ch-s'"
+    )
+    row = await cur.fetchone()
+    assert row[0] == "УТ 11.5"
+    assert row[1] == "auto"
+
+
+@pytest.mark.asyncio
+async def test_update_channel_configuration_default_source_none(db):
+    """Обратная совместимость: без source — пишем NULL (как раньше по смыслу)."""
+    await db.execute(
+        "INSERT INTO mcp_connections (id, name, endpoint, kind) "
+        "VALUES ('ch-n', 'N', 'http://localhost:6010/mcp', 'embedded')"
+    )
+    await db.commit()
+    result = detect_configuration_type(["Документ.РеализацияТоваровУслуг"])
+    await update_channel_configuration(db, "ch-n", result)
+    cur = await db.execute(
+        "SELECT configuration_source FROM mcp_connections WHERE id='ch-n'"
+    )
+    assert (await cur.fetchone())[0] is None

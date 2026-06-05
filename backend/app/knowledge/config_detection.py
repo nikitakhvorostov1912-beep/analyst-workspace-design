@@ -355,28 +355,30 @@ async def update_channel_configuration(
     db,  # aiosqlite.Connection
     channel_id: str,
     result: DetectionResult,
+    *,
+    source: str | None = None,
 ) -> None:
-    """Записывает результат детекции в mcp_connections.configuration.
-
-    Поле добавлено миграцией v11. Хранится `display_name` (что увидит
-    юзер), `configuration_key` теряется — это OK, детекция запускается
-    при каждом полном bulk_refresh.
+    """Записывает результат детекции в mcp_connections.
 
     Args:
         db: aiosqlite connection
         channel_id: канал
         result: что записывать
+        source: значение configuration_source (auto/ambiguous/confirmed/
+            manual/custom/failed). None — пишем NULL («детект без явного источника»).
     """
     await db.execute(
-        "UPDATE mcp_connections SET configuration = ? WHERE id = ?",
-        (result.display_name, channel_id),
+        "UPDATE mcp_connections SET configuration = ?, configuration_source = ? "
+        "WHERE id = ?",
+        (result.display_name, source, channel_id),
     )
     await db.commit()
     logger.info(
-        "Configuration detected для канала %s: %s (confidence %.2f)",
+        "Configuration detected для канала %s: %s (confidence %.2f, source=%s)",
         channel_id,
         result.display_name,
         result.confidence,
+        source,
     )
 
 
