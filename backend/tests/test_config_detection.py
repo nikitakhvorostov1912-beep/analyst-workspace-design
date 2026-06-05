@@ -383,13 +383,15 @@ def test_pure_ut_base_stays_ut_with_clear_margin():
 
 
 def test_erp_base_beats_ka_via_msfo():
-    """ERP-база (КА + МСФО) → ERP, не КА."""
-    ka = next(s for s in KNOWN_CONFIGURATIONS if s.key == "ka_2_5")
+    """Реалистичная ERP-база (характерные + МСФО-маркеры, без КА ЗУП-light) → ERP, не КА.
+
+    ERP.final ≈ 2.0 (char 1.0 + disc 1.0) vs KA.final < 1.0 — явный отрыв.
+    """
     erp = next(s for s in KNOWN_CONFIGURATIONS if s.key == "erp_2_5")
-    erp_base = set(ka.characteristic_objects) | set(erp.characteristic_objects) \
-        | set(erp.discriminative_objects)
+    erp_base = set(erp.characteristic_objects) | set(erp.discriminative_objects)
     result = detect_configuration_type(erp_base)
     assert result.configuration_key == "erp_2_5"
+    assert result.margin > 0.5  # ERP явно обходит КА по final_score
 
 
 def test_detection_result_has_margin_field():

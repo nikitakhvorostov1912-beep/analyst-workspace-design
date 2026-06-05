@@ -4,10 +4,17 @@
 конфигурация (УТ 11.5, ERP 2.5, КА 2.5, БП 3.0, БГУ, ЗУП, УСО, ...)
 имеет набор объектов, которые встречаются именно в ней.
 
-**Алгоритм:**
-1. Для каждой known конфигурации считаем `intersection_score = |объекты_канала ∩ характеристики| / |характеристики|`.
-2. Конфигурация с максимальным score выигрывает, если `score >= MIN_CONFIDENCE`.
-3. Если все < MIN_CONFIDENCE → `kind="custom"` (самописная / неизвестная).
+**Алгоритм (двухпроходный):**
+1. Характерный score: `characteristic_score = |канал ∩ characteristic_objects| / |characteristic_objects|`.
+2. Кандидаты: конфигурации с `characteristic_score >= MIN_CONFIDENCE`.
+   Если кандидатов нет → `kind="custom"` (самописная / неизвестная).
+3. final_score = `characteristic_score + discriminative_score`, где
+   `discriminative_score = |канал ∩ discriminative_objects| / |discriminative_objects|`
+   (0.0 для базовых конфигураций без discriminative_objects, например УТ).
+4. Победитель — кандидат с максимальным final_score.
+5. `margin = final_score(top1) - final_score(top2)` — отрыв от руннер-апа.
+6. `confidence` победителя: discriminative_score (если есть disc-маркеры, КА/ERP)
+   или characteristic_score (для базовых: УТ/БП/ЗУП/БГУ/УСО).
 
 **Использование:** вызывается из `indexer.bulk_refresh_metadata_cache`
 после успешной индексации. Обновляет `mcp_connections.configuration`
@@ -27,7 +34,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterable, Literal
 
 logger = logging.getLogger(__name__)
 
@@ -94,9 +101,14 @@ class DetectionResult:
     Attrs:
         configuration_key: `ut_11_5` / `erp_2_5` / ... / `custom`
         display_name: «УТ 11.5» / ... / «Самописная»
-        confidence: 0.0–1.0 (score выигравшей сигнатуры или 0 для custom)
+        confidence: 0.0–1.0. Семантика ветвится по наличию discriminative_objects:
+            - Конфы с disc-маркерами (КА 2.5, ERP 2.5): confidence = discriminative_score
+              (доля найденных дискриминативных маркеров; 1.0 = все найдены).
+            - Базовые конфы без disc-маркеров (УТ 11.5, БП 3.0, ЗУП 3.1, БГУ 2.0, УСО):
+              confidence = characteristic_score (доля характерных объектов в канале).
+            - custom: confidence = 0.0 (пустой канал) или best characteristic_score.
         family: семейство (trade/accounting/...) — для UI
-        scores: dict[key, score] — debug: все рассмотренные кандидаты
+        scores: dict[key, characteristic_score] — debug: характерные scores всех конфигураций
     """
 
     configuration_key: str
@@ -373,7 +385,7 @@ def gate_decision(
     *,
     high_confidence: float = HIGH_CONFIDENCE,
     margin_delta: float = MARGIN_DELTA,
-) -> str:
+) -> Literal["custom", "auto", "confirm"]:
     """Решение онбординг-гейта по результату детекции (B.3).
 
     Returns:
