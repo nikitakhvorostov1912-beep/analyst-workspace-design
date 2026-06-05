@@ -54,6 +54,7 @@ class ConfigurationSignature:
     display_name: str
     characteristic_objects: frozenset[str]
     family: str
+    discriminative_objects: frozenset[str] = frozenset()
 
     def score(self, channel_objects: set[str]) -> float:
         """Возвращает score = |intersection| / |signature|.
@@ -65,6 +66,19 @@ class ConfigurationSignature:
             return 0.0
         intersection = channel_objects & self.characteristic_objects
         return len(intersection) / len(self.characteristic_objects)
+
+    def discriminative_score(self, channel_objects: set[str]) -> float:
+        """Доля найденных ДИСКРИМИНАТИВНЫХ маркеров (специфичных только для
+        этой конфы относительно её subset-сиблингов).
+
+        0.0 если discriminative_objects пуст (базовая конфа семейства —
+        выигрывает на characteristic score, когда сиблинг-маркеров нет).
+        """
+        if not self.discriminative_objects:
+            return 0.0
+        return len(channel_objects & self.discriminative_objects) / len(
+            self.discriminative_objects
+        )
 
 
 @dataclass(frozen=True, slots=True)

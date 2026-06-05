@@ -302,3 +302,32 @@ async def test_update_channel_configuration_unknown_channel_is_noop(db):
     )
     # Не должно бросить
     await update_channel_configuration(db, "ghost", result)
+
+
+# ---------- Task 1.1: discriminative_objects + discriminative_score() ----------
+
+
+def test_signature_discriminative_score_method():
+    """discriminative_score() = доля найденных дискрим-маркеров."""
+    sig = ConfigurationSignature(
+        key="t",
+        display_name="T",
+        characteristic_objects=frozenset({"A", "B"}),
+        family="trade",
+        discriminative_objects=frozenset({"X", "Y"}),
+    )
+    assert sig.discriminative_score(set()) == 0.0
+    assert sig.discriminative_score({"X"}) == 0.5
+    assert sig.discriminative_score({"X", "Y"}) == 1.0
+    # объекты вне дискрим-набора не влияют
+    assert sig.discriminative_score({"A", "B"}) == 0.0
+
+
+def test_signature_empty_discriminative_score_is_zero():
+    """Базовая конфа без дискрим-маркеров → discriminative_score == 0."""
+    sig = ConfigurationSignature(
+        key="base", display_name="Base",
+        characteristic_objects=frozenset({"A"}), family="trade",
+    )
+    assert sig.discriminative_objects == frozenset()
+    assert sig.discriminative_score({"A", "B", "C"}) == 0.0
