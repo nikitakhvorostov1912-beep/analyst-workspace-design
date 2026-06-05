@@ -84,6 +84,7 @@ class MCPConnection(BaseModel):
     # не прошёл MCP initialize / capability discovery (legacy connections).
     mode: MCPMode = "mcp_only"
     configuration: str | None = None  # "УТ 11.5" / "ERP 2.5" / ...
+    configuration_source: str | None = None  # auto/confirmed/manual/custom/failed/NULL
     platform: str | None = None  # "8.3.27.1989"
     ext_version: str | None = None  # версия нашего расширения
     capabilities: list[str] = Field(default_factory=list)  # serialized from JSON
@@ -121,6 +122,8 @@ class MCPConnectionUpdate(BaseModel):
     channel: str | None = None
     anon_enabled: bool | None = None
     kind: MCPKind | None = None
+    configuration: str | None = Field(default=None, max_length=100)
+    configuration_source: str | None = Field(default=None, max_length=20)
 
     def model_post_init(self, _context: object) -> None:
         if self.endpoint is not None:
@@ -142,6 +145,7 @@ class MCPConnectionFull(BaseModel):
     # M-K1.6 (migration v11) — capability fields, см. MCPConnection
     mode: MCPMode = "mcp_only"
     configuration: str | None = None
+    configuration_source: str | None = None  # v24: auto/confirmed/manual/custom/failed/NULL
     platform: str | None = None
     ext_version: str | None = None
     capabilities: list[str] = Field(default_factory=list)

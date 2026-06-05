@@ -319,3 +319,26 @@ async def test_ping_connection_not_found(client: AsyncClient):
     """POST /connections/{id}/ping с несуществующим id → 404."""
     response = await client.post("/connections/does-not-exist/ping")
     assert response.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# Task 2.3: configuration_source в API-моделях + ручной override через PUT
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_override_configuration_via_put(client: AsyncClient):
+    """PUT /connections/{id} с configuration + configuration_source → 200, поля сохранены."""
+    # создать подключение
+    r = await client.post("/connections", json={
+        "name": "Override", "endpoint": "http://localhost:6010/mcp", "kind": "embedded",
+    })
+    assert r.status_code == 201
+    conn_id = r.json()["id"]
+    # override конфигурации вручную
+    r2 = await client.put(f"/connections/{conn_id}", json={
+        "configuration": "КА 2.5", "configuration_source": "manual",
+    })
+    assert r2.status_code == 200
+    body = r2.json()
+    assert body["configuration"] == "КА 2.5"
+    assert body["configuration_source"] == "manual"

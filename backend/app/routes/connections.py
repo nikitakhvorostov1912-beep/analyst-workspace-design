@@ -119,6 +119,7 @@ def _row_to_full(row: dict) -> MCPConnectionFull:
         # M-K1.6 (v11) capability fields
         mode=(row.get("mode") or "mcp_only"),
         configuration=row.get("configuration"),
+        configuration_source=row.get("configuration_source"),
         platform=row.get("platform"),
         ext_version=row.get("ext_version"),
         capabilities=capabilities,
@@ -132,7 +133,8 @@ def _row_to_full(row: dict) -> MCPConnectionFull:
 # capabilities, fingerprint.
 _CONNECTION_COLUMNS = (
     "id, name, endpoint, channel, anon_enabled, kind, last_seen_at, created_at, "
-    "mode, configuration, platform, ext_version, capabilities, fingerprint"
+    "mode, configuration, platform, ext_version, capabilities, fingerprint, "
+    "configuration_source"
 )
 
 
@@ -158,6 +160,8 @@ def _row_tuple_to_dict(row: tuple) -> dict:
         "ext_version": row[11] if len(row) > 11 else None,
         "capabilities": row[12] if len(row) > 12 else None,
         "fingerprint": row[13] if len(row) > 13 else None,
+        # v24 (Multi-base онбординг): источник детекции конфигурации
+        "configuration_source": row[14] if len(row) > 14 else None,
     }
 
 
@@ -299,6 +303,10 @@ async def update_connection(
         updates["anon_enabled"] = int(body.anon_enabled)
     if body.kind is not None:
         updates["kind"] = body.kind
+    if body.configuration is not None:
+        updates["configuration"] = body.configuration
+    if body.configuration_source is not None:
+        updates["configuration_source"] = body.configuration_source
 
     if updates:
         set_clause = ", ".join(f"{k} = ?" for k in updates)
