@@ -12,8 +12,8 @@ pure-функцию.
   заменён вызовом `bulk_refresh_metadata_cache()`.
 
 **Что делает `bulk_refresh_metadata_cache()`:**
-1. Вызывает `MCPClient.call_tool("get_metadata", {"detail": False})`
-2. Парсит результат в list[NormalizedMetadata] через `_parse_metadata_result`
+1. Перечисляет объекты через `_enumerate_all_objects` (по каждому meta_type, limit 1000)
+2. Парсит результат в list[NormalizedMetadata] через `parse_metadata_result`
 3. Транзакционно: DELETE + INSERT batch в `metadata_cache`
 4. Возвращает IndexerProgress с метриками
 
@@ -446,7 +446,13 @@ async def _enumerate_all_objects(client: Any) -> list[NormalizedMetadata]:
         except Exception:  # noqa: BLE001 — один тип не должен валить весь индекс
             logger.warning("Перечисление meta_type=%s упало — пропускаю", meta_type)
             continue
-        for obj in parse_metadata_result(result):
+        parsed = parse_metadata_result(result)
+        if len(parsed) >= _ENUM_PAGE_LIMIT:
+            logger.warning(
+                "meta_type=%s вернул %d объектов (потолок limit=%d) — возможна обрезка каталога",
+                meta_type, len(parsed), _ENUM_PAGE_LIMIT,
+            )
+        for obj in parsed:
             seen[obj.object_path] = obj
     return list(seen.values())
 
@@ -464,7 +470,7 @@ async def bulk_refresh_metadata_cache(
     Шаги:
     1. Connect MCP → initialize → list_tools
     2. Проверить что `get_metadata` exposed
-    3. Call get_metadata(detail=False) → parse → normalize
+    3. Enumerate объекты через `_enumerate_all_objects` (20 meta_type × limit 1000) → parse → normalize
     4. Транзакционно apply: incremental diff (M-K2.3) или full refresh
     5. Вернуть `IndexerProgress`
 
