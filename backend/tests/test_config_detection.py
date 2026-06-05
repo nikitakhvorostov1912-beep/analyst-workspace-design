@@ -331,3 +331,25 @@ def test_signature_empty_discriminative_score_is_zero():
     )
     assert sig.discriminative_objects == frozenset()
     assert sig.discriminative_score({"A", "B", "C"}) == 0.0
+
+
+# ---------- Task 1.2: заполнить discriminative_objects для КА и ERP ----------
+
+
+def test_ka_has_discriminative_markers_not_in_ut():
+    """КА-дискрим-маркеры отсутствуют в УТ-сигнатуре (корень фикса КА⊃УТ)."""
+    ka = next(s for s in KNOWN_CONFIGURATIONS if s.key == "ka_2_5")
+    ut = next(s for s in KNOWN_CONFIGURATIONS if s.key == "ut_11_5")
+    assert ka.discriminative_objects, "КА обязана иметь дискрим-маркеры"
+    # ни один КА-дискрим не входит в характерные УТ
+    assert not (ka.discriminative_objects & ut.characteristic_objects)
+    # эмпирически подтверждённый маркер на КА Демо
+    assert "Документ.РасчетСебестоимостиТоваров" in ka.discriminative_objects
+
+
+def test_erp_has_msfo_discriminative_not_in_ka():
+    """ERP-дискрим (МСФО) отсутствует в КА (КА = ERP минус МСФО)."""
+    erp = next(s for s in KNOWN_CONFIGURATIONS if s.key == "erp_2_5")
+    ka = next(s for s in KNOWN_CONFIGURATIONS if s.key == "ka_2_5")
+    assert "РегистрБухгалтерии.МеждународныйУчет" in erp.discriminative_objects
+    assert not (erp.discriminative_objects & ka.characteristic_objects)
