@@ -5,6 +5,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ConfigurationBadge } from "@/components/shell/ConfigurationBadge";
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const base = { id: "c1", name: "B", endpoint: "http://x/mcp" } as any;
 
 describe("ConfigurationBadge", () => {

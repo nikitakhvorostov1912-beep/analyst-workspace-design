@@ -1,13 +1,17 @@
 "use client";
 
+import { useState, useCallback } from "react";
 import { PanelLeftClose, PanelLeftOpen, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StencilLockup } from "./StencilLockup";
 import { ChannelSelector } from "./ChannelSelector";
+import { ConfigurationBadge } from "./ConfigurationBadge";
 import { TypicalSelector } from "./TypicalSelector";
 import { StatusCapsule } from "./StatusCapsule";
 import { OverflowMenu } from "./OverflowMenu";
 import { UpdateBanner } from "./UpdateBanner";
+import { updateConnectionConfiguration, pingConnection } from "@/lib/api";
+import type { MCPConnection } from "@/lib/types";
 
 export interface HeaderProps {
   activeChannelId: string | null;
@@ -36,6 +40,30 @@ export function Header({
   collapsed = false,
   onOpenCmdK,
 }: HeaderProps) {
+  const [activeConnection, setActiveConnection] = useState<MCPConnection | null>(null);
+
+  const handleConfigOverride = useCallback(
+    async (cfg: string) => {
+      if (!activeConnection) return;
+      try {
+        const updated = await updateConnectionConfiguration(
+          activeConnection.id,
+          cfg,
+          "manual",
+        );
+        setActiveConnection(updated);
+      } catch {
+        // Не блокируем UI при ошибке сохранения — показываем стейт как есть
+      }
+    },
+    [activeConnection],
+  );
+
+  const handleRetry = useCallback(async () => {
+    if (!activeConnection) return;
+    await pingConnection(activeConnection.id).catch(() => null);
+  }, [activeConnection]);
+
   return (
     <header
       className="sticky top-0 z-10 flex items-center gap-3 h-[52px] px-3.5 bg-[var(--bg-1)] border-b border-[var(--bd-1)] col-span-2"
@@ -73,7 +101,20 @@ export function Header({
       )}
 
       {/* контекст базы — главный левый якорь */}
-      <ChannelSelector activeId={activeChannelId} onChange={onChannelChange} />
+      <ChannelSelector
+        activeId={activeChannelId}
+        onChange={onChannelChange}
+        onActiveConnection={setActiveConnection}
+      />
+
+      {/* Phase 6: какая конфа у ЭТОЙ базы (детект + ручной override) */}
+      {activeConnection && (
+        <ConfigurationBadge
+          connection={activeConnection}
+          onOverride={handleConfigOverride}
+          onRetry={handleRetry}
+        />
+      )}
 
       {/* M-K2.5.7: типовая для compare/explain (опциональна) */}
       <TypicalSelector />

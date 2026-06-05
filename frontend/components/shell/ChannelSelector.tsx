@@ -44,6 +44,8 @@ type ConnectionWithStatus = MCPConnection & {
 type Props = {
   activeId: string | null;
   onChange: (newId: string) => void;
+  /** Уведомляет родителя об активном подключении (для ConfigurationBadge в Header). */
+  onActiveConnection?: (conn: MCPConnection | null) => void;
 };
 
 /**
@@ -94,7 +96,7 @@ function PingDot({ status }: { status: PingStatus }) {
   );
 }
 
-export function ChannelSelector({ activeId, onChange }: Props) {
+export function ChannelSelector({ activeId, onChange, onActiveConnection }: Props) {
   const [connections, setConnections] = useState<ConnectionWithStatus[]>([]);
   const [open, setOpen] = useState(false);
   const pingInProgress = useRef(false);
@@ -228,6 +230,11 @@ export function ChannelSelector({ activeId, onChange }: Props) {
   }
 
   const activeConn = connections.find((c) => c.id === activeId);
+
+  // Уведомляем родителя при смене активного подключения (Phase 6: ConfigurationBadge).
+  useEffect(() => {
+    onActiveConnection?.(activeConn ?? null);
+  }, [activeConn, onActiveConnection]);
 
   // Empty state — крупно, чтобы аналитик сразу заметил «надо настроить»
   if (connections.length === 0) {
