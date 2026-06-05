@@ -68,6 +68,15 @@ MCPKind = Literal["embedded", "proxy"]
 # При расхождении — обновлять оба места (sanity-check в `test_capabilities.py`).
 MCPMode = Literal["mcp_only", "epf", "cfe"]
 
+# v24 (Multi-base онбординг): источник детекции конфигурации.
+# Использовать как тип поля в WRITE-моделях (MCPConnectionUpdate) — Pydantic
+# отвергает невалидные строки («banana») с 422 до записи в БД.
+# READ-модели (MCPConnection, MCPConnectionFull) используют str | None — мягкая
+# совместимость с легаси/неизвестными значениями в БД.
+ConfigurationSource = Literal[
+    "auto", "ambiguous", "confirmed", "manual", "custom", "failed"
+]
+
 
 class MCPConnection(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -123,7 +132,7 @@ class MCPConnectionUpdate(BaseModel):
     anon_enabled: bool | None = None
     kind: MCPKind | None = None
     configuration: str | None = Field(default=None, max_length=100)
-    configuration_source: str | None = Field(default=None, max_length=20)
+    configuration_source: ConfigurationSource | None = Field(default=None)
 
     def model_post_init(self, _context: object) -> None:
         if self.endpoint is not None:

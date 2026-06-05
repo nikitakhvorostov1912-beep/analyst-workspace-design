@@ -342,3 +342,17 @@ async def test_override_configuration_via_put(client: AsyncClient):
     body = r2.json()
     assert body["configuration"] == "КА 2.5"
     assert body["configuration_source"] == "manual"
+
+
+@pytest.mark.asyncio
+async def test_override_configuration_source_invalid_value_rejected(client: AsyncClient):
+    """PUT с невалидным configuration_source («banana») → 422 (Literal-enum валидация)."""
+    r = await client.post("/connections", json={
+        "name": "ValidateSource", "endpoint": "http://localhost:6010/mcp", "kind": "embedded",
+    })
+    assert r.status_code == 201
+    conn_id = r.json()["id"]
+    r2 = await client.put(f"/connections/{conn_id}", json={
+        "configuration_source": "banana",
+    })
+    assert r2.status_code == 422
