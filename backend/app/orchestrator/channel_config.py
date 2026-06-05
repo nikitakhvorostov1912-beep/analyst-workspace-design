@@ -33,6 +33,7 @@ _KEY_TO_TYPICAL_KIND: dict[str, TypicalConfigKind] = {
 
 # detection key → строка configuration для buddy.search_its (Open Q4 дизайна:
 # Напарник ждёт имя без версии; «Управление торговлей» сработало в тесте).
+# bgu_2_0 — без typical-снапшота, но buddy-имя есть: иначе search_its даёт -32603.
 _KEY_TO_BUDDY_CONFIG: dict[str, str] = {
     "ut_11_5": "Управление торговлей",
     "erp_2_5": "ERP Управление предприятием",
@@ -40,6 +41,7 @@ _KEY_TO_BUDDY_CONFIG: dict[str, str] = {
     "bp_3_0": "Бухгалтерия предприятия",
     "zup_3_1": "Зарплата и управление персоналом",
     "uso_2_5": "Управление строительной организацией",
+    "bgu_2_0": "Бухгалтерия государственного учреждения",
 }
 
 _READY_TYPICAL_STATUSES = ("ready", "enriched", "graph_built")

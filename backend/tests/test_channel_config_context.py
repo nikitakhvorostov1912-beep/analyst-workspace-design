@@ -78,3 +78,17 @@ async def test_resolve_custom_returns_no_typical(db):
     ctx = await resolve_channel_typical_context(db, "ch4")
     assert ctx.typical_channel_id is None
     assert ctx.buddy_config_name is None
+
+
+@pytest.mark.asyncio
+async def test_resolve_bgu_has_buddy_name_but_no_typical(db):
+    """БГУ 2.0 детектируется, buddy-имя есть, typical-снапшота нет → typical_channel_id None."""
+    await db.execute(
+        "INSERT INTO mcp_connections (id, name, endpoint, kind, configuration, configuration_source) "
+        "VALUES ('ch5','C','http://x/mcp','embedded','БГУ 2.0','auto')"
+    )
+    await db.commit()
+    ctx = await resolve_channel_typical_context(db, "ch5")
+    assert ctx.display_name == "БГУ 2.0"
+    assert ctx.buddy_config_name == "Бухгалтерия государственного учреждения"
+    assert ctx.typical_channel_id is None

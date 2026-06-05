@@ -41,7 +41,10 @@ import json
 import logging
 import time
 from collections.abc import AsyncIterator
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from app.orchestrator.channel_config import ChannelTypicalContext
 
 import aiosqlite
 import httpx
@@ -1145,7 +1148,7 @@ def _compute_tool_signature(finalized: list[dict]) -> str:
     )
 
 
-def _build_config_block(ctx) -> str:
+def _build_config_block(ctx: "ChannelTypicalContext | None") -> str:
     """Блок текущей конфигурации канала для system prompt (B.4 роутинг типовых).
 
     ctx — ChannelTypicalContext. Пусто, если конфа не детектнута.
@@ -1169,7 +1172,7 @@ def _build_config_block(ctx) -> str:
     return "\n".join(lines)
 
 
-def _inject_buddy_configuration(tool_name: str, tool_args: dict, ctx) -> dict:
+def _inject_buddy_configuration(tool_name: str, tool_args: dict, ctx: "ChannelTypicalContext | None") -> dict:
     """Подставляет configuration=<buddy-имя конфы> в buddy.search_its/fetch_its.
 
     Фикс -32603 (Напарник на «голом» запросе без configuration). Не перетирает
