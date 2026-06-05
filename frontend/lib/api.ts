@@ -202,6 +202,26 @@ export async function updateConnection(
 }
 
 /**
+ * Устанавливает конфигурацию (КА 2.5 / УТ 11.5 / …) и источник вручную или
+ * после подтверждения аналитиком. Использует тот же PUT /connections/{id}.
+ */
+export async function updateConnectionConfiguration(
+  connId: string,
+  configuration: string,
+  source: "manual" | "confirmed",
+): Promise<MCPConnection> {
+  const response = await fetch(`${getBackend()}/connections/${connId}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ configuration, configuration_source: source }),
+  });
+  if (!response.ok) {
+    throw new Error(`Не удалось сохранить конфигурацию (${response.status})`);
+  }
+  return response.json() as Promise<MCPConnection>;
+}
+
+/**
  * Удаляет MCP-подключение.
  */
 export async function deleteConnection(id: string): Promise<void> {

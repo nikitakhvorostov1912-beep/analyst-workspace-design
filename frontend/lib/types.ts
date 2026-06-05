@@ -226,6 +226,8 @@ export type MCPConnection = {
   mode?: 'mcp_only' | 'epf' | 'cfe';
   /** Версия конфигурации УТ/ERP/КА — «УТ 11.5» / «ERP 2.5» / null. */
   configuration?: string | null;
+  /** Источник конфигурации — auto/ambiguous/confirmed/manual/custom/failed. */
+  configuration_source?: string | null;
   /** Версия платформы 1С — «8.3.27.1989». */
   platform?: string | null;
   /** Версия нашего расширения АналитикПлюс (для CFE канала). */
