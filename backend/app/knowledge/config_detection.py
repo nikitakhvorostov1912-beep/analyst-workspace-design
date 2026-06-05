@@ -98,6 +98,8 @@ class DetectionResult:
     confidence: float
     family: str
     scores: dict[str, float]
+    margin: float = 0.0
+    runner_up_key: str | None = None
 
     @property
     def is_custom(self) -> bool:
@@ -272,9 +274,9 @@ def detect_configuration_type(
     """
     channel_set = set(channel_objects)
 
+    # scores — характерные (для debug/UI и фоллбэка), как раньше.
     scores = {sig.key: sig.score(channel_set) for sig in known_configurations}
 
-    # Если канал пустой — однозначно custom (или ещё не индексирован)
     if not channel_set:
         return DetectionResult(
             configuration_key="custom",
@@ -282,28 +284,52 @@ def detect_configuration_type(
             confidence=0.0,
             family="unknown",
             scores=scores,
+            margin=0.0,
         )
 
-    # Топ-1 по score
-    best_key, best_score = max(scores.items(), key=lambda kv: kv[1])
-
-    if best_score < min_confidence:
+    # Кандидаты: характерный score >= min_confidence.
+    candidates = [
+        sig for sig in known_configurations
+        if sig.score(channel_set) >= min_confidence
+    ]
+    if not candidates:
+        best_key, best_score = max(scores.items(), key=lambda kv: kv[1])
         return DetectionResult(
             configuration_key="custom",
             display_name="Самописная",
             confidence=best_score,
             family="unknown",
             scores=scores,
+            margin=0.0,
         )
 
-    # Нашли winning сигнатуру — отдаём её
-    winner = next(s for s in known_configurations if s.key == best_key)
+    # final_score = characteristic + discriminative. Дискрим разводит
+    # subset-конфликт (КА⊃УТ): на КА-базе КА имеет disc>0, УТ disc=0.
+    def final_score(sig: ConfigurationSignature) -> float:
+        return sig.score(channel_set) + sig.discriminative_score(channel_set)
+
+    ranked = sorted(candidates, key=final_score, reverse=True)
+    winner = ranked[0]
+    runner_up = ranked[1] if len(ranked) > 1 else None
+
+    margin = final_score(winner) - (final_score(runner_up) if runner_up else 0.0)
+
+    # confidence: для специфичной конфы — доля дискрим-маркеров; для базовой
+    # (disc пуст) — характерный score. Всегда в [0,1], годен для бейджа/gate.
+    confidence = (
+        winner.discriminative_score(channel_set)
+        if winner.discriminative_objects
+        else winner.score(channel_set)
+    )
+
     return DetectionResult(
         configuration_key=winner.key,
         display_name=winner.display_name,
-        confidence=best_score,
+        confidence=confidence,
         family=winner.family,
         scores=scores,
+        margin=margin,
+        runner_up_key=runner_up.key if runner_up else None,
     )
 
 

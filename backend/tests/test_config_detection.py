@@ -353,3 +353,43 @@ def test_erp_has_msfo_discriminative_not_in_ka():
     ka = next(s for s in KNOWN_CONFIGURATIONS if s.key == "ka_2_5")
     assert "РегистрБухгалтерии.МеждународныйУчет" in erp.discriminative_objects
     assert not (erp.discriminative_objects & ka.characteristic_objects)
+
+
+# ---------- Task 1.3: двухпроходная детекция + margin ----------
+
+
+def test_ka_base_detected_as_ka_not_ut():
+    """КА-база (надмножество УТ) детектится как КА, НЕ УТ. Корень бага."""
+    # все характерные УТ + КА-маркеры (реальная картина КА Демо)
+    ut = next(s for s in KNOWN_CONFIGURATIONS if s.key == "ut_11_5")
+    ka = next(s for s in KNOWN_CONFIGURATIONS if s.key == "ka_2_5")
+    ka_base = set(ut.characteristic_objects) | set(ka.characteristic_objects) \
+        | set(ka.discriminative_objects)
+    result = detect_configuration_type(ka_base)
+    assert result.configuration_key == "ka_2_5"
+    assert result.display_name == "КА 2.5"
+    assert result.margin > 0.0  # КА явно специфичнее УТ
+
+
+def test_pure_ut_base_stays_ut_with_clear_margin():
+    """Чистая УТ-база (без КА/ERP-маркеров) → УТ, margin большой."""
+    ut = next(s for s in KNOWN_CONFIGURATIONS if s.key == "ut_11_5")
+    result = detect_configuration_type(ut.characteristic_objects)
+    assert result.configuration_key == "ut_11_5"
+    assert result.margin >= 0.3  # УТ vs КА по characteristic — большой отрыв
+
+
+def test_erp_base_beats_ka_via_msfo():
+    """ERP-база (КА + МСФО) → ERP, не КА."""
+    ka = next(s for s in KNOWN_CONFIGURATIONS if s.key == "ka_2_5")
+    erp = next(s for s in KNOWN_CONFIGURATIONS if s.key == "erp_2_5")
+    erp_base = set(ka.characteristic_objects) | set(erp.characteristic_objects) \
+        | set(erp.discriminative_objects)
+    result = detect_configuration_type(erp_base)
+    assert result.configuration_key == "erp_2_5"
+
+
+def test_detection_result_has_margin_field():
+    result = detect_configuration_type([])
+    assert hasattr(result, "margin")
+    assert result.margin == 0.0  # пустой канал
