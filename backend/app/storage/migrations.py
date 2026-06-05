@@ -74,7 +74,7 @@ MIGRATIONS_V3 = [
     """,
 ]
 
-CURRENT_VERSION = 23
+CURRENT_VERSION = 24
 
 # Миграция v4: расширение card_states — добавление колонки anon_tokens JSON
 MIGRATIONS_V4 = [
@@ -701,6 +701,23 @@ MIGRATIONS_V23 = [
     "ALTER TABLE sessions ADD COLUMN pinned INTEGER DEFAULT 0",
 ]
 
+# Миграция v24 (Multi-base онбординг, B.3): источник детекции конфигурации.
+#
+# configuration_source фиксирует, КАК была установлена mcp_connections.configuration:
+#   'auto'      — авто-детект уверенно (confidence-gate = auto)
+#   'ambiguous' — авто-детект неоднозначно (gate = confirm), записан best-guess,
+#                 бейдж показывает «?» до подтверждения аналитиком
+#   'confirmed' — аналитик подтвердил предложенный вариант
+#   'manual'    — аналитик выбрал вручную (override), детекту не доверяя
+#   'custom'    — самописная (gate = custom), типовые знания не подключаются
+#   'failed'    — детекция не завершилась (база недоступна) — бейдж «↻»
+#   NULL        — legacy / детект ещё не запускался
+#
+# Additive ALTER, без backfill: NULL для старых строк — корректное «не детектили».
+MIGRATIONS_V24 = [
+    "ALTER TABLE mcp_connections ADD COLUMN configuration_source TEXT",
+]
+
 
 async def apply_migrations(db: aiosqlite.Connection) -> None:
     """Идемпотентно применяет миграции схемы БД."""
@@ -984,5 +1001,16 @@ async def apply_migrations(db: aiosqlite.Connection) -> None:
         await db.execute(
             "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
             (23,),
+        )
+        await db.commit()
+
+    if current < 24:
+        # configuration_source (v24, Multi-base онбординг B.3) — как установлена
+        # configuration: auto/ambiguous/confirmed/manual/custom/failed/NULL.
+        for stmt in MIGRATIONS_V24:
+            await db.execute(stmt)
+        await db.execute(
+            "INSERT OR IGNORE INTO schema_version (version) VALUES (?)",
+            (24,),
         )
         await db.commit()
