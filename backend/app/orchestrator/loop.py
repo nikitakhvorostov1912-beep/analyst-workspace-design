@@ -1137,18 +1137,42 @@ def _compute_tool_signature(finalized: list[dict]) -> str:
     )
 
 
+def _build_config_block(ctx) -> str:
+    """Блок текущей конфигурации канала для system prompt (B.4 роутинг типовых).
+
+    ctx — ChannelTypicalContext. Пусто, если конфа не детектнута.
+    """
+    if ctx is None or ctx.display_name is None:
+        return ""
+    lines = [f"═══════ ТЕКУЩАЯ КОНФИГУРАЦИЯ БАЗЫ ═══════\n\nБаза клиента: {ctx.display_name}."]
+    if ctx.typical_channel_id:
+        lines.append(
+            f"Для вопросов про ТИПОВУЮ логику этой конфигурации используй "
+            f"typical-инструменты с channel_id=`{ctx.typical_channel_id}` "
+            f"({ctx.typical_display_name}). НЕ вызывай list_typical_configurations "
+            f"ради channel_id — он уже известен. НЕ опирайся на другую типовую (УТ/ERP), "
+            f"если она не совпадает с текущей."
+        )
+    else:
+        lines.append(
+            "Типовая для этой конфигурации не загружена локально — отвечай по живой "
+            "базе (MCP) и ИТС (buddy), типовые-инструменты могут не дать данных."
+        )
+    return "\n".join(lines)
+
+
 def _build_full_system_prompt(
     mem_block: str,
     skills_block: str,
     todos_block: str,
     mentions_block: str = "",
+    config_block: str = "",
 ) -> str:
     """Собирает финальный system prompt из статичного SYSTEM_PROMPT + опциональных блоков.
 
-    Порядок: статика → memory → skills → mentions → todos. Mentions блок
-    идёт ПЕРЕД todos — это контекст текущего запроса, должен быть рядом
-    с самым свежим состоянием (todos), но до них чтобы LLM понимала
-    «юзер упомянул эти объекты, паспорта переданы карточками».
+    Порядок: статика → config → memory → skills → mentions → todos. Config-блок
+    (B.4, Multi-base онбординг) идёт первым после статики — это важнейший
+    контекст о базе клиента, LLM должна знать его до любого инструктажа.
 
     Mentions блок — M-K1.14, генерируется `mentions_prefetch.prefetch_mentions`
     из @-mentions в user-сообщении.
@@ -1156,6 +1180,8 @@ def _build_full_system_prompt(
     Pure function. Извлечено из run_chat_loop как часть P1.2 декомпозиции.
     """
     prompt_parts = [SYSTEM_PROMPT]
+    if config_block:
+        prompt_parts.append(config_block)
     if mem_block:
         prompt_parts.append(mem_block)
     if skills_block:
