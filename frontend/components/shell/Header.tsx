@@ -11,6 +11,7 @@ import { StatusCapsule } from "./StatusCapsule";
 import { OverflowMenu } from "./OverflowMenu";
 import { UpdateBanner } from "./UpdateBanner";
 import { updateConnectionConfiguration, pingConnection } from "@/lib/api";
+import { publishToast } from "@/lib/toast";
 import type { MCPConnection } from "@/lib/types";
 
 export interface HeaderProps {
@@ -53,7 +54,7 @@ export function Header({
         );
         setActiveConnection(updated);
       } catch {
-        // Не блокируем UI при ошибке сохранения — показываем стейт как есть
+        publishToast({ type: "error", message: "Не удалось сохранить конфигурацию. Попробуйте ещё раз." });
       }
     },
     [activeConnection],
