@@ -56,7 +56,8 @@ async def collect_marker_presence(
                 objs = await live_metadata_suggest(
                     mcp_endpoint, short_name, 5, anon_headers=anon_headers,
                 )
-            except Exception:  # noqa: BLE001 — best-effort граница пробы
+            except Exception as exc:  # noqa: BLE001 — best-effort граница пробы
+                logger.debug("проба маркера %s не удалась: %s", marker, exc)
                 return
         if any(o.object_path == marker for o in objs):
             present.add(marker)
