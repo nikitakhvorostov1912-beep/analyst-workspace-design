@@ -470,6 +470,13 @@ async def ping_connection(
     # Multi-base онбординг (B.1): на первом успешном ping новой базы фоном
     # детектируем конфигурацию. НЕ блокирует ответ ping. Только если конфа ещё
     # не установлена (configuration IS NULL) — на «горячих» базах не дёргаем MCP.
+    #
+    # NB: проверка идёт ПОСЛЕ commit() discovery (UPDATE configuration выше). Если
+    # MCP-сервер сам объявил configuration через experimental namespace
+    # (наше CFE-расширение АналитикПлюс), discovery.configuration уже не NULL →
+    # should_run_detection вернёт False → MCP-пробы не нужны (данные получены
+    # бесплатно из capability). Для «сырого» 1С MCP Toolkit configuration=NULL →
+    # детект-пробы запускаются. Это намеренный приоритет self-declared над эвристикой.
     try:
         if await should_run_detection(db, conn_id):
             task = asyncio.create_task(
