@@ -437,3 +437,50 @@ async def test_bulk_refresh_empty_payload_succeeds_with_zero_objects(db, monkeyp
     assert progress.status == "done"
     assert progress.objects_total == 0
     assert progress.objects_written == 0
+
+
+@pytest.mark.asyncio
+async def test_bulk_refresh_enumerates_by_meta_type(db, monkeypatch):
+    """Indexer перечисляет объекты через meta_type=*, не detail:False (баг).
+
+    Проверяем что:
+    1. ни один вызов не идёт с {"detail": False} как основным способом перечисления
+    2. хотя бы один вызов содержит meta_type
+    3. объекты реально попадают в кеш
+    """
+    calls: list[dict] = []
+
+    class FakeClient:
+        def __init__(self, *a, **k): ...
+
+        async def __aenter__(self): return self
+
+        async def __aexit__(self, *a): return False
+
+        async def initialize(self): ...
+
+        async def list_tools(self):
+            return [{"name": "get_metadata"}]
+
+        async def call_tool(self, name: str, args: dict):
+            calls.append(args)
+            # Эмулируем list-mode: каждый meta_type возвращает пару объектов
+            return {
+                "success": True,
+                "data": [
+                    {"ПолноеИмя": "Документ.РеализацияТоваровУслуг", "Синоним": "Реализация"},
+                    {"ПолноеИмя": "Справочник.Контрагенты", "Синоним": "Контрагенты"},
+                ],
+            }
+
+    monkeypatch.setattr("app.knowledge.indexer.MCPClient", FakeClient)
+    progress = await bulk_refresh_metadata_cache(db, "ch", "http://x/mcp")
+
+    assert progress.status == "done"
+    assert progress.objects_written > 0
+    # Критично: хотя бы один вызов содержит meta_type (перечисление по типам)
+    assert any("meta_type" in c for c in calls), (
+        "Ожидалось перечисление через meta_type, но ни одного такого вызова"
+    )
+    # Ни один вызов не должен использовать detail:False как способ перечисления
+    assert all(c.get("detail") is not False or "meta_type" in c for c in calls)

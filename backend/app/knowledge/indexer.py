@@ -416,6 +416,41 @@ async def write_cache_batch_incremental(
     return diff
 
 
+# Корневые типы метаданных для полного перечисления каталога (limit≤1000 —
+# валидация 1C MCP). detail:False даёт СВОДКУ (счётчики по типам), не объекты —
+# поэтому перечисляем постранично по каждому ключевому meta_type.
+_ENUM_META_TYPES = (
+    "Документ", "Справочник", "РегистрНакопления", "РегистрСведений",
+    "РегистрБухгалтерии", "РегистрРасчета", "ПланСчетов", "ПланВидовХарактеристик",
+    "ПланВидовРасчета", "Перечисление", "Отчет", "Обработка", "Константа",
+    "БизнесПроцесс", "Задача", "ЖурналДокументов", "ОбщийМодуль", "Роль",
+    "Подсистема", "Последовательность",
+)
+_ENUM_PAGE_LIMIT = 1000
+
+
+async def _enumerate_all_objects(client: Any) -> list[NormalizedMetadata]:
+    """Перечисляет объекты по каждому meta_type (list-mode), агрегирует.
+
+    get_metadata(meta_type="<Тип>", limit=1000) — постранично по типам.
+    name_mask не задаём (нужен весь каталог). Дедуп по object_path.
+    Сбой одного meta_type не валит весь индекс: try/except + log warning.
+    """
+    seen: dict[str, NormalizedMetadata] = {}
+    for meta_type in _ENUM_META_TYPES:
+        try:
+            result = await client.call_tool(
+                "get_metadata",
+                {"meta_type": meta_type, "limit": _ENUM_PAGE_LIMIT},
+            )
+        except Exception:  # noqa: BLE001 — один тип не должен валить весь индекс
+            logger.warning("Перечисление meta_type=%s упало — пропускаю", meta_type)
+            continue
+        for obj in parse_metadata_result(result):
+            seen[obj.object_path] = obj
+    return list(seen.values())
+
+
 async def bulk_refresh_metadata_cache(
     db: aiosqlite.Connection,
     channel_id: str,
@@ -473,8 +508,7 @@ async def bulk_refresh_metadata_cache(
                     error="MCP канал не предоставляет get_metadata tool",
                 )
 
-            result = await client.call_tool("get_metadata", {"detail": False})
-            objects = parse_metadata_result(result)
+            objects = await _enumerate_all_objects(client)
     except Exception as exc:  # noqa: BLE001 — индексер — best-effort граница
         logger.exception(
             "bulk_refresh_metadata_cache: MCP call failed для канала %s",
