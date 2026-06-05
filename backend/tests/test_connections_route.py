@@ -356,3 +356,59 @@ async def test_override_configuration_source_invalid_value_rejected(client: Asyn
         "configuration_source": "banana",
     })
     assert r2.status_code == 422
+
+
+# ---------------------------------------------------------------------------
+# Task 4.2: ping триггерит фон-детект для новой (неконфигурированной) базы
+# ---------------------------------------------------------------------------
+
+@pytest.mark.asyncio
+async def test_ping_triggers_detection_when_unconfigured(client: AsyncClient, monkeypatch):
+    """После ping новой базы фоном запускается детекция (configuration NULL)."""
+    import app.routes.connections as conns
+    from app.clients.mcp import MCPSession
+
+    called = {}
+
+    async def fake_run(db, channel_id, endpoint, *, anon_headers=None):
+        called["channel_id"] = channel_id
+
+    monkeypatch.setattr(conns, "run_detection_for_channel", fake_run)
+
+    # Мокаем MCPClient по образцу test_ping_connection_success
+    class StubMCPClient:
+        def __init__(self, *_a, **_kw) -> None:
+            pass
+
+        async def initialize(self) -> MCPSession:
+            return MCPSession(
+                session_id="stub-session",
+                mcp_version="2025-03-26",
+                server_name="stub",
+                tools=[],
+            )
+
+        async def list_tools(self) -> list[dict]:
+            return [{"name": "get_metadata"}]
+
+        async def close(self) -> None:
+            pass
+
+        async def __aenter__(self) -> "StubMCPClient":
+            return self
+
+        async def __aexit__(self, *_: object) -> None:
+            pass
+
+    monkeypatch.setattr(conns, "MCPClient", StubMCPClient)
+
+    r = await client.post("/connections", json={
+        "name": "Fresh", "endpoint": "http://localhost:6010/mcp", "kind": "embedded",
+    })
+    assert r.status_code == 201
+    conn_id = r.json()["id"]
+
+    ping_resp = await client.post(f"/connections/{conn_id}/ping")
+    assert ping_resp.status_code == 200
+    # фон-таска планируется синхронно внутри хендлера — проверяем факт вызова
+    assert called.get("channel_id") == conn_id

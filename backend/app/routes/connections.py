@@ -27,12 +27,16 @@ from app.security.mcp_endpoint_validator import (
     MCPEndpointError,
     validate_mcp_endpoint,
 )
+from app.knowledge.onboarding import run_detection_for_channel, should_run_detection
 from app.services.capability_discovery import discover_capabilities
 
 TTL_SECONDS = int(os.environ.get("METADATA_CACHE_TTL_S", 3600))
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/connections", tags=["connections"])
+
+# Fire-and-forget онбординг-детект — ссылка, чтобы GC не собрал task.
+_DETECTION_TASKS: set[asyncio.Task] = set()
 
 
 def _get_db(request: Request):
@@ -462,6 +466,20 @@ async def ping_connection(
     last_seen = ts_row[0] if ts_row else None
 
     tool_names = [str(t.get("name", "")) for t in tools[:_PING_TOOLS_CAP] if t.get("name")]
+
+    # Multi-base онбординг (B.1): на первом успешном ping новой базы фоном
+    # детектируем конфигурацию. НЕ блокирует ответ ping. Только если конфа ещё
+    # не установлена (configuration IS NULL) — на «горячих» базах не дёргаем MCP.
+    try:
+        if await should_run_detection(db, conn_id):
+            task = asyncio.create_task(
+                run_detection_for_channel(db, conn_id, endpoint),
+                name=f"onboarding-detect-{conn_id}",
+            )
+            _DETECTION_TASKS.add(task)
+            task.add_done_callback(_DETECTION_TASKS.discard)
+    except Exception:  # noqa: BLE001 — детект-триггер не должен ломать ping
+        logger.exception("Не удалось запланировать онбординг-детект для %s", conn_id)
 
     return MCPPingWithTimestampResponse(
         mcp_version=session.mcp_version,
