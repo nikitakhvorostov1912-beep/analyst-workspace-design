@@ -203,6 +203,13 @@ _ANON_EXPECTED_TOOLS = frozenset({
 # Напарнику за один turn: после порога возвращаем модели подсказку «отвечай по
 # уже полученному», не дёргая ИТС снова. Идентичные повторы и так ловит MCP-кеш.
 MAX_BUDDY_CALLS_PER_TURN = 3
+
+# 2026-06-05 (Multi-base B.4): кап вызовов search_typical_objects за ход. Модель
+# при мисматче конфы молотила 18× search_typical (запрос 3:53). После кап-порога
+# не выполняем поиск, а возвращаем модели подсказку «данных достаточно, отвечай».
+# Отдельно от MAX_BUDDY_CALLS_PER_TURN (тот — внешний Напарник, это — RAG-граф).
+MAX_TYPICAL_SEARCH_CALLS_PER_TURN = 6
+
 RETRY_DELAY_S = 0.2
 TOOL_CONTENT_CAP = 50_000  # байт — cap для payload в LLM context
 
@@ -332,6 +339,7 @@ BSL — критические правила:
 — Цитировать поля 1С как `Документ.РеализацияТоваровУслуг` (моно).
 — Никаких эмодзи в заголовках и таблицах.
 — TL;DR в 1 строке в конце ответа когда есть таблицы/списки.
+— Для вопросов «КАК СДЕЛАТЬ X» (настройка, оформление операции, методика): отвечай ПРАКТИЧЕСКИМИ ШАГАМИ — куда зайти, что включить, в каком порядке. НЕ вываливай полный список реквизитов/метаданных объекта, если пользователь не просил структуру. Дамп реквизитов — только на прямой вопрос «какие реквизиты / структура».
 
 ═══════ ГРАФИКИ ═══════
 
@@ -1161,6 +1169,30 @@ def _build_config_block(ctx) -> str:
     return "\n".join(lines)
 
 
+def _inject_buddy_configuration(tool_name: str, tool_args: dict, ctx) -> dict:
+    """Подставляет configuration=<buddy-имя конфы> в buddy.search_its/fetch_its.
+
+    Фикс -32603 (Напарник на «голом» запросе без configuration). Не перетирает
+    явно переданный LLM configuration. No-op для прочих buddy.* и пустого ctx.
+    """
+    if tool_name not in ("buddy.search_its", "buddy.fetch_its"):
+        return tool_args
+    if ctx is None or not ctx.buddy_config_name:
+        return tool_args
+    if tool_args.get("configuration"):
+        return tool_args
+    return {**tool_args, "configuration": ctx.buddy_config_name}
+
+
+def _typical_search_budget_exceeded(accumulated_tool_calls: list[dict]) -> bool:
+    """True, если за ход уже сделано >= кап вызовов search_typical_objects."""
+    n = sum(
+        1 for c in accumulated_tool_calls
+        if c.get("name") == "search_typical_objects"
+    )
+    return n >= MAX_TYPICAL_SEARCH_CALLS_PER_TURN
+
+
 def _build_full_system_prompt(
     mem_block: str,
     skills_block: str,
@@ -1308,6 +1340,19 @@ async def run_chat_loop(
         yield format_sse("error", ErrorEvent(message="Внутренняя ошибка", code="init_error"))
         return
 
+    # Multi-base (B.4): контекст конфигурации канала — для инжекта в промпт
+    # и подстановки configuration в buddy.search_its. Best-effort.
+    try:
+        from app.orchestrator.channel_config import (
+            ChannelTypicalContext,
+            resolve_channel_typical_context,
+        )
+        channel_config_ctx = await resolve_channel_typical_context(db, request.channel_id)
+    except Exception:
+        logger.exception("resolve_channel_typical_context упал — без конфо-контекста")
+        from app.orchestrator.channel_config import ChannelTypicalContext
+        channel_config_ctx = ChannelTypicalContext(None, None, None, None, None)
+
     # Auto-title scheduled flag — реальный планировщик задачи переехал
     # в самый конец orchestrator-а (после yield done), чтобы:
     # 1) не съедать первый LLM-stub в тестах (FakeLLM share counter между
@@ -1400,15 +1445,16 @@ async def run_chat_loop(
         history_msgs = list(history_msgs)
         history_msgs[-1] = {"role": "user", "content": user_message_content}
 
-    # System prompt: статика → memory → skills → mentions → todo. Skills
-    # блок включает инкремент usage telemetry для попавших в prompt активных
-    # skills (Sprint 3 A9). Mentions блок (M-K1.14) — список dossiers,
-    # уже отправленных юзеру карточками, чтобы LLM не дублировала get_metadata.
+    # System prompt: статика → config → memory → skills → mentions → todo. Config-блок
+    # (B.4, Multi-base онбординг) идёт первым — критичный контекст о базе клиента.
+    # Skills блок включает инкремент usage telemetry (Sprint 3 A9). Mentions блок
+    # (M-K1.14) — список dossiers, чтобы LLM не дублировала get_metadata.
     full_system_prompt = _build_full_system_prompt(
         memory_system_block(memory_manager),
         _render_skills_block(skill_store, skill_usage),
         render_todos_for_prompt(session_id),
         mentions_block=mentions_context_block,
+        config_block=_build_config_block(channel_config_ctx),
     )
 
     messages: list[dict] = [
@@ -1857,6 +1903,29 @@ async def run_chat_loop(
                 # trace_calls/trace_movements/compare) — работают на graph +
                 # карточках типовых. Не требуют embedding / external API.
                 if is_typical_tool(tool_name):
+                    # B.4: кап на search_typical_objects (анти-thrashing).
+                    # Только search_ считаем — explain/trace вызываются редко.
+                    if (
+                        tool_name == "search_typical_objects"
+                        and _typical_search_budget_exceeded(accumulated_tool_calls)
+                    ):
+                        duration_ms = int((time.monotonic() - start_ts) * 1000)
+                        cap_msg = (
+                            f"Лимит поиска по типовой ({MAX_TYPICAL_SEARCH_CALLS_PER_TURN}) "
+                            "за один ответ исчерпан. Данных достаточно — сформируй ответ "
+                            "по уже найденному, не вызывай search_typical_objects снова."
+                        )
+                        yield format_sse("tool_result", ToolResultEvent(
+                            id=tool_id, ok=False, error=cap_msg, duration_ms=duration_ms,
+                        ))
+                        accumulated_tool_calls.append({
+                            "id": tool_id, "name": tool_name, "args": tool_args,
+                            "result": None, "error": cap_msg, "duration_ms": duration_ms,
+                        })
+                        messages.append({
+                            "role": "tool", "tool_call_id": tool_id, "content": cap_msg,
+                        })
+                        continue
                     tt_ok, tt_result, tt_error = await dispatch_typical_tool(
                         db, tool_name, tool_args,
                     )
@@ -2006,6 +2075,12 @@ async def run_chat_loop(
                             "content": limit_msg,
                         })
                         continue
+
+                    # B.4: подставляем detected-конфу, если LLM не передал —
+                    # иначе buddy.search_its даёт -32603 на «голом» запросе.
+                    tool_args = _inject_buddy_configuration(
+                        tool_name, tool_args, channel_config_ctx
+                    )
 
                 # Маршрутизация tool_call → правильный MCP client (primary или aux).
                 # P1.2 phase 3 (2026-05-23): MCP path вынесен в _execute_mcp_tool.
