@@ -10,8 +10,11 @@ from app.knowledge.config_detection import (
     KNOWN_CONFIGURATIONS,
     ConfigurationSignature,
     DetectionResult,
+    HIGH_CONFIDENCE,
+    MARGIN_DELTA,
     MIN_CONFIDENCE,
     detect_configuration_type,
+    gate_decision,
     update_channel_configuration,
 )
 from app.storage.migrations import apply_migrations
@@ -393,3 +396,29 @@ def test_detection_result_has_margin_field():
     result = detect_configuration_type([])
     assert hasattr(result, "margin")
     assert result.margin == 0.0  # пустой канал
+
+
+# ---------- Task 1.4: gate_decision() ----------
+
+
+def test_gate_auto_when_confident_and_separated():
+    ka = next(s for s in KNOWN_CONFIGURATIONS if s.key == "ka_2_5")
+    ut = next(s for s in KNOWN_CONFIGURATIONS if s.key == "ut_11_5")
+    ka_base = set(ut.characteristic_objects) | set(ka.characteristic_objects) \
+        | set(ka.discriminative_objects)
+    result = detect_configuration_type(ka_base)
+    assert gate_decision(result) == "auto"
+
+
+def test_gate_custom_for_unknown():
+    result = detect_configuration_type(["Документ.НеведомаяZzz"])
+    assert gate_decision(result) == "custom"
+
+
+def test_gate_confirm_when_margin_small():
+    """Искусственно близкий результат → confirm."""
+    result = DetectionResult(
+        configuration_key="ka_2_5", display_name="КА 2.5",
+        confidence=0.9, family="trade", scores={}, margin=0.05,
+    )
+    assert gate_decision(result) == "confirm"

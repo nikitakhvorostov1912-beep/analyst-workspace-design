@@ -35,6 +35,12 @@ logger = logging.getLogger(__name__)
 # Минимальный score для уверенной детекции. Ниже — «самописная».
 MIN_CONFIDENCE = 0.30
 
+# Confidence-gate пороги (B.3). Стартовые значения — тюнятся на 4 demo-базах
+# (Open Q2 дизайн-дока). HIGH — минимальная уверенность для авто-линка;
+# DELTA — минимальный отрыв победителя от руннер-апа по final_score.
+HIGH_CONFIDENCE = 0.50
+MARGIN_DELTA = 0.30
+
 
 @dataclass(frozen=True, slots=True)
 class ConfigurationSignature:
@@ -360,3 +366,24 @@ async def update_channel_configuration(
         result.display_name,
         result.confidence,
     )
+
+
+def gate_decision(
+    result: DetectionResult,
+    *,
+    high_confidence: float = HIGH_CONFIDENCE,
+    margin_delta: float = MARGIN_DELTA,
+) -> str:
+    """Решение онбординг-гейта по результату детекции (B.3).
+
+    Returns:
+        "custom"  — самописная (нет кандидата ≥ MIN_CONFIDENCE) → типовые не
+                    подключаем, предлагаем ручной override.
+        "auto"    — уверенно и с отрывом → авто-линк, бейдж «(авто)».
+        "confirm" — кандидат есть, но близко к руннер-апу → 1 вопрос аналитику.
+    """
+    if result.is_custom:
+        return "custom"
+    if result.confidence >= high_confidence and result.margin >= margin_delta:
+        return "auto"
+    return "confirm"
