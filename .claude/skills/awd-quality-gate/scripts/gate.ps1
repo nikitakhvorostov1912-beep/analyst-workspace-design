@@ -18,14 +18,32 @@ Pop-Location
 # 2-3-4. Frontend
 Push-Location (Join-Path $root 'frontend')
 
-pnpm vitest run 2>&1 | Out-Null
-$results['vitest'] = $LASTEXITCODE -eq 0
+# Package-runner detection: prefer pnpm (locked PM), fall back to npx/npm.
+# tech-stack.md: «pnpm 11.x (fallback: npm)». На некоторых машинах (корп.
+# окружение / антивирус) pnpm-бинарь нестабилен (MODULE_NOT_FOUND, краши) —
+# тогда гейт обязан использовать npx/npm, иначе даёт ЛОЖНЫЙ all-FAIL.
+$pnpmOk = $false
+try {
+    $pnpmVer = & pnpm --version 2>$null
+    if ($LASTEXITCODE -eq 0 -and $pnpmVer) { $pnpmOk = $true }
+} catch { $pnpmOk = $false }
 
-pnpm build 2>&1 | Out-Null
-$results['build'] = $LASTEXITCODE -eq 0
-
-pnpm playwright test --reporter=line 2>&1 | Out-Null
-$results['playwright'] = $LASTEXITCODE -eq 0
+if ($pnpmOk) {
+    pnpm vitest run 2>&1 | Out-Null
+    $results['vitest'] = $LASTEXITCODE -eq 0
+    pnpm build 2>&1 | Out-Null
+    $results['build'] = $LASTEXITCODE -eq 0
+    pnpm playwright test --reporter=line 2>&1 | Out-Null
+    $results['playwright'] = $LASTEXITCODE -eq 0
+} else {
+    Write-Warning "pnpm недоступен/нестабилен — использую npx/npm (fallback по tech-stack.md)"
+    npx --no-install vitest run 2>&1 | Out-Null
+    $results['vitest'] = $LASTEXITCODE -eq 0
+    npm run build 2>&1 | Out-Null
+    $results['build'] = $LASTEXITCODE -eq 0
+    npx --no-install playwright test --reporter=line 2>&1 | Out-Null
+    $results['playwright'] = $LASTEXITCODE -eq 0
+}
 
 Pop-Location
 

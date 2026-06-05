@@ -46,6 +46,22 @@ def clear_pending():
     safety_mod._pending.clear()
 
 
+@pytest.fixture(autouse=True)
+def stub_aux_clients(monkeypatch):
+    """Изоляция: confirm-тесты не должны лезть к реальному aux MCP (1c-buddy :6002).
+
+    Без стаба build_aux_clients() создаёт BuddyAuxClient(:6002). На машине где
+    Напарник не запущен, его init висит на connect-timeout и съедает 5-сек
+    бюджет поллинга safety._pending в тестах resolve-через-_pending → флейк-FAIL
+    (хотя сам confirm-флоу исправен, см. test_loop_confirm_timeout_emits_error).
+    Стабим build_aux_clients → [] чтобы loop не ждал мёртвый внешний сервис.
+    """
+    import app.orchestrator.loop as loop_module
+
+    monkeypatch.setattr(loop_module, "build_aux_clients", lambda settings: [])
+    yield
+
+
 async def collect_sse(gen) -> list[dict]:
     """Собирает все SSE-события из async-генератора."""
     events = []

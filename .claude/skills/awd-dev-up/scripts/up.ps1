@@ -30,9 +30,34 @@ if (Test-Path $pilotDb) {
     Write-Output "WARN: pilot.db not found ($pilotDb) - backend uses default DB (cards/graph will be empty)"
 }
 
+# 2c. Справочник BSL (bsl-context aux MCP) требует java. В dev нет bundled-JRE
+# и java часто не в PATH -> _find_system_java() возвращает "" -> справочник не
+# стартует ("не удалось запустить — ."). Пробрасываем JDK в backend через env
+# (Settings.bsl_context_java читает BSL_CONTEXT_JAVA). Кандидаты -> PATH.
+if (-not $env:BSL_CONTEXT_JAVA) {
+    foreach ($jc in @('C:\CLOUDE_PR\tools\jdk-17\bin\java.exe', 'C:\CLOUDE_PR\tools\jdk-21\bin\java.exe')) {
+        if (Test-Path $jc) { $env:BSL_CONTEXT_JAVA = $jc; break }
+    }
+    if (-not $env:BSL_CONTEXT_JAVA) {
+        $sysJava = (Get-Command java -ErrorAction SilentlyContinue).Source
+        if ($sysJava) { $env:BSL_CONTEXT_JAVA = $sysJava }
+    }
+}
+if ($env:BSL_CONTEXT_JAVA) {
+    Write-Output "JAVA: bsl-context -> $($env:BSL_CONTEXT_JAVA)"
+} else {
+    Write-Output "WARN: java не найден - Справочник BSL не подключится"
+}
+
 # 3. Start backend (background, hidden)
+# БЕЗ --reload намеренно: uvicorn --reload на Windows => use_subprocess=True =>
+# воркер получает SelectorEventLoop, который НЕ умеет asyncio subprocess
+# (create_subprocess_exec -> NotImplementedError с пустым сообщением). Это
+# ломает stdio-aux MCP (Справочник BSL / bsl-context). Без --reload на Windows
+# uvicorn берёт ProactorEventLoop => subprocess работает. Prod (exe) тоже без
+# --reload, так что dev=prod. Цена: нет hot-reload бэка (рестарт через /awd-dev-up).
 Start-Process -FilePath $venvPython `
-    -ArgumentList '-m', 'uvicorn', 'app.main:app', '--reload', '--port', '8010' `
+    -ArgumentList '-m', 'uvicorn', 'app.main:app', '--port', '8010' `
     -WorkingDirectory $backendDir `
     -WindowStyle Hidden -PassThru | Out-Null
 
