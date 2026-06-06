@@ -34,17 +34,25 @@ async def collect_marker_presence(
     mcp_endpoint: str,
     *,
     anon_headers: dict[str, str] | None = None,
-    concurrency: int = 10,
+    concurrency: int = 1,
 ) -> set[str]:
-    """Параллельно пробит присутствие каждого маркера через MCP get_metadata.
+    """Пробит присутствие каждого маркера через MCP get_metadata (ПОСЛЕДОВАТЕЛЬНО).
 
     Для каждого маркера «Тип.Имя» делает targeted-пробу name_mask=<Имя>,
     limit=5 и считает маркер присутствующим, если среди результатов есть точное
-    совпадение object_path. ~40 проб с ограничением параллелизма — sub-second
-    суммарно на локальном MCP (эмпирика КА Демо :6012).
+    совпадение object_path.
 
-    Никогда не бросает наружу: пробы — best-effort; маркер, чья проба упала,
-    считается отсутствующим (детекция деградирует консервативно).
+    Параллелизм по умолчанию = 1 (последовательно). Причина (эмпирика, F.2
+    2026-06-06): 1С MCP Toolkit — это ОДИН однопоточный процесс 1cv8c на сессию.
+    Конкурентные пробы перегружают его, часть падает по таймауту, и набор
+    найденных маркеров «плавает» между прогонами → нестабильная детекция (КА
+    Демо то определялась как КА, то как УТ/«самописная»). Замер на :6012:
+    concurrency=1 → 13/13 маркеров стабильно (3/3 одинаково), ≈19с на 45 проб
+    (фон — не блокирует чат/запросы); concurrency≥10 → 6-8 маркеров, флак.
+    Параметр оставлен — для быстрых/устойчивых MCP-серверов можно поднять.
+
+    Каждая проба — best-effort с 1 ретраем; маркер, чья проба упала дважды,
+    считается отсутствующим (детекция деградирует консервативно, наружу не бросает).
     """
     sem = asyncio.Semaphore(concurrency)
     present: set[str] = set()
@@ -52,14 +60,18 @@ async def collect_marker_presence(
     async def probe(marker: str) -> None:
         short_name = marker.split(".")[-1]
         async with sem:
-            try:
-                objs = await live_metadata_suggest(
-                    mcp_endpoint, short_name, 5, anon_headers=anon_headers,
-                )
-            except Exception as exc:  # noqa: BLE001 — best-effort граница пробы
-                logger.debug("проба маркера %s не удалась: %s", marker, exc)
-                return
-        if any(o.object_path == marker for o in objs):
+            objs = None
+            for attempt in range(2):  # 1 ретрай на транзиентный сбой пробы
+                try:
+                    objs = await live_metadata_suggest(
+                        mcp_endpoint, short_name, 5, anon_headers=anon_headers,
+                    )
+                    break
+                except Exception as exc:  # noqa: BLE001 — best-effort граница пробы
+                    if attempt == 1:
+                        logger.debug("проба маркера %s не удалась: %s", marker, exc)
+                        return
+        if objs and any(o.object_path == marker for o in objs):
             present.add(marker)
 
     await asyncio.gather(*(probe(m) for m in ALL_MARKERS))
