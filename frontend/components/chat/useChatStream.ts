@@ -35,6 +35,8 @@ export type UseChatStreamReturn = {
   isStreaming: boolean;
   error: string | null;
   streamingStage: StreamingStage | null;
+  /** Время старта текущего стрима (Date.now()) для живого таймера; null если не стримим. */
+  streamStartedAt: number | null;
   currentToolName: string | null;
   /** Pending confirm payload — если backend ожидает подтверждения (SEC-01) */
   pendingConfirm: ConfirmRequiredPayload | null;
@@ -82,6 +84,7 @@ export function useChatStream({
   const [error, setError] = useState<string | null>(null);
   const [streamingStage, setStreamingStage] = useState<StreamingStage | null>(null);
   const [currentToolName, setCurrentToolName] = useState<string | null>(null);
+  const [streamStartedAt, setStreamStartedAt] = useState<number | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<ConfirmRequiredPayload | null>(null);
   const [pendingClarify, setPendingClarify] = useState<ClarifyRequiredPayload | null>(null);
 
@@ -172,6 +175,7 @@ export function useChatStream({
       setIsStreaming(true);
       setStreamingStage(null);
       setCurrentToolName(null);
+      setStreamStartedAt(Date.now());
 
       // W1.7: создаём fresh AbortController для этого стрима. Если предыдущий
       // ещё активен (defensive) — отменяем его.
@@ -361,12 +365,23 @@ export function useChatStream({
         }
         const msg = err instanceof Error ? err.message : "Неизвестная ошибка";
         setError(msg);
+        // Громкий сигнал в пузыре: транспорт/SSL-падение пишем в message.error,
+        // иначе пустой пузырь + крошечная строка у композера легко пропустить.
+        setMessages((prev) => {
+          const last = prev[prev.length - 1];
+          if (!last || last.role !== "assistant") return prev;
+          return [
+            ...prev.slice(0, -1),
+            { ...last, error: { message: msg, code: "llm_network_error" } },
+          ];
+        });
       } finally {
         // W1.7: setState только если ещё mounted (после await loop'а компонент
         // мог размонтироваться)
         if (mountedRef.current) {
           setIsStreaming(false);
           setStreamingStage(null);
+          setStreamStartedAt(null);
         }
         // Очищаем AbortController если это был наш текущий
         if (abortRef.current === ac) {
@@ -422,6 +437,7 @@ export function useChatStream({
     isStreaming,
     error,
     streamingStage,
+    streamStartedAt,
     currentToolName,
     pendingConfirm,
     resolveConfirm,

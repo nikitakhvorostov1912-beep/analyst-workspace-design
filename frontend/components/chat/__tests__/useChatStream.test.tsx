@@ -413,4 +413,25 @@ describe("useChatStream", () => {
 
     expect(result.current.pendingConfirm).toBeNull();
   });
+
+  // --- StreamProgress: ошибка транспорта/SSL в пузырь ---
+
+  it("ошибка транспорта (throw из fetchChat) пишется в message.error", async () => {
+    vi.mocked(fetchChat).mockImplementation(() => {
+      throw new Error("[SSL: SSLV3_ALERT_BAD_RECORD_MAC]");
+    });
+
+    const { result } = renderHook(() =>
+      useChatStream({ sessionId: "s1", channelId: "ch1" }),
+    );
+
+    await act(async () => {
+      await result.current.send("привет");
+    });
+
+    const last = result.current.messages[result.current.messages.length - 1];
+    expect(last!.role).toBe("assistant");
+    expect(last!.error?.message).toContain("SSL");
+    expect(result.current.isStreaming).toBe(false);
+  });
 });
