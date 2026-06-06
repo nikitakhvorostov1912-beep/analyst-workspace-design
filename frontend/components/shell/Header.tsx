@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { StencilLockup } from "./StencilLockup";
 import { ChannelSelector } from "./ChannelSelector";
 import { ConfigurationBadge } from "./ConfigurationBadge";
-import { TypicalSelector } from "./TypicalSelector";
 import { StatusCapsule } from "./StatusCapsule";
 import { OverflowMenu } from "./OverflowMenu";
 import { UpdateBanner } from "./UpdateBanner";
@@ -26,7 +25,7 @@ export interface HeaderProps {
 /**
  * Header (shell v3 §1) — три зоны вместо «свалки справа».
  *
- *   Зона 1 (слева):  ☰  ◆ АНАЛИТИК │ <ChannelSelector + EnvBadge> <TypicalSelector>
+ *   Зона 1 (слева):  ☰  ◆ АНАЛИТИК │ <ChannelSelector + EnvBadge> <ConfigurationBadge>
  *   SPACER:          flex-1
  *   Зона 3 (справа): <Search ⌘K>  <StatusCapsule>  <OverflowMenu ⋯>
  *
@@ -116,9 +115,6 @@ export function Header({
           onRetry={handleRetry}
         />
       )}
-
-      {/* M-K2.5.7: типовая для compare/explain (опциональна) */}
-      <TypicalSelector />
 
       {/* ── SPACER ── */}
       <span className="flex-1" />
