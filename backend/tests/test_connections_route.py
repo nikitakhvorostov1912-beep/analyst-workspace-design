@@ -412,3 +412,65 @@ async def test_ping_triggers_detection_when_unconfigured(client: AsyncClient, mo
     assert ping_resp.status_code == 200
     # фон-таска планируется синхронно внутри хендлера — проверяем факт вызова
     assert called.get("channel_id") == conn_id
+
+
+@pytest.mark.asyncio
+async def test_ping_preserves_existing_configuration(client: AsyncClient, monkeypatch):
+    """Регрессия (COALESCE): ping с discovery.configuration=None (сырой 1С MCP
+    Toolkit) НЕ обнуляет уже установленную configuration.
+
+    Без COALESCE каждый ping нулил бы configuration → детект-триггер
+    перезапускался бы на каждый ping (≈40 MCP-проб впустую) + затирался бы
+    ручной override. Поймано живой проверкой F.2 (2026-06-06).
+    """
+    import app.routes.connections as conns
+    from app.clients.mcp import MCPSession
+
+    async def fake_run(db, channel_id, endpoint, *, anon_headers=None):
+        pass  # детекцию реально не гоняем
+
+    monkeypatch.setattr(conns, "run_detection_for_channel", fake_run)
+
+    class StubMCPClient:
+        def __init__(self, *_a, **_kw) -> None:
+            pass
+
+        async def initialize(self) -> MCPSession:
+            # session без experimental → discover_capabilities даст configuration=None
+            return MCPSession(
+                session_id="stub", mcp_version="2025-03-26",
+                server_name="stub", tools=[],
+            )
+
+        async def list_tools(self) -> list[dict]:
+            return [{"name": "get_metadata"}]
+
+        async def close(self) -> None:
+            pass
+
+        async def __aenter__(self) -> "StubMCPClient":
+            return self
+
+        async def __aexit__(self, *_: object) -> None:
+            pass
+
+    monkeypatch.setattr(conns, "MCPClient", StubMCPClient)
+
+    r = await client.post("/connections", json={
+        "name": "КА", "endpoint": "http://localhost:6012/mcp", "kind": "embedded",
+    })
+    conn_id = r.json()["id"]
+    # Ручной override конфигурации
+    r2 = await client.put(f"/connections/{conn_id}", json={
+        "configuration": "КА 2.5", "configuration_source": "manual",
+    })
+    assert r2.json()["configuration"] == "КА 2.5"
+
+    # Ping (discovery.configuration=None) НЕ должен обнулить установленное значение
+    pr = await client.post(f"/connections/{conn_id}/ping")
+    assert pr.status_code == 200
+
+    lst = await client.get("/connections")
+    conn = next(c for c in lst.json()["connections"] if c["id"] == conn_id)
+    assert conn["configuration"] == "КА 2.5", "ping обнулил configuration — COALESCE сломан"
+    assert conn["configuration_source"] == "manual"

@@ -434,12 +434,19 @@ async def ping_connection(
     caps_json = json.dumps(discovery.capability_strings, ensure_ascii=False)
     fingerprint_slug = discovery.fingerprint.slug if discovery.fingerprint else None
 
+    # COALESCE(?, configuration): для «сырого» 1С MCP Toolkit discover_capabilities
+    # возвращает configuration=None (нет нашего CFE experimental namespace). Без
+    # COALESCE каждый ping ОБНУЛЯЛ бы configuration → детект-триггер (should_run_detection
+    # = configuration IS NULL) перезапускался бы на КАЖДЫЙ ping (≈40 MCP-проб впустую),
+    # бейдж мигал бы, а РУЧНОЙ override затирался бы. COALESCE сохраняет уже
+    # установленное значение, если discovery дал None; перезаписывает только когда
+    # сервер сам объявил конфигурацию (CFE). To-force re-detect — ручной override.
     await db.execute(
         """
         UPDATE mcp_connections
         SET last_seen_at = CURRENT_TIMESTAMP,
             mode = ?,
-            configuration = ?,
+            configuration = COALESCE(?, configuration),
             platform = ?,
             ext_version = ?,
             capabilities = ?,
