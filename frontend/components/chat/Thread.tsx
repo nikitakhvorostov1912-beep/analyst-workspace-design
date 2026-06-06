@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ArrowDown } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Message } from "./Message";
 import { EXAMPLE_PROMPTS } from "@/lib/welcome-templates";
@@ -71,11 +72,39 @@ function EmptyState() {
 
 export function Thread({ messages, streamingStage, currentToolName, isStreaming, streamStartedAt, sessionId, onRepeat }: ThreadProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLElement | null>(null);
+  // Авто-скролл вниз — ТОЛЬКО когда пользователь уже внизу. Если он отлистал
+  // вверх (читает прошлый ответ / стрим идёт) — не дёргаем его обратно.
+  const [atBottom, setAtBottom] = useState(true);
 
-  // Auto-scroll вниз при появлении новых сообщений (стриминг и загрузка истории)
+  // Находим scroll-viewport (radix ScrollArea) и слушаем позицию.
   useEffect(() => {
+    const vp = bottomRef.current?.closest(
+      "[data-radix-scroll-area-viewport]",
+    ) as HTMLElement | null;
+    viewportRef.current = vp;
+    if (!vp) return;
+    function onScroll() {
+      if (!vp) return;
+      const gap = vp.scrollHeight - vp.scrollTop - vp.clientHeight;
+      setAtBottom(gap < 80); // «у низа» с допуском 80px
+    }
+    onScroll();
+    vp.addEventListener("scroll", onScroll, { passive: true });
+    return () => vp.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Авто-скролл при новом контенте — только если пользователь у низа.
+  useEffect(() => {
+    if (atBottom) {
+      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, atBottom]);
+
+  function scrollToBottom() {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    setAtBottom(true);
+  }
 
   // tool-сообщения не рендерятся в Thread — только в Trace panel (Plan 2.5)
   const visibleMessages = messages.filter((m) => m.role !== "tool");
@@ -93,31 +122,48 @@ export function Thread({ messages, streamingStage, currentToolName, isStreaming,
   }
 
   return (
-    <ScrollArea className="h-full">
-      <div className="flex flex-col gap-4 p-4 max-w-4xl mx-auto">
-        {visibleMessages.map((msg, i) => {
-          // F-06: для assistant-сообщения находим предыдущий вопрос пользователя.
-          const prevUser =
-            msg.role === "assistant" && onRepeat
-              ? [...visibleMessages.slice(0, i)]
-                  .reverse()
-                  .find((m) => m.role === "user")?.content
-              : undefined;
-          return (
-            <Message
-              key={msg.id}
-              message={msg}
-              streamingStage={i === lastAssistantIdx ? streamingStage : null}
-              currentToolName={i === lastAssistantIdx ? currentToolName : null}
-              isStreaming={i === lastAssistantIdx ? isStreaming : false}
-              streamStartedAt={i === lastAssistantIdx ? streamStartedAt : null}
-              sessionId={sessionId}
-              onRepeat={prevUser ? () => onRepeat?.(prevUser) : undefined}
-            />
-          );
-        })}
-        <div ref={bottomRef} />
-      </div>
-    </ScrollArea>
+    <div className="relative h-full">
+      <ScrollArea className="h-full">
+        <div className="flex flex-col gap-4 p-4 max-w-4xl mx-auto">
+          {visibleMessages.map((msg, i) => {
+            // F-06: для assistant-сообщения находим предыдущий вопрос пользователя.
+            const prevUser =
+              msg.role === "assistant" && onRepeat
+                ? [...visibleMessages.slice(0, i)]
+                    .reverse()
+                    .find((m) => m.role === "user")?.content
+                : undefined;
+            return (
+              <Message
+                key={msg.id}
+                message={msg}
+                streamingStage={i === lastAssistantIdx ? streamingStage : null}
+                currentToolName={i === lastAssistantIdx ? currentToolName : null}
+                isStreaming={i === lastAssistantIdx ? isStreaming : false}
+                streamStartedAt={i === lastAssistantIdx ? streamStartedAt : null}
+                sessionId={sessionId}
+                onRepeat={prevUser ? () => onRepeat?.(prevUser) : undefined}
+              />
+            );
+          })}
+          <div ref={bottomRef} />
+        </div>
+      </ScrollArea>
+
+      {/* Кнопка «вниз» — появляется когда пользователь отлистал вверх.
+          Решает жалобу «скролл блокируется/дёргает вниз пока идёт ответ». */}
+      {!atBottom && (
+        <button
+          type="button"
+          onClick={scrollToBottom}
+          data-testid="scroll-to-bottom"
+          aria-label="Прокрутить вниз"
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 inline-flex items-center gap-1.5 h-8 px-3 rounded-full bg-[var(--bg-2)] border border-[var(--bd-2)] text-[12px] text-[var(--fg-1)] shadow-sm hover:bg-[var(--bg-hover)] hover:border-[var(--bd-3)] transition-colors"
+        >
+          <ArrowDown className="h-3.5 w-3.5" />
+          {isStreaming ? "Ответ внизу" : "Вниз"}
+        </button>
+      )}
+    </div>
   );
 }
