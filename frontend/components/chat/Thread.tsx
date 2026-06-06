@@ -71,14 +71,29 @@ function EmptyState() {
 }
 
 export function Thread({ messages, streamingStage, currentToolName, isStreaming, streamStartedAt, sessionId, onRepeat }: ThreadProps) {
+  // tool-сообщения не рендерятся в Thread — только в Trace panel (Plan 2.5)
+  const visibleMessages = messages.filter((m) => m.role !== "tool");
+  const hasMessages = visibleMessages.length > 0;
+  const lastAssistantIdx = visibleMessages.reduce(
+    (acc, m, i) => (m.role === "assistant" ? i : acc),
+    -1,
+  );
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLElement | null>(null);
-  // Авто-скролл вниз — ТОЛЬКО когда пользователь уже внизу. Если он отлистал
-  // вверх (читает прошлый ответ / стрим идёт) — не дёргаем его обратно.
-  const [atBottom, setAtBottom] = useState(true);
+  // «Прилипание» к низу. stickRef меняется ТОЛЬКО реальным скроллом
+  // пользователя → не зависит от тайминга разметки. Пока пользователь у низа —
+  // лента следует за стримом; отлистал вверх читать — не дёргаем + кнопка «↓».
+  // Решает жалобу «скролл блокируется/дёргает вниз пока идёт ответ».
+  const stickRef = useRef(true);
+  const [showJump, setShowJump] = useState(false);
 
   // Находим scroll-viewport (radix ScrollArea) и слушаем позицию.
+  // Завязано на hasMessages: при прямой загрузке сессии Thread сначала
+  // рендерит EmptyState (messages грузятся async) — bottomRef ещё нет.
+  // Эффект перезапускается, когда лента появилась, и привязывается тогда.
   useEffect(() => {
+    if (!hasMessages) return;
     const vp = bottomRef.current?.closest(
       "[data-radix-scroll-area-viewport]",
     ) as HTMLElement | null;
@@ -86,34 +101,42 @@ export function Thread({ messages, streamingStage, currentToolName, isStreaming,
     if (!vp) return;
     function onScroll() {
       if (!vp) return;
-      const gap = vp.scrollHeight - vp.scrollTop - vp.clientHeight;
-      setAtBottom(gap < 80); // «у низа» с допуском 80px
+      const near = vp.scrollHeight - vp.scrollTop - vp.clientHeight < 120;
+      stickRef.current = near;
+      setShowJump(!near);
     }
-    onScroll();
     vp.addEventListener("scroll", onScroll, { passive: true });
     return () => vp.removeEventListener("scroll", onScroll);
-  }, []);
+  }, [hasMessages]);
 
-  // Авто-скролл при новом контенте — только если пользователь у низа.
+  // Смена сессии — снова прилипаем к низу (показать последнее).
   useEffect(() => {
-    if (atBottom) {
-      bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages, atBottom]);
+    stickRef.current = true;
+    setShowJump(false);
+  }, [sessionId]);
+
+  // Авто-скролл при новом контенте — только если прилипание включено.
+  // Прямой scrollTop (а не scrollIntoView) надёжнее при растущем контенте;
+  // rAF добивает после доразметки таблиц/карточек (иначе промах «до layout»).
+  useEffect(() => {
+    const vp = viewportRef.current;
+    if (!vp || !stickRef.current) return;
+    vp.scrollTop = vp.scrollHeight;
+    const raf = requestAnimationFrame(() => {
+      const v = viewportRef.current;
+      if (v && stickRef.current) v.scrollTop = v.scrollHeight;
+    });
+    return () => cancelAnimationFrame(raf);
+  }, [messages]);
 
   function scrollToBottom() {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-    setAtBottom(true);
+    stickRef.current = true;
+    setShowJump(false);
+    const vp = viewportRef.current;
+    if (vp) vp.scrollTop = vp.scrollHeight;
   }
 
-  // tool-сообщения не рендерятся в Thread — только в Trace panel (Plan 2.5)
-  const visibleMessages = messages.filter((m) => m.role !== "tool");
-  const lastAssistantIdx = visibleMessages.reduce(
-    (acc, m, i) => (m.role === "assistant" ? i : acc),
-    -1,
-  );
-
-  if (visibleMessages.length === 0) {
+  if (!hasMessages) {
     return (
       <ScrollArea className="h-full">
         <EmptyState />
@@ -150,9 +173,8 @@ export function Thread({ messages, streamingStage, currentToolName, isStreaming,
         </div>
       </ScrollArea>
 
-      {/* Кнопка «вниз» — появляется когда пользователь отлистал вверх.
-          Решает жалобу «скролл блокируется/дёргает вниз пока идёт ответ». */}
-      {!atBottom && (
+      {/* Кнопка «вниз» — появляется когда пользователь отлистал вверх. */}
+      {showJump && (
         <button
           type="button"
           onClick={scrollToBottom}
