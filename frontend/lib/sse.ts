@@ -8,6 +8,11 @@ const KNOWN_EVENTS = new Set([
   "card",
   "done",
   "error",
+  // SEC-01 / Sprint 4: интерактивные события — хук их обрабатывает
+  // (setPendingConfirm / setPendingClarify). Без них парсер отвергал поток
+  // как «Неизвестный тип события» на ITS/buddy-пути (clarify_question).
+  "confirm_required",
+  "clarify_required",
 ]);
 
 /**
