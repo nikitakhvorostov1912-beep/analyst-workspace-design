@@ -434,4 +434,26 @@ describe("useChatStream", () => {
     expect(last!.error?.message).toContain("SSL");
     expect(result.current.isStreaming).toBe(false);
   });
+
+  it("React render-ошибка → понятное сообщение (не сырой текст) + лог в console", async () => {
+    const errSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(fetchChat).mockImplementation(() => {
+      throw new Error("Maximum update depth exceeded");
+    });
+
+    const { result } = renderHook(() =>
+      useChatStream({ sessionId: "s1", channelId: "ch1" }),
+    );
+
+    await act(async () => {
+      await result.current.send("привет");
+    });
+
+    const last = result.current.messages[result.current.messages.length - 1];
+    expect(last!.error?.message).toBe("Не удалось отобразить ответ. Обновите страницу.");
+    expect(last!.error?.message).not.toContain("Maximum update depth");
+    // сырой React-текст ушёл в console для диагностики, а не в UI
+    expect(errSpy).toHaveBeenCalled();
+    errSpy.mockRestore();
+  });
 });

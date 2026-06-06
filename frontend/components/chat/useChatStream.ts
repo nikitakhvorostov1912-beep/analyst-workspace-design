@@ -364,15 +364,33 @@ export function useChatStream({
           return;
         }
         const msg = err instanceof Error ? err.message : "Неизвестная ошибка";
-        setError(msg);
-        // Громкий сигнал в пузыре: транспорт/SSL-падение пишем в message.error,
-        // иначе пустой пузырь + крошечная строка у композера легко пропустить.
+        // Отличаем баги рендера/программные ошибки React от реальных сетевых
+        // сбоев. React-ошибки («Maximum update depth» и т.п.) НЕ показываем
+        // аналитику сырым текстом — это пугает и бесполезно; даём понятное
+        // сообщение, а сырое пишем в console для диагностики (там же стек).
+        const isRenderBug =
+          /Maximum update depth|Minified React error|Rendered (more|fewer) hooks|Should have a queue|while rendering a different component/i.test(
+            msg,
+          );
+        if (isRenderBug) {
+          console.error(
+            "[useChatStream] неожиданная ошибка рендера во время стрима:",
+            err,
+          );
+        }
+        const userMessage = isRenderBug
+          ? "Не удалось отобразить ответ. Обновите страницу."
+          : msg;
+        const errorCode = isRenderBug ? "internal_error" : "llm_network_error";
+        setError(userMessage);
+        // Громкий сигнал в пузыре: транспорт/SSL-падение легко пропустить в
+        // крошечной строке у композера — дублируем в message.error.
         setMessages((prev) => {
           const last = prev[prev.length - 1];
           if (!last || last.role !== "assistant") return prev;
           return [
             ...prev.slice(0, -1),
-            { ...last, error: { message: msg, code: "llm_network_error" } },
+            { ...last, error: { message: userMessage, code: errorCode } },
           ];
         });
       } finally {

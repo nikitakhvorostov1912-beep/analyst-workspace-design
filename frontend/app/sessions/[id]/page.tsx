@@ -13,6 +13,7 @@ import { ConnectionStatusBanner } from "@/components/chat/ConnectionStatusBanner
 import { ExportSessionButton } from "@/components/chat/ExportSessionButton";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useChatStream } from "@/components/chat/useChatStream";
+import { ChatErrorBoundary } from "@/components/chat/ChatErrorBoundary";
 import { useSessionsStore } from "@/lib/sessions-store";
 import { fetchSessionDetail, fetchSessionMessages, fetchConnections, fetchLLMConfig, pingConnection, patchSessionTitle, setSessionPinned } from "@/lib/api";
 import { getActiveChannelId, setActiveChannelId } from "@/lib/storage";
@@ -421,17 +422,19 @@ export default function SessionPage() {
             messages={messages}
             className="absolute top-3 right-4 z-10 shadow-sm"
           />
-          <Thread
-            messages={messages}
-            streamingStage={streamingStage}
-            currentToolName={currentToolName}
-            isStreaming={isStreaming}
-            streamStartedAt={streamStartedAt}
-            sessionId={id}
-            onRepeat={(content) => {
-              if (!isStreaming) void send(content);
-            }}
-          />
+          <ChatErrorBoundary>
+            <Thread
+              messages={messages}
+              streamingStage={streamingStage}
+              currentToolName={currentToolName}
+              isStreaming={isStreaming}
+              streamStartedAt={streamStartedAt}
+              sessionId={id}
+              onRepeat={(content) => {
+                if (!isStreaming) void send(content);
+              }}
+            />
+          </ChatErrorBoundary>
           {pendingClarify && (
             <div className="px-4 max-w-3xl mx-auto">
               <ClarifyDialog payload={pendingClarify} onResolve={resolveClarify} />
