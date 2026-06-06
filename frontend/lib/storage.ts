@@ -4,6 +4,7 @@ const KEY_LLM = "analyst.llm";
 const KEY_MCP = "analyst.mcp_connections";
 const KEY_ACTIVE_CHANNEL = "analyst.active_channel";
 const KEY_ACTIVE_TYPICAL = "analyst.active_typical";
+const KEY_STREAM_STEPS_EXPANDED = "analyst.stream_steps_expanded";
 
 // SSR-safe helper: возвращает null если не в браузере
 function safeLocalStorage(): Storage | null {
@@ -119,6 +120,22 @@ export function setActiveTypicalChannelId(id: string | null): void {
       new CustomEvent("active-typical-changed", { detail: { id } }),
     );
   }
+}
+
+// --- Индикатор хода запроса: свёрнуто/развёрнуто (StreamProgress) ---
+
+/** Развёрнут ли детальный список шагов в индикаторе стрима. Default — false (свёрнуто). */
+export function getStreamStepsExpanded(): boolean {
+  const ls = safeLocalStorage();
+  if (!ls) return false;
+  return ls.getItem(KEY_STREAM_STEPS_EXPANDED) === "true";
+}
+
+/** Сохраняет предпочтение развёрнутости шагов. */
+export function setStreamStepsExpanded(expanded: boolean): void {
+  const ls = safeLocalStorage();
+  if (!ls) return;
+  ls.setItem(KEY_STREAM_STEPS_EXPANDED, expanded ? "true" : "false");
 }
 
 // --- Окружение подключений (shell v3 §5, Вариант B) ---
