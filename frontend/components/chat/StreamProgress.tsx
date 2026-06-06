@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { StreamingStages, type Stage, type StageKind } from "./StreamingStages";
 import { getStreamStepsExpanded, setStreamStepsExpanded } from "@/lib/storage";
 
@@ -64,16 +64,11 @@ export function StreamProgress({ stages, activeIndex, startedAt }: StreamProgres
         aria-expanded={expanded}
         className="inline-flex items-center gap-2 h-8 px-2.5 rounded-md bg-[var(--bg-1)] border border-[var(--bd-2)] text-xs text-[var(--fg-2)] hover:border-[var(--bd-3)] transition-colors"
       >
-        {/* Дышащие точки — --accent, keyframe blink со стаггером */}
-        <span className="inline-flex items-center gap-0.5" aria-hidden="true">
-          {[0, 1, 2].map((i) => (
-            <span
-              key={i}
-              className="inline-block h-1.5 w-1.5 rounded-full bg-[var(--accent)] animate-blink"
-              style={{ animationDelay: `${i * 160}ms` }}
-            />
-          ))}
-        </span>
+        {/* Тонкий спиннер — спокойный индикатор «идёт», без раздражающего мигания */}
+        <Loader2
+          className="h-3.5 w-3.5 text-[var(--accent)] animate-spin"
+          aria-hidden="true"
+        />
         <span className="text-[var(--fg-1)]">{label}…</span>
         {seconds !== null && (
           <span

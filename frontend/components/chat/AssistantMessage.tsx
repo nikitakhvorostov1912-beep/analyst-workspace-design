@@ -84,21 +84,8 @@ export function AssistantMessage({
 
   return (
     <div className="group flex w-full justify-start gap-3">
-      {/* Аватар-глиф (F-06). Во время стрима — мягкое пульсирующее кольцо (--accent). */}
-      <span
-        className="flex-none mt-0.5 inline-flex rounded-[5px]"
-        style={
-          isStreaming
-            ? {
-                color: "var(--accent)",
-                animation:
-                  "status-pulse 1.8s var(--ease, cubic-bezier(0.4,0,0.2,1)) infinite",
-              }
-            : undefined
-        }
-      >
-        <BrandMark size={28} />
-      </span>
+      {/* Аватар-глиф (F-06) */}
+      <BrandMark size={28} className="flex-none mt-0.5" />
 
       <div className="max-w-3xl w-full min-w-0">
         {/* Имя · время · длительность */}
