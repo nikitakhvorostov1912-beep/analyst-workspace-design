@@ -204,7 +204,7 @@ export default function SessionPage() {
     }
   }
 
-  const { messages, isStreaming, error, streamingStage, currentToolName, pendingConfirm, resolveConfirm, pendingClarify, resolveClarify, send, interrupt } = useChatStream({
+  const { messages, isStreaming, error, streamingStage, streamStartedAt, currentToolName, pendingConfirm, resolveConfirm, pendingClarify, resolveClarify, send, interrupt } = useChatStream({
     sessionId: id,
     channelId,
     initialMessages,
@@ -425,6 +425,8 @@ export default function SessionPage() {
             messages={messages}
             streamingStage={streamingStage}
             currentToolName={currentToolName}
+            isStreaming={isStreaming}
+            streamStartedAt={streamStartedAt}
             sessionId={id}
             onRepeat={(content) => {
               if (!isStreaming) void send(content);

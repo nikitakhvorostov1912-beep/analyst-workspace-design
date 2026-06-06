@@ -1,6 +1,6 @@
 "use client";
 
-import { RotateCcw } from "lucide-react";
+import { Check, RotateCcw } from "lucide-react";
 import { Markdown } from "./Markdown";
 import { AnswerProvenance } from "./AnswerProvenance";
 import { Alert } from "@/components/ui/Alert";
@@ -8,7 +8,7 @@ import { CopyButton } from "@/components/ui/CopyButton";
 import { BrandMark } from "@/components/shell/BrandMark";
 import { CardRenderer } from "@/components/cards/CardRenderer";
 import { ToolTrace } from "./ToolTrace";
-import { StreamingStages } from "./StreamingStages";
+import { StreamProgress } from "./StreamProgress";
 import { buildStreamingStages } from "@/lib/streaming-stages";
 import { getMCPConnections, getActiveChannelId } from "@/lib/storage";
 import { parseBackendDate } from "@/lib/utils";
@@ -33,6 +33,10 @@ interface AssistantMessageProps {
   /** Стадия стриминга — показывает StreamingStages под контентом */
   streamingStage?: StreamingStage | null;
   currentToolName?: string | null;
+  /** Реальный флаг стрима из useChatStream (не Boolean(streamingStage)). */
+  isStreaming?: boolean;
+  /** Время старта стрима для таймера. */
+  streamStartedAt?: number | null;
   /** ID сессии — для CardContext load-more */
   sessionId?: string;
   /** F-06: повтор предыдущего вопроса (re-ask). Если не задан — кнопка скрыта. */
@@ -50,6 +54,8 @@ export function AssistantMessage({
   message,
   streamingStage,
   currentToolName,
+  isStreaming = false,
+  streamStartedAt = null,
   sessionId,
   onRepeat,
 }: AssistantMessageProps) {
@@ -71,15 +77,28 @@ export function AssistantMessage({
     streamingStage: streamingStage ?? null,
     currentToolName: currentToolName ?? null,
     toolCalls: message.tool_calls ?? [],
+    running: isStreaming,
   });
 
   const time = formatTime(message.created_at);
-  const isStreaming = Boolean(streamingStage);
 
   return (
     <div className="group flex w-full justify-start gap-3">
-      {/* Аватар-глиф (F-06) */}
-      <BrandMark size={28} className="flex-none mt-0.5" />
+      {/* Аватар-глиф (F-06). Во время стрима — мягкое пульсирующее кольцо (--accent). */}
+      <span
+        className="flex-none mt-0.5 inline-flex rounded-[5px]"
+        style={
+          isStreaming
+            ? {
+                color: "var(--accent)",
+                animation:
+                  "status-pulse 1.8s var(--ease, cubic-bezier(0.4,0,0.2,1)) infinite",
+              }
+            : undefined
+        }
+      >
+        <BrandMark size={28} />
+      </span>
 
       <div className="max-w-3xl w-full min-w-0">
         {/* Имя · время · длительность */}
@@ -105,7 +124,24 @@ export function AssistantMessage({
         {/* Inline error — единый Alert (F-04), без emoji, lucide-иконка */}
         {message.error && (
           <div className="mb-2">
-            <Alert tone="error" title={message.error.message} />
+            <Alert
+              tone="error"
+              title={message.error.message}
+              data-testid="message-error"
+              actions={
+                onRepeat ? (
+                  <button
+                    type="button"
+                    onClick={onRepeat}
+                    data-testid="error-retry"
+                    className="inline-flex items-center gap-1 h-7 px-2 rounded-md border border-[var(--error-40)] text-[12px] text-[var(--error)] hover:bg-[var(--error-12)] transition-colors"
+                  >
+                    <RotateCcw className="h-3.5 w-3.5" />
+                    Повторить
+                  </button>
+                ) : undefined
+              }
+            />
           </div>
         )}
 
@@ -123,15 +159,29 @@ export function AssistantMessage({
           </div>
         )}
 
-        {/* Streaming pipeline — pipeline-визуализация с иконками + переходы */}
-        {pipeline && (
-          <div className="mt-2">
-            <StreamingStages
-              stages={pipeline.stages}
-              activeIndex={pipeline.activeIndex}
-            />
-          </div>
+        {/* Индикатор хода запроса — свёрнутый по умолчанию (StreamProgress) */}
+        {isStreaming && pipeline && (
+          <StreamProgress
+            stages={pipeline.stages}
+            activeIndex={pipeline.activeIndex}
+            startedAt={streamStartedAt}
+          />
         )}
+
+        {/* Однозначное «готово» по завершении */}
+        {!isStreaming &&
+          message.content &&
+          message.duration_ms != null &&
+          message.duration_ms > 0 && (
+            <div
+              data-testid="done-marker"
+              className="mt-2 inline-flex items-center gap-1 text-[11px] text-[var(--success)]"
+              style={{ fontFamily: "var(--font-jb-mono), ui-monospace, monospace" }}
+            >
+              <Check className="h-3 w-3" />
+              готово за {formatDuration(message.duration_ms)}
+            </div>
+          )}
 
         {/* Inline карточки */}
         {message.cards && message.cards.length > 0 && (

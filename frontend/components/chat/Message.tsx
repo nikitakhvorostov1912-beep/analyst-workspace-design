@@ -7,13 +7,15 @@ interface MessageProps {
   message: ChatMessage;
   streamingStage?: StreamingStage | null;
   currentToolName?: string | null;
+  isStreaming?: boolean;
+  streamStartedAt?: number | null;
   /** ID сессии — для CardContext load-more (Plan 03-04) */
   sessionId?: string;
   /** F-06: повтор предыдущего вопроса (только для assistant-сообщений). */
   onRepeat?: () => void;
 }
 
-export function Message({ message, streamingStage, currentToolName, sessionId, onRepeat }: MessageProps) {
+export function Message({ message, streamingStage, currentToolName, isStreaming, streamStartedAt, sessionId, onRepeat }: MessageProps) {
   // tool messages не рендерятся в Thread — только в Trace panel (Plan 2.5)
   if (message.role === "tool") return null;
 
@@ -23,6 +25,8 @@ export function Message({ message, streamingStage, currentToolName, sessionId, o
         message={message}
         streamingStage={streamingStage}
         currentToolName={currentToolName}
+        isStreaming={isStreaming}
+        streamStartedAt={streamStartedAt}
         sessionId={sessionId}
         onRepeat={onRepeat}
       />
