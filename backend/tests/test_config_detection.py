@@ -105,16 +105,29 @@ def test_bgu_2_0_detected_by_budget_objects():
     assert result.family == "government"
 
 
-def test_uso_jkx_detected():
-    uso_objects = {
+def test_uso_is_construction_not_zhkh():
+    """УСО = «Управление строительной организацией 2.5» (стройка), НЕ ЖКХ.
+
+    Идентичность сигнатуры — строительная. characteristic_objects ПУСТ намеренно
+    (нет верифицированной УСО-базы; маркеры заполняются из живого get_metadata).
+    """
+    uso = next(s for s in KNOWN_CONFIGURATIONS if s.key == "uso_2_5")
+    assert uso.display_name == "УСО 2.5"
+    assert uso.family == "construction"
+    assert uso.characteristic_objects == frozenset()
+
+
+def test_old_zhkh_markers_no_longer_detect_uso():
+    """Бывшие ЖКХ-маркеры (лицевые счета/тарифы/показания) больше НЕ дают УСО."""
+    zhkh_objects = {
         "Справочник.ЛицевыеСчета",
         "Справочник.Тарифы",
         "Документ.НачислениеПоЛицевомуСчету",
         "РегистрНакопления.ПоказанияСчетчиков",
     }
-    result = detect_configuration_type(uso_objects)
-    assert result.configuration_key == "uso_2_5"
-    assert result.family == "utilities"
+    result = detect_configuration_type(zhkh_objects)
+    assert result.configuration_key != "uso_2_5"
+    assert result.is_custom
 
 
 def test_below_min_confidence_returns_custom():
@@ -220,6 +233,10 @@ def test_known_configurations_have_distinct_signatures():
                 len(sig_a.characteristic_objects),
                 len(sig_b.characteristic_objects),
             )
+            # Пустая сигнатура (напр. УСО — маркеры pending live-probe) ни с кем
+            # не конфликтует: нечему пересекаться. Пропускаем (и не делим на 0).
+            if smaller_set_size == 0:
+                continue
             overlap_ratio = len(intersection) / smaller_set_size
 
             if pair in EXPECTED_OVERLAPS:
