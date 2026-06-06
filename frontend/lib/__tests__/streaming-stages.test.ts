@@ -118,3 +118,36 @@ describe("buildStreamingStages", () => {
     expect(result?.activeIndex).toBe(0);
   });
 });
+
+describe("buildStreamingStages — running seed", () => {
+  it("running && stage=null → seed [analyzing], activeIndex 0", () => {
+    const r = buildStreamingStages({
+      streamingStage: null,
+      currentToolName: null,
+      toolCalls: [],
+      running: true,
+    });
+    expect(r).not.toBeNull();
+    expect(r!.stages).toEqual([{ kind: "analyzing" }]);
+    expect(r!.activeIndex).toBe(0);
+  });
+
+  it("не running && stage=null → null (как раньше)", () => {
+    const r = buildStreamingStages({
+      streamingStage: null,
+      currentToolName: null,
+      toolCalls: [],
+      running: false,
+    });
+    expect(r).toBeNull();
+  });
+
+  it("running не указан && stage=null → null (обратная совместимость)", () => {
+    const r = buildStreamingStages({
+      streamingStage: null,
+      currentToolName: null,
+      toolCalls: [],
+    });
+    expect(r).toBeNull();
+  });
+});

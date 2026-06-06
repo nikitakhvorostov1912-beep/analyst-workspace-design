@@ -22,6 +22,8 @@ interface BuildStagesInput {
   streamingStage: StreamingStage | null;
   currentToolName: string | null;
   toolCalls: ToolCallRecord[];
+  /** true пока идёт стрим. При running && streamingStage===null показываем seed «Анализирую». */
+  running?: boolean;
 }
 
 interface BuildStagesResult {
@@ -44,9 +46,14 @@ interface BuildStagesResult {
 export function buildStreamingStages(
   input: BuildStagesInput,
 ): BuildStagesResult | null {
-  const { streamingStage, currentToolName, toolCalls } = input;
+  const { streamingStage, currentToolName, toolCalls, running } = input;
 
-  if (streamingStage === null) return null;
+  if (streamingStage === null) {
+    // Мёртвая зона: стрим идёт, но первый SSE-status ещё не пришёл —
+    // показываем seed «Анализирую», чтобы индикатор был непустым сразу.
+    if (running) return { stages: [{ kind: "analyzing" }], activeIndex: 0 };
+    return null;
+  }
 
   const stages: Stage[] = [{ kind: "analyzing" }];
 
