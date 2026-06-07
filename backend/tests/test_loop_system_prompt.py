@@ -45,6 +45,12 @@ def test_prompt_its_fetch_top1_directive():
     )
 
 
+def test_prompt_ask_1c_ai_primary_for_knowledge():
+    # ask_1c_ai — основной инструмент для knowledge/методики (config-aware).
+    assert "ask_1c_ai" in SYSTEM_PROMPT
+    assert "ОСНОВНОЙ" in SYSTEM_PROMPT or "основной инструмент" in SYSTEM_PROMPT.lower()
+
+
 def test_prompt_trimmed_under_budget():
     # Консервативный трим: ≤ 18000 символов (было ~22535). Режем примеры, не правила.
     assert len(SYSTEM_PROMPT) <= 18000

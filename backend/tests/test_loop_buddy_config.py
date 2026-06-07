@@ -27,3 +27,15 @@ def test_inject_noop_for_non_buddy_and_missing_ctx():
     ctx = ChannelTypicalContext("КА 2.5", "_ka2_25_92", "КА 2.5",
                                 "Комплексная автоматизация", "auto")
     assert "configuration" not in _inject_buddy_configuration("buddy.other", dict(args), ctx)
+
+
+def test_inject_config_into_ask_1c_ai():
+    ctx = ChannelTypicalContext("КА 2.5", "_ka2_25_92", "КА 2.5",
+                                "Комплексная автоматизация", "auto")
+    out = _inject_buddy_configuration("buddy.ask_1c_ai", {"question": "Как настроить RLS?"}, ctx)
+    assert out["configuration"] == "Комплексная автоматизация"
+    # явно переданное не перетираем
+    out2 = _inject_buddy_configuration(
+        "buddy.ask_1c_ai", {"question": "x", "configuration": "ERP"}, ctx
+    )
+    assert out2["configuration"] == "ERP"
