@@ -105,6 +105,24 @@ def is_its_enabled(settings: Settings) -> bool:
     return settings.is_its_ready
 
 
+async def its_index_ready(db: aiosqlite.Connection) -> bool:
+    """True если индекс ИТС реально наполнен (есть хотя бы один чанк).
+
+    Защита от ситуации «tool разрешён конфигом (is_its_enabled=True), но индекс
+    пуст или таблицы нет» — тогда search_its падал бы «ITS RAG не настроен», а
+    LLM делал вид, что искал в ИТС (жалоба пользователя). Если индекса нет —
+    tool вообще не предлагаем модели. Missing-table / любая ошибка → не готов
+    (консервативно).
+    """
+    try:
+        cursor = await db.execute("SELECT 1 FROM its_chunks LIMIT 1")
+        row = await cursor.fetchone()
+        await cursor.close()
+        return row is not None
+    except Exception:  # noqa: BLE001 — таблицы может не быть → «не готов»
+        return False
+
+
 # ============================================================================
 # Singleton embedding-клиента (lazy init, threadsafe через asyncio.Lock)
 # ============================================================================

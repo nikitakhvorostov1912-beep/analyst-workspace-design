@@ -33,6 +33,7 @@ from app.knowledge.its_tool import (
     get_embedding_client,
     is_its_enabled,
     is_its_tool,
+    its_index_ready,
     reset_embedding_client,
     set_embedding_client_for_testing,
 )
@@ -348,3 +349,30 @@ async def test_dispatch_no_api_key_returns_error(db_indexed, monkeypatch):
     )
     assert ok is False
     assert "ITS RAG" in err or "API key" in err
+
+
+# ---------- its_index_ready (гейт по реальному наполнению индекса) ----------
+
+
+async def test_its_index_ready_missing_empty_populated():
+    """search_its не должен предлагаться модели, если индекс пуст/отсутствует —
+    иначе бот «делает вид», что искал в ИТС (жалоба пользователя)."""
+    import aiosqlite
+
+    async with aiosqlite.connect(":memory:") as db:
+        # таблицы нет → не готов (conservative)
+        assert await its_index_ready(db) is False
+
+        await db.execute(
+            "CREATE TABLE its_chunks (doc_id TEXT, chunk_index INTEGER)"
+        )
+        await db.commit()
+        # таблица есть, но пустая → не готов
+        assert await its_index_ready(db) is False
+
+        await db.execute(
+            "INSERT INTO its_chunks (doc_id, chunk_index) VALUES ('d', 0)"
+        )
+        await db.commit()
+        # есть данные → готов
+        assert await its_index_ready(db) is True

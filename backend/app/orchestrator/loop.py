@@ -99,6 +99,7 @@ from app.knowledge.its_tool import (
     dispatch_its_tool,
     is_its_enabled,
     is_its_tool,
+    its_index_ready,
 )
 from app.knowledge.typical.tool import (
     TYPICAL_TOOL_SCHEMAS,
@@ -744,6 +745,7 @@ def _build_openai_tools(
     mcp_tools: list[dict],
     memory_manager: Any,
     settings: Any = None,
+    its_ready: bool = True,
 ) -> list[dict]:
     """Конвертирует MCP tools в OpenAI function format + добавляет internal tools.
 
@@ -760,7 +762,11 @@ def _build_openai_tools(
     openai_tools = openai_tools + memory_tool_schemas(memory_manager)
     openai_tools = openai_tools + TODO_TOOL_SCHEMAS
     openai_tools = openai_tools + [CLARIFY_TOOL_SCHEMA]
-    if settings is not None and is_its_enabled(settings):
+    # search_its предлагаем модели только если индекс ИТС реально наполнен
+    # (its_ready). Иначе бот «делал вид», что искал ИТС, а поиск падал «не
+    # настроен» (жалоба пользователя). is_its_enabled — конфиг-гейт, its_ready —
+    # фактический (есть ли чанки в индексе, считается в run_chat_loop).
+    if settings is not None and is_its_enabled(settings) and its_ready:
         openai_tools = openai_tools + [ITS_TOOL_SCHEMA]
     if settings is not None and is_bsp_enabled(settings):
         openai_tools = openai_tools + [BSP_TOOL_SCHEMA]
@@ -1426,8 +1432,12 @@ async def run_chat_loop(
         mcp_tools = await pool.list_all_tools()
         # P1.2 phase 3 (2026-05-24): сборка openai_tools вынесена в helper.
         # MCP + memory_* + todo_* + clarify_question — единый список для LLM.
-        # M-K2.7: + search_its (ИТС RAG) если settings.is_its_ready.
-        openai_tools = _build_openai_tools(mcp_tools, memory_manager, settings)
+        # M-K2.7: + search_its (ИТС RAG) если settings.is_its_ready И индекс
+        # реально наполнен (its_index_ready) — иначе tool не предлагаем.
+        _its_ready = await its_index_ready(db)
+        openai_tools = _build_openai_tools(
+            mcp_tools, memory_manager, settings, its_ready=_its_ready,
+        )
     except Exception:
         logger.exception("Ошибка инициализации MCP pool")
         yield format_sse("error", ErrorEvent(
