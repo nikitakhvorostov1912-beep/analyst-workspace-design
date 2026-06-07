@@ -223,6 +223,20 @@ def _its_doc_id_from_url(url: str) -> str | None:
     return f"its-{m.group(1)}-{m.group(2)}-{m.group(3)}"
 
 
+# Платформа/методология ИТС — универсально-авторитетные источники, всплывают выше.
+_ITS_PLATFORM_STEMS = ("pubdevguide", "pubprof", "bsp", "v8std", "dev")
+_ITS_PLATFORM_EXACT = frozenset({"answers1c"})
+
+
+def _its_relevance(url: str) -> int:
+    """0 — платформа/методология (выше), 1 — прочее (ниже). Меньше = выше."""
+    m = re.search(r"its\.1c\.ru/db/([^#/?\s]+)", url or "")
+    db = (m.group(1) if m else "").lower()
+    if db in _ITS_PLATFORM_EXACT or db.startswith(_ITS_PLATFORM_STEMS):
+        return 0
+    return 1
+
+
 def _extract_mcp_text(result: dict) -> str:
     """Сырой текст из MCP content[] (без попытки json-парсинга)."""
     content = result.get("content") if isinstance(result, dict) else None
@@ -252,6 +266,8 @@ def _build_its_sources_card(args: dict, result: dict) -> dict | None:
         sources.append(ITSSource(title=title, url=url, doc_id=_its_doc_id_from_url(url)))
     if not sources:
         return None
+    # Стабильная сортировка: платформа/методология вперёд, прочие — в порядке выдачи.
+    sources.sort(key=lambda s: _its_relevance(s.url))
     payload = ITSSourcesCardPayload(
         sources=sources, total=len(sources), card_id=str(uuid4())
     )

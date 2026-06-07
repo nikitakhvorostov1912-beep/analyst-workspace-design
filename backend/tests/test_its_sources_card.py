@@ -43,10 +43,10 @@ def test_card_built_from_search_its():
     sources = card["payload"]["sources"]
     assert len(sources) == 3
     # порядок сохранён, doc_id сконструирован из URL (или None без якоря)
-    assert sources[0]["url"] == "https://its.1c.ru/db/molmoderpka25#content:711:hdoc"
-    assert sources[0]["doc_id"] == "its-molmoderpka25-711-hdoc"
-    assert sources[1]["doc_id"] == "its-pubdevguide83-461-hdoc"
-    assert sources[2]["doc_id"] is None  # без якоря — кнопки не будет
+    by_url = {s["url"]: s["doc_id"] for s in sources}
+    assert by_url["https://its.1c.ru/db/molmoderpka25#content:711:hdoc"] == "its-molmoderpka25-711-hdoc"
+    assert by_url["https://its.1c.ru/db/pubdevguide83#content:461:hdoc"] == "its-pubdevguide83-461-hdoc"
+    assert by_url["https://its.1c.ru/db/bsp321doc"] is None  # без якоря — кнопки не будет
     assert card["payload"]["total"] == 3
     assert card["payload"]["card_id"]  # uuid проставлен
 
@@ -70,6 +70,21 @@ def test_built_card_passes_card_event_validation():
     assert card is not None
     ev = CardEvent(type=card["type"], payload=card["payload"])
     assert ev.type == "its_sources"
+
+
+def test_platform_sources_sorted_first():
+    # Шум-конфа идёт ПЕРВОЙ в выдаче, но платформа/методология должна всплыть выше.
+    text = (
+        "[Фотоуслуги](https://its.1c.ru/db/fotosuv#content:410:hdoc)\n"
+        "[Практическое пособие разработчика](https://its.1c.ru/db/pubdevguide83#content:461:hdoc)\n"
+        "[ЖКХ](https://its.1c.ru/db/uukgkx303#content:1:hdoc)\n"
+        "[БСП 3.2.1](https://its.1c.ru/db/bsp321doc#content:4:hdoc)\n"
+    )
+    card = build_card_from_tool_result("buddy.search_its", {}, _mcp_result(text))
+    assert card is not None
+    dbs = [s["url"].split("/db/")[1].split("#")[0] for s in card["payload"]["sources"]]
+    assert dbs.index("pubdevguide83") < dbs.index("fotosuv")
+    assert dbs.index("bsp321doc") < dbs.index("uukgkx303")
 
 
 def test_dedup_same_url():
