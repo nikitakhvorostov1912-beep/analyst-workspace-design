@@ -19,6 +19,8 @@ interface ThreadProps {
   sessionId?: string;
   /** F-06: повтор вопроса — передаётся текст предыдущего user-сообщения. */
   onRepeat?: (content: string) => void;
+  /** Карточка ИТС → «Разобрать статью»: отправка нового сообщения. */
+  onAsk?: (text: string) => void;
 }
 
 /**
@@ -70,7 +72,7 @@ function EmptyState() {
   );
 }
 
-export function Thread({ messages, streamingStage, currentToolName, isStreaming, streamStartedAt, sessionId, onRepeat }: ThreadProps) {
+export function Thread({ messages, streamingStage, currentToolName, isStreaming, streamStartedAt, sessionId, onRepeat, onAsk }: ThreadProps) {
   // tool-сообщения не рендерятся в Thread — только в Trace panel (Plan 2.5)
   const visibleMessages = messages.filter((m) => m.role !== "tool");
   const hasMessages = visibleMessages.length > 0;
@@ -166,6 +168,7 @@ export function Thread({ messages, streamingStage, currentToolName, isStreaming,
                 streamStartedAt={i === lastAssistantIdx ? streamStartedAt : null}
                 sessionId={sessionId}
                 onRepeat={prevUser ? () => onRepeat?.(prevUser) : undefined}
+                onAsk={onAsk}
               />
             );
           })}

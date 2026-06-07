@@ -41,6 +41,8 @@ interface AssistantMessageProps {
   sessionId?: string;
   /** F-06: повтор предыдущего вопроса (re-ask). Если не задан — кнопка скрыта. */
   onRepeat?: () => void;
+  /** Карточка ИТС → «Разобрать статью»: отправка follow-up к модели (fetch_its). */
+  onAsk?: (text: string) => void;
 }
 
 /**
@@ -58,6 +60,7 @@ export function AssistantMessage({
   streamStartedAt = null,
   sessionId,
   onRepeat,
+  onAsk,
 }: AssistantMessageProps) {
   // Cache fallback after ChannelSelector sync: getMCPConnections() читает localStorage-кеш,
   // который заполняется через syncMCPConnections() в ChannelSelector после успешного fetchConnections().
@@ -174,7 +177,7 @@ export function AssistantMessage({
         {message.cards && message.cards.length > 0 && (
           <div className="space-y-3 mt-3">
             {message.cards.map((card, i) => (
-              <CardRenderer key={i} card={card} context={cardContext} />
+              <CardRenderer key={i} card={card} context={cardContext} sendMessage={onAsk} />
             ))}
           </div>
         )}

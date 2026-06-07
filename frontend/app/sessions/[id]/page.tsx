@@ -433,6 +433,9 @@ export default function SessionPage() {
               onRepeat={(content) => {
                 if (!isStreaming) void send(content);
               }}
+              onAsk={(text) => {
+                if (!isStreaming) void send(text);
+              }}
             />
           </ChatErrorBoundary>
           {pendingClarify && (

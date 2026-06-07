@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { ITSSourcesCard } from "../ITSSourcesCard";
+import { CardRenderer } from "../CardRenderer";
 import type { ITSSourcesCardPayload } from "@/lib/types";
 
 const payload: ITSSourcesCardPayload = {
@@ -36,5 +37,21 @@ describe("ITSSourcesCard", () => {
   it("без onAnalyze кнопок нет (read-only история)", () => {
     render(<ITSSourcesCard payload={payload} />);
     expect(screen.queryByRole("button", { name: /Разобрать/ })).toBeNull();
+  });
+});
+
+describe("CardRenderer · its_sources", () => {
+  it("прокидывает sendMessage → onAnalyze с шаблоном fetch_its", () => {
+    const sendMessage = vi.fn();
+    render(
+      <CardRenderer
+        card={{ type: "its_sources", payload }}
+        sendMessage={sendMessage}
+      />,
+    );
+    fireEvent.click(screen.getAllByRole("button", { name: /Разобрать/ })[0]);
+    expect(sendMessage).toHaveBeenCalledWith(
+      expect.stringContaining('fetch_its(id="its-pubdevguide83-461-hdoc")'),
+    );
   });
 });

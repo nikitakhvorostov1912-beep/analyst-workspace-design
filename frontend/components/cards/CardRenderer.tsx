@@ -7,6 +7,7 @@ import { ObjectCard } from "./ObjectCard";
 import { LogCard } from "./LogCard";
 import { MetricCard } from "./MetricCard";
 import { ReferencesCard } from "./ReferencesCard";
+import { ITSSourcesCard } from "./ITSSourcesCard";
 import { CodeCard } from "./CodeCard";
 import { deanonymizeCard, loadMoreLogEntries } from "@/lib/api";
 
@@ -21,7 +22,7 @@ const GraphCard = dynamic(() => import("./GraphCard").then((m) => m.GraphCard), 
     </div>
   ),
 });
-import type { CardEnvelope, CardContext, ReferenceItem } from "@/lib/types";
+import type { CardEnvelope, CardContext, ReferenceItem, ITSSource } from "@/lib/types";
 
 interface CardRendererProps {
   card: CardEnvelope;
@@ -109,6 +110,19 @@ export function CardRenderer({ card, context, sendMessage }: CardRendererProps) 
             payload={card.payload}
             onLinkClick={onLinkClick}
           />
+        </CardMountWrapper>
+      );
+    }
+    case "its_sources": {
+      const onAnalyze = sendMessage
+        ? (s: ITSSource) =>
+            sendMessage(
+              `Разбери статью ИТС «${s.title}»: вызови fetch_its(id="${s.doc_id}") и дай разбор.`,
+            )
+        : undefined;
+      return (
+        <CardMountWrapper>
+          <ITSSourcesCard payload={card.payload} onAnalyze={onAnalyze} />
         </CardMountWrapper>
       );
     }

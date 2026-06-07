@@ -14,9 +14,11 @@ interface MessageProps {
   sessionId?: string;
   /** F-06: повтор предыдущего вопроса (только для assistant-сообщений). */
   onRepeat?: () => void;
+  /** Проброс «Разобрать статью» из карточки ИТС в send. */
+  onAsk?: (text: string) => void;
 }
 
-function MessageBase({ message, streamingStage, currentToolName, isStreaming, streamStartedAt, sessionId, onRepeat }: MessageProps) {
+function MessageBase({ message, streamingStage, currentToolName, isStreaming, streamStartedAt, sessionId, onRepeat, onAsk }: MessageProps) {
   // tool messages не рендерятся в Thread — только в Trace panel (Plan 2.5)
   if (message.role === "tool") return null;
 
@@ -30,6 +32,7 @@ function MessageBase({ message, streamingStage, currentToolName, isStreaming, st
         streamStartedAt={streamStartedAt}
         sessionId={sessionId}
         onRepeat={onRepeat}
+        onAsk={onAsk}
       />
     );
   }
