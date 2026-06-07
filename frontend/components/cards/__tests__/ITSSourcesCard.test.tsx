@@ -16,6 +16,15 @@ const payload: ITSSourcesCardPayload = {
   ],
 };
 
+const fivePayload: ITSSourcesCardPayload = {
+  total: 5,
+  sources: [1, 2, 3, 4, 5].map((n) => ({
+    title: `Статья ${n}`,
+    url: `https://its.1c.ru/db/x${n}#content:${n}:hdoc`,
+    doc_id: `its-x${n}-${n}-hdoc`,
+  })),
+};
+
 describe("ITSSourcesCard", () => {
   it("рендерит ссылки на its.1c.ru (открываются в новой вкладке)", () => {
     render(<ITSSourcesCard payload={payload} />);
@@ -37,6 +46,18 @@ describe("ITSSourcesCard", () => {
   it("без onAnalyze кнопок нет (read-only история)", () => {
     render(<ITSSourcesCard payload={payload} />);
     expect(screen.queryByRole("button", { name: /Разобрать/ })).toBeNull();
+  });
+
+  it("показывает 3 источника + кнопку «показать ещё N»", () => {
+    render(<ITSSourcesCard payload={fivePayload} />);
+    expect(screen.getAllByRole("link")).toHaveLength(3);
+    fireEvent.click(screen.getByRole("button", { name: /показать ещё 2/ }));
+    expect(screen.getAllByRole("link")).toHaveLength(5);
+  });
+
+  it("при ≤3 источниках кнопки свёртки нет", () => {
+    render(<ITSSourcesCard payload={payload} />); // 2 источника
+    expect(screen.queryByRole("button", { name: /показать ещё/ })).toBeNull();
   });
 });
 

@@ -1,8 +1,11 @@
 "use client";
 
-import { ExternalLink, Sparkles } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown, ExternalLink, Sparkles } from "lucide-react";
 import type { ITSSource, ITSSourcesCardPayload } from "@/lib/types";
 import { CardHeader } from "./CardHeader";
+
+const COLLAPSED_COUNT = 3;
 
 interface ITSSourcesCardProps {
   payload: ITSSourcesCardPayload;
@@ -12,13 +15,16 @@ interface ITSSourcesCardProps {
 
 export function ITSSourcesCard({ payload, onAnalyze }: ITSSourcesCardProps) {
   const { sources, total } = payload;
+  const [expanded, setExpanded] = useState(false);
   const meta = `${total} ${total === 1 ? "статья" : total < 5 ? "статьи" : "статей"}`;
+  const visible = expanded ? sources : sources.slice(0, COLLAPSED_COUNT);
+  const hidden = sources.length - visible.length;
 
   return (
     <div className="rounded-lg border border-[var(--border)] bg-[var(--bg-elevated)] overflow-hidden">
       <CardHeader type="its_sources" title="Источники ИТС" meta={meta} />
       <ul className="py-0.5">
-        {sources.map((s, idx) => (
+        {visible.map((s, idx) => (
           <li
             key={idx}
             className="px-3 py-1.5 flex items-start gap-2 border-b border-[var(--border)] last:border-b-0"
@@ -46,6 +52,16 @@ export function ITSSourcesCard({ payload, onAnalyze }: ITSSourcesCardProps) {
           </li>
         ))}
       </ul>
+      {hidden > 0 && (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="w-full flex items-center justify-center gap-1 px-3 py-1.5 text-[11px] text-[var(--accent)] hover:bg-[var(--bg-surface)] border-t border-[var(--border)]"
+        >
+          <ChevronDown className="h-3 w-3" />
+          показать ещё {hidden}
+        </button>
+      )}
     </div>
   );
 }
