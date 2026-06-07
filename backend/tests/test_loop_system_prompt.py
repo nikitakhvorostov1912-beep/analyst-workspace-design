@@ -43,3 +43,15 @@ def test_prompt_its_fetch_top1_directive():
         "не дублируй" in SYSTEM_PROMPT.lower()
         or "не повторяй ссылк" in SYSTEM_PROMPT.lower()
     )
+
+
+def test_prompt_trimmed_under_budget():
+    # Консервативный трим: ≤ 18000 символов (было ~22535). Режем примеры, не правила.
+    assert len(SYSTEM_PROMPT) <= 18000
+    # Ключевые ПРАВИЛА на месте (не вырезать):
+    assert "НИКОГДА не отвечай по «общим знаниям»" in SYSTEM_PROMPT
+    assert "СТРАТЕГИЯ ВЫБОРА ИСТОЧНИКОВ" in SYSTEM_PROMPT
+    assert "meta_type" in SYSTEM_PROMPT
+    assert "ТекущаяДатаСеанса" in SYSTEM_PROMPT
+    assert "memory_append" in SYSTEM_PROMPT
+    assert "```chart" in SYSTEM_PROMPT  # формат графика сохранён (хотя бы 1 пример)
