@@ -33,3 +33,13 @@ def test_system_prompt_has_howto_style_guidance():
     # B.4d: для «как сделать X» — практические шаги, не дамп реквизитов.
     assert "практическ" in SYSTEM_PROMPT.lower()
     assert "как сделать" in SYSTEM_PROMPT.lower() or "how-to" in SYSTEM_PROMPT.lower()
+
+
+def test_prompt_its_fetch_top1_directive():
+    # ИТС: search_its -> fetch_its топ-1, ссылки не дублировать (есть карточка).
+    assert "fetch_its" in SYSTEM_PROMPT
+    assert "карточк" in SYSTEM_PROMPT.lower()
+    assert (
+        "не дублируй" in SYSTEM_PROMPT.lower()
+        or "не повторяй ссылк" in SYSTEM_PROMPT.lower()
+    )
