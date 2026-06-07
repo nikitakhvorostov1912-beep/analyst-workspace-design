@@ -5,6 +5,7 @@ from app.orchestrator.cards import (
     _its_doc_id_from_url,
     build_card_from_tool_result,
 )
+from app.orchestrator.events import CardEvent
 
 # Усечённый, но реальный по форме результат buddy.search_its (см. probe).
 _SEARCH_ITS_TEXT = (
@@ -58,6 +59,17 @@ def test_no_its_links_returns_none():
         _mcp_result("найдено 2 документов\nУправлениеБлокировкой/Элемент\n"),
     )
     assert card is None
+
+
+def test_built_card_passes_card_event_validation():
+    # Регресс: тип its_sources должен приниматься SSE-моделью CardEvent
+    # (иначе loop.py падает «1 validation error for CardEvent» при эмиссии).
+    card = build_card_from_tool_result(
+        "buddy.search_its", {"query": "RLS"}, _mcp_result(_SEARCH_ITS_TEXT)
+    )
+    assert card is not None
+    ev = CardEvent(type=card["type"], payload=card["payload"])
+    assert ev.type == "its_sources"
 
 
 def test_dedup_same_url():
