@@ -125,6 +125,22 @@ class CodeCardPayload(BaseModel):
     card_id: str | None = None
 
 
+class ITSSource(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    title: str
+    url: str
+    doc_id: str | None = None  # для fetch_its; None если URL без якоря content:N:kind
+
+
+class ITSSourcesCardPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    sources: list[ITSSource]
+    total: int
+    card_id: str | None = None
+
+
 def _infer_type_from_value(value: object) -> str:
     """Выводит тип колонки из значения первой строки."""
     if isinstance(value, bool):
@@ -187,6 +203,59 @@ def _extract_mcp_content(result: dict) -> dict | None:
             except (json.JSONDecodeError, TypeError):
                 pass
     return None
+
+
+# Ссылка на статью ИТС в markdown результата buddy.search_its.
+_ITS_LINK_RE = re.compile(r"\[([^\]]+)\]\((https?://its\.1c\.ru/[^\s)]+)\)")
+# Якорь content:N:kind → конструируем стабильный doc_id для fetch_its.
+_ITS_ANCHOR_RE = re.compile(r"its\.1c\.ru/db/([^#/?\s]+)#content:(\d+):(hdoc|hdir)")
+
+
+def _its_doc_id_from_url(url: str) -> str | None:
+    """its.1c.ru/db/pubdevguide83#content:461:hdoc -> its-pubdevguide83-461-hdoc.
+
+    URL без якоря content:N:kind -> None (fetch_its по нему не вызвать,
+    кнопка «Разобрать» скрывается, ссылка остаётся).
+    """
+    m = _ITS_ANCHOR_RE.search(url or "")
+    if not m:
+        return None
+    return f"its-{m.group(1)}-{m.group(2)}-{m.group(3)}"
+
+
+def _extract_mcp_text(result: dict) -> str:
+    """Сырой текст из MCP content[] (без попытки json-парсинга)."""
+    content = result.get("content") if isinstance(result, dict) else None
+    if not isinstance(content, list):
+        return ""
+    parts = [
+        item.get("text", "")
+        for item in content
+        if isinstance(item, dict) and item.get("type") == "text"
+    ]
+    return "\n".join(p for p in parts if p)
+
+
+def _build_its_sources_card(args: dict, result: dict) -> dict | None:
+    """Карточка «Источники ИТС» из markdown-результата buddy.search_its."""
+    text = _extract_mcp_text(result)
+    if not text:
+        return None
+    seen: set[str] = set()
+    sources: list[ITSSource] = []
+    for m in _ITS_LINK_RE.finditer(text):
+        title = m.group(1).strip()
+        url = m.group(2).strip()
+        if url in seen:
+            continue
+        seen.add(url)
+        sources.append(ITSSource(title=title, url=url, doc_id=_its_doc_id_from_url(url)))
+    if not sources:
+        return None
+    payload = ITSSourcesCardPayload(
+        sources=sources, total=len(sources), card_id=str(uuid4())
+    )
+    return {"type": "its_sources", "payload": payload.model_dump()}
 
 
 def _build_table_card(args: dict, result: dict) -> dict | None:
@@ -554,6 +623,8 @@ _CARD_BUILDERS = {
     "find_references_to_object": _build_references_card,
     "execute_code": _build_code_card,
     "get_bsl_syntax_help": _build_code_card,
+    "buddy.search_its": _build_its_sources_card,
+    "buddy.search_1c_documentation": _build_its_sources_card,
 }
 
 
