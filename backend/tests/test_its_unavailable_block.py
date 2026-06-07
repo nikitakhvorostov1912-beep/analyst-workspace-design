@@ -7,6 +7,7 @@ RAG-индекса тоже нет — модель не должна «дела
 from __future__ import annotations
 
 from app.orchestrator.loop import (
+    SYSTEM_PROMPT,
     _build_full_system_prompt,
     _its_unavailable_block,
     _looks_like_its_question,
@@ -77,3 +78,16 @@ def test_its_word_boundary_no_false_positive():
     # «получится»/«защитится» содержат подстроку «итс», но это НЕ про ИТС
     assert not _looks_like_its_question("когда это получится сделать")
     assert not _looks_like_its_question("надеюсь всё защитится автоматически")
+
+
+# --- ИТС-центричная стратегия выбора источников (политика в SYSTEM_PROMPT) ---
+
+
+def test_system_prompt_has_its_centric_strategy():
+    # Страховка: секция-политика и её ключевые правила не должны пропасть.
+    assert "СТРАТЕГИЯ ВЫБОРА ИСТОЧНИКОВ" in SYSTEM_PROMPT
+    assert "buddy.search_its" in SYSTEM_PROMPT
+    # ИТС по умолчанию для не-data вопросов
+    assert "СНАЧАЛА сверься с ИТС" in SYSTEM_PROMPT
+    # многофакторный вопрос → синтез нескольких источников
+    assert "СИНТЕЗИРУЙ" in SYSTEM_PROMPT
