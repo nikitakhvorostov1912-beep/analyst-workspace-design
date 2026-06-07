@@ -288,6 +288,18 @@ export type CodeCardPayload = {
   card_id?: string | null;
 };
 
+export type ITSSource = {
+  title: string;
+  url: string;
+  doc_id?: string | null;
+};
+
+export type ITSSourcesCardPayload = {
+  sources: ITSSource[];
+  total: number;
+  card_id?: string | null;
+};
+
 // M-K3.17.7: Knowledge Graph card (L2). Payload = форма get_subgraph.to_dict().
 export type GraphNodePayload = {
   id: number;
@@ -322,7 +334,8 @@ export type CardEnvelope =
   | { type: "metric"; payload: MetricCardPayload }
   | { type: "references"; payload: ReferencesCardPayload }
   | { type: "code"; payload: CodeCardPayload }
-  | { type: "graph"; payload: GraphCardPayload };
+  | { type: "graph"; payload: GraphCardPayload }
+  | { type: "its_sources"; payload: ITSSourcesCardPayload };
 
 // Запись об одном tool call — для Trace panel (Plan 2.5)
 export type ToolCallRecord = {

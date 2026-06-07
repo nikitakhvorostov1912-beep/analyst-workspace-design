@@ -2,6 +2,7 @@
 
 import type { ComponentType } from "react";
 import {
+  BookMarked,
   Code2,
   FileClock,
   FileText,
@@ -15,7 +16,7 @@ import {
 import { cn } from "@/lib/utils";
 import { CardActionMenu, type CardActionItem } from "./CardActionMenu";
 
-export type CardType = "table" | "object" | "log" | "metric" | "references" | "code" | "graph";
+export type CardType = "table" | "object" | "log" | "metric" | "references" | "code" | "graph" | "its_sources";
 
 interface TypeMeta {
   icon: ComponentType<{ className?: string }>;
@@ -39,6 +40,11 @@ const TYPE_META: Record<CardType, TypeMeta> = {
   },
   code: { icon: Code2, label: "Код", accentClass: "text-[var(--accent)]" },
   graph: { icon: Network, label: "Граф", accentClass: "text-[var(--accent)]" },
+  its_sources: {
+    icon: BookMarked,
+    label: "Источники ИТС",
+    accentClass: "text-[var(--accent)]",
+  },
 };
 
 interface CardHeaderProps {
