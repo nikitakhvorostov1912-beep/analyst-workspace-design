@@ -6,7 +6,11 @@ RAG-индекса тоже нет — модель не должна «дела
 """
 from __future__ import annotations
 
-from app.orchestrator.loop import _build_full_system_prompt, _its_unavailable_block
+from app.orchestrator.loop import (
+    _build_full_system_prompt,
+    _its_unavailable_block,
+    _looks_like_its_question,
+)
 
 
 def test_block_empty_when_buddy_up():
@@ -46,3 +50,30 @@ def test_full_prompt_omits_empty_its_block():
     p = _build_full_system_prompt("mem", "", "", its_block="")
     # пустой блок не должен добавлять лишних пустых секций перед памятью
     assert "ИТС НЕДОСТУПЕН" not in p
+
+
+# --- детектор ИТС-вопроса для детерминированного гейта ---
+
+
+def test_detects_explicit_its():
+    assert _looks_like_its_question("Настройка RLS в 1С по ИТС")
+
+
+def test_detects_methodology():
+    assert _looks_like_its_question("какая методика закрытия месяца")
+    assert _looks_like_its_question("как правильно проводить реализацию")
+
+
+def test_detects_bsp():
+    assert _looks_like_its_question("какие методы у БСП для длительных операций")
+
+
+def test_ignores_data_question():
+    assert not _looks_like_its_question("сколько контрагентов в базе")
+    assert not _looks_like_its_question("покажи последние документы за апрель")
+
+
+def test_its_word_boundary_no_false_positive():
+    # «получится»/«защитится» содержат подстроку «итс», но это НЕ про ИТС
+    assert not _looks_like_its_question("когда это получится сделать")
+    assert not _looks_like_its_question("надеюсь всё защитится автоматически")

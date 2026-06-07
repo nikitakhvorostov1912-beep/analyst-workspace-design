@@ -39,6 +39,7 @@ P1.2 — извлечь 4 функции и LoopContext dataclass.
 import asyncio
 import json
 import logging
+import re
 import time
 from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING, Any
@@ -1203,6 +1204,25 @@ def _typical_search_budget_exceeded(accumulated_tool_calls: list[dict]) -> bool:
     return n >= MAX_TYPICAL_SEARCH_CALLS_PER_TURN
 
 
+# #3: маркеры явного ИТС/методического вопроса для детерминированного гейта.
+# \bитс\b — словом (а не подстрокой), иначе ловит «получится»/«защитится».
+_ITS_QUESTION_RE = re.compile(
+    r"\bитс\b|метод(ик|олог)|как правильно|\bбсп\b|лучш\w*\s+практик|best practice",
+    re.IGNORECASE,
+)
+
+
+def _looks_like_its_question(message: str) -> bool:
+    """Похоже ли сообщение на явный вопрос про ИТС / методику 1С.
+
+    Грубый, но осознанно консервативный детектор для гейта #3: ловит явные
+    маркеры («по ИТС», «методика», «как правильно», «БСП», «лучшие практики»).
+    Ложные срабатывания дёшевы (лишний clarify — пользователь выберет источник),
+    пропуски (вопрос без маркеров) добивает мягкий промпт-блок.
+    """
+    return bool(_ITS_QUESTION_RE.search(message or ""))
+
+
 def _its_unavailable_block(*, buddy_status: str, its_tool_available: bool) -> str:
     """Блок-инструкция, когда у LLM НЕТ ни одного источника ИТС.
 
@@ -1514,21 +1534,72 @@ async def run_chat_loop(
     _its_tool_available = (
         settings is not None and is_its_enabled(settings) and _its_ready
     )
+    its_block = _its_unavailable_block(
+        buddy_status=_buddy_status, its_tool_available=_its_tool_available,
+    )
     full_system_prompt = _build_full_system_prompt(
         memory_system_block(memory_manager),
         _render_skills_block(skill_store, skill_usage),
         render_todos_for_prompt(session_id),
         mentions_block=mentions_context_block,
         config_block=_build_config_block(channel_config_ctx),
-        its_block=_its_unavailable_block(
-            buddy_status=_buddy_status, its_tool_available=_its_tool_available,
-        ),
+        its_block=its_block,
     )
 
     messages: list[dict] = [
         {"role": "system", "content": full_system_prompt},
         *history_msgs,
     ]
+
+    # #3 ДЕТЕРМИНИРОВАННЫЙ гейт: Напарник недоступен (its_block непустой = offline
+    # + нет RAG) И вопрос явно про ИТС → НЕ отдаём ход модели. Промпт-инструкцию
+    # MiMo игнорирует и фабрикует «Источники ИТС» (проверено live), поэтому
+    # принудительно спрашиваем источник тем же clarify-механизмом, что и LLM.
+    if its_block and _looks_like_its_question(request.message):
+        _its_clr_id = new_clarify_id()
+        _its_clr_q = "ИТС (Напарник) недоступен. Где искать ответ?"
+        _its_clr_opts = ["Поискать в вашей базе 1С", "Пройтись по типовой конфигурации"]
+        _its_pending = CLARIFY.register(
+            _its_clr_id, _its_clr_q, _its_clr_opts, multi=False, allow_custom=True,
+        )
+        yield format_sse("clarify_required", ClarifyRequiredEvent(
+            clarify_id=_its_clr_id, question=_its_clr_q,
+            options=_its_clr_opts, multi=False, allow_custom=True,
+        ))
+        try:
+            try:
+                _its_answer = await asyncio.wait_for(
+                    _its_pending.future, timeout=CLARIFY_TIMEOUT_S,
+                )
+            except (TimeoutError, asyncio.CancelledError):
+                yield format_sse("error", ErrorEvent(
+                    message=(
+                        f"Уточнение не получено за "
+                        f"{int(CLARIFY_TIMEOUT_S / 60)} минут."
+                    ),
+                    code="clarify_timeout",
+                ))
+                await pool.aclose()
+                return
+        finally:
+            CLARIFY.cancel(_its_clr_id)
+        _its_ans = (
+            ", ".join(_its_answer) if isinstance(_its_answer, list)
+            else str(_its_answer)
+        )
+        # Выбор источника — в контекст. Дальше модель работает по нему и НЕ
+        # выдумывает ИТС (живого источника всё равно нет).
+        messages.append({
+            "role": "system",
+            "content": (
+                f"ИТС (Напарник) недоступен. Пользователь выбрал источник: "
+                f"«{_its_ans}». НЕ выдумывай статьи и ссылки ИТС. Если выбрана "
+                "база — отвечай ТОЛЬКО через MCP-инструменты живой базы. Если "
+                "типовая — через list_typical_configurations / "
+                "search_typical_objects / explain_typical_object. Иначе следуй "
+                "ответу пользователя."
+            ),
+        })
 
     accumulated_content = ""
     accumulated_tool_calls: list[dict] = []
