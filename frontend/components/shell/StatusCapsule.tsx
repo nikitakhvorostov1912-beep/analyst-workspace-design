@@ -9,6 +9,7 @@ import {
   Database,
   Cpu,
   ShieldCheck,
+  BookOpen,
 } from "lucide-react";
 import {
   Popover,
@@ -16,10 +17,10 @@ import {
   PopoverContent,
 } from "@/components/ui/popover";
 import { StatusDot, type ConnectionStatus } from "@/components/ui/StatusDot";
-import { fetchConnections, fetchLLMConfig, pingConnection } from "@/lib/api";
+import { fetchConnections, fetchLLMConfig, fetchHealth, pingConnection } from "@/lib/api";
 import { getActiveChannelId } from "@/lib/storage";
 import { resolveProviderAndModel } from "@/lib/llm-providers";
-import type { MCPConnection } from "@/lib/types";
+import type { BuddyHealth, MCPConnection } from "@/lib/types";
 
 type Ping = "checking" | "ok" | "error" | "unknown";
 
@@ -27,6 +28,27 @@ function pingToStatus(p: Ping): ConnectionStatus {
   if (p === "ok") return "online";
   if (p === "checking") return "connecting";
   return "offline";
+}
+
+type BuddyView = { status: ConnectionStatus; value: string; sub?: string };
+
+/**
+ * Статус живого 1С:Напарника (ИТС) → строка индикатора в шапке.
+ * ИТС-поиск идёт ТОЛЬКО через Напарника (buddy MCP :6002); если он не поднят —
+ * честно показываем «Недоступен», а не делаем вид, что искали. enabled=false /
+ * отсутствие поля (старый backend) → «Выключен».
+ */
+export function buddyView(b: BuddyHealth | null | undefined): BuddyView {
+  if (!b || !b.enabled) {
+    return { status: "offline", value: "Выключен", sub: "ИТС-поиск отключён" };
+  }
+  if (b.status === "up") {
+    return { status: "online", value: "Работает", sub: "живой поиск по ИТС" };
+  }
+  if (b.status === "down") {
+    return { status: "offline", value: "Недоступен", sub: "запустите 1c-buddy :6002" };
+  }
+  return { status: "connecting", value: "Проверка…" };
 }
 
 function hostPort(endpoint: string): string {
@@ -58,6 +80,7 @@ export function StatusCapsule({
   const [ping, setPing] = useState<Ping>("unknown");
   const [latencyMs, setLatencyMs] = useState<number | null>(null);
   const [model, setModel] = useState<string | null>(null);
+  const [buddy, setBuddy] = useState<BuddyHealth | null>(null);
   const [open, setOpen] = useState(false);
 
   const channelId = activeChannelId ?? getActiveChannelId();
@@ -99,6 +122,18 @@ export function StatusCapsule({
     };
   }, []);
 
+  // Статус Напарника (ИТС) из /health.buddy. Без отдельного polling —
+  // обновляем на mount, открытии поповера и возврате фокуса (как ping базы).
+  async function refreshBuddy() {
+    try {
+      const h = await fetchHealth();
+      setBuddy(h.buddy ?? null);
+    } catch {
+      // backend лёг — отдельно видно по ping базы; не считаем Напарника «живым»
+      setBuddy(null);
+    }
+  }
+
   async function doPing() {
     if (!channelId) return;
     setPing("checking");
@@ -117,11 +152,13 @@ export function StatusCapsule({
     }
   }
 
-  // Пинг при первом mount и при возврате фокуса (если не ok).
+  // Пинг базы + статус Напарника при первом mount и при возврате фокуса.
   useEffect(() => {
     void doPing();
+    void refreshBuddy();
     const onFocus = () => {
       if (ping !== "ok") void doPing();
+      void refreshBuddy();
     };
     window.addEventListener("focus", onFocus);
     return () => window.removeEventListener("focus", onFocus);
@@ -131,13 +168,17 @@ export function StatusCapsule({
   const dbOk = ping === "ok";
   const overall: ConnectionStatus =
     ping === "error" ? "offline" : ping === "checking" ? "connecting" : "online";
+  const bv = buddyView(buddy);
 
   return (
     <Popover
       open={open}
       onOpenChange={(o) => {
         setOpen(o);
-        if (o) void doPing();
+        if (o) {
+          void doPing();
+          void refreshBuddy();
+        }
       }}
     >
       <PopoverTrigger asChild>
@@ -164,6 +205,19 @@ export function StatusCapsule({
                 }}
               >
                 {latencyMs} мс
+              </span>
+            </>
+          )}
+          {buddy?.enabled && (
+            <>
+              <span aria-hidden className="h-3 w-px bg-[var(--bd-2)]" />
+              <span
+                className="inline-flex items-center gap-1"
+                title={`ИТС · Напарник: ${bv.value}`}
+                data-testid="buddy-capsule"
+              >
+                <BookOpen className="h-3 w-3 text-[var(--fg-3)]" aria-hidden />
+                <StatusDot status={bv.status} size="sm" aria-label={`Напарник: ${bv.value}`} />
               </span>
             </>
           )}
@@ -206,6 +260,16 @@ export function StatusCapsule({
           label="Модель"
           value={model ?? "не задана"}
           status="online"
+        />
+
+        {/* ИТС · Напарник (живой поиск по ИТС через buddy MCP :6002) */}
+        <Row
+          icon={<BookOpen className="h-3.5 w-3.5" />}
+          label="ИТС · Напарник"
+          value={bv.value}
+          sub={bv.sub}
+          status={bv.status}
+          data-testid="buddy-status"
         />
 
         {/* Анонимизация (read-only, источник — 1С) */}
