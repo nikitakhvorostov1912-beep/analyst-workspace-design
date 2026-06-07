@@ -1037,6 +1037,26 @@ def _inject_buddy_configuration(tool_name: str, tool_args: dict, ctx: "ChannelTy
     return {**tool_args, "configuration": ctx.buddy_config_name}
 
 
+async def _build_sources_card_via_search_its(pool, ctx, question: str) -> dict | None:
+    """Детерминированная карточка «Источники ИТС»: после ask_1c_ai дотягиваем
+    search_its(configuration) сами (модель надёжно search_its не зовёт — предпочитает
+    ask_1c_ai/fetch_its). Best-effort: ошибка / пусто / нет ИТС-ссылок → None
+    (ответ остаётся без карточки, не валим turn).
+    """
+    src_args = _inject_buddy_configuration(
+        "buddy.search_its", {"query": question or ""}, ctx
+    )
+    try:
+        ok, result, _err = await _call_tool_with_retry(
+            pool.client_for("buddy.search_its"), "buddy.search_its", src_args
+        )
+    except MCPDisconnectedError:
+        return None
+    if not ok or result is None:
+        return None
+    return build_card_from_tool_result("buddy.search_its", src_args, result)
+
+
 def _typical_search_budget_exceeded(accumulated_tool_calls: list[dict]) -> bool:
     """True, если за ход уже сделано >= кап вызовов search_typical_objects."""
     n = sum(
@@ -2091,6 +2111,24 @@ async def run_chat_loop(
                     accumulated_cards.append(card)
                 accumulated_tool_calls.append(accum_entry)
                 messages.append(msg_entry)
+
+                # Детерминированные источники: после успешного ask_1c_ai сами дотягиваем
+                # search_its для карточки «Источники ИТС» (модель её надёжно не зовёт).
+                # Best-effort — ошибка/пусто не валит ответ.
+                if (
+                    tool_name == "buddy.ask_1c_ai"
+                    and event.ok
+                    and not any(c.get("type") == "its_sources" for c in accumulated_cards)
+                ):
+                    _src_q = tool_args.get("question") or tool_args.get("query") or request.message
+                    _src_card = await _build_sources_card_via_search_its(
+                        pool, channel_config_ctx, _src_q
+                    )
+                    if _src_card is not None:
+                        yield format_sse("card", CardEvent(
+                            type=_src_card["type"], payload=_src_card["payload"]
+                        ))
+                        accumulated_cards.append(_src_card)
 
                 # A-10 (audit): advisory-предупреждение, если анонимизация ВКЛ,
                 # но в результате data-инструмента нет ни одного маркера [XXX-NNN]
