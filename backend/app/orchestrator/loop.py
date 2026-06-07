@@ -1203,18 +1203,53 @@ def _typical_search_budget_exceeded(accumulated_tool_calls: list[dict]) -> bool:
     return n >= MAX_TYPICAL_SEARCH_CALLS_PER_TURN
 
 
+def _its_unavailable_block(*, buddy_status: str, its_tool_available: bool) -> str:
+    """Блок-инструкция, когда у LLM НЕТ ни одного источника ИТС.
+
+    ИТС-поиск идёт через живого Напарника (buddy MCP :6002). Если он offline
+    (status "down" — 3+ фейла пинга, либо "disabled" — выключен в конфиге) И
+    статического RAG-индекса тоже нет (its_tool_available=False) — у модели нет
+    способа честно ответить по ИТС. Чтобы она НЕ «делала вид, что искала»
+    (жалоба пользователя), просим её спросить пользователя: искать по его базе
+    или пройтись по типовой.
+
+    Если Напарник жив ("up"/"unknown") или есть RAG-fallback — блок пустой
+    (поведение прежнее).
+    """
+    if buddy_status not in ("down", "disabled"):
+        return ""
+    if its_tool_available:
+        return ""
+    return (
+        "═══════ ИТС НЕДОСТУПЕН ═══════\n"
+        "Живой источник ИТС (1С:Напарник) сейчас НЕДОСТУПЕН, и инструментов "
+        "поиска по ИТС у тебя НЕТ.\n"
+        "Если вопрос про ИТС / методику / стандарты / «как правильно по 1С» / БСП:\n"
+        "  • НЕ отвечай по «общим знаниям» и НЕ делай вид, что искал в ИТС.\n"
+        "  • Вызови clarify_question: question=«ИТС (Напарник) недоступен. Где "
+        "искать ответ?», options=[\"Поискать в вашей базе 1С\", \"Пройтись по "
+        "типовой конфигурации\"].\n"
+        "  • После ответа: «база» → MCP-инструменты живой базы; «типовая» → "
+        "list_typical_configurations / search_typical_objects / explain_typical_object.\n"
+        "Правило ТОЛЬКО для ИТС/методических вопросов. Вопросы про конкретную "
+        "базу (данные, метаданные, журнал) — как обычно, через MCP, без уточнения."
+    )
+
+
 def _build_full_system_prompt(
     mem_block: str,
     skills_block: str,
     todos_block: str,
     mentions_block: str = "",
     config_block: str = "",
+    its_block: str = "",
 ) -> str:
     """Собирает финальный system prompt из статичного SYSTEM_PROMPT + опциональных блоков.
 
-    Порядок: статика → config → memory → skills → mentions → todos. Config-блок
+    Порядок: статика → config → its → memory → skills → mentions → todos. Config-блок
     (B.4, Multi-base онбординг) идёт первым после статики — это важнейший
-    контекст о базе клиента, LLM должна знать его до любого инструктажа.
+    контекст о базе клиента, LLM должна знать его до любого инструктажа. its_block
+    (#3, честный fallback по ИТС) — сразу за config, тоже поведенческий override.
 
     Mentions блок — M-K1.14, генерируется `mentions_prefetch.prefetch_mentions`
     из @-mentions в user-сообщении.
@@ -1224,6 +1259,8 @@ def _build_full_system_prompt(
     prompt_parts = [SYSTEM_PROMPT]
     if config_block:
         prompt_parts.append(config_block)
+    if its_block:
+        prompt_parts.append(its_block)
     if mem_block:
         prompt_parts.append(mem_block)
     if skills_block:
@@ -1435,8 +1472,9 @@ async def run_chat_loop(
         # иначе модель зовёт мёртвый ИТС-инструмент, получает «не настроен» и
         # «делает вид», что искала в ИТС (жалоба пользователя). Сигнал — circuit
         # breaker buddy_monitor (status "down" = 3+ фейла пинга подряд).
+        _buddy_status = buddy_monitor.snapshot()["status"]
         mcp_tools = buddy_monitor.hide_buddy_tools_if_down(
-            mcp_tools, buddy_monitor.snapshot()["status"],
+            mcp_tools, _buddy_status,
         )
         # P1.2 phase 3 (2026-05-24): сборка openai_tools вынесена в helper.
         # MCP + memory_* + todo_* + clarify_question — единый список для LLM.
@@ -1470,12 +1508,21 @@ async def run_chat_loop(
     # (B.4, Multi-base онбординг) идёт первым — критичный контекст о базе клиента.
     # Skills блок включает инкремент usage telemetry (Sprint 3 A9). Mentions блок
     # (M-K1.14) — список dossiers, чтобы LLM не дублировала get_metadata.
+    # #3 честный fallback: если у LLM НЕТ источника ИТС (Напарник offline и нет
+    # статического RAG) — для ИТС-вопросов спрашиваем пользователя (база/типовая),
+    # а не «делаем вид», что искали. Иначе блок пустой и поведение прежнее.
+    _its_tool_available = (
+        settings is not None and is_its_enabled(settings) and _its_ready
+    )
     full_system_prompt = _build_full_system_prompt(
         memory_system_block(memory_manager),
         _render_skills_block(skill_store, skill_usage),
         render_todos_for_prompt(session_id),
         mentions_block=mentions_context_block,
         config_block=_build_config_block(channel_config_ctx),
+        its_block=_its_unavailable_block(
+            buddy_status=_buddy_status, its_tool_available=_its_tool_available,
+        ),
     )
 
     messages: list[dict] = [
