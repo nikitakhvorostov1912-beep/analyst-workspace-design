@@ -59,3 +59,27 @@ def test_snapshot_disabled():
 async def test_ping_down_endpoint_returns_false():
     # заведомо мёртвый порт
     assert await bm._ping("http://127.0.0.1:6599/mcp", timeout=1.0) is False
+
+
+# ---------- hide_buddy_tools_if_down (не предлагать мёртвый Напарник) ----------
+
+
+def test_hide_buddy_tools_when_down():
+    tools = [
+        {"name": "buddy.search_its"},
+        {"name": "buddy.fetch_its"},
+        {"name": "get_metadata"},
+        {"name": "execute_query"},
+    ]
+    out = bm.hide_buddy_tools_if_down(tools, "down")
+    names = [t["name"] for t in out]
+    assert "buddy.search_its" not in names
+    assert "buddy.fetch_its" not in names
+    assert "get_metadata" in names and "execute_query" in names
+
+
+def test_keep_buddy_tools_when_up_or_unknown():
+    tools = [{"name": "buddy.search_its"}, {"name": "get_metadata"}]
+    for status in ("up", "unknown", "disabled"):
+        out = bm.hide_buddy_tools_if_down(tools, status)
+        assert [t["name"] for t in out] == ["buddy.search_its", "get_metadata"]

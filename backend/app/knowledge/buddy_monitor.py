@@ -85,6 +85,23 @@ def snapshot() -> dict:
     }
 
 
+def hide_buddy_tools_if_down(mcp_tools: list[dict], status: str) -> list[dict]:
+    """Убирает buddy.* инструменты из списка, если Напарник недоступен (down).
+
+    Корень жалобы «бот делает вид, что искал в ИТС»: Напарник (buddy MCP, :6002)
+    лежит/без ключа, circuit breaker это знает (status="down"), но buddy.search_its
+    всё равно отдавался модели — она звала мёртвый tool, получала «не настроен» и
+    маскировала это. Когда down — не предлагаем buddy.* вовсе; при восстановлении
+    (status="up") tools снова доступны.
+
+    Фильтруем только при подтверждённом "down" (3+ фейла пинга). При "up"/
+    "unknown"/"disabled" список не трогаем (консервативно — не прячем рабочее).
+    """
+    if status != "down":
+        return mcp_tools
+    return [t for t in mcp_tools if not t.get("name", "").startswith("buddy.")]
+
+
 def _apply_check(ok: bool, *, now: float) -> None:
     """Обновить circuit-breaker по результату одного ping (чистая транзиция)."""
     _state.last_check_ts = now

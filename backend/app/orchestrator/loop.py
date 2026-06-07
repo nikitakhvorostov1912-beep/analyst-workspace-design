@@ -94,6 +94,7 @@ from app.knowledge.bsp_tool import (
     is_bsp_enabled,
     is_bsp_tool,
 )
+from app.knowledge import buddy_monitor
 from app.knowledge.its_tool import (
     ITS_TOOL_SCHEMA,
     dispatch_its_tool,
@@ -1430,6 +1431,13 @@ async def run_chat_loop(
     try:
         await pool.initialize_all()
         mcp_tools = await pool.list_all_tools()
+        # Напарник (buddy, :6002) лежит → убираем buddy.* из набора инструментов,
+        # иначе модель зовёт мёртвый ИТС-инструмент, получает «не настроен» и
+        # «делает вид», что искала в ИТС (жалоба пользователя). Сигнал — circuit
+        # breaker buddy_monitor (status "down" = 3+ фейла пинга подряд).
+        mcp_tools = buddy_monitor.hide_buddy_tools_if_down(
+            mcp_tools, buddy_monitor.snapshot()["status"],
+        )
         # P1.2 phase 3 (2026-05-24): сборка openai_tools вынесена в helper.
         # MCP + memory_* + todo_* + clarify_question — единый список для LLM.
         # M-K2.7: + search_its (ИТС RAG) если settings.is_its_ready И индекс
