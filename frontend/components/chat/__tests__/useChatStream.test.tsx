@@ -456,4 +456,50 @@ describe("useChatStream", () => {
     expect(errSpy).toHaveBeenCalled();
     errSpy.mockRestore();
   });
+
+  // --- PERF: throttle дельт (фикс «зависает всё» во время стрима) ---
+
+  it("много дельт + done → полный контент (throttle-буфер добивается на done)", async () => {
+    const events: SSEEvent[] = [
+      { event: "delta", data: { content: "а" } },
+      { event: "delta", data: { content: "б" } },
+      { event: "delta", data: { content: "в" } },
+      { event: "delta", data: { content: "г" } },
+      { event: "delta", data: { content: "д" } },
+      { event: "done", data: { message_id: "done-id", total_duration_ms: 100 } },
+    ];
+    vi.mocked(fetchChat).mockReturnValue(makeStream(events));
+
+    const { result } = renderHook(() =>
+      useChatStream({ sessionId: "s1", channelId: "ch1" }),
+    );
+
+    await act(async () => {
+      await result.current.send("вопрос");
+    });
+
+    const assistant = result.current.messages.find((m) => m.role === "assistant");
+    expect(assistant?.content).toBe("абвгд");
+  });
+
+  it("дельты без события done сохраняются (flush на обрыве стрима, не теряем хвост)", async () => {
+    const events: SSEEvent[] = [
+      { event: "delta", data: { content: "часть1 " } },
+      { event: "delta", data: { content: "часть2 " } },
+      { event: "delta", data: { content: "часть3" } },
+      // намеренно НЕТ done — стрим обрывается; throttle-буфер обязан сброситься
+    ];
+    vi.mocked(fetchChat).mockReturnValue(makeStream(events));
+
+    const { result } = renderHook(() =>
+      useChatStream({ sessionId: "s1", channelId: "ch1" }),
+    );
+
+    await act(async () => {
+      await result.current.send("вопрос");
+    });
+
+    const assistant = result.current.messages.find((m) => m.role === "assistant");
+    expect(assistant?.content).toBe("часть1 часть2 часть3");
+  });
 });

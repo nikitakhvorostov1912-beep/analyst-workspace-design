@@ -64,6 +64,14 @@ const LLM_ERROR_CODES = new Set<ErrorCode>([
 ]);
 
 /**
+ * PERF: пауза между сбросами буфера дельт во время стрима (мс). setMessages на
+ * КАЖДЫЙ SSE-токен заставлял ReactMarkdown пере-парсить весь растущий ответ
+ * десятки раз в секунду → O(N²) на main-thread → UI «зависает», скролл мёртв.
+ * Копим дельты и применяем пачкой не чаще раза в DELTA_FLUSH_MS (~15 ре-парсов/с).
+ */
+const DELTA_FLUSH_MS = 64;
+
+/**
  * Hook управления SSE-стримом чата.
  *
  * Принимает initialMessages (из history) и добавляет новые по мере стриминга.
@@ -96,13 +104,40 @@ export function useChatStream({
   const abortRef = useRef<AbortController | null>(null);
   const mountedRef = useRef<boolean>(true);
 
+  // PERF: буфер дельт + таймер сброса (throttle ре-рендера разметки во время стрима)
+  const pendingDeltaRef = useRef<string>("");
+  const flushTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   useEffect(() => {
     mountedRef.current = true;
     return () => {
       mountedRef.current = false;
       // Отменяем активный стрим на размонтировании / закрытии вкладки
       abortRef.current?.abort();
+      if (flushTimerRef.current !== null) {
+        clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
     };
+  }, []);
+
+  // PERF: применяет накопленные дельты одним setMessages и гасит таймер.
+  // Вызывается по таймеру (DELTA_FLUSH_MS) и принудительно на терминальных
+  // событиях (done/error/обрыв стрима), чтобы не потерять хвост ответа.
+  const flushPendingDelta = useCallback(() => {
+    if (flushTimerRef.current !== null) {
+      clearTimeout(flushTimerRef.current);
+      flushTimerRef.current = null;
+    }
+    const pending = pendingDeltaRef.current;
+    if (!pending) return;
+    pendingDeltaRef.current = "";
+    if (!mountedRef.current) return;
+    setMessages((prev) => {
+      const last = prev[prev.length - 1];
+      if (!last || last.role !== "assistant") return prev;
+      return [...prev.slice(0, -1), { ...last, content: last.content + pending }];
+    });
   }, []);
 
   // Сброс state при смене сессии. Без этого Next.js не размонтирует страницу
@@ -118,6 +153,12 @@ export function useChatStream({
       // не сбивали историю новой сессии.
       abortRef.current?.abort();
       abortRef.current = null;
+      // Сбрасываем throttle-буфер прошлой сессии
+      pendingDeltaRef.current = "";
+      if (flushTimerRef.current !== null) {
+        clearTimeout(flushTimerRef.current);
+        flushTimerRef.current = null;
+      }
       lastSessionIdRef.current = sessionId;
       setMessages(initialMessages);
       setIsStreaming(false);
@@ -238,15 +279,12 @@ export function useChatStream({
           if (event.event === "status") {
             setStreamingStage(event.data.stage);
           } else if (event.event === "delta") {
-            const content = event.data.content;
-            setMessages((prev) => {
-              const last = prev[prev.length - 1];
-              if (!last || last.role !== "assistant") return prev;
-              return [
-                ...prev.slice(0, -1),
-                { ...last, content: last.content + content },
-              ];
-            });
+            // PERF: НЕ setMessages на каждый токен — копим в буфер, сбрасываем
+            // пачкой по таймеру. Иначе разметка пере-парсится на каждый токен.
+            pendingDeltaRef.current += event.data.content;
+            if (flushTimerRef.current === null) {
+              flushTimerRef.current = setTimeout(flushPendingDelta, DELTA_FLUSH_MS);
+            }
           } else if (event.event === "tool_call") {
             setCurrentToolName(event.data.name);
             const tc: ToolCallRecord = {
@@ -294,6 +332,7 @@ export function useChatStream({
             // Sprint 4 (D1): LLM попросила уточнение
             setPendingClarify(event.data);
           } else if (event.event === "done") {
+            flushPendingDelta(); // добиваем буфер дельт перед финализацией
             const { message_id, total_duration_ms } = event.data;
             setMessages((prev) => {
               const last = prev[prev.length - 1];
@@ -308,6 +347,7 @@ export function useChatStream({
             setIsStreaming(false);
             onBannerHide?.();
           } else if (event.event === "error") {
+            flushPendingDelta(); // сохраняем частичный ответ рядом с ошибкой
             const { code, message } = event.data;
             const retryAfterS = event.data.retry_after_s;
 
@@ -363,6 +403,7 @@ export function useChatStream({
         if (!mountedRef.current) {
           return;
         }
+        flushPendingDelta(); // сохраняем частичный ответ перед показом ошибки
         const msg = err instanceof Error ? err.message : "Неизвестная ошибка";
         // Отличаем баги рендера/программные ошибки React от реальных сетевых
         // сбоев. React-ошибки («Maximum update depth» и т.п.) НЕ показываем
@@ -394,6 +435,9 @@ export function useChatStream({
           ];
         });
       } finally {
+        // PERF: на любом завершении стрима (в т.ч. обрыв без done) добиваем
+        // буфер дельт, иначе хвост ответа потеряется.
+        flushPendingDelta();
         // W1.7: setState только если ещё mounted (после await loop'а компонент
         // мог размонтироваться)
         if (mountedRef.current) {
@@ -407,7 +451,7 @@ export function useChatStream({
         }
       }
     },
-    [isStreaming, sessionId, channelId, onBannerShow, onBannerHide, configCache],
+    [isStreaming, sessionId, channelId, onBannerShow, onBannerHide, configCache, flushPendingDelta],
   );
 
   const resolveConfirm = useCallback(
