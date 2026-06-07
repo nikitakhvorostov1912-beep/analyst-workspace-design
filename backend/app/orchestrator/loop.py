@@ -1466,6 +1466,10 @@ async def run_chat_loop(
     accumulated_content = ""
     accumulated_tool_calls: list[dict] = []
     accumulated_cards: list[dict] = []
+    # M-K3: был ли в этом turn успешный knowledge-вызов buddy.ask_1c_ai.
+    # Если да и модель сама не дала карточку «Источники ИТС» — детерминированно
+    # дотянем search_its на turn-end (см. конец цикла), чтобы не плодить дубль.
+    ask_1c_ai_called = False
 
     # M-K1.14: emit mention cards (object dossiers из metadata_cache) ДО
     # первого `status: thinking`. Юзер видит карту мгновенно, ещё до того
@@ -2112,23 +2116,12 @@ async def run_chat_loop(
                 accumulated_tool_calls.append(accum_entry)
                 messages.append(msg_entry)
 
-                # Детерминированные источники: после успешного ask_1c_ai сами дотягиваем
-                # search_its для карточки «Источники ИТС» (модель её надёжно не зовёт).
-                # Best-effort — ошибка/пусто не валит ответ.
-                if (
-                    tool_name == "buddy.ask_1c_ai"
-                    and event.ok
-                    and not any(c.get("type") == "its_sources" for c in accumulated_cards)
-                ):
-                    _src_q = tool_args.get("question") or tool_args.get("query") or request.message
-                    _src_card = await _build_sources_card_via_search_its(
-                        pool, channel_config_ctx, _src_q
-                    )
-                    if _src_card is not None:
-                        yield format_sse("card", CardEvent(
-                            type=_src_card["type"], payload=_src_card["payload"]
-                        ))
-                        accumulated_cards.append(_src_card)
+                # M-K3: запоминаем успешный knowledge-вызов ask_1c_ai. Карточку
+                # «Источники ИТС» НЕ строим здесь (inline) — это плодило дубль,
+                # когда модель в этом же turn сама звала search_its. Детерминированный
+                # fallback перенесён на turn-end (см. после цикла).
+                if tool_name == "buddy.ask_1c_ai" and event.ok:
+                    ask_1c_ai_called = True
 
                 # A-10 (audit): advisory-предупреждение, если анонимизация ВКЛ,
                 # но в результате data-инструмента нет ни одного маркера [XXX-NNN]
@@ -2142,6 +2135,29 @@ async def run_chat_loop(
                     )
 
             yield format_sse("status", StatusEvent(stage="formatting"))
+
+        # M-K3 (turn-end): детерминированная карточка «Источники ИТС».
+        # Если был успешный knowledge-вызов ask_1c_ai, но модель сама НЕ дала
+        # карточку источников — дотягиваем search_its ОДИН раз здесь, на turn-end.
+        # Именно на turn-end (а не inline после ask_1c_ai), чтобы НЕ плодить дубль:
+        # к этому моменту карточка модельного search_its (если был) уже в
+        # accumulated_cards → условие ниже её увидит и fallback не сработает.
+        # Best-effort: любая ошибка не должна ронять сохранение ответа.
+        if ask_1c_ai_called and not any(
+            c.get("type") == "its_sources" for c in accumulated_cards
+        ):
+            try:
+                _src_card = await _build_sources_card_via_search_its(
+                    pool, channel_config_ctx, request.message
+                )
+            except Exception:
+                logger.debug("turn-end ИТС-карточка best-effort упала", exc_info=True)
+                _src_card = None
+            if _src_card is not None:
+                yield format_sse("card", CardEvent(
+                    type=_src_card["type"], payload=_src_card["payload"]
+                ))
+                accumulated_cards.append(_src_card)
 
     except Exception as exc:
         logger.exception("Непредвиденная ошибка в tool-calling loop")

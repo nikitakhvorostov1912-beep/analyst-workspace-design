@@ -172,6 +172,130 @@ async def test_loop_one_tool_call(mem_db, monkeypatch):
     assert tool_calls[0]["name"] == "execute_query"
 
 
+# --- Тест 2b: детерминированная карточка ИТС не дублируется (turn-end) ---
+
+@pytest.mark.asyncio
+async def test_loop_its_sources_card_not_duplicated(mem_db, monkeypatch):
+    """Регресс: модель в одном turn зовёт buddy.ask_1c_ai И buddy.search_its.
+    Карточку «Источники ИТС» строит модельный search_its; детерминированный
+    fallback НЕ должен добавлять вторую. Ожидаем РОВНО одну its_sources-карточку.
+    """
+    import app.orchestrator.loop as loop_module
+    from types import SimpleNamespace
+
+    call_count = [0]
+
+    class FakeLLM:
+        def __init__(self, *a, **kw): pass
+
+        def stream_chat_completion(self, *a, **kw):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return stub_llm_stream(
+                    make_tool_call_chunk(0, "tc1", "buddy.ask_1c_ai", '{"question":"Как настроить RLS?"}'),
+                    make_tool_calls_finish_chunk(),
+                )
+            if call_count[0] == 2:
+                return stub_llm_stream(
+                    make_tool_call_chunk(0, "tc2", "buddy.search_its", '{"query":"RLS"}'),
+                    make_tool_calls_finish_chunk(),
+                )
+            return stub_llm_stream(make_text_chunk("Ответ про RLS"), make_stop_chunk())
+
+        async def aclose(self): pass
+
+    its_md = (
+        "[Практическое пособие разработчика]"
+        "(https://its.1c.ru/db/pubdevguide83#content:461:hdoc)\n"
+        "[Управление доступом](https://its.1c.ru/db/ut115doc#content:14:hdoc)\n"
+    )
+    fake_buddy = FakeMCPClient(
+        tool_map={
+            "buddy.ask_1c_ai": {"content": [{"type": "text", "text": "RLS — в группах доступа."}]},
+            "buddy.search_its": {"content": [{"type": "text", "text": its_md}]},
+        },
+        tools=[
+            {"name": "buddy.ask_1c_ai", "description": "ИТС-ответ", "inputSchema": {"type": "object", "properties": {}}},
+            {"name": "buddy.search_its", "description": "ИТС-поиск", "inputSchema": {"type": "object", "properties": {}}},
+        ],
+    )
+    fake_buddy.config = SimpleNamespace(name="fake-buddy")
+    fake_buddy._is_http_aux = True
+
+    monkeypatch.setattr(loop_module, "LLMClient", FakeLLM)
+    monkeypatch.setattr(loop_module, "MCPClient", lambda *a, **kw: FakeMCPClient("http://fake"))
+    monkeypatch.setattr(loop_module, "build_aux_clients", lambda settings: [fake_buddy])
+
+    request = make_request("Как настроить RLS в КА?")
+    events = await collect_sse(loop_module.run_chat_loop(
+        mem_db, request, "api-key", "http://llm", "model"
+    ))
+
+    its_cards = [
+        e for e in events
+        if e["event"] == "card" and e["data"]["type"] == "its_sources"
+    ]
+    assert len(its_cards) == 1, f"ожидали 1 its_sources-карточку, получили {len(its_cards)}"
+    assert "error" not in [e["event"] for e in events]
+
+
+# --- Тест 2c: детерминированный fallback строит карточку, если модель не звала search_its ---
+
+@pytest.mark.asyncio
+async def test_loop_its_sources_card_fallback_when_model_skips_search(mem_db, monkeypatch):
+    """Если модель звала buddy.ask_1c_ai, но сама search_its НЕ вызвала —
+    детерминированный fallback на turn-end дотягивает РОВНО одну its_sources-карточку.
+    """
+    import app.orchestrator.loop as loop_module
+    from types import SimpleNamespace
+
+    call_count = [0]
+
+    class FakeLLM:
+        def __init__(self, *a, **kw): pass
+
+        def stream_chat_completion(self, *a, **kw):
+            call_count[0] += 1
+            if call_count[0] == 1:
+                return stub_llm_stream(
+                    make_tool_call_chunk(0, "tc1", "buddy.ask_1c_ai", '{"question":"Что такое РАУЗ?"}'),
+                    make_tool_calls_finish_chunk(),
+                )
+            return stub_llm_stream(make_text_chunk("РАУЗ — это..."), make_stop_chunk())
+
+        async def aclose(self): pass
+
+    its_md = "[Учёт затрат](https://its.1c.ru/db/pubdevguide83#content:99:hdoc)\n"
+    fake_buddy = FakeMCPClient(
+        tool_map={
+            "buddy.ask_1c_ai": {"content": [{"type": "text", "text": "РАУЗ — расширенная аналитика."}]},
+            "buddy.search_its": {"content": [{"type": "text", "text": its_md}]},
+        },
+        tools=[
+            {"name": "buddy.ask_1c_ai", "description": "ИТС-ответ", "inputSchema": {"type": "object", "properties": {}}},
+            {"name": "buddy.search_its", "description": "ИТС-поиск", "inputSchema": {"type": "object", "properties": {}}},
+        ],
+    )
+    fake_buddy.config = SimpleNamespace(name="fake-buddy")
+    fake_buddy._is_http_aux = True
+
+    monkeypatch.setattr(loop_module, "LLMClient", FakeLLM)
+    monkeypatch.setattr(loop_module, "MCPClient", lambda *a, **kw: FakeMCPClient("http://fake"))
+    monkeypatch.setattr(loop_module, "build_aux_clients", lambda settings: [fake_buddy])
+
+    request = make_request("Что такое РАУЗ в КА?")
+    events = await collect_sse(loop_module.run_chat_loop(
+        mem_db, request, "api-key", "http://llm", "model"
+    ))
+
+    its_cards = [
+        e for e in events
+        if e["event"] == "card" and e["data"]["type"] == "its_sources"
+    ]
+    assert len(its_cards) == 1, f"ожидали 1 its_sources-карточку (fallback), получили {len(its_cards)}"
+    assert "error" not in [e["event"] for e in events]
+
+
 # --- Тест 3: Два последовательных tool_call ---
 
 @pytest.mark.asyncio
